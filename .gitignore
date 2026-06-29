@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Node / package managers
+node_modules/
+.npm/
+.pnpm-store/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Agent/runtime scratch
+.hermes/tmp/
+.paperclip/tmp/
