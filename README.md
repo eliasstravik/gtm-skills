@@ -10,6 +10,7 @@ Skills are small, composable instruction packages that teach an agent how to com
 
 This repo is intended to be:
 
+- **Portable** — distributed as a skills.sh-compatible Agent Skills library first, with optional helper scripts but no required custom global CLI for the MVP.
 - **Practical** — focused on workflows GTM teams actually run.
 - **Composable** — skills should reference shared context and each other where useful.
 - **Evidence-seeking** — research, claims, and recommendations should cite their sources or explain assumptions.
@@ -47,4 +48,6 @@ Each skill should be self-contained, but high-value skills can share reusable re
 
 ## Status
 
-Private project scaffold. The next step is to turn the initial scope into Paperclip tasks for the first batch of GTM skills.
+Private project scaffold. The active implementation step is the foundation-first MVP slice: `gtm-setup`, `~/.gtm/registry.json` handling, context repo scaffolding, context resolution, skill metadata validation, and core templates before downstream GTM workflow skills.
+
+All shipped skills must use the `gtm-` prefix and target skills.sh-compatible Agent Skill distribution first. Use the fictional Northstar Compliance scenario as the canonical demo/verification fixture.
