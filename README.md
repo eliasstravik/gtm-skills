@@ -10,7 +10,7 @@ Skills are small, composable instruction packages that teach an agent how to com
 
 This repo is intended to be:
 
-- **Portable** — distributed as a skills.sh-compatible Agent Skills library first, with optional helper scripts but no required custom global CLI for the MVP.
+- **Portable** — distributed as a skills.sh-compatible Agent Skills library first, with optional helper scripts but no required custom global CLI.
 - **Practical** — focused on workflows GTM teams actually run.
 - **Composable** — skills should reference shared context and each other where useful.
 - **Evidence-seeking** — research, claims, and recommendations should cite their sources or explain assumptions.
@@ -104,14 +104,24 @@ skills/
     references/
     scripts/
     templates/
+    evals/
 docs/
-  project-brief.md
+  taxonomy.yaml
+fixtures/
+scripts/
+tests/
 ```
 
-Each skill should be self-contained, but high-value skills can share reusable references, scripts, and templates.
+Each skill should be self-contained. Optional support folders are included only when they materially improve the skill: longer references, deterministic helpers, reusable templates, or runnable eval definitions. Generated eval evidence under `skills/*/evals/results/` is intentionally ignored and should not be committed.
 
 ## Status
 
-Private project scaffold. The active implementation step is the foundation-first MVP slice: `gtm-setup`, `~/.gtm/registry.json` handling, context repo scaffolding, context resolution, skill metadata validation, and core templates before downstream GTM workflow skills.
+This public package contains the current `gtm-` skill library, the taxonomy used to validate skill metadata, helper scripts for catalog and scaffold checks, focused tests, and the fictional Northstar Compliance fixture used for demo and verification coverage.
 
-All shipped skills must use the `gtm-` prefix and target skills.sh-compatible Agent Skill distribution first. Use the fictional Northstar Compliance scenario as the canonical demo/verification fixture.
+Run the smallest relevant checks before distributing changes:
+
+```bash
+python3 scripts/validate_skill_metadata.py --quiet
+python3 scripts/generate_readme_catalog.py
+python3 -m unittest discover tests
+```

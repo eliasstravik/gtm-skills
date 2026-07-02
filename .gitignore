@@ -22,3 +22,6 @@ __pycache__/
 # Agent/runtime scratch
 .hermes/tmp/
 .paperclip/tmp/
+
+# Generated eval evidence
+skills/*/evals/results/
