@@ -1,0 +1,12 @@
+{
+  "assertions": [
+    "The bulk run summary processes 8 records and includes research priority distribution, persona distribution, fit distribution, low-confidence count, open-question count, and records needing review.",
+    "Every fixture row is assigned the expected persona, score, and fit label from the Northstar lead fixture.",
+    "The compact CSV output includes lead_id, account_id, account_name, lead_name, title, persona_label, score, fit_label, research_priority, confidence, needs_review, reasoning, lead_research_brief, role_relevance, likely_priorities, account_context, personalization_angles, recommended_next_step, top_evidence, and open_questions.",
+    "The two no-match rows use research_priority low, and Anika Shah is low confidence with needs_review true.",
+    "The bulk output remains ephemeral and performs no durable write, git commit, CRM update, outreach, campaign trigger, sync, or remote push."
+  ],
+  "eval_id": 1,
+  "eval_name": "csv-bulk-lead-research",
+  "prompt": "Use gtm-lead-research to process fixtures/northstar-compliance/leads.csv as a bulk lead research run for Northstar Compliance."
+}

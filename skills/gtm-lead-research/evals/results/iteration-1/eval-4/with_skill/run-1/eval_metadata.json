@@ -1,0 +1,10 @@
+{
+  "assertions": [
+    "The output says the workspace has no usable workspaces/fintech-compliance-outbound/personas.md and routes to gtm-define-personas.",
+    "No research result is produced.",
+    "No new commit is created after the fixture initialization commit."
+  ],
+  "eval_id": 4,
+  "eval_name": "missing-personas-failure",
+  "prompt": "Use gtm-lead-research for Northstar Compliance's active fintech compliance outbound workspace before any personas have been defined."
+}
