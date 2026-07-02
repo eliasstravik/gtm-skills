@@ -34,3 +34,4 @@ Only create support folders when the skill actually needs them.
 - Separate facts from assumptions.
 - Keep each skill focused on one workflow or tightly related workflow family.
 - Include examples only when they improve execution quality.
+- After adding or changing a skill, run `python3 scripts/generate_readme_catalog.py` and commit the regenerated README catalog.

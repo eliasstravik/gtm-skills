@@ -1,0 +1,46 @@
+{
+  "claims": [],
+  "eval_feedback": {
+    "overall": "No suggestions, deterministic assertions cover the lead segmentation contract.",
+    "suggestions": []
+  },
+  "execution_metrics": {
+    "errors_encountered": 0,
+    "output_chars": 1454,
+    "tool_calls": {},
+    "total_steps": 3,
+    "total_tool_calls": 0,
+    "transcript_chars": 0
+  },
+  "expectations": [
+    {
+      "evidence": "Transcript contains the exact missing-context wording.",
+      "passed": true,
+      "text": "The output includes the exact ADR 0086 missing-context failure wording."
+    },
+    {
+      "evidence": "No segmentation output files were found under the isolated temp root.",
+      "passed": true,
+      "text": "No segmentation output file is created."
+    },
+    {
+      "evidence": "No .git directories were found under the isolated temp root.",
+      "passed": true,
+      "text": "No git repository is initialized and no durable side effects are performed."
+    }
+  ],
+  "summary": {
+    "failed": 0,
+    "pass_rate": 1.0,
+    "passed": 3,
+    "total": 3
+  },
+  "timing": {
+    "total_duration_seconds": 0.0003
+  },
+  "user_notes_summary": {
+    "needs_review": [],
+    "uncertainties": [],
+    "workarounds": []
+  }
+}

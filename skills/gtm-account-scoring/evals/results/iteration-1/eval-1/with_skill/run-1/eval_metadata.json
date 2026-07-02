@@ -1,0 +1,12 @@
+{
+  "assertions": [
+    "The bulk run summary processes 8 records and includes fit distribution counts, low-confidence count, open-question count, and records needing review.",
+    "Every fixture row is assigned the expected score and fit label from the Northstar account fixture.",
+    "The compact CSV output includes account_id, account_name, segment_label, score, fit_label, confidence, needs_review, reasoning, evidence_summary, positives, risks_disqualifiers, recommended_action, top_evidence, and open_questions.",
+    "The two no-match rows use fit_label not-a-fit with scores at or below 49, and VerityLoop Finance is low confidence with needs_review true.",
+    "The bulk output remains ephemeral and performs no durable write, git commit, CRM update, outreach, campaign trigger, sync, or remote push."
+  ],
+  "eval_id": 1,
+  "eval_name": "csv-bulk-account-scoring",
+  "prompt": "Use gtm-account-scoring to process fixtures/northstar-compliance/accounts.csv as a bulk account scoring run for Northstar Compliance."
+}

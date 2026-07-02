@@ -1,0 +1,24 @@
+{
+  "expectations": [
+    {
+      "evidence": "Maya Chen -> head-of-compliance, high, needs_review=False.",
+      "passed": true,
+      "text": "The one-off result assigns Maya Chen to head-of-compliance with high confidence and needs_review false."
+    },
+    {
+      "evidence": "One-off output contains dependency trace, personas path, and required result fields.",
+      "passed": true,
+      "text": "The output includes dependency trace, the personas source path, persona_label, confidence, reasoning, needs_review, evidence, and open_questions."
+    },
+    {
+      "evidence": "Output uses workspace-context and user-provided-context provenance types.",
+      "passed": true,
+      "text": "The evidence distinguishes workspace-context from user-provided-context using the ADR 0053 provenance vocabulary."
+    },
+    {
+      "evidence": "Git status: <clean>. Summary reports no side effects.",
+      "passed": true,
+      "text": "The execution summary says no durable context write, git commit, CRM update, outreach, campaign trigger, sync, or remote push happened."
+    }
+  ]
+}

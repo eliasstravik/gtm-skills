@@ -1,0 +1,42 @@
+{
+  "skill_name": "gtm-define-icp",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Use gtm-define-icp to create ICP definitions for Northstar Compliance's active fintech compliance outbound workspace. Use the existing workspace context and confirm the durable write preview.",
+      "expected_output": "A new workspaces/fintech-compliance-outbound/icps.md file with account-level ICP segments, a no-match segment, durable-write preview evidence, and an isolated auto-commit for the ICP file only.",
+      "files": [],
+      "expectations": [
+        "The preview names workspaces/fintech-compliance-outbound/icps.md, sections to create, the commit message, and states no outreach, CRM update, campaign trigger, sync, remote push, or other external side effect will happen.",
+        "The created icps.md includes the three Northstar account ICP machine labels plus no-match, and does not include persona definitions.",
+        "Each created segment includes strong signals, disqualifiers, provenance/source notes, confidence, reasoning, needs_review, and open questions.",
+        "The auto-commit exists, uses the Create ICP definitions subject, and changes only workspaces/fintech-compliance-outbound/icps.md.",
+        "The GTM scaffold checker passes and local active registry state remains outside the GTM Context Repository."
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Use gtm-define-icp to refine Northstar Compliance's existing ICPs. Add an insurance claims operations signal and a service-provider caveat to the regulated B2B SaaS segment while preserving existing human-authored ICP content.",
+      "expected_output": "The existing icps.md is updated non-destructively, the requested signal and caveat are added once, human-authored notes are preserved, and auto-commit is skipped when target-file isolation is unclear.",
+      "files": [],
+      "expectations": [
+        "The update preserves existing ICP segment labels, no-match, and a human-authored note instead of destructively replacing the file.",
+        "The regulated-b2b-saas segment includes the new insurance claims operations signal and service-provider caveat exactly once.",
+        "The updated icps.md has unique machine labels and exactly one no-match section.",
+        "The execution summary says auto-commit was skipped because the target file had pre-existing uncommitted edits, and says changes remain uncommitted with no push.",
+        "Unrelated pre-existing working-tree changes are left uncommitted and unstaged."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Use gtm-define-icp from a directory with no GTM Context Project and no active registry.",
+      "expected_output": "The skill stops with the ADR 0086 missing-context wording and does not create files or perform git side effects.",
+      "files": [],
+      "expectations": [
+        "The output includes the exact ADR 0086 missing-context failure wording.",
+        "No icps.md file is created.",
+        "No git repository is initialized and no durable side effects are performed."
+      ]
+    }
+  ]
+}

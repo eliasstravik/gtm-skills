@@ -1,0 +1,51 @@
+{
+  "claims": [],
+  "eval_feedback": {
+    "overall": "No suggestions, deterministic assertions cover the lead segmentation contract.",
+    "suggestions": []
+  },
+  "execution_metrics": {
+    "errors_encountered": 0,
+    "output_chars": 5253,
+    "tool_calls": {},
+    "total_steps": 4,
+    "total_tool_calls": 0,
+    "transcript_chars": 0
+  },
+  "expectations": [
+    {
+      "evidence": "Parsed 2 records from markdown table.",
+      "passed": true,
+      "text": "The markdown table parser extracts 2 lead records."
+    },
+    {
+      "evidence": "Labels: Priya Nair=risk-trust-safety-lead, Sam Ortiz=no-match.",
+      "passed": true,
+      "text": "Priya Nair is assigned risk-trust-safety-lead and Sam Ortiz is assigned no-match."
+    },
+    {
+      "evidence": "Table-mode output includes a run summary and compact per-record provenance table.",
+      "passed": true,
+      "text": "The table-mode output includes a bulk run summary and compact per-record provenance fields."
+    },
+    {
+      "evidence": "No-match output explains the disqualifier and does not invent labels.",
+      "passed": true,
+      "text": "The no-match result explains the disqualifier and does not invent a new persona label."
+    }
+  ],
+  "summary": {
+    "failed": 0,
+    "pass_rate": 1.0,
+    "passed": 4,
+    "total": 4
+  },
+  "timing": {
+    "total_duration_seconds": 0.0015
+  },
+  "user_notes_summary": {
+    "needs_review": [],
+    "uncertainties": [],
+    "workarounds": []
+  }
+}

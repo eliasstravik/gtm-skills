@@ -1,0 +1,19 @@
+{
+  "expectations": [
+    {
+      "evidence": "Transcript contains the missing-ICP prerequisite message and routes to gtm-define-icp.",
+      "passed": true,
+      "text": "The output says the workspace has no usable workspaces/fintech-compliance-outbound/icps.md and routes to gtm-define-icp."
+    },
+    {
+      "evidence": "No personas.md file exists in the active workspace.",
+      "passed": true,
+      "text": "No personas.md file is created."
+    },
+    {
+      "evidence": "Initial commit 1918ebbd remained HEAD.",
+      "passed": true,
+      "text": "No new commit is created after the fixture initialization commit."
+    }
+  ]
+}

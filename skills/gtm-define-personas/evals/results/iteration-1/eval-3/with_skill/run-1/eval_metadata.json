@@ -1,0 +1,10 @@
+{
+  "assertions": [
+    "The output says the workspace has no usable workspaces/fintech-compliance-outbound/icps.md and routes to gtm-define-icp.",
+    "No personas.md file is created.",
+    "No new commit is created after the fixture initialization commit."
+  ],
+  "eval_id": 3,
+  "eval_name": "missing-icp-prerequisite",
+  "prompt": "Use gtm-define-personas for Northstar Compliance's active fintech compliance outbound workspace before any ICPs have been defined."
+}

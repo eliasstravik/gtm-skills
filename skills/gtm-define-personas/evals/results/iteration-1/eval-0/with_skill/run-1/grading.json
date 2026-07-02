@@ -1,0 +1,56 @@
+{
+  "claims": [],
+  "eval_feedback": {
+    "overall": "No suggestions, deterministic assertions cover the durable persona write contract.",
+    "suggestions": []
+  },
+  "execution_metrics": {
+    "errors_encountered": 0,
+    "output_chars": 14065,
+    "tool_calls": {},
+    "total_steps": 5,
+    "total_tool_calls": 0,
+    "transcript_chars": 1296
+  },
+  "expectations": [
+    {
+      "evidence": "Preview includes target file, persona sections, preserved ICP context, commit intent, and no external side effects.",
+      "passed": true,
+      "text": "The preview names workspaces/fintech-compliance-outbound/personas.md, sections to create, the commit message, preserved ICP context, and states no outreach, CRM update, campaign trigger, sync, remote push, or other external side effect will happen."
+    },
+    {
+      "evidence": "Machine labels found: head-of-compliance, no-match, risk-trust-safety-lead, vp-operations; no ICP segment headings found.",
+      "passed": true,
+      "text": "The created personas.md includes the three Northstar persona machine labels plus no-match, and does not include account-level ICP segment headings."
+    },
+    {
+      "evidence": "Every non-no-match persona includes the required titles, responsibilities, pain/priority, objection, hook, ICP, provenance, confidence, reasoning, review, and open-question fields.",
+      "passed": true,
+      "text": "Each created persona includes titles, responsibilities, pain/priority signals, objections or disqualifiers, outreach hooks, ICP relevance, provenance/source notes, confidence, reasoning, needs_review, and open questions."
+    },
+    {
+      "evidence": "Commit 7f6a32e6 subject 'Create persona definitions' changed: workspaces/fintech-compliance-outbound/personas.md.",
+      "passed": true,
+      "text": "The auto-commit exists, uses the Create persona definitions subject, and changes only workspaces/fintech-compliance-outbound/personas.md."
+    },
+    {
+      "evidence": "Scaffold checker passed; icps.md was unchanged; registry is under temp GTM_HOME, not the project repo; target file was clean before write.",
+      "passed": true,
+      "text": "The GTM scaffold checker passes, icps.md is unchanged, and local active registry state remains outside the GTM Context Repository."
+    }
+  ],
+  "summary": {
+    "failed": 0,
+    "pass_rate": 1.0,
+    "passed": 5,
+    "total": 5
+  },
+  "timing": {
+    "total_duration_seconds": 0.1
+  },
+  "user_notes_summary": {
+    "needs_review": [],
+    "uncertainties": [],
+    "workarounds": []
+  }
+}

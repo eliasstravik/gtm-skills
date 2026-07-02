@@ -1,0 +1,51 @@
+{
+  "claims": [],
+  "eval_feedback": {
+    "overall": "No suggestions, deterministic assertions cover the lead scoring contract.",
+    "suggestions": []
+  },
+  "execution_metrics": {
+    "errors_encountered": 0,
+    "output_chars": 6585,
+    "tool_calls": {},
+    "total_steps": 4,
+    "total_tool_calls": 0,
+    "transcript_chars": 1856
+  },
+  "expectations": [
+    {
+      "evidence": "Maya Chen -> head-of-compliance, score=94, excellent-fit, high, needs_review=False.",
+      "passed": true,
+      "text": "The one-off result assigns Maya Chen persona_label head-of-compliance, score 94, fit_label excellent-fit, confidence high, and needs_review false."
+    },
+    {
+      "evidence": "One-off output contains dependency trace, source paths, composed segmentation, and required fields.",
+      "passed": true,
+      "text": "The output includes dependency trace, persona source path, scoring source path, composed gtm-lead-segmentation, score, fit_label, evidence_summary, positives, risks_disqualifiers, recommended_action, confidence, reasoning, needs_review, evidence, and open_questions."
+    },
+    {
+      "evidence": "Output uses workspace-context and user-provided-context provenance types.",
+      "passed": true,
+      "text": "The evidence distinguishes workspace-context from user-provided-context using the ADR 0053 provenance vocabulary."
+    },
+    {
+      "evidence": "Git status: <clean>. Summary reports no side effects.",
+      "passed": true,
+      "text": "The execution summary says no durable context write, git commit, CRM update, outreach, campaign trigger, sync, or remote push happened."
+    }
+  ],
+  "summary": {
+    "failed": 0,
+    "pass_rate": 1.0,
+    "passed": 4,
+    "total": 4
+  },
+  "timing": {
+    "total_duration_seconds": 0.0128
+  },
+  "user_notes_summary": {
+    "needs_review": [],
+    "uncertainties": [],
+    "workarounds": []
+  }
+}

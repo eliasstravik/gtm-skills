@@ -1,0 +1,51 @@
+{
+  "claims": [],
+  "eval_feedback": {
+    "overall": "No suggestions, deterministic assertions cover the lead scoring contract.",
+    "suggestions": []
+  },
+  "execution_metrics": {
+    "errors_encountered": 0,
+    "output_chars": 6054,
+    "tool_calls": {},
+    "total_steps": 4,
+    "total_tool_calls": 0,
+    "transcript_chars": 0
+  },
+  "expectations": [
+    {
+      "evidence": "Parsed 2 records from markdown table.",
+      "passed": true,
+      "text": "The markdown table parser extracts 2 lead records."
+    },
+    {
+      "evidence": "Scores: Priya Nair=88/great-fit, Jordan Reed=20/not-a-fit.",
+      "passed": true,
+      "text": "Priya Nair is scored great-fit and Jordan Reed is scored not-a-fit with score at or below 49."
+    },
+    {
+      "evidence": "Table-mode output includes a run summary and compact per-record provenance table.",
+      "passed": true,
+      "text": "The table-mode output includes a bulk run summary and compact per-record provenance fields."
+    },
+    {
+      "evidence": "No-match output explains the cap and does not invent labels.",
+      "passed": true,
+      "text": "The no-match result explains the score cap and does not invent a new persona label."
+    }
+  ],
+  "summary": {
+    "failed": 0,
+    "pass_rate": 1.0,
+    "passed": 4,
+    "total": 4
+  },
+  "timing": {
+    "total_duration_seconds": 0.0015
+  },
+  "user_notes_summary": {
+    "needs_review": [],
+    "uncertainties": [],
+    "workarounds": []
+  }
+}

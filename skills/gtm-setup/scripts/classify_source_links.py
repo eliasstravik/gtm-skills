@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""Classify setup source links before saving them as durable GTM context."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from dataclasses import asdict, dataclass
+from urllib.parse import parse_qsl, urlparse
+
+
+SECRET_QUERY_KEYS = {
+    "access_token",
+    "api_key",
+    "auth",
+    "key",
+    "session",
+    "sig",
+    "signature",
+    "token",
+    "x-amz-signature",
+}
+PRIVATE_HOST_MARKERS = {
+    "airtable.com",
+    "app.",
+    "docs.google.com",
+    "drive.google.com",
+    "force.com",
+    "hubspot.com",
+    "notion.site",
+    "notion.so",
+    "salesforce.com",
+}
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
+
+
+@dataclass(frozen=True)
+class LinkClassification:
+    url: str
+    classification: str
+    commit_behavior: str
+    reason: str
+    safe_label: str | None = None
+
+
+def classify_link(url: str) -> LinkClassification:
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower()
+    netloc = parsed.netloc.lower()
+    path = parsed.path.lower()
+    query_keys = {key.lower() for key, _value in parse_qsl(parsed.query, keep_blank_values=True)}
+
+    unsafe_reason = _unsafe_reason(parsed, host, netloc, path, query_keys)
+    if unsafe_reason is not None:
+        return LinkClassification(
+            url=url,
+            classification="unsafe",
+            commit_behavior="never_commit",
+            reason=unsafe_reason,
+            safe_label=_safe_label_for_unsafe(unsafe_reason),
+        )
+
+    private_reason = _private_reason(host, netloc)
+    if private_reason is not None:
+        return LinkClassification(
+            url=url,
+            classification="private",
+            commit_behavior="requires_explicit_confirmation",
+            reason=private_reason,
+            safe_label=_safe_label_for_private(private_reason),
+        )
+
+    return LinkClassification(
+        url=url,
+        classification="public",
+        commit_behavior="save_after_enrichment_confirmation",
+        reason="public-looking website, product, docs, or profile link",
+    )
+
+
+def _unsafe_reason(parsed, host: str, netloc: str, path: str, query_keys: set[str]) -> str | None:
+    if parsed.username or parsed.password or "@" in netloc and parsed.scheme in {"http", "https"}:
+        return "embedded credentials"
+    if host in LOCAL_HOSTS or host.endswith(".local"):
+        return "local-only URL"
+    if "localhost" in netloc:
+        return "local-only URL"
+    if "/invite" in path or "invite" in path.split("/"):
+        return "invite URL"
+    if SECRET_QUERY_KEYS & query_keys:
+        return "secret-bearing or tokenized query parameter"
+    if any("token" in key or "signature" in key for key in query_keys):
+        return "secret-bearing or tokenized query parameter"
+    return None
+
+
+def _private_reason(host: str, netloc: str) -> str | None:
+    if any(marker in host or marker in netloc for marker in PRIVATE_HOST_MARKERS):
+        return "private or access-controlled workspace link"
+    if host.startswith(("crm.", "admin.", "internal.")):
+        return "private or access-controlled workspace link"
+    return None
+
+
+def _safe_label_for_unsafe(reason: str) -> str:
+    if reason == "local-only URL":
+        return "Local-only setup source, used during setup. Link not committed."
+    if reason == "invite URL":
+        return "Invite link, provided during setup. Link not committed."
+    return "Sensitive setup source, used during setup. Link not committed."
+
+
+def _safe_label_for_private(reason: str) -> str:
+    return "Private workspace source, used during setup. Link not committed."
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("urls", nargs="+", help="source links to classify")
+    parser.add_argument("--json", action="store_true", help="emit JSON instead of text")
+    args = parser.parse_args(argv)
+
+    classifications = [classify_link(url) for url in args.urls]
+    if args.json:
+        print(json.dumps([asdict(item) for item in classifications], indent=2))
+    else:
+        for item in classifications:
+            print(f"{item.classification}\t{item.commit_behavior}\t{item.url}\t{item.reason}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

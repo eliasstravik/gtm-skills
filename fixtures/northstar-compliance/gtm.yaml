@@ -1,0 +1,26 @@
+version: 1
+
+organization:
+  id: northstar-compliance
+  display_name: Northstar Compliance
+  category: AI-assisted compliance operations workspace
+
+default_workspace: fintech-compliance-outbound
+
+business_units: {}
+teams: {}
+
+people:
+  jordan-lee:
+    display_name: Jordan Lee
+    role: SDR
+    default_workspace: fintech-compliance-outbound
+    path: people/jordan-lee.md
+
+workspaces:
+  fintech-compliance-outbound:
+    display_name: Fintech compliance outbound
+    motion: outbound
+    market: Fintech compliance operations
+    offering: Northstar Compliance workspace
+    path: workspaces/fintech-compliance-outbound

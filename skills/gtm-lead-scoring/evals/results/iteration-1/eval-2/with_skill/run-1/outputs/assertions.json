@@ -1,0 +1,24 @@
+{
+  "expectations": [
+    {
+      "evidence": "Parsed 2 records from markdown table.",
+      "passed": true,
+      "text": "The markdown table parser extracts 2 lead records."
+    },
+    {
+      "evidence": "Scores: Priya Nair=88/great-fit, Jordan Reed=20/not-a-fit.",
+      "passed": true,
+      "text": "Priya Nair is scored great-fit and Jordan Reed is scored not-a-fit with score at or below 49."
+    },
+    {
+      "evidence": "Table-mode output includes a run summary and compact per-record provenance table.",
+      "passed": true,
+      "text": "The table-mode output includes a bulk run summary and compact per-record provenance fields."
+    },
+    {
+      "evidence": "No-match output explains the cap and does not invent labels.",
+      "passed": true,
+      "text": "The no-match result explains the score cap and does not invent a new persona label."
+    }
+  ]
+}

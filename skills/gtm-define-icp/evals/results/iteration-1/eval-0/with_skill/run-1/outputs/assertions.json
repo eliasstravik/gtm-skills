@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "evidence": "Preview includes target file, sections, commit intent, and no external side effects.",
+      "passed": true,
+      "text": "The preview names workspaces/fintech-compliance-outbound/icps.md, sections to create, the commit message, and states no outreach, CRM update, campaign trigger, sync, remote push, or other external side effect will happen."
+    },
+    {
+      "evidence": "Machine labels found: compliance-heavy-fintech, marketplace-kyc-risk, no-match, regulated-b2b-saas; no persona headings found.",
+      "passed": true,
+      "text": "The created icps.md includes the three Northstar account ICP machine labels plus no-match, and does not include persona definitions."
+    },
+    {
+      "evidence": "Every non-no-match segment includes signals, disqualifiers, provenance/source notes, confidence, reasoning, needs_review, and open questions.",
+      "passed": true,
+      "text": "Each created segment includes strong signals, disqualifiers, provenance/source notes, confidence, reasoning, needs_review, and open questions."
+    },
+    {
+      "evidence": "Commit 005797c5 subject 'Create ICP definitions' changed: workspaces/fintech-compliance-outbound/icps.md.",
+      "passed": true,
+      "text": "The auto-commit exists, uses the Create ICP definitions subject, and changes only workspaces/fintech-compliance-outbound/icps.md."
+    },
+    {
+      "evidence": "Scaffold checker passed; registry is under temp GTM_HOME, not the project repo; target file was clean before write.",
+      "passed": true,
+      "text": "The GTM scaffold checker passes and local active registry state remains outside the GTM Context Repository."
+    }
+  ]
+}

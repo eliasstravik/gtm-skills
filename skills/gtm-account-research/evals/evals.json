@@ -1,0 +1,71 @@
+{
+  "skill_name": "gtm-account-research",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Use gtm-account-research to research HarborPay Ledger for Northstar Compliance's active fintech compliance outbound workspace. Use the workspace ICP definitions, saved context sources, and account evidence from the fixture.",
+      "expected_output": "A one-off ephemeral account research brief assigning HarborPay Ledger high-priority research with dependency trace, composed account segmentation/scoring, research brief, ICP relevance, signals, pain hypotheses, buying team, provenance, confidence, reasoning, needs_review, open questions, and no durable or external side effects.",
+      "files": [
+        "fixtures/northstar-compliance/accounts.csv",
+        "fixtures/northstar-compliance/organization.md",
+        "fixtures/northstar-compliance/workspaces/fintech-compliance-outbound/context.md",
+        "fixtures/northstar-compliance/workspaces/fintech-compliance-outbound/icps.md"
+      ],
+      "expectations": [
+        "The one-off result assigns HarborPay Ledger segment_label compliance-heavy-fintech, score 93, fit_label excellent-fit, research_priority high, confidence high, and needs_review false.",
+        "The output includes dependency trace, ICP source path, composed gtm-account-segmentation and gtm-account-scoring, research_brief, icp_relevance, key_signals, pain_hypotheses, likely_buying_team, risks_disqualifiers, personalization_angles, recommended_next_step, confidence, reasoning, needs_review, evidence, and open_questions.",
+        "The evidence distinguishes workspace-context, saved-source-link, and newly-found-evidence using the ADR 0053 provenance vocabulary.",
+        "The execution summary says no durable context write, git commit, CRM update, outreach, campaign trigger, sync, or remote push happened."
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Use gtm-account-research to process fixtures/northstar-compliance/accounts.csv as a bulk account research run for Northstar Compliance.",
+      "expected_output": "A bulk account research summary and compact CSV/table output for all fixture accounts, preserving expected segments, scores, fit labels, research priorities, review gates, confidence, reasoning, compact provenance, and open questions.",
+      "files": [
+        "fixtures/northstar-compliance/accounts.csv"
+      ],
+      "expectations": [
+        "The bulk run summary processes 8 records and includes research priority distribution, segment distribution, low-confidence count, open-question count, and records needing review.",
+        "Every fixture row is assigned the expected segment, score, and fit label from the Northstar account fixture.",
+        "The compact CSV output includes account_id, account_name, website, segment_label, score, fit_label, research_priority, confidence, needs_review, reasoning, research_brief, key_signals, pain_hypotheses, recommended_next_step, top_evidence, and open_questions.",
+        "The two no-match rows use research_priority low, and VerityLoop Finance is low confidence with needs_review true.",
+        "The bulk output remains ephemeral and performs no durable write, git commit, CRM update, outreach, campaign trigger, sync, or remote push."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Use gtm-account-research on this pasted markdown table of accounts for Northstar Compliance: Gatewise Market has marketplace-kyc-risk segmentation plus vendor KYB checks and trust queue expansion; CirrusKite API has no-match segmentation and developer observability evidence.",
+      "expected_output": "A parsed markdown-table bulk run with Gatewise Market researched as high-priority great-fit and CirrusKite API researched as low-priority not-a-fit without inventing new segment labels.",
+      "files": [],
+      "expectations": [
+        "The markdown table parser extracts 2 account records.",
+        "Gatewise Market is high-priority research with fit_label great-fit and CirrusKite API is low-priority research with fit_label not-a-fit.",
+        "The table-mode output includes a bulk run summary and compact per-record provenance fields.",
+        "The no-match result explains why research should not feed active outbound and does not invent a new segment label."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Use gtm-account-research from a directory with no GTM Context Project and no active registry.",
+      "expected_output": "The skill stops with the ADR 0086 missing-context wording and does not create files or perform git side effects.",
+      "files": [],
+      "expectations": [
+        "The output includes the exact ADR 0086 missing-context failure wording.",
+        "No research output file is created.",
+        "No git repository is initialized and no durable side effects are performed."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Use gtm-account-research for Northstar Compliance's active fintech compliance outbound workspace before any ICPs have been defined.",
+      "expected_output": "The skill stops, routes the user to gtm-define-icp, and does not produce research results or perform git side effects.",
+      "files": [],
+      "expectations": [
+        "The output says the workspace has no usable workspaces/fintech-compliance-outbound/icps.md and routes to gtm-define-icp.",
+        "No research result is produced.",
+        "No new commit is created after the fixture initialization commit."
+      ]
+    }
+  ]
+}

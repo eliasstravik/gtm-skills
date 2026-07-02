@@ -1,0 +1,53 @@
+{
+  "skill_name": "gtm-define-personas",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Use gtm-define-personas to create persona definitions for Northstar Compliance's active fintech compliance outbound workspace. Use the existing workspace context and ICPs, then confirm the durable write preview.",
+      "expected_output": "A new workspaces/fintech-compliance-outbound/personas.md file with lead-level persona segments, a no-match segment, durable-write preview evidence, and an isolated auto-commit for the persona file only.",
+      "files": [],
+      "expectations": [
+        "The preview names workspaces/fintech-compliance-outbound/personas.md, sections to create, the commit message, preserved ICP context, and states no outreach, CRM update, campaign trigger, sync, remote push, or other external side effect will happen.",
+        "The created personas.md includes the three Northstar persona machine labels plus no-match, and does not include account-level ICP segment headings.",
+        "Each created persona includes titles, responsibilities, pain/priority signals, objections or disqualifiers, outreach hooks, ICP relevance, provenance/source notes, confidence, reasoning, needs_review, and open questions.",
+        "The auto-commit exists, uses the Create persona definitions subject, and changes only workspaces/fintech-compliance-outbound/personas.md.",
+        "The GTM scaffold checker passes, icps.md is unchanged, and local active registry state remains outside the GTM Context Repository."
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Use gtm-define-personas to refine Northstar Compliance's existing personas. Add procurement risk review ownership and a risk-operations handoff hook to the VP Operations persona while preserving existing human-authored persona content.",
+      "expected_output": "The existing personas.md is updated non-destructively, the requested VP Operations refinements are added once, human-authored notes are preserved, and auto-commit is skipped when target-file isolation is unclear.",
+      "files": [],
+      "expectations": [
+        "The update preserves existing persona labels, no-match, and a human-authored note instead of destructively replacing the file.",
+        "The VP Operations persona includes the procurement risk review ownership signal and risk-operations handoff hook exactly once.",
+        "The updated personas.md has unique machine labels and exactly one no-match section.",
+        "The execution summary says auto-commit was skipped because the target file had pre-existing uncommitted edits, and says changes remain uncommitted with no push.",
+        "Unrelated pre-existing working-tree changes are left uncommitted and unstaged."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Use gtm-define-personas from a directory with no GTM Context Project and no active registry.",
+      "expected_output": "The skill stops with the ADR 0086 missing-context wording and does not create files or perform git side effects.",
+      "files": [],
+      "expectations": [
+        "The output includes the exact ADR 0086 missing-context failure wording.",
+        "No personas.md file is created.",
+        "No git repository is initialized and no durable side effects are performed."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Use gtm-define-personas for Northstar Compliance's active fintech compliance outbound workspace before any ICPs have been defined.",
+      "expected_output": "The skill stops, routes the user to gtm-define-icp, and does not create personas.md or perform git side effects.",
+      "files": [],
+      "expectations": [
+        "The output says the workspace has no usable workspaces/fintech-compliance-outbound/icps.md and routes to gtm-define-icp.",
+        "No personas.md file is created.",
+        "No new commit is created after the fixture initialization commit."
+      ]
+    }
+  ]
+}

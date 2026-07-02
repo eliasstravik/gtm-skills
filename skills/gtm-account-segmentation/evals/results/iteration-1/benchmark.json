@@ -1,0 +1,240 @@
+{
+  "metadata": {
+    "analyzer_model": "inline-deterministic-python",
+    "evals_run": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "executor_model": "inline-deterministic-python",
+    "runs_per_configuration": 1,
+    "skill_name": "gtm-account-segmentation",
+    "skill_path": "skills/gtm-account-segmentation",
+    "timestamp": "2026-07-02T00:00:00Z"
+  },
+  "notes": [
+    "Baseline/subagent runs were omitted because this Paperclip heartbeat explicitly forbids outsourcing or invoking other agents.",
+    "Deterministic assertions cover ADR 0086 context failure, hard ICP prerequisite routing, one-off output fields, CSV/table bulk support, compact provenance, no-match behavior, and review gates."
+  ],
+  "run_summary": {
+    "delta": {
+      "pass_rate": "+1.00",
+      "time_seconds": "+0.0",
+      "tokens": "+0"
+    },
+    "with_skill": {
+      "pass_rate": {
+        "max": 1.0,
+        "mean": 1.0,
+        "min": 1.0,
+        "stddev": 0.0
+      },
+      "time_seconds": {
+        "max": 0.0518,
+        "mean": 0.0158,
+        "min": 0.0003,
+        "stddev": 0.0
+      },
+      "tokens": {
+        "max": 8979,
+        "mean": 4668.2,
+        "min": 1463,
+        "stddev": 0.0
+      }
+    }
+  },
+  "runs": [
+    {
+      "configuration": "with_skill",
+      "eval_id": 0,
+      "eval_name": "one-off-segmentation",
+      "expectations": [
+        {
+          "evidence": "HarborPay Ledger -> compliance-heavy-fintech, high, needs_review=False.",
+          "passed": true,
+          "text": "The one-off result assigns HarborPay Ledger to compliance-heavy-fintech with high confidence and needs_review false."
+        },
+        {
+          "evidence": "One-off output contains dependency trace, ICP path, and required result fields.",
+          "passed": true,
+          "text": "The output includes dependency trace, the ICP source path, segment_label, confidence, reasoning, needs_review, evidence, and open_questions."
+        },
+        {
+          "evidence": "Output uses workspace-context and user-provided-context provenance types.",
+          "passed": true,
+          "text": "The evidence distinguishes workspace-context from user-provided-context using the ADR 0053 provenance vocabulary."
+        },
+        {
+          "evidence": "Git status: <clean>. Summary reports no side effects.",
+          "passed": true,
+          "text": "The execution summary says no durable context write, git commit, CRM update, outreach, campaign trigger, sync, or remote push happened."
+        }
+      ],
+      "notes": [],
+      "result": {
+        "errors": 0,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "passed": 4,
+        "time_seconds": 0.0128,
+        "tokens": 0,
+        "tool_calls": 0,
+        "total": 4
+      },
+      "run_number": 1
+    },
+    {
+      "configuration": "with_skill",
+      "eval_id": 1,
+      "eval_name": "csv-bulk-segmentation",
+      "expectations": [
+        {
+          "evidence": "Bulk summary contains record, segment, no-match, low-confidence, open-question, and review counts.",
+          "passed": true,
+          "text": "The bulk run summary processes 8 records and includes segment counts, no-match count, low-confidence count, open-question count, and records needing review."
+        },
+        {
+          "evidence": "Expected labels: {'acct_001': 'compliance-heavy-fintech', 'acct_002': 'regulated-b2b-saas', 'acct_003': 'marketplace-kyc-risk', 'acct_004': 'no-match', 'acct_005': 'regulated-b2b-saas', 'acct_006': 'no-match', 'acct_007': 'compliance-heavy-fintech', 'acct_008': 'compliance-heavy-fintech'}; actual labels: {'acct_001': 'compliance-heavy-fintech', 'acct_002': 'regulated-b2b-saas', 'acct_003': 'marketplace-kyc-risk', 'acct_004': 'no-match', 'acct_005': 'regulated-b2b-saas', 'acct_006': 'no-match', 'acct_007': 'compliance-heavy-fintech', 'acct_008': 'compliance-heavy-fintech'}.",
+          "passed": true,
+          "text": "Every fixture row is assigned the expected segment label from the Northstar account fixture."
+        },
+        {
+          "evidence": "Compact CSV header includes every required bulk provenance field.",
+          "passed": true,
+          "text": "The compact CSV output includes account_id, account_name, segment_label, confidence, needs_review, reasoning, top_evidence, and open_questions."
+        },
+        {
+          "evidence": "VerityLoop is review-gated; BrightCart Studio and CirrusKite API use no-match.",
+          "passed": true,
+          "text": "VerityLoop Finance is low confidence with needs_review true, while the two no-match rows use the exact no-match label."
+        },
+        {
+          "evidence": "Ephemeral bulk run left git status clean: <clean>.",
+          "passed": true,
+          "text": "The bulk output remains ephemeral and performs no durable write, git commit, CRM update, outreach, campaign trigger, sync, or remote push."
+        }
+      ],
+      "notes": [],
+      "result": {
+        "errors": 0,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "passed": 5,
+        "time_seconds": 0.0126,
+        "tokens": 0,
+        "tool_calls": 0,
+        "total": 5
+      },
+      "run_number": 1
+    },
+    {
+      "configuration": "with_skill",
+      "eval_id": 2,
+      "eval_name": "markdown-table-bulk-segmentation",
+      "expectations": [
+        {
+          "evidence": "Parsed 2 records from markdown table.",
+          "passed": true,
+          "text": "The markdown table parser extracts 2 account records."
+        },
+        {
+          "evidence": "Labels: Gatewise Market=marketplace-kyc-risk, CirrusKite API=no-match.",
+          "passed": true,
+          "text": "Gatewise Market is assigned marketplace-kyc-risk and CirrusKite API is assigned no-match."
+        },
+        {
+          "evidence": "Table-mode output includes a run summary and compact per-record provenance table.",
+          "passed": true,
+          "text": "The table-mode output includes a bulk run summary and compact per-record provenance fields."
+        },
+        {
+          "evidence": "No-match output explains the disqualifier and does not invent labels.",
+          "passed": true,
+          "text": "The no-match result explains the disqualifier and does not invent a new segment label."
+        }
+      ],
+      "notes": [],
+      "result": {
+        "errors": 0,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "passed": 4,
+        "time_seconds": 0.0015,
+        "tokens": 0,
+        "tool_calls": 0,
+        "total": 4
+      },
+      "run_number": 1
+    },
+    {
+      "configuration": "with_skill",
+      "eval_id": 3,
+      "eval_name": "missing-context-failure",
+      "expectations": [
+        {
+          "evidence": "Transcript contains the exact missing-context wording.",
+          "passed": true,
+          "text": "The output includes the exact ADR 0086 missing-context failure wording."
+        },
+        {
+          "evidence": "No segmentation output files were found under the isolated temp root.",
+          "passed": true,
+          "text": "No segmentation output file is created."
+        },
+        {
+          "evidence": "No .git directories were found under the isolated temp root.",
+          "passed": true,
+          "text": "No git repository is initialized and no durable side effects are performed."
+        }
+      ],
+      "notes": [],
+      "result": {
+        "errors": 0,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "passed": 3,
+        "time_seconds": 0.0003,
+        "tokens": 0,
+        "tool_calls": 0,
+        "total": 3
+      },
+      "run_number": 1
+    },
+    {
+      "configuration": "with_skill",
+      "eval_id": 4,
+      "eval_name": "missing-icps-failure",
+      "expectations": [
+        {
+          "evidence": "Transcript contains the missing-ICP wording and gtm-define-icp route.",
+          "passed": true,
+          "text": "The output says the workspace has no usable workspaces/fintech-compliance-outbound/icps.md and routes to gtm-define-icp."
+        },
+        {
+          "evidence": "No segmentation output files were created in the GTM Context Repository.",
+          "passed": true,
+          "text": "No segmentation result is produced."
+        },
+        {
+          "evidence": "Commit count=1; git status=<clean>; scaffold problems=[].",
+          "passed": true,
+          "text": "No new commit is created after the fixture initialization commit."
+        }
+      ],
+      "notes": [],
+      "result": {
+        "errors": 0,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "passed": 3,
+        "time_seconds": 0.0518,
+        "tokens": 0,
+        "tool_calls": 0,
+        "total": 3
+      },
+      "run_number": 1
+    }
+  ]
+}
