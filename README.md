@@ -40,14 +40,17 @@ Skills are grouped by `function_tags`; skills with multiple function tags appear
 
 ### Sales
 
+- **[gtm-define-icp](skills/gtm-define-icp/SKILL.md)** — Define, create, or refine Ideal Customer Profile account segments in the active GTM Workspace by writing or updating the workspace icps.md file. Use when a user mentions ICPs, ideal customers, target account segments, account fit criteria, disqualifiers, target markets, no-match accounts, or needs ICP context before GTM account segmentation, account research, or account scoring. Roles: `sdr`, `bdr`, `ae`, `full-cycle-seller`, `sales-ops`, `marketing-ops`, `cro`, `vp-sales`, `founder`.
 - **[gtm-setup](skills/gtm-setup/SKILL.md)** — Set up, select, validate, or repair a git-backed GTM Context Project under $GTM_HOME (default ~/.gtm). Use when a user wants to start using GTM skills, create onboarding context, fix or repair gtm.yaml/AGENTS.md/organization/person/workspace files, switch active organization/person/workspace, seed setup context from company/product/profile links, or when any gtm-* skill cannot resolve a GTM Context Project. Roles: `sdr`, `bdr`, `ae`, `full-cycle-seller`, `sales-ops`, `marketing-ops`, `cro`, `vp-sales`, `csm`, `partnerships-lead`, `founder`.
 
 ### Marketing
 
+- **[gtm-define-icp](skills/gtm-define-icp/SKILL.md)** — Define, create, or refine Ideal Customer Profile account segments in the active GTM Workspace by writing or updating the workspace icps.md file. Use when a user mentions ICPs, ideal customers, target account segments, account fit criteria, disqualifiers, target markets, no-match accounts, or needs ICP context before GTM account segmentation, account research, or account scoring. Roles: `sdr`, `bdr`, `ae`, `full-cycle-seller`, `sales-ops`, `marketing-ops`, `cro`, `vp-sales`, `founder`.
 - **[gtm-setup](skills/gtm-setup/SKILL.md)** — Set up, select, validate, or repair a git-backed GTM Context Project under $GTM_HOME (default ~/.gtm). Use when a user wants to start using GTM skills, create onboarding context, fix or repair gtm.yaml/AGENTS.md/organization/person/workspace files, switch active organization/person/workspace, seed setup context from company/product/profile links, or when any gtm-* skill cannot resolve a GTM Context Project. Roles: `sdr`, `bdr`, `ae`, `full-cycle-seller`, `sales-ops`, `marketing-ops`, `cro`, `vp-sales`, `csm`, `partnerships-lead`, `founder`.
 
 ### Revops
 
+- **[gtm-define-icp](skills/gtm-define-icp/SKILL.md)** — Define, create, or refine Ideal Customer Profile account segments in the active GTM Workspace by writing or updating the workspace icps.md file. Use when a user mentions ICPs, ideal customers, target account segments, account fit criteria, disqualifiers, target markets, no-match accounts, or needs ICP context before GTM account segmentation, account research, or account scoring. Roles: `sdr`, `bdr`, `ae`, `full-cycle-seller`, `sales-ops`, `marketing-ops`, `cro`, `vp-sales`, `founder`.
 - **[gtm-setup](skills/gtm-setup/SKILL.md)** — Set up, select, validate, or repair a git-backed GTM Context Project under $GTM_HOME (default ~/.gtm). Use when a user wants to start using GTM skills, create onboarding context, fix or repair gtm.yaml/AGENTS.md/organization/person/workspace files, switch active organization/person/workspace, seed setup context from company/product/profile links, or when any gtm-* skill cannot resolve a GTM Context Project. Roles: `sdr`, `bdr`, `ae`, `full-cycle-seller`, `sales-ops`, `marketing-ops`, `cro`, `vp-sales`, `csm`, `partnerships-lead`, `founder`.
 
 ### Customer Success
@@ -60,6 +63,7 @@ Skills are grouped by `function_tags`; skills with multiple function tags appear
 
 ### Growth
 
+- **[gtm-define-icp](skills/gtm-define-icp/SKILL.md)** — Define, create, or refine Ideal Customer Profile account segments in the active GTM Workspace by writing or updating the workspace icps.md file. Use when a user mentions ICPs, ideal customers, target account segments, account fit criteria, disqualifiers, target markets, no-match accounts, or needs ICP context before GTM account segmentation, account research, or account scoring. Roles: `sdr`, `bdr`, `ae`, `full-cycle-seller`, `sales-ops`, `marketing-ops`, `cro`, `vp-sales`, `founder`.
 - **[gtm-setup](skills/gtm-setup/SKILL.md)** — Set up, select, validate, or repair a git-backed GTM Context Project under $GTM_HOME (default ~/.gtm). Use when a user wants to start using GTM skills, create onboarding context, fix or repair gtm.yaml/AGENTS.md/organization/person/workspace files, switch active organization/person/workspace, seed setup context from company/product/profile links, or when any gtm-* skill cannot resolve a GTM Context Project. Roles: `sdr`, `bdr`, `ae`, `full-cycle-seller`, `sales-ops`, `marketing-ops`, `cro`, `vp-sales`, `csm`, `partnerships-lead`, `founder`.
 <!-- skills-catalog:end -->
 

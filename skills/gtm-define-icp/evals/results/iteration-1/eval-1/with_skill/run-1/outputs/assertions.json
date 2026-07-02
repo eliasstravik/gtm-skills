@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "evidence": "Existing machine labels and the human-authored note are still present.",
+      "passed": true,
+      "text": "The update preserves existing ICP segment labels, no-match, and a human-authored note instead of destructively replacing the file."
+    },
+    {
+      "evidence": "Requested regulated-b2b-saas signal and caveat each appear exactly once.",
+      "passed": true,
+      "text": "The regulated-b2b-saas segment includes the new insurance claims operations signal and service-provider caveat exactly once."
+    },
+    {
+      "evidence": "Unique labels found: compliance-heavy-fintech, regulated-b2b-saas, marketplace-kyc-risk, no-match; no-match sections: 1.",
+      "passed": true,
+      "text": "The updated icps.md has unique machine labels and exactly one no-match section."
+    },
+    {
+      "evidence": "Summary reports target-file overlap, uncommitted status, and no push.",
+      "passed": true,
+      "text": "The execution summary says auto-commit was skipped because the target file had pre-existing uncommitted edits, and says changes remain uncommitted with no push."
+    },
+    {
+      "evidence": "Working tree status:\nM workspaces/fintech-compliance-outbound/icps.md\n?? scratch-notes.md\nStaged files: <none>",
+      "passed": true,
+      "text": "Unrelated pre-existing working-tree changes are left uncommitted and unstaged."
+    }
+  ]
+}

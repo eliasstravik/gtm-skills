@@ -1,0 +1,4 @@
+interface:
+  display_name: "GTM Define ICP"
+  short_description: "Define workspace ICP segments"
+  default_prompt: "Use $gtm-define-icp to define ICP segments for my active GTM workspace."

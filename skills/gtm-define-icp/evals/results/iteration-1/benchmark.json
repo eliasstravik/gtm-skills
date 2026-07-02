@@ -1,0 +1,170 @@
+{
+  "metadata": {
+    "analyzer_model": "inline-deterministic-python",
+    "evals_run": [
+      0,
+      1,
+      2
+    ],
+    "executor_model": "inline-deterministic-python",
+    "runs_per_configuration": 1,
+    "skill_name": "gtm-define-icp",
+    "skill_path": "skills/gtm-define-icp",
+    "timestamp": "2026-07-02T00:00:00Z"
+  },
+  "notes": [
+    "Baseline/subagent runs were omitted because this Paperclip heartbeat explicitly forbids outsourcing or invoking other agents.",
+    "Deterministic assertions cover ADR 0086 context failure, durable write preview, ICP file shape, non-destructive updates, and git auto-commit isolation."
+  ],
+  "run_summary": {
+    "delta": {
+      "pass_rate": "+1.00",
+      "time_seconds": "+0.0",
+      "tokens": "+0"
+    },
+    "with_skill": {
+      "pass_rate": {
+        "max": 1.0,
+        "mean": 1.0,
+        "min": 1.0,
+        "stddev": 0.0
+      },
+      "time_seconds": {
+        "max": 0.1004,
+        "mean": 0.0448,
+        "min": 0.0002,
+        "stddev": 0.0
+      },
+      "tokens": {
+        "max": 10509,
+        "mean": 6671.6667,
+        "min": 1385,
+        "stddev": 0.0
+      }
+    }
+  },
+  "runs": [
+    {
+      "configuration": "with_skill",
+      "eval_id": 0,
+      "eval_name": "create-icps",
+      "expectations": [
+        {
+          "evidence": "Preview includes target file, sections, commit intent, and no external side effects.",
+          "passed": true,
+          "text": "The preview names workspaces/fintech-compliance-outbound/icps.md, sections to create, the commit message, and states no outreach, CRM update, campaign trigger, sync, remote push, or other external side effect will happen."
+        },
+        {
+          "evidence": "Machine labels found: compliance-heavy-fintech, marketplace-kyc-risk, no-match, regulated-b2b-saas; no persona headings found.",
+          "passed": true,
+          "text": "The created icps.md includes the three Northstar account ICP machine labels plus no-match, and does not include persona definitions."
+        },
+        {
+          "evidence": "Every non-no-match segment includes signals, disqualifiers, provenance/source notes, confidence, reasoning, needs_review, and open questions.",
+          "passed": true,
+          "text": "Each created segment includes strong signals, disqualifiers, provenance/source notes, confidence, reasoning, needs_review, and open questions."
+        },
+        {
+          "evidence": "Commit 005797c5 subject 'Create ICP definitions' changed: workspaces/fintech-compliance-outbound/icps.md.",
+          "passed": true,
+          "text": "The auto-commit exists, uses the Create ICP definitions subject, and changes only workspaces/fintech-compliance-outbound/icps.md."
+        },
+        {
+          "evidence": "Scaffold checker passed; registry is under temp GTM_HOME, not the project repo; target file was clean before write.",
+          "passed": true,
+          "text": "The GTM scaffold checker passes and local active registry state remains outside the GTM Context Repository."
+        }
+      ],
+      "notes": [],
+      "result": {
+        "errors": 0,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "passed": 5,
+        "time_seconds": 0.1004,
+        "tokens": 0,
+        "tool_calls": 0,
+        "total": 5
+      },
+      "run_number": 1
+    },
+    {
+      "configuration": "with_skill",
+      "eval_id": 1,
+      "eval_name": "refine-existing-icps",
+      "expectations": [
+        {
+          "evidence": "Existing machine labels and the human-authored note are still present.",
+          "passed": true,
+          "text": "The update preserves existing ICP segment labels, no-match, and a human-authored note instead of destructively replacing the file."
+        },
+        {
+          "evidence": "Requested regulated-b2b-saas signal and caveat each appear exactly once.",
+          "passed": true,
+          "text": "The regulated-b2b-saas segment includes the new insurance claims operations signal and service-provider caveat exactly once."
+        },
+        {
+          "evidence": "Unique labels found: compliance-heavy-fintech, regulated-b2b-saas, marketplace-kyc-risk, no-match; no-match sections: 1.",
+          "passed": true,
+          "text": "The updated icps.md has unique machine labels and exactly one no-match section."
+        },
+        {
+          "evidence": "Summary reports target-file overlap, uncommitted status, and no push.",
+          "passed": true,
+          "text": "The execution summary says auto-commit was skipped because the target file had pre-existing uncommitted edits, and says changes remain uncommitted with no push."
+        },
+        {
+          "evidence": "Working tree status:\nM workspaces/fintech-compliance-outbound/icps.md\n?? scratch-notes.md\nStaged files: <none>",
+          "passed": true,
+          "text": "Unrelated pre-existing working-tree changes are left uncommitted and unstaged."
+        }
+      ],
+      "notes": [],
+      "result": {
+        "errors": 0,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "passed": 5,
+        "time_seconds": 0.0339,
+        "tokens": 0,
+        "tool_calls": 0,
+        "total": 5
+      },
+      "run_number": 1
+    },
+    {
+      "configuration": "with_skill",
+      "eval_id": 2,
+      "eval_name": "missing-context-failure",
+      "expectations": [
+        {
+          "evidence": "Transcript contains the exact missing-context wording.",
+          "passed": true,
+          "text": "The output includes the exact ADR 0086 missing-context failure wording."
+        },
+        {
+          "evidence": "No icps.md files were found under the isolated temp root.",
+          "passed": true,
+          "text": "No icps.md file is created."
+        },
+        {
+          "evidence": "No .git directories were found under the isolated temp root.",
+          "passed": true,
+          "text": "No git repository is initialized and no durable side effects are performed."
+        }
+      ],
+      "notes": [],
+      "result": {
+        "errors": 0,
+        "failed": 0,
+        "pass_rate": 1.0,
+        "passed": 3,
+        "time_seconds": 0.0002,
+        "tokens": 0,
+        "tool_calls": 0,
+        "total": 3
+      },
+      "run_number": 1
+    }
+  ]
+}
