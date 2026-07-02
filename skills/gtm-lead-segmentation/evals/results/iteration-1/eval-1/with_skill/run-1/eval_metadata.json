@@ -1,0 +1,12 @@
+{
+  "assertions": [
+    "The bulk run summary processes 8 records and includes persona counts, no-match count, low-confidence count, open-question count, and records needing review.",
+    "Every fixture row is assigned the expected persona label from the Northstar lead fixture.",
+    "The compact CSV output includes lead_id, account_id, account_name, lead_name, persona_label, confidence, needs_review, reasoning, top_evidence, and open_questions.",
+    "Anika Shah is low confidence with needs_review true, while the two no-match rows use the exact no-match label.",
+    "The bulk output remains ephemeral and performs no durable write, git commit, CRM update, outreach, campaign trigger, sync, or remote push."
+  ],
+  "eval_id": 1,
+  "eval_name": "csv-bulk-segmentation",
+  "prompt": "Use gtm-lead-segmentation to process fixtures/northstar-compliance/leads.csv as a bulk lead segmentation run for Northstar Compliance."
+}

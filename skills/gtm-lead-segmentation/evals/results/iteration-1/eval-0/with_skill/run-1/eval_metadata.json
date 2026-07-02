@@ -1,0 +1,11 @@
+{
+  "assertions": [
+    "The one-off result assigns Maya Chen to head-of-compliance with high confidence and needs_review false.",
+    "The output includes dependency trace, the personas source path, persona_label, confidence, reasoning, needs_review, evidence, and open_questions.",
+    "The evidence distinguishes workspace-context from user-provided-context using the ADR 0053 provenance vocabulary.",
+    "The execution summary says no durable context write, git commit, CRM update, outreach, campaign trigger, sync, or remote push happened."
+  ],
+  "eval_id": 0,
+  "eval_name": "one-off-segmentation",
+  "prompt": "Use gtm-lead-segmentation to segment Maya Chen for Northstar Compliance's active fintech compliance outbound workspace. Use the workspace persona definitions and the lead evidence from the fixture."
+}
