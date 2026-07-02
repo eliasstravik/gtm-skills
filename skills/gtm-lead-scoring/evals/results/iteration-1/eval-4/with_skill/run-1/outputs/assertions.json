@@ -1,0 +1,19 @@
+{
+  "expectations": [
+    {
+      "evidence": "Transcript contains the missing-personas wording and gtm-define-personas route.",
+      "passed": true,
+      "text": "The output says the workspace has no usable workspaces/fintech-compliance-outbound/personas.md and routes to gtm-define-personas."
+    },
+    {
+      "evidence": "No scoring result files or score fields were produced.",
+      "passed": true,
+      "text": "No scoring result is produced."
+    },
+    {
+      "evidence": "Commit count=1; git status=<clean>; scaffold problems=[].",
+      "passed": true,
+      "text": "No new commit is created after the fixture initialization commit."
+    }
+  ]
+}

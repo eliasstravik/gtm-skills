@@ -1,0 +1,11 @@
+{
+  "assertions": [
+    "The markdown table parser extracts 2 lead records.",
+    "Priya Nair is scored great-fit and Jordan Reed is scored not-a-fit with score at or below 49.",
+    "The table-mode output includes a bulk run summary and compact per-record provenance fields.",
+    "The no-match result explains the score cap and does not invent a new persona label."
+  ],
+  "eval_id": 2,
+  "eval_name": "markdown-table-bulk-lead-scoring",
+  "prompt": "Use gtm-lead-scoring on this pasted markdown table of leads for Northstar Compliance: Priya Nair has risk-trust-safety-lead segmentation plus vendor review ownership, and Jordan Reed has no-match segmentation with engineering telemetry evidence."
+}
