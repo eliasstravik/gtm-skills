@@ -36,11 +36,11 @@ Create, select, validate, and repair GTM Context Projects. A valid project is a 
 4. Confirm durable writes before execution.
    - Use a concise file/section preview, not a raw full diff by default.
    - State whether git will be initialized, whether an initial or repair commit will be created, and that no remote push, outreach, CRM update, or campaign action will happen.
-   - If source links are provided, read [enrichment-and-safety.md](references/enrichment-and-safety.md), classify links, draft bounded setup context, and show the enrichment preview before writing enriched facts or safe source labels.
+   - If source links are provided, read [enrichment-and-safety.md](references/enrichment-and-safety.md), use `scripts/classify_source_links.py` when available to classify links, draft bounded setup context, and show the enrichment preview before writing enriched facts or safe source labels.
 
 5. Write or repair deterministically.
    - Use the files in `templates/` for the scaffold: `.gitignore`, `AGENTS.md`, `CLAUDE.md`, `gtm.yaml`, `organization.md`, `people/<person-id>.md`, `workspaces/<workspace-id>/context.md`, and optional Business Unit/Team files.
-   - Create `business-units/` and `teams/` directories even when they only contain placeholders.
+   - Create `business-units/` and `teams/` directories even when they only contain `.gitkeep` placeholders.
    - Do not create skill-owned files such as `icps.md`, `personas.md`, or `scoring.md`.
 
 6. Update local registry and git last.

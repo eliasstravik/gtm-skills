@@ -32,6 +32,8 @@ Do not invent missing facts. Leave unknown sections sparse or add open questions
 
 Classify every setup source link before saving it.
 
+Use `scripts/classify_source_links.py` when available so the public/private/unsafe decision is deterministic before the enrichment preview. Treat the helper output as the starting classification; if the content or user context makes sensitivity unclear, ask before committing the URL.
+
 ### Public-looking links
 
 Examples: official websites, public product pages, public docs, public case studies, public LinkedIn/company/profile pages intentionally provided by the user.

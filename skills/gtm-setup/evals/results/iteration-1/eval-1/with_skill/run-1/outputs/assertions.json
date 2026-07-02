@@ -1,0 +1,24 @@
+{
+  "expectations": [
+    {
+      "evidence": "Immediate same-org rerun updated only registry state outside the repo; git status stayed clean.",
+      "passed": true,
+      "text": "Re-running setup on the same org is idempotent and leaves the existing repo untouched."
+    },
+    {
+      "evidence": "Repair preserved protected files and retained the user-defined custom-cache/ ignore rule.",
+      "passed": true,
+      "text": "Repair mode preserves human-authored files and user-defined ignore rules while adding only missing scaffold rules."
+    },
+    {
+      "evidence": "Repair commit d2bd4ad4 changed: .gitignore",
+      "passed": true,
+      "text": "The repair commit is scoped to repair-only changes."
+    },
+    {
+      "evidence": "Classified 3 unsafe links as never_commit; no unsafe URLs found in committed files/history.",
+      "passed": true,
+      "text": "The source-link classifier marks unsafe links as never-commit and committed files/history omit unsafe URLs."
+    }
+  ]
+}
