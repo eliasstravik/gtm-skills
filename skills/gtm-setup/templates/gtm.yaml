@@ -1,0 +1,22 @@
+version: 1
+
+organization:
+  id: "{{organization_id}}"
+  display_name: "{{organization_display_name}}"
+
+default_workspace: "{{workspace_id}}"
+
+business_units: {}
+teams: {}
+
+people:
+  "{{person_id}}":
+    display_name: "{{person_display_name}}"
+    role: "{{person_role}}"
+    default_workspace: "{{workspace_id}}"
+    path: "people/{{person_id}}.md"
+
+workspaces:
+  "{{workspace_id}}":
+    display_name: "{{workspace_display_name}}"
+    path: "workspaces/{{workspace_id}}"
