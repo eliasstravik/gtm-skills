@@ -1,4 +1,0 @@
-| account_id | account_name | segment_label | confidence | needs_review | reasoning | top_evidence | open_questions |
-|---|---|---|---|---|---|---|---|
-| acct_table_001 | Gatewise Market | marketplace-kyc-risk | high | false | Gatewise Market matches Marketplace KYC / risk friction based on Marketplace onboarding verified vendors for regulated enterprise buyers.. Confidence is high. | vendor KYB checks; trust queue expansion; policy exception reviews |  |
-| acct_table_002 | CirrusKite API | no-match | high | false | CirrusKite API does not match any defined ICP because the available evidence points outside the workspace's regulated onboarding, compliance, risk, trust, or safety operations focus. Material gap: No buyer, workflow, or market evidence tied to compliance operations. Confidence is high. | no regulated compliance operations signal |  |

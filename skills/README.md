@@ -14,10 +14,11 @@ Optional support files can live under:
 - `templates/` for reusable output templates
 - `scripts/` for deterministic helpers that materially improve reliability, such as validation, scaffold checks, template generation, or CSV/bulk parsing
 - `assets/` for static assets
+- `evals/` for runnable eval definitions and harnesses
 
-Each skill's `SKILL.md` should remain useful on its own to an agent. Helper scripts support the skill instructions; they should not become a required custom global CLI for the MVP.
+Each skill's `SKILL.md` should remain useful on its own to an agent. Helper scripts support the skill instructions; they should not become a required custom global CLI. Generated eval output belongs under `evals/results/` and should stay out of git.
 
-## MVP definition of done
+## Definition of done
 
 A skill is shippable only when it has:
 
@@ -31,4 +32,4 @@ A skill is shippable only when it has:
 - passing metadata/structure validation;
 - provenance, `confidence`, `reasoning`, and `needs_review` for research/scoring/segmentation skills.
 
-The first implementation tasks should create the taxonomy and then add the initial `gtm-` skill folders one at a time.
+Before distributing a skill change, run the relevant eval harness and root validation instead of committing generated result artifacts.

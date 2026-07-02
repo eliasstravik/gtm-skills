@@ -22,6 +22,7 @@ skills/<skill-name>/
   references/
   scripts/
   templates/
+  evals/
 ```
 
 Only create support folders when the skill actually needs them.
@@ -35,3 +36,4 @@ Only create support folders when the skill actually needs them.
 - Keep each skill focused on one workflow or tightly related workflow family.
 - Include examples only when they improve execution quality.
 - After adding or changing a skill, run `python3 scripts/generate_readme_catalog.py` and commit the regenerated README catalog.
+- Keep generated eval evidence out of git. `skills/*/evals/results/` is ignored; commit eval harnesses and definitions, not their run output.
