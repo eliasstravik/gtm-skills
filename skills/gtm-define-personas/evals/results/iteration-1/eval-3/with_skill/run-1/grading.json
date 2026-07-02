@@ -1,0 +1,46 @@
+{
+  "claims": [],
+  "eval_feedback": {
+    "overall": "No suggestions, deterministic assertions cover the durable persona write contract.",
+    "suggestions": []
+  },
+  "execution_metrics": {
+    "errors_encountered": 0,
+    "output_chars": 2353,
+    "tool_calls": {},
+    "total_steps": 3,
+    "total_tool_calls": 0,
+    "transcript_chars": 0
+  },
+  "expectations": [
+    {
+      "evidence": "Transcript contains the missing-ICP prerequisite message and routes to gtm-define-icp.",
+      "passed": true,
+      "text": "The output says the workspace has no usable workspaces/fintech-compliance-outbound/icps.md and routes to gtm-define-icp."
+    },
+    {
+      "evidence": "No personas.md file exists in the active workspace.",
+      "passed": true,
+      "text": "No personas.md file is created."
+    },
+    {
+      "evidence": "Initial commit 1918ebbd remained HEAD.",
+      "passed": true,
+      "text": "No new commit is created after the fixture initialization commit."
+    }
+  ],
+  "summary": {
+    "failed": 0,
+    "pass_rate": 1.0,
+    "passed": 3,
+    "total": 3
+  },
+  "timing": {
+    "total_duration_seconds": 0.0319
+  },
+  "user_notes_summary": {
+    "needs_review": [],
+    "uncertainties": [],
+    "workarounds": []
+  }
+}

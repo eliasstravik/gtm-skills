@@ -1,0 +1,12 @@
+{
+  "assertions": [
+    "The update preserves existing persona labels, no-match, and a human-authored note instead of destructively replacing the file.",
+    "The VP Operations persona includes the procurement risk review ownership signal and risk-operations handoff hook exactly once.",
+    "The updated personas.md has unique machine labels and exactly one no-match section.",
+    "The execution summary says auto-commit was skipped because the target file had pre-existing uncommitted edits, and says changes remain uncommitted with no push.",
+    "Unrelated pre-existing working-tree changes are left uncommitted and unstaged."
+  ],
+  "eval_id": 1,
+  "eval_name": "refine-existing-personas",
+  "prompt": "Use gtm-define-personas to refine Northstar Compliance's existing personas. Add procurement risk review ownership and a risk-operations handoff hook to the VP Operations persona while preserving existing human-authored persona content."
+}

@@ -1,0 +1,2 @@
+M workspaces/fintech-compliance-outbound/personas.md
+?? scratch-notes.md
