@@ -1,0 +1,80 @@
+{
+  "skill_name": "gtm-account-scoring",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Use gtm-account-scoring to score HarborPay Ledger for Northstar Compliance's active fintech compliance outbound workspace. Use the workspace ICP definitions, scoring criteria, and account evidence from the fixture.",
+      "expected_output": "A one-off ephemeral scoring result assigning HarborPay Ledger an excellent-fit score of 93 with dependency trace, segment label, evidence summary, positives, risks/disqualifiers, recommended action, provenance, confidence, reasoning, needs_review, open questions, and no durable or external side effects.",
+      "files": [
+        "fixtures/northstar-compliance/accounts.csv",
+        "fixtures/northstar-compliance/workspaces/fintech-compliance-outbound/scoring.md"
+      ],
+      "expectations": [
+        "The one-off result assigns HarborPay Ledger segment_label compliance-heavy-fintech, score 93, fit_label excellent-fit, confidence high, and needs_review false.",
+        "The output includes dependency trace, ICP source path, scoring source path, composed gtm-account-segmentation, score, fit_label, evidence_summary, positives, risks_disqualifiers, recommended_action, confidence, reasoning, needs_review, evidence, and open_questions.",
+        "The evidence distinguishes workspace-context from user-provided-context using the ADR 0053 provenance vocabulary.",
+        "The execution summary says no durable context write, git commit, CRM update, outreach, campaign trigger, sync, or remote push happened."
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Use gtm-account-scoring to process fixtures/northstar-compliance/accounts.csv as a bulk account scoring run for Northstar Compliance.",
+      "expected_output": "A bulk account scoring summary and compact CSV/table output for all fixture accounts, preserving expected scores, fit labels, review gates, confidence, reasoning, evidence summary, recommended action, compact provenance, and open questions.",
+      "files": [
+        "fixtures/northstar-compliance/accounts.csv"
+      ],
+      "expectations": [
+        "The bulk run summary processes 8 records and includes fit distribution counts, low-confidence count, open-question count, and records needing review.",
+        "Every fixture row is assigned the expected score and fit label from the Northstar account fixture.",
+        "The compact CSV output includes account_id, account_name, segment_label, score, fit_label, confidence, needs_review, reasoning, evidence_summary, positives, risks_disqualifiers, recommended_action, top_evidence, and open_questions.",
+        "The two no-match rows use fit_label not-a-fit with scores at or below 49, and VerityLoop Finance is low confidence with needs_review true.",
+        "The bulk output remains ephemeral and performs no durable write, git commit, CRM update, outreach, campaign trigger, sync, or remote push."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Use gtm-account-scoring on this pasted markdown table of accounts for Northstar Compliance: Gatewise Market has marketplace-kyc-risk segmentation plus vendor KYB checks and trust queue expansion; CirrusKite API has no-match segmentation and developer observability evidence.",
+      "expected_output": "A parsed markdown-table bulk run with Gatewise Market scored as great-fit and CirrusKite API scored as not-a-fit with score <= 49.",
+      "files": [],
+      "expectations": [
+        "The markdown table parser extracts 2 account records.",
+        "Gatewise Market is scored great-fit and CirrusKite API is scored not-a-fit with score at or below 49.",
+        "The table-mode output includes a bulk run summary and compact per-record provenance fields.",
+        "The no-match result explains the score cap and does not invent a new segment label."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Use gtm-account-scoring from a directory with no GTM Context Project and no active registry.",
+      "expected_output": "The skill stops with the ADR 0086 missing-context wording and does not create files or perform git side effects.",
+      "files": [],
+      "expectations": [
+        "The output includes the exact ADR 0086 missing-context failure wording.",
+        "No scoring output file is created.",
+        "No git repository is initialized and no durable side effects are performed."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Use gtm-account-scoring for Northstar Compliance's active fintech compliance outbound workspace before any ICPs have been defined.",
+      "expected_output": "The skill stops, routes the user to gtm-define-icp, and does not produce scoring results or perform git side effects.",
+      "files": [],
+      "expectations": [
+        "The output says the workspace has no usable workspaces/fintech-compliance-outbound/icps.md and routes to gtm-define-icp.",
+        "No scoring result is produced.",
+        "No new commit is created after the fixture initialization commit."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "Use gtm-account-scoring for Northstar Compliance's active fintech compliance outbound workspace before scoring criteria have been created.",
+      "expected_output": "The skill shows a durable context write preview for workspaces/fintech-compliance-outbound/scoring.md, waits for confirmation, and does not finalize account scores or write files before confirmation.",
+      "files": [],
+      "expectations": [
+        "The output previews creating workspaces/fintech-compliance-outbound/scoring.md from workspace context, icps.md, and ADR 0006 fit bands.",
+        "The preview says no account scores will be finalized until criteria are confirmed and asks Proceed?",
+        "No scoring.md file is created before confirmation and no new commit is created after fixture initialization."
+      ]
+    }
+  ]
+}

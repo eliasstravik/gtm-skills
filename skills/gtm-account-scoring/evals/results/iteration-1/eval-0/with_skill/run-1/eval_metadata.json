@@ -1,0 +1,11 @@
+{
+  "assertions": [
+    "The one-off result assigns HarborPay Ledger segment_label compliance-heavy-fintech, score 93, fit_label excellent-fit, confidence high, and needs_review false.",
+    "The output includes dependency trace, ICP source path, scoring source path, composed gtm-account-segmentation, score, fit_label, evidence_summary, positives, risks_disqualifiers, recommended_action, confidence, reasoning, needs_review, evidence, and open_questions.",
+    "The evidence distinguishes workspace-context from user-provided-context using the ADR 0053 provenance vocabulary.",
+    "The execution summary says no durable context write, git commit, CRM update, outreach, campaign trigger, sync, or remote push happened."
+  ],
+  "eval_id": 0,
+  "eval_name": "one-off-account-scoring",
+  "prompt": "Use gtm-account-scoring to score HarborPay Ledger for Northstar Compliance's active fintech compliance outbound workspace. Use the workspace ICP definitions, scoring criteria, and account evidence from the fixture."
+}

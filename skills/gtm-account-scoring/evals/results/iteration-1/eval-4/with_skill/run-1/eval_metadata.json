@@ -1,0 +1,10 @@
+{
+  "assertions": [
+    "The output says the workspace has no usable workspaces/fintech-compliance-outbound/icps.md and routes to gtm-define-icp.",
+    "No scoring result is produced.",
+    "No new commit is created after the fixture initialization commit."
+  ],
+  "eval_id": 4,
+  "eval_name": "missing-icps-failure",
+  "prompt": "Use gtm-account-scoring for Northstar Compliance's active fintech compliance outbound workspace before any ICPs have been defined."
+}
