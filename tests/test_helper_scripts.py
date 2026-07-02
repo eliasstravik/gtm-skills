@@ -69,6 +69,78 @@ metadata:
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("not-a-function", result.stderr)
 
+    def test_readme_catalog_generator_updates_marker_block_idempotently(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _write_taxonomy(repo)
+            _write_readme(repo)
+            _write_skill(
+                repo,
+                "gtm-sample",
+                """
+---
+name: gtm-sample
+description: Use when a GTM operator needs a sample workflow.
+metadata:
+  function_tags: [sales, marketing]
+  role_tags: [sdr, ae]
+  requires_context: [context]
+  composes: []
+  output_mode: ephemeral
+  supports: [one-off]
+---
+
+# Sample
+""",
+            )
+
+            first_result = _run("scripts/generate_readme_catalog.py", "--repo", str(repo))
+            first_readme = (repo / "README.md").read_text(encoding="utf-8")
+            second_result = _run("scripts/generate_readme_catalog.py", "--repo", str(repo))
+            second_readme = (repo / "README.md").read_text(encoding="utf-8")
+
+        self.assertEqual(first_result.returncode, 0, first_result.stderr)
+        self.assertEqual(second_result.returncode, 0, second_result.stderr)
+        self.assertEqual(first_readme, second_readme)
+        self.assertIn("Before catalog.", first_readme)
+        self.assertIn("After catalog.", first_readme)
+        self.assertIn("### Sales", first_readme)
+        self.assertIn("### Marketing", first_readme)
+        self.assertIn("**[gtm-sample](skills/gtm-sample/SKILL.md)**", first_readme)
+        self.assertIn("Roles: `sdr`, `ae`.", first_readme)
+
+    def test_readme_catalog_generator_refuses_invalid_skill_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            _write_taxonomy(repo)
+            _write_readme(repo)
+            _write_skill(
+                repo,
+                "gtm-sample",
+                """
+---
+name: gtm-sample
+description: Use when a GTM operator needs a sample workflow.
+metadata:
+  function_tags: [not-a-function]
+  role_tags: [sdr]
+  requires_context: [context]
+  composes: []
+  output_mode: ephemeral
+  supports: [one-off]
+---
+
+# Sample
+""",
+            )
+
+            result = _run("scripts/generate_readme_catalog.py", "--repo", str(repo))
+            readme = (repo / "README.md").read_text(encoding="utf-8")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Refusing to generate README catalog", result.stderr)
+        self.assertNotIn("gtm-sample", readme)
+
     def test_scaffold_checker_accepts_valid_context_repository(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
@@ -127,6 +199,23 @@ def _write_skill(repo: Path, name: str, body: str) -> None:
     skill_dir = repo / "skills" / name
     skill_dir.mkdir(parents=True, exist_ok=True)
     (skill_dir / "SKILL.md").write_text(body.lstrip(), encoding="utf-8")
+
+
+def _write_readme(repo: Path) -> None:
+    (repo / "README.md").write_text(
+        """
+# Test README
+
+Before catalog.
+
+<!-- skills-catalog:start -->
+stale
+<!-- skills-catalog:end -->
+
+After catalog.
+""".lstrip(),
+        encoding="utf-8",
+    )
 
 
 def _write_context_repo(repo: Path) -> None:
