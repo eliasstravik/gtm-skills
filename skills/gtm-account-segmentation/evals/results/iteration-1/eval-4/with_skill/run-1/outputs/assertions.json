@@ -1,0 +1,19 @@
+{
+  "expectations": [
+    {
+      "evidence": "Transcript contains the missing-ICP wording and gtm-define-icp route.",
+      "passed": true,
+      "text": "The output says the workspace has no usable workspaces/fintech-compliance-outbound/icps.md and routes to gtm-define-icp."
+    },
+    {
+      "evidence": "No segmentation output files were created in the GTM Context Repository.",
+      "passed": true,
+      "text": "No segmentation result is produced."
+    },
+    {
+      "evidence": "Commit count=1; git status=<clean>; scaffold problems=[].",
+      "passed": true,
+      "text": "No new commit is created after the fixture initialization commit."
+    }
+  ]
+}

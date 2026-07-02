@@ -1,0 +1,11 @@
+{
+  "assertions": [
+    "The markdown table parser extracts 2 account records.",
+    "Gatewise Market is assigned marketplace-kyc-risk and CirrusKite API is assigned no-match.",
+    "The table-mode output includes a bulk run summary and compact per-record provenance fields.",
+    "The no-match result explains the disqualifier and does not invent a new segment label."
+  ],
+  "eval_id": 2,
+  "eval_name": "markdown-table-bulk-segmentation",
+  "prompt": "Use gtm-account-segmentation on this pasted markdown table of accounts for Northstar Compliance: Gatewise Market has vendor KYB checks and trust queue expansion; CirrusKite API is developer observability with no compliance operations signal."
+}

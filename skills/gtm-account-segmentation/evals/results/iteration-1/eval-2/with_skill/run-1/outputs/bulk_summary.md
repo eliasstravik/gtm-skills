@@ -1,0 +1,19 @@
+## Bulk run summary
+
+Records processed: 2
+Segment distribution:
+- marketplace-kyc-risk: 1
+- no-match: 1
+Low-confidence records: 0
+Records with open questions: 0
+Records needing human review: 0
+
+Top evidence patterns:
+- KYB, onboarding, or business verification queues
+- Regulated SaaS or compliance evidence workflows
+- Clear disqualifiers for non-regulated developer/ecommerce tools
+
+Common open questions:
+- None.
+
+No durable context write, git commit, CRM update, outreach, campaign trigger, sync, or remote push happened.
