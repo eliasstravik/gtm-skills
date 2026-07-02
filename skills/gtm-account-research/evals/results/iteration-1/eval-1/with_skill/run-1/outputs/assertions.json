@@ -1,0 +1,29 @@
+{
+  "expectations": [
+    {
+      "evidence": "Bulk summary contains record, priority, segment, low-confidence, open-question, and review counts.",
+      "passed": true,
+      "text": "The bulk run summary processes 8 records and includes research priority distribution, segment distribution, low-confidence count, open-question count, and records needing review."
+    },
+    {
+      "evidence": "Expected segment/score/label: {'acct_001': ('compliance-heavy-fintech', 93, 'excellent-fit'), 'acct_002': ('regulated-b2b-saas', 84, 'great-fit'), 'acct_003': ('marketplace-kyc-risk', 88, 'great-fit'), 'acct_004': ('no-match', 32, 'not-a-fit'), 'acct_005': ('regulated-b2b-saas', 58, 'good-fit'), 'acct_006': ('no-match', 29, 'not-a-fit'), 'acct_007': ('compliance-heavy-fintech', 77, 'great-fit'), 'acct_008': ('compliance-heavy-fintech', 72, 'good-fit')}; actual: {'acct_001': ('compliance-heavy-fintech', 93, 'excellent-fit'), 'acct_002': ('regulated-b2b-saas', 84, 'great-fit'), 'acct_003': ('marketplace-kyc-risk', 88, 'great-fit'), 'acct_004': ('no-match', 32, 'not-a-fit'), 'acct_005': ('regulated-b2b-saas', 58, 'good-fit'), 'acct_006': ('no-match', 29, 'not-a-fit'), 'acct_007': ('compliance-heavy-fintech', 77, 'great-fit'), 'acct_008': ('compliance-heavy-fintech', 72, 'good-fit')}.",
+      "passed": true,
+      "text": "Every fixture row is assigned the expected segment, score, and fit label from the Northstar account fixture."
+    },
+    {
+      "evidence": "Compact CSV header includes every required research and provenance field.",
+      "passed": true,
+      "text": "The compact CSV output includes account_id, account_name, website, segment_label, score, fit_label, research_priority, confidence, needs_review, reasoning, research_brief, key_signals, pain_hypotheses, recommended_next_step, top_evidence, and open_questions."
+    },
+    {
+      "evidence": "No-match rows are low-priority; VerityLoop is review-gated.",
+      "passed": true,
+      "text": "The two no-match rows use research_priority low, and VerityLoop Finance is low confidence with needs_review true."
+    },
+    {
+      "evidence": "Ephemeral bulk run left git status clean: <clean>.",
+      "passed": true,
+      "text": "The bulk output remains ephemeral and performs no durable write, git commit, CRM update, outreach, campaign trigger, sync, or remote push."
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "assertions": [
+    "The markdown table parser extracts 2 account records.",
+    "Gatewise Market is high-priority research with fit_label great-fit and CirrusKite API is low-priority research with fit_label not-a-fit.",
+    "The table-mode output includes a bulk run summary and compact per-record provenance fields.",
+    "The no-match result explains why research should not feed active outbound and does not invent a new segment label."
+  ],
+  "eval_id": 2,
+  "eval_name": "markdown-table-bulk-account-research",
+  "prompt": "Use gtm-account-research on this pasted markdown table of accounts for Northstar Compliance: Gatewise Market has marketplace-kyc-risk segmentation plus vendor KYB checks and trust queue expansion; CirrusKite API has no-match segmentation and developer observability evidence."
+}
