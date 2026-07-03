@@ -21,7 +21,7 @@ __pycache__/
 
 # Agent/runtime scratch
 .hermes/tmp/
-.paperclip/tmp/
+.paperclip/
 
-# Generated eval evidence
-skills/*/evals/results/
+# Local build state and dev machinery (evals, tests, fixtures, validators)
+.wayfinder/

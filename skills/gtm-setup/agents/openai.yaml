@@ -1,4 +1,0 @@
-interface:
-  display_name: "GTM Setup"
-  short_description: "Create or repair GTM context repos"
-  default_prompt: "Use $gtm-setup to create a new GTM Context Project for my company."
