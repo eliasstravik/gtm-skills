@@ -1,6 +1,6 @@
 # Setup And Repair
 
-Load this reference before creating, selecting, validating, or repairing a GTM Context Project.
+Load this reference before creating, importing, selecting, validating, repairing, publishing, or syncing a GTM Context Project.
 
 ## GTM Setup Model
 
@@ -13,30 +13,94 @@ Build an in-memory model before writing anything:
 - `workspace`: `id`, `display_name`, `path`, optional `business_unit`, `team`, `motion`, `market`, `offering`
 - optional `business_unit`: `id`, `display_name`, `path`
 - optional `team`: `id`, `display_name`, `path`
+- `mode`: create, import, select, validate, repair, publish, or sync
+- `sources`: user-provided and discovered public/profile links, classified before saving
+- `trust`: imported instruction-file comparison results and required approvals
 - `writes`: files to create, preserve, repair, or skip
-- `git`: whether to initialize, commit, or skip git
+- `git`: whether to initialize, commit, clone, add a remote, push, or skip git
 - `enrichment`: `skipped`, `unavailable`, `proposed-but-not-applied`, `partially-applied`, or `applied`
 
 Only write after the required IDs, paths, and intended write set are known.
 
-## Fast Path Interaction Shape
+## Import-Or-Fresh Gate
 
-For a simple new project, keep setup under three user interactions:
+When starting setup without a resolved project, ask one concise choice question:
 
-1. Ask: "What organization, company, client, or account should this GTM Context Project be for?"
-2. Ask: "Who are you for this context? Please give your display name and role."
-3. Show a combined confirmation:
-   - Organization ID and repo path
-   - Person ID and file path
-   - Workspace ID and folder path
-   - files to create
-   - git init/commit intent
-   - explicit note that no push, outreach, CRM update, or campaign action will happen
-   - optional enrichment prompt: "Paste any links about your company, product, or you, or say skip."
+1. Start fresh.
+2. Import an existing GTM context repo.
+3. Switch to an existing registered project, only when the registry already has projects.
 
-If the user confirms and skips links, write the sparse scaffold. If the user provides links, enter the enrichment branch; enrichment-heavy setup can exceed the three-interaction simple-path budget.
+Use AskUserQuestion or an equivalent interaction tool when available. Otherwise present numbered options. "Start fresh" is first/default.
+
+## Fresh Setup Interaction Shape
+
+Fresh setup is sequential and facts-first:
+
+1. Company block.
+   - Ask for company name and website.
+   - State: "this takes a couple of minutes - I'm researching so you don't have to type it."
+   - Research facts anchored on the provided domain: official site, docs, public proof pages, and news when available.
+   - Draft a compact `organization.md` summary.
+   - Ask only targeted questions for low-confidence, conflicting, inferred, or unanchored facts.
+   - Auto-apply a fact only when it appears on a public first-party page with domain anchoring.
+2. Person block.
+   - Ask for person name, job title, and professional/social profile links.
+   - State the same research expectation line before researching.
+   - Research facts only. Person facts require company co-mention; unanchored facts become targeted questions.
+   - Use public web search fallback for auth-walled profiles such as LinkedIn. Save the supplied profile URL as a source link when it passes link safety.
+   - Before confirmation, state that confirmed person facts will be committed to the Organization repo, which may be shared later; let the user trim facts before writing.
+3. Silent default workspace.
+   - Create `workspaces/default/` and seed `context.md` only with confirmed company-level facts that fit the workspace scope, such as offering or market.
+   - Do not surface the workspace concept during onboarding.
+   - Do not guess a GTM motion.
+4. Combined ID and write preview.
+   - Organization ID and repo path.
+   - Person ID and file path.
+   - Workspace ID and folder path.
+   - Files to create.
+   - Git init/commit intent.
+   - Explicit note that no push, outreach, CRM update, or campaign action will happen.
+
+Do not ask long-form "describe your company" or "describe yourself" questions. Do not infer goals, motivations, working preferences, or soft attributes during onboarding; leave those sections sparse or as open questions.
+
+If the registry already has a project with the same Organization slug, present options to select the existing project or add the person to it instead of creating a duplicate. A second person setup creates `people/<person-id>.md` and updates registry local active state only.
 
 Do not ask a setup-depth question by default. Use the simple Organization -> Person -> GTM Workspace chain unless the user already mentioned a Business Unit, Team, market, motion, or workspace name.
+
+## Import Path
+
+Use import when the user provides a GitHub URL, local path, or asks to join a shared project.
+
+- GitHub URL imports clone under `$GTM_HOME/<slug>`. If the destination exists, append `-2`, `-3`, and so on until the path is clear.
+- Local path imports register the existing absolute path in place. Do not copy it under `$GTM_HOME`.
+- Private-repo clone/auth failures should be reported with a pointer to the user's existing `gh auth login` or SSH setup. Do not collect, paste, or handle credentials.
+- Imports never push and never rewrite the imported repository's history or remotes.
+
+Run both gates below before updating registry local active state.
+
+### Instruction Trust Gate
+
+Compare imported `AGENTS.md` and `CLAUDE.md` against the packaged static templates in `skills/gtm-setup/templates/`.
+
+- Whitespace-only differences are near-identical and can proceed silently.
+- Missing instruction files are repairable with the packaged templates, with user confirmation when writing repair files.
+- Any substantive difference is divergent. Show the nonstandard imported content verbatim and require explicit approval before registering or activating the project.
+- Never silently activate a project with divergent instructions.
+
+`AGENTS.md` and `CLAUDE.md` templates are static instruction files. Do not expect template placeholders, live dates, IDs, or tokens in them.
+
+### Structure Gate
+
+Parse `gtm.yaml`. A valid imported project has at least:
+
+- `version`
+- `organization.id`
+- `organization.display_name`
+- `default_workspace`
+
+If `gtm.yaml` is parseable and has org id/name, accept it as valid or repairable through the non-destructive repair rules below. Missing scaffold files such as `AGENTS.md`, `CLAUDE.md`, person files, workspace context, or `.gitignore` can be repaired after confirmation.
+
+If `gtm.yaml` is absent, broken, or lacks org id/name, reject import as "not a GTM project." Present a start-fresh option using the path's contents as source material, but do not register or activate it as a project.
 
 ## ID Generation
 
@@ -122,7 +186,7 @@ Omit unknown optional fields instead of writing `null`. Save long source lists i
 When a project already exists:
 
 - If it is valid, update registry local active state and preserve project files.
-- If required scaffold pieces are missing, offer or perform non-destructive repair.
+- If required scaffold pieces are missing, ask before performing non-destructive repair.
 - Add missing files and folders only.
 - Merge missing `.gitignore` rules without deleting user rules.
 - Preserve existing `AGENTS.md`, `organization.md`, Person files, and Workspace context unless the user explicitly asks to regenerate or replace them.
@@ -130,6 +194,21 @@ When a project already exists:
 - If repair writes safe scaffold changes, create `Repair GTM context scaffold`.
 
 Never use broad overwrite behavior. Regeneration, deletion, or substantial rewrite requires explicit user intent and a preview.
+
+## Ephemeral Job Workspaces
+
+Template `.gitignore` must include `.tmp/`. Skills that need local SQLite, CSV, scripts, logs, or other throwaway work products should write them under:
+
+```text
+<project-root>/.tmp/<skill-name>/
+```
+
+These files are not durable context and must not be committed. Promote outputs only when the user explicitly asks and confirms a side-effect preview:
+
+- write to the user's own system through MCP or a connector, or
+- export a user-requested file.
+
+Onboarding's own intermediate research scratch may use the ignored `research/` directory. Do not commit raw research scratch from `research/` or `.tmp/`.
 
 ## Git Behavior
 
@@ -139,11 +218,11 @@ Never use broad overwrite behavior. Regeneration, deletion, or substantial rewri
 - Do not create another initial commit if the project already has commits.
 - Stage only current setup or repair files, never unrelated working-tree changes.
 - If git is missing, user identity is not configured, hooks fail, or commit fails, keep written files and report that changes remain uncommitted.
-- Never push by default.
+- Never push by default. The only pushes this skill may perform are the explicit multiplayer pushes in [multiplayer.md](multiplayer.md), after user confirmation.
 
 ## Setup Summary
 
-End every successful create, select, validate, or repair with:
+End every successful create, import, select, validate, repair, publish, or sync with:
 
 ```text
 GTM context project ready
@@ -171,6 +250,12 @@ Enrichment
 - Unresolved questions: <count>
 - Links omitted/redacted for safety: <count>
 - Safe source labels saved: <count>
+
+Import / sharing
+- Imported project: yes/no
+- Trust gate: passed/repaired/approved divergence/not applicable
+- Structure gate: passed/repaired/not applicable
+- Published/shared: yes/no/not requested
 
 Next recommended skills
 1. gtm-define-icp

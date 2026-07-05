@@ -29,7 +29,14 @@ Never commit local active state. Active organization, active person, and active 
 
 ## Durable Vs Ephemeral
 
-Durable context belongs in this repo. Ephemeral outputs such as research briefs, lead notes, outreach drafts, batch outputs, logs, and temporary artifacts should not be committed unless the user explicitly promotes them.
+Durable narrative context belongs in this repo. Entity data and throwaway job work do not.
+
+Ephemeral outputs such as research briefs, lead notes, outreach drafts, batch outputs, logs, temporary artifacts, SQLite files, CSV staging files, and scripts belong under `.tmp/<skill-name>/`. Do not commit `.tmp/`.
+
+Promote outputs only when the user explicitly asks and confirms the side effect:
+
+- write to the user's own system through MCP or a connector, or
+- export a user-requested file.
 
 ## Workspace Rules
 
@@ -45,6 +52,7 @@ Skill-owned context files live under `workspaces/<workspace>/`.
 
 - Respect `.gitignore`.
 - Never commit secrets, credentials, tokens, signed URLs, invite links, or `.env` files.
+- Never commit `.tmp/` job workspaces or raw research scratch.
 - Never mix context across organizations, people, or workspaces silently.
 - Keep source links in markdown context files, not long lists in `gtm.yaml`.
 - Treat saved source links and safe source labels as starting evidence, not guaranteed truth.

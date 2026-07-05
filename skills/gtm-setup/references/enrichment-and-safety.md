@@ -4,29 +4,26 @@ Load this reference when the user provides setup source links, asks to seed cont
 
 ## Enrichment Inputs
 
-After required setup inputs are collected, the user may provide:
+Fresh setup collects sources before each research pass:
 
-- Organization website
-- Product pages, docs, help center, proof pages, or case studies
-- Public company or directory pages
-- CRM/account pages or internal docs available to the agent
-- Active Person profile links such as LinkedIn, personal site, GitHub, calendar/about page, or approved social profiles
-- Quick notes the user wants preserved or considered
+- Company block: company name and official website.
+- Person block: person name, job title, and professional/social profile links.
 
-Links and quick notes are optional. If skipped or unavailable, write sparse templates and report enrichment as `skipped` or `unavailable`.
+During research, the agent may discover additional public company, product, docs, proof, news, team, speaker, GitHub, X/Twitter, or profile pages. Classify every user-provided and discovered source before saving it. If web tools are absent, ask the user to paste key public pages; if they decline or cannot, write sparse templates and report enrichment as `unavailable`.
 
 ## Bounded Setup Research
 
-Use source-assisted enrichment to draft initial durable context, not to run full account research. Focus on:
+Use source-assisted enrichment to draft initial durable setup context, not to run full account research. Facts only:
 
-- Organization description
-- Products or offerings
-- Positioning and proof points
-- Person focus, responsibilities, goals, and working preferences
-- Workspace offering, market, GTM motion, target outcomes, messaging notes, constraints, and open questions
-- Optional Business Unit or Team scope when the user provided that chain
+- what the organization does
+- public products, offerings, positioning, proof points, and constraints
+- public person role/title and company-linked professional facts
+- workspace offering or market only when confirmed by company-level facts
+- optional Business Unit or Team scope when the user already provided that chain
 
-Do not invent missing facts. Leave unknown sections sparse or add open questions.
+Do not invent missing facts. Do not infer goals, motivations, working preferences, personality, priorities, or soft attributes during onboarding. Leave unknown sections sparse or add open questions.
+
+Onboarding research scratch belongs in the ignored `research/` directory. Do not commit raw scratch notes, extraction dumps, or unresolved claims.
 
 ## Link Classification
 
@@ -52,7 +49,13 @@ Examples: invite URLs, signed storage URLs, URLs with `token`, `access_token`, `
 
 Behavior: never commit. Redact in warnings and, when useful to confirmed context, propose a safe source label.
 
-## Clarification Rules
+## Confidence And Clarification Rules
+
+Auto-apply only high-confidence facts:
+
+- Company facts require a public first-party page on the provided domain or a clearly official first-party source.
+- Person facts require company co-mention or another strong public link between the person and the organization.
+- Saved profile URLs are source links, not proof that every profile fact is safe to commit.
 
 Ask focused clarification questions when source-assisted enrichment finds conflicting or unclear information that materially affects GTM context:
 
@@ -60,11 +63,11 @@ Ask focused clarification questions when source-assisted enrichment finds confli
 - company size, target customer, product category, or team scope when sources conflict
 - active Person role/focus when sources are stale or ambiguous
 
-If unresolved, do not write the claim as fact. Leave the affected field blank or record it as an open question. Continue setup with confirmed context.
+Anything inferred, single-source ambiguous, unanchored, stale-looking, or not company-linked is low-confidence. Batch low-confidence facts into a targeted AskUserQuestion call when available; otherwise use numbered options. If unresolved, do not write the claim as fact. Leave the affected field blank or record it as an open question. Continue setup with confirmed context.
 
-## Enrichment Preview
+## Confirmed Summary And Targeted Ask
 
-Before writing enriched durable context, show a section-by-section preview grouped by target file:
+Before writing enriched durable context, show a compact per-file summary plus targeted asks for low-confidence facts:
 
 ```text
 Proposed setup enrichment
@@ -76,13 +79,13 @@ organization.md
 - Sources: 3
 
 people/<person-id>.md
-- Focus: ...
-- Working preferences: ...
+- Role/title facts: ...
+- Public profile/source links: ...
+- Facts that will be committed: ...
 
 workspaces/<workspace-id>/context.md
 - Offering: ...
 - Market: ...
-- GTM motion: ...
 
 Sources to save
 - Official website: https://example.com
@@ -91,15 +94,12 @@ Sources to save
 Omitted/redacted
 - 1 signed/tokenized link omitted for safety
 
-Options
-1. Apply all
-2. Edit before applying
-3. Apply selected sections
-4. Keep sparse templates
-5. Add more links/context and retry enrichment
+Questions
+1. Which product category should I use: A, B, or leave blank?
+2. This person appears on two company pages with different titles. Which title should be committed?
 ```
 
-Only accepted or edited-and-accepted sections become confirmed setup enrichment.
+Only high-confidence facts and user-confirmed clarifications become setup enrichment. During the person pass, state that confirmed person facts will be committed to the Organization repo, which may be shared later; let the user trim, remove, or leave person facts sparse before writing.
 
 ## Safe Source Labels
 

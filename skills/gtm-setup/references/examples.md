@@ -2,27 +2,97 @@
 
 Use these examples to check the shape of generated context. The values are fictional and based on the Northstar Compliance demo fixture.
 
-## Simple Sparse Setup
+## Import Gate
 
-User interaction 1:
+When no GTM Context Project resolves, start with a compact choice:
+
+```text
+How should I set up GTM context?
+
+1. Start fresh
+2. Import an existing GTM context repo
+3. Switch to an existing registered project
+```
+
+Only show option 3 when `$GTM_HOME/registry.json` already has projects.
+
+## Fresh Setup With Research Blocks
+
+User chooses:
+
+```text
+1
+```
+
+Company block prompt:
+
+```text
+Company name and website?
+```
+
+User response:
 
 ```text
 Northstar Compliance
+https://northstar.example
 ```
 
-User interaction 2:
+Before researching, say:
 
 ```text
-Jordan Lee, SDR
+this takes a couple of minutes - I'm researching so you don't have to type it.
 ```
 
-User interaction 3:
+Company confirmation should be compact and targeted:
 
 ```text
-Looks good, skip links.
+organization.md summary
+- What this organization is: Northstar Compliance helps compliance teams monitor policy exceptions.
+- Products / offerings: exception monitoring dashboard and compliance workflow reporting.
+- Proof points: public customer stories on the official site.
+- Sources: https://northstar.example, https://northstar.example/customers
+
+Questions
+1. The site names both regulated finance and healthcare. Which market should I seed in workspace context?
+2. Leave market blank for now.
 ```
 
-Combined confirmation before the third response should have shown:
+Person block prompt:
+
+```text
+Your name, job title, and any professional/social profile links?
+```
+
+User response:
+
+```text
+Jordan Lee
+SDR
+https://www.linkedin.com/in/jordan-lee-example
+```
+
+Before researching, repeat:
+
+```text
+this takes a couple of minutes - I'm researching so you don't have to type it.
+```
+
+Person confirmation should state commit visibility:
+
+```text
+people/jordan-lee.md summary
+- Role: SDR
+- Public profile/source links: LinkedIn profile supplied by user
+
+Confirmed person facts will be committed to the Organization repo, which may be shared later.
+
+Options
+1. Commit these person facts
+2. Remove the profile link before writing
+3. Keep person context sparse
+```
+
+Combined write preview:
 
 ```text
 I will create a GTM Context Project:
@@ -45,9 +115,7 @@ Git:
 - create commit: Initialize GTM context project
 - no remote push
 
-No outreach will be sent. No CRM records will be updated.
-
-Optional: paste links about your company, product, or you, or say skip.
+No outreach will be sent. No CRM records will be updated. No campaign action will happen.
 ```
 
 Minimal `gtm.yaml`:
@@ -100,17 +168,44 @@ Git
 - Commit: Initialize GTM context project
 
 Enrichment
-- Source-assisted enrichment: skipped
-- Sources used: 0
+- Source-assisted enrichment: applied
+- Sources used: 3
 - Unresolved questions: 0
 - Links omitted/redacted for safety: 0
 - Safe source labels saved: 0
+
+Import / sharing
+- Imported project: no
+- Trust gate: not applicable
+- Structure gate: not applicable
+- Published/shared: not requested
 
 Next recommended skills
 1. gtm-define-icp
 2. gtm-define-personas
 ```
 
-## Source-Assisted Setup
+## Import Example
 
-When the user provides links in the third interaction, classify them before saving. Public Northstar-style links can be proposed as durable sources; signed, tokenized, invite, local, or unapproved private links must be omitted or converted to confirmed safe source labels.
+User chooses import and provides:
+
+```text
+https://github.com/example/northstar-gtm-context
+```
+
+Expected behavior:
+
+1. Clone under `$GTM_HOME/northstar-gtm-context`, using a numeric suffix if needed.
+2. Compare imported `AGENTS.md` and `CLAUDE.md` against the packaged templates.
+3. Parse `gtm.yaml` and require `organization.id` and `organization.display_name`.
+4. Register and activate only after the trust and structure gates pass or the user explicitly approves divergent instruction text.
+
+If `gtm.yaml` is absent or broken:
+
+```text
+This is not a GTM Context Project because I could not parse gtm.yaml with organization id/name.
+
+Options
+1. Start fresh using this repo's contents as source material
+2. Cancel import
+```
