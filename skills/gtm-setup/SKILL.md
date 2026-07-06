@@ -1,84 +1,111 @@
 ---
 name: gtm-setup
-description: Set up, select, validate, or repair a git-backed GTM Context Project under $GTM_HOME (default ~/.gtm). Use when a user wants to start using GTM skills, create onboarding context, fix or repair gtm.yaml/AGENTS.md/organization/person/workspace files, switch active organization/person/workspace, seed setup context from company/product/profile links, or when any gtm-* skill cannot resolve a GTM Context Project.
-metadata:
-  function_tags: [sales, marketing, revops, customer-success, partnerships, growth]
-  role_tags: [sdr, bdr, ae, full-cycle-seller, sales-ops, marketing-ops, cro, vp-sales, csm, partnerships-lead, founder]
-  requires_context: []
-  composes: []
-  output_mode: durable
-  supports: [one-off]
+description: Set up, select, validate, or repair a local GTM context project. Use when the user wants to start using GTM skills, switch the active workspace, fix context files, seed setup from company or profile links, or recover after another gtm skill cannot resolve context.
 ---
 
 # GTM Setup
 
-Create, select, validate, and repair GTM Context Projects. A valid project is a git-backed Organization repository under `$GTM_HOME` with `gtm.yaml`, `organization.md`, one active Person, and one active GTM Workspace.
+Create and maintain a GTM context project: a git-backed organization
+folder under `$GTM_HOME` with durable workspace context. Default
+`$GTM_HOME` to `~/.gtm`.
 
 ## Core Workflow
 
-1. Resolve the setup mode.
-   - Create a new project when the user asks to start, onboard, run setup, or no GTM Context Project can be resolved.
-   - Select an existing project when the prompt, current directory, or registry identifies a valid project.
-   - Validate or repair when a project exists but required scaffold pieces are missing.
-   - Completion criterion: the mode and target project/path are known, or the next question asks only for a missing required setup answer.
+1. Pick the mode.
+   - Create when the user is onboarding or no project resolves.
+   - Select when the user names an existing project, person, or workspace.
+   - Validate or repair when a project resolves but required files are absent,
+     inconsistent, or placeholder-only.
+   - Completion criterion: the mode, target `$GTM_HOME`, and target project
+     are known, or the next question asks only for the missing required setup
+     answer.
 
-2. Keep the simple path to three user interactions.
-   - Ask for the Organization name.
-   - Ask for the active Person display name and free-text role in one question.
-   - Show all generated IDs and the file/commit preview in one combined confirmation, and include the optional enrichment prompt: "paste any links about your company, product, or you, or skip."
-   - Default to the simple Organization -> Person -> GTM Workspace chain silently. If the user names a Business Unit or Team without being asked, include that deeper chain.
+2. Resolve context in this order.
+   - Explicit project, path, organization, person, or workspace in the prompt.
+   - The nearest current-directory ancestor containing `gtm.yaml`.
+   - `$GTM_HOME/registry.json`, using `active_project_id` first, then the only
+     registered project when exactly one exists.
+   - After selecting a project, resolve person and workspace from explicit
+     prompt values, registry active state, then `gtm.yaml` defaults.
+   - Before any read, write, stage, or commit, canonicalize the project root.
+     IDs inside a project must be lowercase slug ids; reject derived child
+     paths that are absolute, contain `..`, or resolve outside the project root,
+     including symlink escapes.
+   - If nothing resolves, say exactly: `I could not resolve a GTM Context Project from this prompt, current directory, or local registry. Run gtm-setup or tell me which GTM project to use.`
 
-3. Build the GTM Setup Model before writing.
-   - Resolve `$GTM_HOME` (default `~/.gtm`), registry path, Organization ID/path, Person ID/path, Workspace ID/path, optional Business Unit/Team IDs, timestamps, intended writes, and git actions.
-   - Do not write local active state until the shared scaffold is valid enough to use.
-   - Read [setup-and-repair.md](references/setup-and-repair.md) before writing or repairing files.
+3. Keep creation tight.
+   - Ask for organization name, active person name, and active person role
+     only when missing.
+   - Generate lowercase kebab-case ids; show them before writing.
+   - Default to one organization, one person, and one `default` workspace.
+     Add business units or teams only when the user already named them.
+   - Completion criterion: every id, path, write target, and registry update is
+     previewable before the filesystem changes.
 
-4. Confirm durable writes before execution.
-   - Use a concise file/section preview, not a raw full diff by default.
-   - State whether git will be initialized, whether an initial or repair commit will be created, and that no remote push, outreach, CRM update, or campaign action will happen.
-   - If source links are provided, read [enrichment-and-safety.md](references/enrichment-and-safety.md), use `scripts/classify_source_links.py` when available to classify links, draft bounded setup context, and show the enrichment preview before writing enriched facts or safe source labels.
+4. Guard source links.
+   - Classify provided company, product, CRM, profile, or documentation links
+     with `scripts/classify_source_links.py` when available.
+   - Prefer `scripts/classify_source_links.py --stdin --json` with one link per
+     stdin line. If stdin is unavailable, pass links as separate argv entries
+     after `--`; never concatenate raw links into a shell command.
+   - Public links may be saved after confirmation. Private links need explicit
+     confirmation and should usually become safe labels. Secret-bearing,
+     invite, tokenized, or local-only links are never committed.
+   - Completion criterion: every source link is saved, labeled, or omitted with
+     a reason.
 
-5. Write or repair deterministically.
-   - Use the files in `templates/` for the scaffold: `.gitignore`, `AGENTS.md`, `CLAUDE.md`, `gtm.yaml`, `organization.md`, `people/<person-id>.md`, `workspaces/<workspace-id>/context.md`, and optional Business Unit/Team files.
-   - Create `business-units/` and `teams/` directories even when they only contain `.gitkeep` placeholders.
-   - Do not create skill-owned files such as `icps.md`, `personas.md`, or `scoring.md`.
+5. Preview durable writes.
+   - Show the files and sections to create, repair, preserve, or skip.
+   - State whether git will be initialized and whether a local commit will be
+     attempted.
+   - State that no remote push, CRM update, outreach, campaign, or sync will
+     happen.
+   - Wait for explicit confirmation before writing new or repaired durable
+     project files.
 
-6. Update local registry and git last.
-   - Preserve unknown fields in `$GTM_HOME/registry.json` and project `gtm.yaml`.
-   - Initialize git by default for new projects unless the user explicitly opts out.
-   - Create `Initialize GTM context project` after successful new setup, or `Repair GTM context scaffold` after safe repair writes.
-   - Never push by default. If git commit fails, keep written files and report the blocker.
+6. Write deterministically.
+   - Use `templates/` for `.gitignore`, `AGENTS.md`, `CLAUDE.md`, `gtm.yaml`,
+     `organization.md`, `people/<person-id>.md`, and
+     `workspaces/<workspace-id>/context.md`.
+   - Create `business-units/` and `teams/` with `.gitkeep` placeholders.
+   - Do not create `icps.md`, `personas.md`, `account-scoring.md`, or
+     `lead-scoring.md`; those are owned by later skills.
+   - Preserve human-authored files unless the user explicitly confirms a
+     replacement.
 
-7. End with the setup summary.
-   - Include Organization ID/path, active Person and Workspace, files created/preserved/repaired, git status, enrichment status, omitted/redacted source counts, unresolved enrichment questions, and next recommended skills.
-   - Recommend `gtm-define-icp` and `gtm-define-personas` for new projects.
+7. Update registry and git last.
+   - Keep active local state in `$GTM_HOME/registry.json`, never in committed
+     project files.
+   - Preserve unknown registry and `gtm.yaml` fields.
+   - Initialize git by default for new projects unless the user opts out.
+   - Commit only the confirmed setup or repair files with `Initialize GTM context project` or `Repair GTM context project`; never push.
+   - If commit fails, keep the written files and report the blocker.
 
-## Context Resolution Contract
+8. End with a setup summary.
+   - Include project path, active person, active workspace, files created,
+     files preserved, files repaired, source-link handling, git status, and
+     unresolved open questions.
+   - Report `created`, `preserved`, `repaired`, `skipped`, and `failed`
+     buckets explicitly, using `none` for empty buckets. This keeps
+     validation and repair runs reviewable without making the reader infer
+     whether a category was checked or forgotten.
+   - Recommend `gtm-define-icp` and `gtm-define-personas` for a new project.
 
-When resolving a GTM Context Project for setup, selection, or repair:
+## Project Contract
 
-1. Use explicit user instruction in the prompt when the user names a GTM project, Organization ID, project path, workspace, or person.
-2. If the current working directory is inside a GTM Context Repository, use the nearest ancestor containing `gtm.yaml`.
-3. Otherwise use the active project in `$GTM_HOME/registry.json`.
+A valid project contains:
 
-After choosing the project, resolve the active Person and GTM Workspace from explicit prompt values, then registry local state, then the project's `default_workspace`. If no project resolves, say:
+- `gtm.yaml` with `version: 1`, organization id/display name,
+  `default_workspace`, people, workspaces, and optional business units/teams.
+- `AGENTS.md` and `CLAUDE.md`, where `CLAUDE.md` contains `@AGENTS.md`.
+- `organization.md`.
+- `people/<person-id>.md`.
+- `workspaces/<workspace-id>/context.md`.
+- `.gitignore` protecting local state, secrets, logs, and ephemeral outputs.
 
-> I could not resolve a GTM Context Project from this prompt, current directory, or local registry. Run `gtm-setup` or tell me which GTM project to use.
+Skill-owned workspace files are created later:
 
-## Blocking Rules
-
-- Missing Organization name, active Person display name, active Person role, or generated ID confirmation blocks creation.
-- Missing or unresolved enrichment answers do not block setup; leave sparse sections or open questions.
-- Unclear source-assisted claims that affect GTM decisions must not be written as facts until confirmed.
-- Existing human-authored files must not be overwritten unless the user explicitly asks to regenerate or replace them.
-
-## Verification Checklist
-
-- `gtm.yaml` has required fields, omits unknown optional fields, and references files that exist.
-- `AGENTS.md` encodes the prompt -> CWD -> registry context-resolution order, and `CLAUDE.md` contains `@AGENTS.md`.
-- Local active state is only in `$GTM_HOME/registry.json`, never in committed project files.
-- `.gitignore` protects local state, secrets, temporary files, logs, and ephemeral outputs.
-- The commit, if created, stages only the current setup or repair change set and never pushes.
-- The final summary distinguishes created, preserved, repaired, skipped, and failed steps.
-
-See [examples.md](references/examples.md) for a concrete Northstar Compliance setup shape.
+- `gtm-define-icp` owns `workspaces/<workspace-id>/icps.md`.
+- `gtm-define-personas` owns `workspaces/<workspace-id>/personas.md`.
+- `gtm-account-scoring` owns `workspaces/<workspace-id>/account-scoring.md`.
+- `gtm-lead-scoring` owns `workspaces/<workspace-id>/lead-scoring.md`.

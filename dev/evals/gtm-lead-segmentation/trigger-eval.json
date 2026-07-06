@@ -1,0 +1,22 @@
+[
+  {"query": "Segment Jordan Lee into one of our persona labels or no-match.", "should_trigger": true},
+  {"query": "Classify these contacts by persona using the current GTM workspace.", "should_trigger": true},
+  {"query": "Which buyer role does this lead match in personas.md?", "should_trigger": true},
+  {"query": "Bucket Priya Shah, Casey Morgan, and Alex Ruiz by lead persona.", "should_trigger": true},
+  {"query": "Route this contact list by persona before scoring outreach priority.", "should_trigger": true},
+  {"query": "Qualify this person as warehouse-operations-leader or no-match.", "should_trigger": true},
+  {"query": "I have a CSV of leads. Add persona_label using our GTM personas.", "should_trigger": true},
+  {"query": "Is this Brand Manager a no-match lead for the warehouse operations workspace?", "should_trigger": true},
+  {"query": "Set up a new GTM context project.", "should_trigger": false},
+  {"query": "Define personas for dock operations managers.", "should_trigger": false},
+  {"query": "Segment HarborFlow Logistics as an account.", "should_trigger": false},
+  {"query": "Score Jordan Lee after persona segmentation.", "should_trigger": false},
+  {"query": "Research Jordan Lee and give me personalization angles.", "should_trigger": false},
+  {"query": "Score HarborFlow as an account against ICPs.", "should_trigger": false},
+  {"query": "Define account ICPs for warehouse operators.", "should_trigger": false},
+  {"query": "Research DockPilot Systems as a company.", "should_trigger": false},
+  {"query": "Create lead-scoring.md criteria.", "should_trigger": false},
+  {"query": "Write outbound copy to a WMS administrator.", "should_trigger": false},
+  {"query": "Repair missing gtm.yaml files.", "should_trigger": false},
+  {"query": "Find emails for these contacts.", "should_trigger": false}
+]

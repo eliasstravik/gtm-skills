@@ -1,0 +1,30 @@
+{
+  "skill_name": "gtm-define-icp",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Refine Acme Robotics ICPs by adding a new account segment for regional 3PL operators that run 2-10 warehouses, struggle with dock appointment delays, and use a WMS. Preserve existing segments and show the write preview. Confirm the update.",
+      "expected_output": "icps.md is updated with one new account-level segment, existing segments are preserved, and the summary reports the isolated write.",
+      "files": [],
+      "expectations": [
+        "Reads workspace context and existing icps.md before drafting",
+        "Adds an account-level segment with a stable machine label",
+        "Preserves existing ICP sections and no-match guidance",
+        "Writes only workspaces/default/icps.md after confirmation",
+        "Reports no external side effects or push"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. The user asks: 'our ICPs are too broad, tighten the no-match guidance for companies that outsource all warehousing and only sell consumer goods.' Update the ICP context if appropriate and confirm the preview.",
+      "expected_output": "The no-match guidance is tightened without inventing personas or scores.",
+      "files": [],
+      "expectations": [
+        "Treats the request as an ICP refinement",
+        "Updates no-match guidance rather than downstream scoring or personas",
+        "Preserves unrelated ICP content",
+        "Marks uncertainty as open questions instead of facts"
+      ]
+    }
+  ]
+}

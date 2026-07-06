@@ -1,0 +1,29 @@
+{
+  "skill_name": "gtm-define-personas",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Add a persona for Dock Operations Manager. They own daily dock scheduling, detention costs, staffing handoffs, and appointment visibility. Confirm the preview and update personas.md.",
+      "expected_output": "personas.md gains a lead-level persona tied to the warehouse ICP context without changing icps.md.",
+      "files": [],
+      "expectations": [
+        "Reads icps.md before drafting personas",
+        "Adds a lead-level persona with titles, responsibilities, pains, buying influence, hooks, confidence, and open questions",
+        "Preserves existing personas and no-match",
+        "Writes only workspaces/default/personas.md"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. The user says: 'we keep seeing generic IT managers in the list, but only logistics technology owners should count. Tighten the persona definitions and no-match guidance.' Confirm and update the persona context.",
+      "expected_output": "The persona file is refined to disqualify generic IT leads while preserving logistics technology owners.",
+      "files": [],
+      "expectations": [
+        "Treats the request as a persona refinement, not account ICP work",
+        "Keeps ICP definitions unchanged",
+        "Clarifies no-match or disqualifier guidance",
+        "Reports confidence and review state"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "active_project_id": "acme-robotics",
+  "projects": {
+    "acme-robotics": {
+      "id": "acme-robotics",
+      "display_name": "Acme Robotics",
+      "path": "acme-robotics",
+      "active_person_id": "maya-chen",
+      "active_workspace_id": "default"
+    }
+  }
+}

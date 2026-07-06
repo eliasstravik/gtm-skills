@@ -1,0 +1,56 @@
+{
+  "skill_name": "gtm-setup",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use the GTM setup skill with GTM_HOME pointing at a fresh temp root. Create a new project for Acme Robotics. Organization: Acme Robotics. Active person: Maya Chen, Head of Growth. Workspace: Default GTM Workspace for outbound to warehouse operations teams. Public sources: https://example.com/acme-robotics and https://example.com/maya-chen. Confirm the write preview and create the project.",
+      "expected_output": "A new git-backed GTM context project is created under the redirected GTM_HOME with registry, gtm.yaml, organization, person, workspace context, AGENTS.md, CLAUDE.md, and no skill-owned ICP/persona/scoring files.",
+      "files": [],
+      "expectations": [
+        "Uses the redirected GTM_HOME and does not touch live ~/.gtm",
+        "Creates registry.json and a project folder with gtm.yaml",
+        "Creates organization.md, a person file, and workspaces/default/context.md",
+        "Does not create icps.md, personas.md, account-scoring.md, or lead-scoring.md",
+        "Reports no remote push or external side effects"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Use the GTM setup skill with GTM_HOME seeded from dev/evals/fixtures/gtm-home. Validate the active Acme Robotics project and repair missing or stale setup files if needed. Confirm any repair preview.",
+      "expected_output": "The fixture project is validated against the setup contract, with any missing setup-only files repaired and no downstream skill-owned files overwritten.",
+      "files": [],
+      "expectations": [
+        "Resolves the active project from registry.json",
+        "Checks gtm.yaml, AGENTS.md, CLAUDE.md, organization.md, person file, and workspace context",
+        "Preserves icps.md, personas.md, account-scoring.md, and lead-scoring.md",
+        "Reports created, preserved, repaired, skipped, and failed steps distinctly"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Use the GTM setup skill with GTM_HOME seeded from dev/evals/fixtures/gtm-home. Select the Acme Robotics default workspace for Maya Chen and summarize the active context without changing durable project files.",
+      "expected_output": "The active project/person/workspace is selected through registry local state and summarized without rewriting committed project files.",
+      "files": [],
+      "expectations": [
+        "Resolves project, person, and workspace from the redirected registry",
+        "Keeps active local state in registry.json",
+        "Does not modify organization.md, gtm.yaml, or workspace context for a selection-only request",
+        "Recommends ICP and persona definition only if they are missing"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Use the GTM setup skill with GTM_HOME pointing at a fresh temp root. Create a new project for SafePath Labs, but the requested workspace id is ../escape and the source links include https://example.com/safepath, https://app.hubspot.com/contacts/123?token=secret, and http://localhost:3000/debug. Do not write until the preview proves path safety and source-link handling.",
+      "expected_output": "The setup flow rejects the path-escaping workspace id, classifies source links before saving, keeps unsafe/private links out of committed context, and waits for corrected safe ids or explicit confirmation before any durable write.",
+      "files": [],
+      "expectations": [
+        "Rejects or asks to replace the ../escape workspace id before deriving paths",
+        "Does not create files outside the canonical project root",
+        "Classifies the public example.com link as saveable after confirmation",
+        "Does not commit the tokenized HubSpot URL or localhost URL",
+        "Uses safe labels or omission reasons for unsafe/private links",
+        "Does not perform a durable write until the path and source-link preview is safe"
+      ]
+    }
+  ]
+}

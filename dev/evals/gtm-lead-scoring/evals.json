@@ -1,0 +1,42 @@
+{
+  "skill_name": "gtm-lead-scoring",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Score Jordan Lee at HarborFlow Logistics. persona_label warehouse-operations-leader. Jordan owns dock scheduling, staffing handoffs, and throughput reporting at a best-fit account.",
+      "expected_output": "The lead receives a 1-100 score and fit label grounded in lead-scoring.md and the supplied persona.",
+      "files": [],
+      "expectations": [
+        "Reads personas.md and lead-scoring.md before scoring",
+        "Accepts the supplied valid persona label",
+        "Returns score, fit_label, evidence summary, positives, risks, action, confidence, review flag, evidence, and open questions",
+        "Does not write context or external systems"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Score Casey Morgan at ShopperBee with persona_label no-match. Casey is a brand manager at a consumer marketplace with outsourced fulfillment.",
+      "expected_output": "The no-match lead is capped at not-a-fit with score at or below 49.",
+      "files": [],
+      "expectations": [
+        "Keeps no-match as not-a-fit",
+        "Caps the score at 49 or lower",
+        "Explains the role and account disqualifier",
+        "Does not invent a persona label"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. In the per-run seeded copy, remove workspaces/default/lead-scoring.md before invoking the skill. Then score Jordan Lee at HarborFlow Logistics with persona_label warehouse-operations-leader and strong operations-owner evidence.",
+      "expected_output": "Because lead scoring criteria are missing, the skill drafts and previews lead-scoring.md criteria and waits for confirmation before creating or updating the file.",
+      "files": [],
+      "expectations": [
+        "Detects that lead-scoring.md is missing",
+        "Uses personas.md and workspace context to draft concise lead scoring criteria",
+        "Previews the durable lead-scoring.md write target",
+        "Waits for explicit confirmation before creating or updating lead-scoring.md",
+        "Does not return a normal score or silently write criteria"
+      ]
+    }
+  ]
+}
