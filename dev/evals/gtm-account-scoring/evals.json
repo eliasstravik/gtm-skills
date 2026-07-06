@@ -1,0 +1,42 @@
+{
+  "skill_name": "gtm-account-scoring",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Score HarborFlow Logistics. It has segment_label mid-market-warehouse-operators, three warehouses, dock delays, WMS migration timing, known operations buyer, and strong evidence from the user's notes.",
+      "expected_output": "The account receives a 1-100 score and fit label grounded in account-scoring.md and the supplied segment.",
+      "files": [],
+      "expectations": [
+        "Reads icps.md and account-scoring.md before scoring",
+        "Accepts the supplied valid segment label",
+        "Returns score, fit_label, evidence summary, positives, risks, action, confidence, review flag, evidence, and open questions",
+        "Does not write context or external systems"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Score ShopperBee with segment_label no-match. It is a consumer marketplace using outsourced fulfillment and has no warehouse operations owner.",
+      "expected_output": "The no-match account is capped at not-a-fit with score at or below 49.",
+      "files": [],
+      "expectations": [
+        "Keeps no-match as not-a-fit",
+        "Caps the score at 49 or lower",
+        "Explains the disqualifier",
+        "Does not try to invent a better ICP label"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. In the per-run seeded copy, remove workspaces/default/account-scoring.md before invoking the skill. Then score HarborFlow Logistics with segment_label mid-market-warehouse-operators and strong warehouse operations evidence.",
+      "expected_output": "Because account scoring criteria are missing, the skill drafts and previews account-scoring.md criteria and waits for confirmation before creating or updating the file.",
+      "files": [],
+      "expectations": [
+        "Detects that account-scoring.md is missing",
+        "Uses icps.md and workspace context to draft concise account scoring criteria",
+        "Previews the durable account-scoring.md write target",
+        "Waits for explicit confirmation before creating or updating account-scoring.md",
+        "Does not return a normal score or silently write criteria"
+      ]
+    }
+  ]
+}

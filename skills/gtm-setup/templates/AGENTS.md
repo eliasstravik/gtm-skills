@@ -17,6 +17,13 @@ After choosing the project, resolve the active Person and GTM Workspace in this 
 3. Use the project `default_workspace` from `gtm.yaml` when no local active workspace is set.
 4. Read `organization.md`, `people/<person-id>.md`, and `workspaces/<workspace-id>/context.md`.
 
+## Path Safety
+
+Before any GTM skill reads, writes, stages, or commits project files,
+canonicalize the project root. IDs inside a project must be lowercase slug ids.
+Reject derived child paths that are absolute, contain `..`, or resolve outside
+the project root, including symlink escapes.
+
 If no GTM Context Project resolves, stop and say:
 
 > I could not resolve a GTM Context Project from this prompt, current directory, or local registry. Run `gtm-setup` or tell me which GTM project to use.
@@ -44,7 +51,8 @@ Skill-owned context files live under `workspaces/<workspace>/`.
 
 - `gtm-define-icp` owns `icps.md`.
 - `gtm-define-personas` owns `personas.md`.
-- GTM scoring skills own `scoring.md`.
+- `gtm-account-scoring` owns `account-scoring.md`.
+- `gtm-lead-scoring` owns `lead-scoring.md`.
 
 `gtm-setup` must not create those files.
 
@@ -56,3 +64,6 @@ Skill-owned context files live under `workspaces/<workspace>/`.
 - Never mix context across organizations, people, or workspaces silently.
 - Keep source links in markdown context files, not long lists in `gtm.yaml`.
 - Treat saved source links and safe source labels as starting evidence, not guaranteed truth.
+- Before fetching or printing saved source links, classify them when the setup
+  classifier is available. Never fetch or print secret-bearing, tokenized,
+  invite, local-only, or private-tunnel URLs; use redacted safe labels instead.

@@ -1,25 +1,29 @@
 # GTM Skills
 
-Agent skills for the go-to-market motion: ICP and persona definition,
-account/lead segmentation, scoring, and research.
+Nine agent skills for a local go-to-market context project.
 
 ## Install
 
-    npx skills add eliasstravik/gtmskills
+```sh
+npx skills add eliasstravik/gtmskills
+```
 
-## Skills
+## Skill Catalog
 
-| Skill | What it does |
-|---|---|
-| gtm-setup | Create and manage your GTM context project (~/.gtm) |
-| gtm-define-icp | Define ideal customer profiles |
-| gtm-define-personas | Define buyer personas |
-| gtm-account-segmentation | Classify accounts against your ICPs |
-| gtm-account-scoring | Rank account fit and timing |
-| gtm-account-research | Research accounts against ICP context |
-| gtm-lead-segmentation | Classify leads against personas |
-| gtm-lead-scoring | Rank lead relevance and priority |
-| gtm-lead-research | Research leads against persona context |
+| Skill | Use First When |
+| --- | --- |
+| `gtm-setup` | Creating, selecting, validating, or repairing a GTM context project under `$GTM_HOME` |
+| `gtm-define-icp` | Defining or refining account-level ICP segments in a workspace |
+| `gtm-define-personas` | Defining or refining lead-level personas grounded in ICPs |
+| `gtm-account-segmentation` | Classifying accounts against workspace ICP labels |
+| `gtm-account-scoring` | Ranking account fit and timing after segmentation |
+| `gtm-account-research` | Producing account briefs against ICP context |
+| `gtm-lead-segmentation` | Classifying leads or contacts against workspace persona labels |
+| `gtm-lead-scoring` | Ranking lead relevance and timing after segmentation |
+| `gtm-lead-research` | Producing lead briefs against persona context |
 
-Start with `gtm-setup`, then define ICPs and personas; everything
-else builds on that context.
+Start with `gtm-setup`, then define ICPs and personas. Segmentation,
+scoring, and research skills depend on that workspace context.
+
+Maintainer eval sources and fixture conventions live in
+[`dev/README.md`](dev/README.md).
