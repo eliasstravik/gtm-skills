@@ -1,0 +1,30 @@
+{
+  "skill_name": "gtm-lead-research",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Research Jordan Lee, Director of Warehouse Operations at HarborFlow Logistics, for outbound prep. User context: Jordan owns dock schedules, staffing handoffs, and throughput reporting; the account has three warehouses and WMS migration timing.",
+      "expected_output": "The lead brief composes segmentation and scoring when useful, includes account context, and labels evidence provenance.",
+      "files": [],
+      "expectations": [
+        "Reads personas.md and workspace context before research",
+        "Uses lead segmentation or a valid persona label",
+        "Uses lead scoring when criteria are available",
+        "Includes role relevance, likely priorities, account context, personalization angles, recommended next step, confidence, and open questions",
+        "Does not imply private data or willingness to buy"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Bulk research these contacts for prioritization: Jordan Lee, Director of Warehouse Operations at HarborFlow; Priya Shah, WMS Administrator at DockPilot Systems; Casey Morgan, Brand Manager at ShopperBee.",
+      "expected_output": "Bulk lead research returns a summary plus compact rows with priority, persona, optional score, account context, confidence, and provenance.",
+      "files": [],
+      "expectations": [
+        "Uses bulk mode",
+        "Includes research priority and persona distribution",
+        "Uses account context when materially relevant",
+        "Marks unverifiable claims as user-provided context or open questions"
+      ]
+    }
+  ]
+}

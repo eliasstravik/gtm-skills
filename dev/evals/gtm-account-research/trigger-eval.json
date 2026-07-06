@@ -1,0 +1,22 @@
+[
+  {"query": "Research HarborFlow Logistics against our ICPs and produce an account brief.", "should_trigger": true},
+  {"query": "Give me target-account notes for DockPilot Systems before outbound.", "should_trigger": true},
+  {"query": "Bulk research these companies and include priority, risks, and open questions.", "should_trigger": true},
+  {"query": "Prepare account qualification research for this warehouse operator.", "should_trigger": true},
+  {"query": "Use our GTM context to explain whether this company is worth outreach.", "should_trigger": true},
+  {"query": "For this pasted account list, return research briefs and top evidence.", "should_trigger": true},
+  {"query": "Find company-level pain hypotheses and likely buying team for HarborFlow.", "should_trigger": true},
+  {"query": "Create an outbound prep brief for this target account using workspace ICPs.", "should_trigger": true},
+  {"query": "Set up GTM context files for a new organization.", "should_trigger": false},
+  {"query": "Add a new account ICP segment.", "should_trigger": false},
+  {"query": "Classify HarborFlow into an ICP label only.", "should_trigger": false},
+  {"query": "Score HarborFlow after segmentation.", "should_trigger": false},
+  {"query": "Research Jordan Lee as a person and include personalization angles.", "should_trigger": false},
+  {"query": "Segment Jordan Lee into a persona label.", "should_trigger": false},
+  {"query": "Score Jordan Lee for outreach priority.", "should_trigger": false},
+  {"query": "Define buyer personas for warehouse operations.", "should_trigger": false},
+  {"query": "Write a cold email to the operations director.", "should_trigger": false},
+  {"query": "Repair active_project_id in registry.json.", "should_trigger": false},
+  {"query": "Create account-scoring.md criteria.", "should_trigger": false},
+  {"query": "Find duplicate companies in Salesforce.", "should_trigger": false}
+]

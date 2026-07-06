@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import asdict, dataclass
 from urllib.parse import parse_qsl, urlparse
 
@@ -116,11 +117,18 @@ def _safe_label_for_private(reason: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("urls", nargs="+", help="source links to classify")
+    parser.add_argument("urls", nargs="*", help="source links to classify")
     parser.add_argument("--json", action="store_true", help="emit JSON instead of text")
+    parser.add_argument("--stdin", action="store_true", help="read one source link per stdin line")
     args = parser.parse_args(argv)
 
-    classifications = [classify_link(url) for url in args.urls]
+    urls = list(args.urls)
+    if args.stdin:
+        urls.extend(line.strip() for line in sys.stdin if line.strip())
+    if not urls:
+        parser.error("provide at least one source link argument or --stdin input")
+
+    classifications = [classify_link(url) for url in urls]
     if args.json:
         print(json.dumps([asdict(item) for item in classifications], indent=2))
     else:
