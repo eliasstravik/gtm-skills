@@ -10,7 +10,7 @@
 
 ## Offerings / focus areas
 
-<!-- Durable high-level products, services, markets, or priorities. -->
+<!-- Durable high-level products, offerings, markets, or priorities. -->
 
 ## Notes / open questions
 

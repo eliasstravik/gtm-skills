@@ -2,11 +2,11 @@
 
 ## What this workspace is for
 
-<!-- The GTM operating scope: business unit, team, market, motion, offer, or role focus. -->
+<!-- The GTM operating scope: business unit, team, market, motion, offering, or role focus. -->
 
 ## Offering
 
-<!-- Product, service, solution, or package this workspace sells or supports. -->
+<!-- Product, offering, solution, or package this workspace sells or supports. -->
 
 ## Market
 

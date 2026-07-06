@@ -10,7 +10,7 @@
 
 ## Products / offerings
 
-<!-- Durable high-level products/services/offers. Specific workspace offerings can live in workspace context. -->
+<!-- Durable high-level products, offerings, and solutions. Specific workspace offerings can live in workspace context. -->
 
 ## Positioning
 
