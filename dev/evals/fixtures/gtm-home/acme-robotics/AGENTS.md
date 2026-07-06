@@ -1,21 +1,16 @@
-# GTM Context Project Instructions
+# GTM Context Repo Instructions
 
-Resolve GTM context from the prompt, then the current directory, then
-`$GTM_HOME/registry.json`. Active local state belongs in the registry, not in
-committed files.
-
-Before any GTM skill reads, writes, stages, or commits project files,
-canonicalize the project root. IDs inside a project must be lowercase slug ids.
-Reject derived child paths that are absolute, contain `..`, or resolve outside
-the project root, including symlink escapes.
-
-Skill-owned workspace files:
-
-- `gtm-define-icp` owns `icps.md`.
-- `gtm-define-personas` owns `personas.md`.
-- `gtm-account-scoring` owns `account-scoring.md`.
-- `gtm-lead-scoring` owns `lead-scoring.md`.
-
-Before fetching or printing saved source links, classify them when the setup
-classifier is available. Never fetch or print secret-bearing, tokenized, invite,
-local-only, or private-tunnel URLs; use redacted safe labels instead.
+- This repo describes one company. Root and every `suborgs/<id>/` node is an
+  org with `org.md`, optional `icps/`, optional `personas/`, optional
+  skill-owned files, and optional nested `suborgs/`.
+- Root-only files are `AGENTS.md`, `CLAUDE.md`, `.gitignore`, and
+  `people/<id>/person.md`. People never live under suborgs.
+- Resolve project from explicit user instruction, then current directory inside
+  this repo, then `$GTM_HOME/state.json`. Default `$GTM_HOME` is `~/.gtm`.
+- Resolve org from explicit canonical org path, then the project pin in
+  `state.json`, then root. Canonical paths omit `suborgs/`; root is empty.
+- Context and collections flow down; nearest same-stem ICP/persona file wins.
+- Labels are org-qualified: `<org-path>/<file-stem>`, or just `<file-stem>` for
+  root items.
+- Only `gtm-setup` may scaffold repos, people, and suborg `org.md` files.
+- Never commit `$GTM_HOME/state.json`, secrets, raw scratch, logs, or `.tmp/`.

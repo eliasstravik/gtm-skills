@@ -6,8 +6,8 @@
   {"query": "Use our GTM context to explain whether this person is worth outreach.", "should_trigger": true},
   {"query": "For this pasted lead list, return research briefs and top evidence.", "should_trigger": true},
   {"query": "Find person-level pain hypotheses and personalization angles for Jordan Lee.", "should_trigger": true},
-  {"query": "Create an outbound prep brief for this contact using workspace personas.", "should_trigger": true},
-  {"query": "Set up GTM context files for a new organization.", "should_trigger": false},
+  {"query": "Create an outbound prep brief for this contact using active-org personas.", "should_trigger": true},
+  {"query": "Set up GTM context files for a new company.", "should_trigger": false},
   {"query": "Add a new lead persona.", "should_trigger": false},
   {"query": "Classify Jordan Lee into a persona label only.", "should_trigger": false},
   {"query": "Score Jordan Lee after segmentation.", "should_trigger": false},
@@ -16,7 +16,7 @@
   {"query": "Score HarborFlow for account fit.", "should_trigger": false},
   {"query": "Define account ICPs for logistics operators.", "should_trigger": false},
   {"query": "Write a cold email to the operations director.", "should_trigger": false},
-  {"query": "Repair active_project_id in registry.json.", "should_trigger": false},
+  {"query": "Repair the active project in state.json.", "should_trigger": false},
   {"query": "Create lead-scoring.md criteria.", "should_trigger": false},
   {"query": "Find duplicate contacts in HubSpot.", "should_trigger": false}
 ]

@@ -5,87 +5,72 @@ description: Score account fit and timing after account segmentation. Use when t
 
 # GTM Account Scoring
 
-Score accounts against workspace ICPs and account scoring criteria.
-Normal scoring output is ephemeral. This skill owns
-`workspaces/<workspace-id>/account-scoring.md` only when criteria must be
-created or changed.
+Score accounts against ICP labels and account scoring criteria. Normal scoring
+output is ephemeral. This skill owns `account-scoring.md` at an org only when
+criteria must be created or changed.
 
 ## Core Workflow
 
-1. Resolve the GTM Context Project.
-   - Default `$GTM_HOME` to `~/.gtm`.
-   - Resolve project by prompt, current-directory `gtm.yaml`, then
-     `$GTM_HOME/registry.json`.
-   - Resolve workspace by prompt, registry active state, then `gtm.yaml`.
-   - Validate resolved ids and paths before any read, write, stage, or commit:
-     project, workspace, business-unit, and team ids must be lowercase slug ids;
-     reject derived child paths that are absolute, contain `..`, or resolve
-     outside the canonical project root, including symlink escapes.
-   - Read `organization.md`, workspace `context.md`, `icps.md`, and
-     `account-scoring.md` when present.
-   - Completion criterion: project path, workspace id, ICP source path,
-     account input source, and scoring-criteria state are known.
+1. Resolve and echo context.
+   - Default `$GTM_HOME` to `~/.gtm`; read local state from
+     `$GTM_HOME/state.json`.
+   - Resolve project by prompt, current directory inside a context repo, then
+     active state. Resolve org by prompt, state pin, then root.
+   - Person is not needed; omit it unless explicitly named.
+   - Echo: `Working in <project>/<org-path>`.
+   - Read the `org.md` chain, visible ICP files, and account scoring files
+     along relevant org chains.
 
-2. Enforce hard prerequisites.
-   - If no GTM Context Project resolves, stop with the exact missing-context failure in Blocking Rules.
-   - If a project resolves but no active or default workspace can be determined, ask the user to choose a workspace or run `gtm-setup` repair.
-   - If `workspaces/<workspace-id>/icps.md` is missing, empty, or placeholder-only, stop and route the user to `gtm-define-icp`.
-   - If account scoring criteria are missing, empty, or placeholder-only, draft
-     a concise proposal from `icps.md` and workspace context; preview the
-     durable write to `account-scoring.md`; wait for confirmation before
-     creating or updating it.
-   - Completion criterion: account scoring is grounded in usable context, ICP definitions, and confirmed or existing scoring criteria.
+2. Establish segmentation.
+   - Accept a provided `segment_label` only when it is `no-match` or exactly
+     matches a visible qualified ICP label.
+   - If no segment is supplied, compose `gtm-account-segmentation` for the same
+     input and score from its label, confidence, evidence, and open questions.
+   - Never invent ICP labels. Route new targeting needs to `gtm-define-icp`.
 
-3. Establish account segmentation.
-   - Use a provided `segment_label` only when it is clearly the output of `gtm-account-segmentation` or exactly matches a workspace ICP machine label.
-   - When a supplied segment label exactly matches a machine label defined in
-     `icps.md`, accept it as the starting segment and score from it; do not
-     re-label the account unless the account evidence clearly contradicts the
-     supplied label or hits a `no-match` disqualifier.
-   - If no segment is provided, compose `gtm-account-segmentation` first for the same one-off account or bulk input, then score from its `segment_label`, confidence, reasoning, provenance, and open questions.
-   - Never invent new ICP labels in scoring output. If the user wants a new account segment, route to `gtm-define-icp`.
-   - Completion criterion: every account has one segment label, including `no-match` when no defined ICP matches.
+3. Resolve scoring criteria.
+   - For each account with an ICP label, start at that ICP's org and walk up to
+     root; the nearest `account-scoring.md` governs that record.
+   - For `no-match`, use active-org scoring criteria when present, but cap the
+     score below fit threshold.
+   - If no governing criteria exist, draft a concise `account-scoring.md`
+     proposal for the active org, preview it, and wait for confirmation before
+     writing.
+   - Write only `account-scoring.md` at the confirmed org. Do not edit ICPs,
+     personas, lead criteria, or research files.
 
 4. Score fit and timing.
-   - Use `account-scoring.md`, segment, evidence, open questions, and
-     disqualifiers.
-   - Use a 1-100 `score` with fit labels:
+   - Use a 1-100 score with fit labels:
      - `1-49`: `not-a-fit`
      - `50-74`: `good-fit`
      - `75-89`: `great-fit`
      - `90-100`: `excellent-fit`
-   - If `segment_label: no-match`, return `fit_label: not-a-fit` and cap `score` at 49 no matter how interesting the account looks.
-   - Set `confidence` to `low`, `medium`, or `high` based on evidence quality, freshness, directness, gaps, and conflicts.
-   - Set `needs_review: true` for every new low-confidence result and for medium/high-confidence results with material ambiguity, conflicts, sensitive/private-source dependency, a possible disqualifier, or a high score supported by weak evidence.
-   - Completion criterion: every account has score, fit label, evidence summary, positives, risks/disqualifiers, recommended action, provenance, confidence, reasoning, review flag, and open questions.
+   - If `segment_label` is `no-match`, return `not-a-fit` and cap score at 49.
+   - Include evidence summary, positives, risks/disqualifiers, recommended
+     action, confidence, `needs_review`, reasoning, provenance, and open
+     questions.
+   - Set `needs_review` for low confidence, material ambiguity, private-source
+     dependency, possible disqualifiers, or high scores backed by weak evidence.
 
 5. Return the result.
-   - Include project, workspace, ICP source, scoring source, hard
-     prerequisites, whether segmentation was supplied or composed, and the
-     source context files read (`organization.md`, workspace `context.md`,
-     `icps.md`, and `account-scoring.md` when present).
-   - For one-off mode, return account name, segment label, score, fit label,
+   - Include project, active org path, segment source, scoring source per
+     record, prerequisites, and whether segmentation was supplied or composed.
+   - For one-off mode, return account name, `segment_label`, score, fit label,
      evidence summary, positives, risks/disqualifiers, recommended action,
      confidence, review flag, reasoning, evidence, and open questions.
    - For bulk mode, start with fit distribution, low-confidence count,
      review-needed count, common risks, and common open questions; then return
      compact per-record fields.
-   - State that no side effects occurred for normal scoring output, including
-     no CRM updates, file/context writes, outreach, exports, syncs, scoring
-     criteria changes, or external calls. Preview and confirm before exporting,
-     syncing, updating CRM, changing criteria, or writing context.
+   - State that no side effect occurred unless scoring criteria were explicitly
+     previewed, confirmed, and written.
 
 ## Blocking Rules
 
-- If no GTM Context Project resolves, stop with exactly:
-
-  > I could not resolve a GTM Context Project from this prompt, current directory, or local registry. Run `gtm-setup` or tell me which GTM project to use.
-
-- If the active workspace has no usable `icps.md`, stop with:
-
-  > I found a GTM Context Project and active workspace, but this workspace has no usable `workspaces/<workspace-id>/icps.md`. Run `gtm-define-icp` first, then rerun `gtm-account-scoring`.
-
-- If account scoring criteria are missing, preview `account-scoring.md` and wait
-  for confirmation before creating or updating it.
-- If the input is a malformed CSV/table file, explain the parsing problem and ask for a corrected file or pasted table.
-- If `gtm-account-segmentation` returns `no-match`, do not negotiate the cap: return `not-a-fit` with `score <= 49`.
+- If no context resolves, stop with: `I could not resolve a GTM context repo
+  from this prompt, current directory, or local state. Run gtm-setup or tell me
+  which GTM project to use.`
+- If no visible ICP files exist, stop and route to `gtm-define-icp`.
+- If criteria are missing, preview `account-scoring.md` and wait for
+  confirmation before creating or updating it.
+- Malformed CSV/table input blocks bulk scoring until corrected.
+- `no-match` always scores `not-a-fit` with `score <= 49`.

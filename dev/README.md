@@ -1,4 +1,4 @@
-# GTM Skills Dev Workspace
+# GTM Skills Dev Area
 
 This directory holds committed eval sources and fixtures for the GTM skill
 library. Generated eval outputs stay out of git.
@@ -10,15 +10,15 @@ library. Generated eval outputs stay out of git.
   eval set for that skill.
 - `dev/evals/fixtures/gtm-home/` is the hermetic `$GTM_HOME` seed used by eval
   runs.
-- `dev/workspaces/<skill>/` is gitignored and contains run workspaces,
-  iteration outputs, viewer feedback, benchmark files, and snapshots.
+- `dev/runs/<skill>/` is gitignored and contains run dirs, iteration outputs,
+  viewer feedback, benchmark files, and snapshots.
 
 ## Skill-Creator Result Shape
 
 `aggregate_benchmark.py` only discovers iteration results with this shape:
 
 ```text
-dev/workspaces/<skill>/iteration-N/
+dev/runs/<skill>/iteration-N/
   eval-0/
     eval_metadata.json
     with_skill/
@@ -36,21 +36,20 @@ dev/workspaces/<skill>/iteration-N/
 Use `eval-*` directories directly under `iteration-N`. Each configuration
 directory must contain `run-*` directories, and each run directory must contain
 `grading.json`. Descriptive eval names belong in `eval_metadata.json`, not in a
-directory name that replaces the `eval-*` prefix. Run directories must keep the
-`run-1`, `run-2`, `run-3` pattern.
+directory name that replaces the `eval-*` prefix.
 
 ## Hermetic GTM Context
 
 Every eval run sets `$GTM_HOME` to a per-run directory under
-`dev/workspaces/<skill>/iteration-N/eval-*/<config>/run-*/gtm-home`.
-Seed that directory from `dev/evals/fixtures/gtm-home` before the run. Eval
-runs never read or write live `~/.gtm`.
+`dev/runs/<skill>/iteration-N/eval-*/<config>/run-*/gtm-home`. Seed that
+directory from `dev/evals/fixtures/gtm-home` before the run. Eval runs never
+read or write live `~/.gtm`.
 
 When the context contract changes, regenerate `dev/evals/fixtures/gtm-home/`
 by running the current branch's `gtm-setup` flow into a scratch root, then
-copying only the committed-safe fixture files here. The fixture must contain
-usable `icps.md`, `personas.md`, `account-scoring.md`, and `lead-scoring.md`
-so downstream evals never depend on stale live context.
+copying only committed-safe fixture files here. The fixture must contain
+usable ICPs, personas, account criteria, and lead criteria so downstream evals
+never depend on live context.
 
 ## Description Doctrine
 

@@ -3,26 +3,26 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Refine Acme Robotics ICPs by adding a new account segment for regional 3PL operators that run 2-10 warehouses, struggle with dock appointment delays, and use a WMS. Preserve existing segments and show the write preview. Confirm the update.",
-      "expected_output": "icps.md is updated with one new account-level segment, existing segments are preserved, and the summary reports the isolated write.",
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Refine Acme Robotics by adding a new ICP file for regional 3PL operators that run 2-10 facilities, struggle with dock appointment delays, and use a WMS. Preserve existing ICPs, show the write preview, and confirm the update.",
+      "expected_output": "A new account-level ICP markdown file is written under the active org's icps collection, existing ICP files are preserved, and the summary reports the isolated write.",
       "files": [],
       "expectations": [
-        "Reads workspace context and existing icps.md before drafting",
-        "Adds an account-level segment with a stable machine label",
-        "Preserves existing ICP sections and no-match guidance",
-        "Writes only workspaces/default/icps.md after confirmation",
+        "Reads the org.md chain and existing visible ICP files before drafting",
+        "Adds an account-level ICP with a stable qualified label",
+        "Preserves existing ICP files and records disqualifiers/open questions",
+        "Writes only the confirmed icps/<id>.md file",
         "Reports no external side effects or push"
       ]
     },
     {
       "id": 2,
-      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. The user asks: 'our ICPs are too broad, tighten the no-match guidance for companies that outsource all warehousing and only sell consumer goods.' Update the ICP context if appropriate and confirm the preview.",
-      "expected_output": "The no-match guidance is tightened without inventing personas or scores.",
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. The user asks: 'our ICPs are too broad for Cloud EMEA; tighten the cloud/emea ICP around accounts with a regional platform owner and data residency pressure.' Update the ICP context if appropriate and confirm the preview.",
+      "expected_output": "The Cloud EMEA ICP file is refined without changing personas or scoring criteria.",
       "files": [],
       "expectations": [
+        "Resolves the pinned google/cloud/emea org path",
         "Treats the request as an ICP refinement",
-        "Updates no-match guidance rather than downstream scoring or personas",
-        "Preserves unrelated ICP content",
+        "Updates the nearest matching ICP file rather than sibling org files",
         "Marks uncertainty as open questions instead of facts"
       ]
     }

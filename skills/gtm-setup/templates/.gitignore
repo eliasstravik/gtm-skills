@@ -1,9 +1,3 @@
-# Local GTM state
-.gtm.local.json
-.gtm.local.yaml
-.local/
-CLAUDE.local.md
-
 # Secrets
 .env
 .env.*
@@ -13,10 +7,13 @@ CLAUDE.local.md
 # Ephemeral outputs
 .tmp/
 outputs/
-research/
 tmp/
 *.tmp
 *.log
+
+# Local overrides
+.local/
+CLAUDE.local.md
 
 # OS/editor noise
 .DS_Store

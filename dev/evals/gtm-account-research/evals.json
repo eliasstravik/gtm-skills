@@ -3,11 +3,11 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Research HarborFlow Logistics from this user-provided context: regional fulfillment company, 450 employees, three warehouses, WMS migration in progress, public page says it is hiring dock supervisors. Produce an account brief for outbound prioritization.",
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home and the Acme Robotics project. Research HarborFlow Logistics from this user-provided context: regional fulfillment company, 450 employees, three facilities, WMS migration in progress, public page says it is hiring dock supervisors. Produce an account brief for outbound prioritization.",
       "expected_output": "The account brief composes segmentation and scoring when useful, labels user-provided evidence, and returns a factual account-level research result.",
       "files": [],
       "expectations": [
-        "Reads icps.md and workspace context before research",
+        "Reads visible ICP files and org context before research",
         "Uses account segmentation or a valid segment label",
         "Uses account scoring when criteria are available",
         "Separates evidence, inference, and open questions",
@@ -16,7 +16,7 @@
     },
     {
       "id": 2,
-      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Bulk research these accounts from a pasted list: HarborFlow Logistics, DockPilot Systems, ShopperBee. Include research priority and top risks for each.",
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Bulk research these Cloud EMEA accounts from a pasted list: EuroBank, GlobalShop, Northstar Bakery. Include research priority and top risks for each.",
       "expected_output": "Bulk account research returns a summary plus compact rows with priority, confidence, and provenance.",
       "files": [],
       "expectations": [

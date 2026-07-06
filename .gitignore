@@ -26,11 +26,11 @@ __pycache__/
 # Local build state and historical dev machinery
 .wayfinder/
 
-# Skill rebuild workspaces and generated eval output
-dev/workspaces/
-dev/workspaces/**/iteration-*/
-dev/workspaces/**/benchmark.json
-dev/workspaces/**/benchmark.md
-dev/workspaces/**/feedback.json
-dev/workspaces/**/review.html
-dev/workspaces/**/skill-snapshot/
+# Skill rebuild runs and generated eval output
+dev/runs/
+dev/runs/**/iteration-*/
+dev/runs/**/benchmark.json
+dev/runs/**/benchmark.md
+dev/runs/**/feedback.json
+dev/runs/**/review.html
+dev/runs/**/skill-snapshot/

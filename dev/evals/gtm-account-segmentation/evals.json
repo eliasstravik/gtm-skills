@@ -3,25 +3,25 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Segment this account: HarborFlow Logistics, a 450-person regional fulfillment provider with three warehouses, dock scheduling delays, overtime pressure, and a WMS migration underway.",
-      "expected_output": "The account is segmented against Acme Robotics ICPs with evidence, confidence, review flag, and no side effects.",
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home and the Acme Robotics project. Segment this account: HarborFlow Logistics, a 450-person regional fulfillment provider with three facilities, dock scheduling delays, overtime pressure, and a WMS migration underway.",
+      "expected_output": "The account is segmented against visible Acme ICP files with evidence, confidence, review flag, and no side effects.",
       "files": [],
       "expectations": [
-        "Reads workspace icps.md before assigning a label",
-        "Assigns an existing ICP machine label, not a new label",
+        "Reads visible ICP files before assigning a label",
+        "Assigns an existing qualified ICP label, not a new label",
         "Includes confidence, needs_review, reasoning, evidence, and open questions",
         "Does not update CRM, files, outreach, or context"
       ]
     },
     {
       "id": 2,
-      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Segment these accounts from a pasted table: ShopperBee consumer marketplace with outsourced fulfillment; DockPilot Systems, WMS integration partner for fulfillment centers; Northstar Bakery, local retail bakery with no warehouse operations.",
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Segment these Cloud EMEA accounts from a pasted table: EuroBank with an EMEA data residency migration; GlobalShop with only a US platform initiative; Northstar Bakery with no cloud transformation evidence.",
       "expected_output": "Bulk segmentation returns a distribution summary and compact rows, including no-match for bad-fit accounts.",
       "files": [],
       "expectations": [
         "Uses bulk mode for multiple pasted accounts",
+        "Uses org-qualified labels such as cloud/emea/enterprise-platform-modernization",
         "Returns segment distribution including no-match",
-        "Caps labels to defined ICP labels plus no-match",
         "Marks low-confidence or sparse rows for review"
       ]
     }

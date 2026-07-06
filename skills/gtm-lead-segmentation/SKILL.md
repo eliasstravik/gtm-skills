@@ -1,74 +1,79 @@
 ---
 name: gtm-lead-segmentation
-description: Segment leads and contacts into the active GTM workspace persona labels or no-match. Use when the user asks to classify, segment, bucket, route, or qualify people against personas, including one-off leads, pasted tables, CSV files, contact lists, or inputs for lead scoring and research.
+description: Segment leads and contacts into visible org-qualified persona labels or no-match. Use when the user asks to classify, segment, bucket, route, or qualify people against personas, including one-off leads, pasted tables, CSV files, contact lists, or inputs for lead scoring and research.
 ---
 
 # GTM Lead Segmentation
 
-Classify each lead or contact into exactly one label from workspace
-`personas.md`, or `no-match`. Normal output is ephemeral.
+Classify each lead or contact into exactly one visible persona label or
+`no-match`. Normal output is ephemeral and does not write context files.
 
 ## Core Workflow
 
-1. Resolve the GTM Context Project.
-   - Default `$GTM_HOME` to `~/.gtm`.
-   - Resolve project by prompt, current-directory `gtm.yaml`, then
-     `$GTM_HOME/registry.json`.
-   - Resolve workspace by prompt, registry active state, then `gtm.yaml`.
-   - Validate resolved ids and paths before any read or output step: project,
-     workspace, business-unit, and team ids must be lowercase slug ids; reject
-     derived child paths that are absolute, contain `..`, or resolve outside the
-     canonical project root, including symlink escapes.
-   - Read `organization.md`, workspace `context.md`, and `personas.md`.
-   - Completion criterion: project path, workspace id, persona source path,
-     and lead input source are known, or a blocker is returned.
+1. Resolve and echo context.
+   - Default `$GTM_HOME` to `~/.gtm`; read local state from
+     `$GTM_HOME/state.json`.
+   - Resolve project by prompt, current directory inside a context repo, then
+     active state. Resolve org by prompt, state pin, then root.
+   - Person is not needed; omit it unless explicitly named.
+   - Echo: `Working in <project>/<org-path>`.
+   - Read the `org.md` chain and visible persona files. For a subtree request,
+     also read personas below the active org.
 
-2. Enforce hard prerequisites.
-   - If no GTM Context Project resolves, stop with the exact missing-context failure in Blocking Rules.
-   - If a project resolves but no active or default workspace can be determined, ask the user to choose a workspace or run `gtm-setup` repair.
-   - If `workspaces/<workspace-id>/personas.md` is missing, empty, or placeholder-only, stop and route the user to `gtm-define-personas`.
-   - Completion criterion: lead segmentation is grounded in usable workspace context and persona definitions.
+2. Enforce prerequisites.
+   - If no visible persona files exist for the requested scope, stop and route
+     to `gtm-define-personas`.
+   - Validate all ids and paths before reading. Reject absolute paths, `..`,
+     non-kebab ids, and symlink escapes.
 
 3. Choose one-off or bulk mode.
-   - Use one-off mode for a single lead described in the prompt or one selected record.
-   - Use bulk mode for CSV files, simple markdown tables, pasted tables, or CRM/spreadsheet exports provided as files.
-   - Normalize available fields such as lead id, account id, account name, lead name, title, department, seniority, region, persona signal, account segment, known gaps, evidence labels, and open questions.
-   - Ask one focused clarification only when the person identity or core role evidence is missing; otherwise segment with explicit uncertainty.
-   - Completion criterion: each lead record has enough normalized evidence to compare against the persona definitions or return `no-match`.
+   - Use one-off mode for a single lead described in the prompt or selected
+     record.
+   - Use bulk mode for CSV files, markdown tables, pasted tables, or CRM/export
+     files the user provides.
+   - Normalize lead id, account id/name, lead name, title, function, seniority,
+     region, persona signal, account segment, known gaps, evidence labels, and
+     open questions.
+   - Ask one focused clarification only when person identity or core role
+     evidence is missing; otherwise proceed with explicit uncertainty.
 
-4. Assign the persona.
-   - Compare the lead evidence to the active workspace's persona titles, responsibilities, pains, outreach hooks, disqualifiers, and `no-match` guidance.
-   - Assign one machine-readable `persona_label` from `personas.md`; never invent a new label inside segmentation output.
-   - Use `no-match` when the lead lacks evidence for all defined personas, sits outside the workspace's relevant buying committee, or is attached to a known non-fit account without a special user-supplied reason.
-   - Preserve evidence boundaries: do not infer persona fit from seniority, a generic operations/IT title, or a plausible account alone when `personas.md` requires role ownership, systems responsibility, buying influence, or disqualifier checks.
-   - Set `confidence` to `low`, `medium`, or `high` based on evidence quality, freshness, directness, gaps, and conflicts.
-   - Set `needs_review: true` for every new low-confidence result and for medium/high-confidence results with material ambiguity, conflicts, sensitive/private-source dependency, unclear buying authority, interim/consulting status, or a possible disqualifier.
-   - Completion criterion: every lead has a persona label, confidence, reasoning, review flag, source provenance, and open questions.
+4. Assign the label.
+   - Compare lead evidence to inherited and local persona files, their
+     disqualifiers, and org constraints.
+   - Labels must be qualified by org path: `economic-buyer` at root,
+     `cloud/emea/revops-lead` in a child org.
+   - When inherited and local persona stems collide, use the nearest file to
+     the org being evaluated.
+   - Use `no-match` when evidence is insufficient for every visible persona,
+     the lead sits outside the buying committee for the requested scope, or a
+     stronger disqualifier applies.
+   - Never invent labels. If a new persona is needed, route to
+     `gtm-define-personas`.
+   - Set confidence from evidence quality, freshness, directness, gaps, and
+     conflicts. Set `needs_review` for low confidence, material ambiguity,
+     private-source dependency, unclear buying influence, or possible
+     disqualifiers.
 
 5. Return the result.
-   - Include project, workspace, persona source path, hard prerequisites, and
-     the source context files read (`organization.md`, workspace `context.md`,
-     and `personas.md`).
-   - For one-off mode, return lead name, account name when known, persona
-     label, persona name, confidence, review flag, reasoning, evidence, and
-     open questions.
-   - For bulk mode, start with counts by persona, low-confidence count,
-     review-needed count, common evidence patterns, and open questions; then
-     return compact per-record fields.
-   - State that no side effects occurred, including no CRM updates,
-     file/context writes, outreach, exports, syncs, campaign actions, or
-     external calls. Preview and confirm before export, save, sync, CRM update,
-     outreach, campaign action, or context write.
+   - Include project, org path, persona files read, hard prerequisites, and
+     whether this was one-off or bulk.
+   - For one-off mode, return lead name, account name when known,
+     `persona_label`, persona display name, confidence, review flag, reasoning,
+     evidence, and open questions.
+   - For bulk mode, start with counts by label, low-confidence count,
+     review-needed count, common evidence patterns, and common open questions;
+     then return compact per-record fields.
+   - State that no CRM update, file write, outreach, export, sync, or external
+     side effect occurred. Preview and confirm before any user-requested export
+     or external update.
 
 ## Blocking Rules
 
-- If no GTM Context Project resolves, stop with exactly:
-
-  > I could not resolve a GTM Context Project from this prompt, current directory, or local registry. Run `gtm-setup` or tell me which GTM project to use.
-
-- If the active workspace has no usable `personas.md`, stop with:
-
-  > I found a GTM Context Project and active workspace, but this workspace has no usable `workspaces/<workspace-id>/personas.md`. Run `gtm-define-personas` first, then rerun `gtm-lead-segmentation`.
-
-- If the input is a malformed CSV/table file, explain the parsing problem and ask for a corrected file or pasted table.
-- Do not silently create new persona labels. If the user wants a new persona, route them to `gtm-define-personas`.
+- If no context resolves, stop with: `I could not resolve a GTM context repo
+  from this prompt, current directory, or local state. Run gtm-setup or tell me
+  which GTM project to use.`
+- If no visible persona files exist, stop with: `I found the GTM context repo
+  and org, but this scope has no usable persona files. Run gtm-define-personas
+  first, then rerun gtm-lead-segmentation.`
+- Malformed CSV/table input blocks bulk segmentation until corrected.
+- Do not silently create or rename persona labels.

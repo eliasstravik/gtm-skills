@@ -7,8 +7,8 @@
   {"query": "Our lead scoring criteria are missing. Draft lead-scoring.md before scoring.", "should_trigger": true},
   {"query": "Which of these segmented leads should sales work first?", "should_trigger": true},
   {"query": "Qualify this person with a score, fit label, and recommended next action.", "should_trigger": true},
-  {"query": "Set up a GTM context project.", "should_trigger": false},
-  {"query": "Define lead personas in personas.md.", "should_trigger": false},
+  {"query": "Set up a GTM context repo.", "should_trigger": false},
+  {"query": "Define lead personas.", "should_trigger": false},
   {"query": "Segment Jordan Lee into a persona label only.", "should_trigger": false},
   {"query": "Research Jordan Lee for an outbound brief.", "should_trigger": false},
   {"query": "Score HarborFlow Logistics as an account.", "should_trigger": false},
@@ -17,6 +17,6 @@
   {"query": "Write outbound copy to this lead.", "should_trigger": false},
   {"query": "Find public evidence about HarborFlow.", "should_trigger": false},
   {"query": "Add a new ICP for logistics tech integrators.", "should_trigger": false},
-  {"query": "Repair the GTM registry active workspace.", "should_trigger": false},
+  {"query": "Repair the GTM state active org.", "should_trigger": false},
   {"query": "Build a spreadsheet of contacts from LinkedIn URLs.", "should_trigger": false}
 ]
