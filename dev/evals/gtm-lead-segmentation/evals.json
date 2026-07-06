@@ -3,25 +3,25 @@
   "evals": [
     {
       "id": 1,
-      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Segment this lead: Jordan Lee, Director of Warehouse Operations at HarborFlow Logistics. Owns dock schedules, staffing handoffs, and throughput reporting.",
-      "expected_output": "The lead is segmented against workspace personas with evidence, confidence, review flag, and no side effects.",
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home and the Acme Robotics project. Segment this lead: Jordan Lee, Director of Warehouse Operations at HarborFlow Logistics. Owns dock schedules, staffing handoffs, and throughput reporting.",
+      "expected_output": "The lead is segmented against visible persona files with evidence, confidence, review flag, and no side effects.",
       "files": [],
       "expectations": [
-        "Reads personas.md before assigning a label",
-        "Assigns an existing persona machine label, not a new label",
+        "Reads visible persona files before assigning a label",
+        "Assigns an existing qualified persona label, not a new label",
         "Includes confidence, needs_review, reasoning, evidence, and open questions",
         "Does not update CRM, files, outreach, or context"
       ]
     },
     {
       "id": 2,
-      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Segment these contacts: Priya Shah, WMS Administrator at DockPilot Systems; Casey Morgan, Brand Manager at ShopperBee; Alex Ruiz, VP Operations at HarborFlow Logistics.",
+      "prompt": "Use GTM_HOME seeded from dev/evals/fixtures/gtm-home. Segment these Cloud EMEA contacts: Priya Shah, Regional Cloud Platform Lead at EuroBank; Casey Morgan, Brand Manager at ShopperBee; Alex Ruiz, VP Infrastructure EMEA at GlobalShop.",
       "expected_output": "Bulk lead segmentation returns a distribution summary and compact rows, including no-match for bad-fit contacts.",
       "files": [],
       "expectations": [
         "Uses bulk mode for multiple contacts",
+        "Uses org-qualified labels such as cloud/emea/platform-vp",
         "Returns persona distribution including no-match",
-        "Caps labels to defined persona labels plus no-match",
         "Marks low-confidence or sparse rows for review"
       ]
     }

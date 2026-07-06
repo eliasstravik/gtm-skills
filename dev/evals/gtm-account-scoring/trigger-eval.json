@@ -7,8 +7,8 @@
   {"query": "Our account scoring criteria are missing. Draft account-scoring.md before scoring.", "should_trigger": true},
   {"query": "Which of these segmented accounts should sales work first?", "should_trigger": true},
   {"query": "Qualify this company with a score, fit label, and recommended next action.", "should_trigger": true},
-  {"query": "Set up a new GTM project under GTM_HOME.", "should_trigger": false},
-  {"query": "Define account ICPs and no-match guidance.", "should_trigger": false},
+  {"query": "Set up a new GTM context repo under GTM_HOME.", "should_trigger": false},
+  {"query": "Define account ICPs and disqualifiers.", "should_trigger": false},
   {"query": "Segment this account into an ICP label only.", "should_trigger": false},
   {"query": "Research HarborFlow and write an account brief.", "should_trigger": false},
   {"query": "Score Jordan Lee as a lead against personas.", "should_trigger": false},
@@ -17,6 +17,6 @@
   {"query": "Write outbound copy for a high-scoring account.", "should_trigger": false},
   {"query": "Find public evidence about this company.", "should_trigger": false},
   {"query": "Add a new persona for dock operations managers.", "should_trigger": false},
-  {"query": "Repair missing CLAUDE.md in my GTM context project.", "should_trigger": false},
+  {"query": "Repair missing CLAUDE.md in my GTM context repo.", "should_trigger": false},
   {"query": "Build a CSV parser for uploaded account data.", "should_trigger": false}
 ]

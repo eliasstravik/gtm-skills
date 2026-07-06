@@ -1,13 +1,13 @@
 [
-  {"query": "Define buyer personas for our GTM workspace using the ICPs we already wrote.", "should_trigger": true},
+  {"query": "Define buyer personas for our active GTM org using the ICPs we already wrote.", "should_trigger": true},
   {"query": "Add a Dock Operations Manager persona with pains around dock scheduling and staffing handoffs.", "should_trigger": true},
-  {"query": "Our personas are letting generic IT managers through. Tighten persona no-match guidance.", "should_trigger": true},
+  {"query": "Our personas are letting generic IT managers through. Tighten persona disqualifier guidance.", "should_trigger": true},
   {"query": "Create lead-level target roles for warehouse operations and logistics technology owners.", "should_trigger": true},
-  {"query": "Refine the personas.md file so lead segmentation can distinguish operators from executives.", "should_trigger": true},
+  {"query": "Refine the persona files so lead segmentation can distinguish operators from executives.", "should_trigger": true},
   {"query": "Split the operations persona into director-level and manager-level buying roles.", "should_trigger": true},
   {"query": "Add objections and outreach hooks for WMS administrators in the persona context.", "should_trigger": true},
   {"query": "We have ICPs but no personas. Build the buying committee context before lead research.", "should_trigger": true},
-  {"query": "Create a new GTM context project for this company.", "should_trigger": false},
+  {"query": "Create a new GTM context repo for this company.", "should_trigger": false},
   {"query": "Define account ICPs for logistics tech integrators.", "should_trigger": false},
   {"query": "Segment HarborFlow Logistics into an ICP label.", "should_trigger": false},
   {"query": "Score Jordan Lee against existing personas.", "should_trigger": false},
@@ -16,7 +16,7 @@
   {"query": "Write an outbound email to a warehouse director.", "should_trigger": false},
   {"query": "Update account-scoring.md with timing criteria.", "should_trigger": false},
   {"query": "Find company facts about DockPilot Systems.", "should_trigger": false},
-  {"query": "Repair the GTM setup registry.", "should_trigger": false},
+  {"query": "Repair the GTM setup state file.", "should_trigger": false},
   {"query": "Prioritize these account rows from a CSV.", "should_trigger": false},
   {"query": "Classify these target accounts and summarize the distribution.", "should_trigger": false}
 ]

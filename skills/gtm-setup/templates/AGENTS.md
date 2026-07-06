@@ -1,69 +1,34 @@
-# GTM Context Project Instructions
+# GTM Context Repo Instructions
 
-## Context Resolution
-
-Use `$GTM_HOME` when it is set. Otherwise use `~/.gtm`.
-
-When a `gtm-` skill needs GTM context, resolve the GTM Context Project in this order:
-
-1. Use explicit user instruction in the prompt when the user names a GTM project, Organization ID, project path, workspace, or person.
-2. If the current working directory is inside a GTM Context Repository, use the nearest ancestor containing `gtm.yaml`.
-3. Otherwise use the active project in `$GTM_HOME/registry.json`.
-
-After choosing the project, resolve the active Person and GTM Workspace in this order:
-
-1. Use any explicit person or workspace from the prompt.
-2. Use registry local active person/workspace for the selected project when present.
-3. Use the project `default_workspace` from `gtm.yaml` when no local active workspace is set.
-4. Read `organization.md`, `people/<person-id>.md`, and `workspaces/<workspace-id>/context.md`.
-
-## Path Safety
-
-Before any GTM skill reads, writes, stages, or commits project files,
-canonicalize the project root. IDs inside a project must be lowercase slug ids.
-Reject derived child paths that are absolute, contain `..`, or resolve outside
-the project root, including symlink escapes.
-
-If no GTM Context Project resolves, stop and say:
-
-> I could not resolve a GTM Context Project from this prompt, current directory, or local registry. Run `gtm-setup` or tell me which GTM project to use.
-
-If the registry has multiple projects and none is active, ask the user to choose instead of guessing.
-
-## Local State
-
-Never commit local active state. Active organization, active person, and active workspace belong in `$GTM_HOME/registry.json` or ignored local override files.
-
-## Durable Vs Ephemeral
-
-Durable narrative context belongs in this repo. Entity data and throwaway job work do not.
-
-Ephemeral outputs such as research briefs, lead notes, outreach drafts, batch outputs, logs, temporary artifacts, SQLite files, CSV staging files, and scripts belong under `.tmp/<skill-name>/`. Do not commit `.tmp/`.
-
-Promote outputs only when the user explicitly asks and confirms the side effect:
-
-- write to the user's own system through MCP or a connector, or
-- export a user-requested file.
-
-## Workspace Rules
-
-Skill-owned context files live under `workspaces/<workspace>/`.
-
-- `gtm-define-icp` owns `icps.md`.
-- `gtm-define-personas` owns `personas.md`.
-- `gtm-account-scoring` owns `account-scoring.md`.
-- `gtm-lead-scoring` owns `lead-scoring.md`.
-
-`gtm-setup` must not create those files.
-
-## Safety
-
-- Respect `.gitignore`.
-- Never commit secrets, credentials, tokens, signed URLs, invite links, or `.env` files.
-- Never commit `.tmp/` job workspaces or raw research scratch.
-- Never mix context across organizations, people, or workspaces silently.
-- Keep source links in markdown context files, not long lists in `gtm.yaml`.
-- Treat saved source links and safe source labels as starting evidence, not guaranteed truth.
-- Before fetching or printing saved source links, classify them when the setup
-  classifier is available. Never fetch or print secret-bearing, tokenized,
-  invite, local-only, or private-tunnel URLs; use redacted safe labels instead.
+- This repo describes one company. Root and every `suborgs/<id>/` node is an
+  org with `org.md`, optional `icps/`, optional `personas/`, optional
+  skill-owned files, and optional nested `suborgs/`.
+- Root-only files are `AGENTS.md`, `CLAUDE.md`, `.gitignore`, and
+  `people/<id>/person.md`. People never live under suborgs.
+- Resolve project from explicit user instruction, then current directory inside
+  this repo, then `$GTM_HOME/state.json`. Default `$GTM_HOME` is `~/.gtm`.
+- Resolve org from explicit canonical org path, then the project pin in
+  `state.json`, then root. Canonical paths omit `suborgs/`; root is empty.
+- Resolve person from explicit user instruction, then the project pin, then the
+  sole root person. Ask only when an action must be written as someone.
+- Echo the resolved position before acting: `Working in <project>/<org-path>`
+  plus `as <person>` when a person is resolved.
+- Context flows down: read the `org.md` chain from root to active org.
+- Collections flow down: inherited `icps/` and `personas/` are visible in
+  descendants; nearest same-stem file wins.
+- Skill files use nearest-wins, walking up from the org of the entity being
+  acted on when known, otherwise from the active org.
+- Cross-org operations recurse down from the active org when the user asks for a
+  subtree such as a division or region.
+- Labels are org-qualified: `<org-path>/<file-stem>`, or just `<file-stem>` for
+  root items.
+- A skill declares whether its artifact is per-org or per-person, writes only
+  its owned file/folder, and treats a missing owned file as not yet defined.
+- Only `gtm-setup` may scaffold repos, people, and suborg `org.md` files.
+- Normal segmentation, scoring, and research output is ephemeral.
+- Research promotions write to `research/` only after explicit confirmation.
+- Never commit `$GTM_HOME/state.json`, secrets, raw scratch, logs, or `.tmp/`.
+- Reject ids or paths that are absolute, contain `..`, or escape the repo.
+- Never mix context across projects, org paths, or people silently.
+- Missing prerequisites route to the owning skill instead of creating files.
+- `CLAUDE.md` should contain exactly `@AGENTS.md`.

@@ -1,0 +1,14 @@
+{
+  "active": "google",
+  "projects": {
+    "acme-robotics": {
+      "path": "acme-robotics",
+      "person": "maya-chen"
+    },
+    "google": {
+      "path": "google",
+      "org": "cloud/emea",
+      "person": "maya-chen"
+    }
+  }
+}
