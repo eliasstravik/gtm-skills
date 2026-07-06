@@ -32,6 +32,15 @@ PRIVATE_HOST_MARKERS = {
     "notion.so",
     "salesforce.com",
 }
+PRIVATE_TUNNEL_HOST_SUFFIXES = {
+    "loca.lt",
+    "localtunnel.me",
+    "ngrok-free.app",
+    "ngrok.app",
+    "ngrok.dev",
+    "ngrok.io",
+    "trycloudflare.com",
+}
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
 
 
@@ -84,6 +93,8 @@ def _unsafe_reason(parsed, host: str, netloc: str, path: str, query_keys: set[st
         return "embedded credentials"
     if host in LOCAL_HOSTS or host.endswith(".local") or "localhost" in netloc:
         return "local-only URL"
+    if _has_host_suffix(host, PRIVATE_TUNNEL_HOST_SUFFIXES):
+        return "private-tunnel URL"
     if "/invite" in path or "invite" in path.split("/"):
         return "invite URL"
     if SECRET_QUERY_KEYS & query_keys:
@@ -91,6 +102,10 @@ def _unsafe_reason(parsed, host: str, netloc: str, path: str, query_keys: set[st
     if any("token" in key or "signature" in key for key in query_keys):
         return "secret-bearing or tokenized query parameter"
     return None
+
+
+def _has_host_suffix(host: str, suffixes: set[str]) -> bool:
+    return any(host == suffix or host.endswith(f".{suffix}") for suffix in suffixes)
 
 
 def _private_reason(host: str, netloc: str) -> str | None:
@@ -104,6 +119,8 @@ def _private_reason(host: str, netloc: str) -> str | None:
 def _safe_label_for_unsafe(reason: str) -> str:
     if reason == "local-only URL":
         return "Local-only source used during setup. Link not committed."
+    if reason == "private-tunnel URL":
+        return "Private tunnel source used during setup. Link not committed."
     if reason == "invite URL":
         return "Invite link provided during setup. Link not committed."
     return "Sensitive source used during setup. Link not committed."
