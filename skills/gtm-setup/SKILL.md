@@ -37,37 +37,37 @@ every question in every flow below.
 
 - One topic per question. Never bundle two subjects (e.g. org + person, or
   company + enrichment preference) into one dialog or one multi-question call.
-- Choice questions — picking between known options — use the structured
-  question tool (AskUserQuestion or the host equivalent). If no such tool
-  exists in this harness, print a numbered list and ask the user to reply
-  with a number.
+- Choice questions — picking between known options — use an inline numbered
+  list in the same visible message as the question. Do not use a tool-based
+  choice widget for setup flow decisions.
 - Enumerable-choice questions such as yes/no, approve/iterate, continue/stop,
-  and menu picks are always choice questions. Use AskUserQuestion or the host
-  equivalent for them; the preview protocol below changes sequencing, not the
-  requirement to use structured choices.
-- Every choice question must accept free-form input. AskUserQuestion's
-  built-in "Other" covers this; in the numbered-list fallback, add "or just
-  type your answer".
+  and menu picks are always numbered-list questions.
+- Numbered-list format:
+  - Ask one question in plain text.
+  - List options as `1.`, `2.`, `3.`.
+  - Mark the option you recommend exactly with `(Recommended)` when there is a
+    recommendation. Omit the marker when no option is recommended.
+  - End with `Reply with a number, or type your answer.`
+- Every choice question must accept free-form input. Treat a typed answer as
+  equivalent to selecting an option when intent is clear; otherwise ask one
+  short clarifying question.
 - Open-ended questions (names, links, descriptions, "tell me more") are asked
   as plain conversational text. Never use the options widget when the only
   real answer is free text, and never seed such questions with guessed
   options from memory or context.
-- Review confirmations use a two-turn preview protocol:
-  - Turn N: print the full artifact or preview inline and end the turn there.
-    Do not make a tool call, ask a choice question, or append approval text
-    after the preview.
-  - Turn N+1: after the content is visible, or after the user has replied,
-    ask the enumerable decision with AskUserQuestion or the host equivalent.
-    Use the numbered-list fallback only when the harness has no structured
-    choice tool.
+- Review confirmations use same-turn preview-and-decision messages:
+  - First show the full artifact or preview inline.
+  - Immediately after the preview, ask the approval/iteration question with an
+    inline numbered list.
+  - Do not split the preview and decision across turns.
 - Before asking approval for anything that will be written to disk, show the
   full file content inline, not summary bullets. This applies to research
   findings that will become files, draft `org.md` / `person.md` files, repair
   previews, and consolidated scaffold previews.
 - Announce research before starting it: `This takes a couple of minutes — I
   am researching so you do not have to type it.` Present findings and draft
-  file content inline using the two-turn preview protocol, then get approval
-  in the following turn (iterating on corrections) before any durable write.
+  file content inline with a same-turn numbered decision list, then get
+  approval (iterating on corrections) before any durable write.
 - Ask exactly one question, wait for the answer, then move to the next step.
   Do not look ahead or pre-collect answers for later steps.
 
@@ -80,11 +80,18 @@ straight to that flow.
 
 1. Check `$GTM_HOME` for existing workspaces: directories directly under
    `$GTM_HOME` (excluding `backups/`) that contain a root `org.md`.
-2. Ask exactly one choice question:
-   - "Set up a new GTM workspace" → Create flow.
-   - "Import a GTM workspace" → Import flow.
-   - "Load an existing GTM workspace" → Load flow. Include this option ONLY
-     when step 1 found at least one workspace; omit it entirely otherwise.
+2. Ask exactly one numbered-list choice question:
+   ```text
+   What do you want to do?
+   1. Set up a new GTM workspace
+   2. Import a GTM workspace
+   3. Load an existing GTM workspace
+
+   Reply with a number, or type your answer.
+   ```
+   Include the load option ONLY when step 1 found at least one workspace; omit
+   it entirely otherwise and renumber the remaining options sequentially. Route
+   the selected option to the Create, Import, or Load flow.
 3. Do not guess the company, mode, or intent from memory, email domains, or
    prior conversations. The menu is the first question, every time.
 
@@ -94,11 +101,13 @@ user explicitly asks for them, using the same interaction rules.
 
 ## Load Flow
 
-1. List the workspaces found under `$GTM_HOME` as one choice question. Label
-   each with the display name (H1 of the root `org.md`) and its path.
+1. List the workspaces found under `$GTM_HOME` as one numbered-list choice
+   question. Label each with the display name (H1 of the root `org.md`) and
+   its path.
 2. On pick: set `state.json` active project to it. If the project has no
    pins yet, pin org to root; if exactly one person exists under `people/`,
-   pin that person, otherwise ask which person to work as (choice question).
+   pin that person, otherwise ask which person to work as (numbered-list
+   choice question).
 3. Echo `Working in <project>/<org-path>` plus `as <person>` when resolved.
 4. Finish with a one-paragraph status: which orgs and people exist, whether
    `icps/` and `personas/` are defined, and which gtm skill is the natural
@@ -106,9 +115,14 @@ user explicitly asks for them, using the same interaction rules.
 
 ## Import Flow
 
-1. Ask one choice question: "Do you want to give a path to a local folder or
-   repo, or a GitHub link?" (free text welcome — a pasted path or URL is the
-   answer).
+1. Ask one numbered-list choice question:
+   ```text
+   How should I import the workspace?
+   1. Local folder or repo path
+   2. GitHub link
+
+   Reply with a number, or paste the path or URL.
+   ```
 2. Acquire the repo:
    - GitHub link: confirm the target path `$GTM_HOME/<repo-name>`, then
      clone. Keep remotes and history intact.
@@ -125,9 +139,10 @@ user explicitly asks for them, using the same interaction rules.
      files are repairable after preview.
    - Every `suborgs/<id>/` has an `org.md`; ids are lowercase kebab-case;
      no empty directories; people live only under root `people/`.
-4. Preview any repairs using the two-turn preview protocol. Include the file
-   list, what changes, and the full content of every file that would be
-   written. Apply only after confirmation. Commit repairs as `Repair GTM
+4. Preview any repairs using a same-turn preview-and-decision message. Include
+   the file list, what changes, and the full content of every file that would
+   be written, then ask for approval with a numbered list in that same
+   message. Apply only after confirmation. Commit repairs as `Repair GTM
    context repo`.
 5. Register the project in `state.json`, set pins (same person logic as the
    Load flow), echo the resolved context, and finish with a setup summary
@@ -136,8 +151,8 @@ user explicitly asks for them, using the same interaction rules.
 ## Create Flow
 
 Strictly one step at a time, in this order. Each research step follows the
-Interaction Rules: announce, research, present the full draft inline, end the
-preview turn, confirm in the next turn, iterate.
+Interaction Rules: announce, research, present the full draft inline, ask for
+approval with a numbered list in the same message, iterate.
 
 1. Org question — open, free text, one question:
    "Which org is this for? Give me the name, the website, and any relevant
@@ -146,7 +161,7 @@ preview turn, confirm in the next turn, iterate.
 
 2. Org research and confirmation loop:
    Announce the research, then research public sources (website, LinkedIn,
-   recent news). In the preview turn, present inline, explicitly:
+   recent news). In the same message, present inline, explicitly:
    - Name: <company name>
    - Website: <url>
    - Links: <each given and discovered link, labeled, e.g. company LinkedIn>
@@ -155,11 +170,17 @@ preview turn, confirm in the next turn, iterate.
      questions rather than facts.
    - Draft `org.md`: the complete file content that would be written, using
      `Background` as the first section after the H1.
-   End the preview turn after the draft content with no tool call. In the next
-   turn, ask with AskUserQuestion or the host equivalent: "Is this draft
-   approved, or should I iterate?" Free text is welcome. Apply corrections and
-   re-present the full draft until approved. Facts the user states override
-   research.
+   After the draft content, ask in the same message:
+   ```text
+   Is this draft approved, or should I iterate?
+   1. Approve and continue (Recommended)
+   2. Iterate the draft
+
+   Reply with a number, or type your answer.
+   ```
+   If the draft is not actually ready, put `(Recommended)` on the iterate
+   option instead. Apply corrections and re-present the full draft until
+   approved. Facts the user states override research.
 
 3. Suborg question — choice, with a sized recommendation:
    First explain in a sentence or two what suborgs are for, with an example:
@@ -168,8 +189,22 @@ preview turn, confirm in the next turn, iterate.
    personas — that's a suborg. If you can do without them, simpler is better.
    Then ask "Do you want to set up any sub-orgs?" and mark the recommendation
    from the researched company size:
-   small or single-motion company → "No (recommended)"; large enterprise
-   with clearly separate divisions/regions → "Yes (recommended)".
+   - Small or single-motion company:
+     ```text
+     Do you want to set up any sub-orgs?
+     1. No (Recommended)
+     2. Yes
+
+     Reply with a number, or type your answer.
+     ```
+   - Large enterprise with clearly separate divisions/regions:
+     ```text
+     Do you want to set up any sub-orgs?
+     1. Yes (Recommended)
+     2. No
+
+     Reply with a number, or type your answer.
+     ```
 
 4. Suborg loop (only if yes) — for each suborg:
    a. Open question mirroring the org question: "What's the suborg's name?
@@ -178,7 +213,15 @@ preview turn, confirm in the next turn, iterate.
    b. Research + confirm loop, same shape as step 2 (scoped to the suborg;
       often the user's own description is the main source — research fills
       gaps, it doesn't override them).
-   c. Ask whether to add another suborg (choice question). Repeat until no.
+   c. Ask whether to add another suborg:
+      ```text
+      Do you want to add another sub-org?
+      1. No (Recommended)
+      2. Yes
+
+      Reply with a number, or type your answer.
+      ```
+      Repeat until no.
 
 5. Person question — open, free text, one question:
    "Now tell me about yourself. What's your name and your job title? Any
@@ -186,29 +229,27 @@ preview turn, confirm in the next turn, iterate.
    relevant here, add it."
 
 6. Person research and confirmation loop: same shape as step 2 — research,
-   then use the two-turn preview protocol. The preview turn presents name,
-   role, links, what-I-found, and the complete draft `person.md` content, then
-   ends with no tool call. The next turn asks with AskUserQuestion or the host
-   equivalent: "Is this draft approved, or should I iterate?" Iterate by
-   re-presenting the full draft until approved.
+   then present name, role, links, what-I-found, and the complete draft
+   `person.md` content, followed in the same message by the numbered-list
+   approval/iteration question. Iterate by re-presenting the full draft until
+   approved.
 
 7. Consolidated preview and scaffold — only after all confirmations above:
    a. Classify every collected link (see Source Links below).
-   b. Show ONE preview using the two-turn preview protocol: project id and
+   b. Show ONE same-turn preview-and-decision message: project id and
       target path, org/suborg/person ids, source-link treatment, git behavior,
       the `state.json` update, and the complete content of every file to be
       created (`org.md` per node, `person.md`, `AGENTS.md`, `CLAUDE.md`,
-      `.gitignore` from templates). End the preview turn after the full content
-      with no tool call.
+      `.gitignore` from templates). After the full content, ask for scaffold
+      approval with a numbered list in that same message.
    c. If the target path exists and is non-empty, never overwrite silently:
       if it is already a valid context repo, offer the Load or Import flow;
       otherwise offer to archive it to `$GTM_HOME/backups/<name>-<timestamp>/`
       and recreate only after explicit confirmation.
-   d. In the next turn, ask the scaffold confirmation with AskUserQuestion or
-      the host equivalent. On confirmation: write the files (content from the
-      confirmed research, low-confidence items under Open Questions), `git
-      init`, commit only setup-owned files as `Initialize GTM context repo`,
-      and update `state.json` (active project, org pin root, person pin).
+   d. On confirmation: write the files (content from the confirmed research,
+      low-confidence items under Open Questions), `git init`, commit only
+      setup-owned files as `Initialize GTM context repo`, and update
+      `state.json` (active project, org pin root, person pin).
    e. Write only setup-owned identity files. Do not create `icps/`,
       `personas/`, scoring files, or research folders.
 
@@ -290,8 +331,8 @@ ready to define targeting context.
 - Every question covered exactly one topic; open-ended questions were asked
   as free text, not options; every choice question allowed free input.
 - Each research or repair pass was announced, previewed with full draft file
-  content inline, ended before any tool call, and approved with a structured
-  choice question in the next turn before any durable write.
+  content inline, and approved with a same-message numbered-list decision
+  before any durable write.
 - Root has `org.md`, `AGENTS.md`, `CLAUDE.md`, `.gitignore`, and root-only
   `people/<id>/person.md`; `CLAUDE.md` contains exactly `@AGENTS.md`.
 - No empty directories or placeholder files were created.
