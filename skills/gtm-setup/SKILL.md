@@ -41,6 +41,10 @@ every question in every flow below.
   question tool (AskUserQuestion or the host equivalent). If no such tool
   exists in this harness, print a numbered list and ask the user to reply
   with a number.
+- Enumerable-choice questions such as yes/no, approve/iterate, continue/stop,
+  and menu picks are always choice questions. Use AskUserQuestion or the host
+  equivalent for them; the preview protocol below changes sequencing, not the
+  requirement to use structured choices.
 - Every choice question must accept free-form input. AskUserQuestion's
   built-in "Other" covers this; in the numbered-list fallback, add "or just
   type your answer".
@@ -48,9 +52,22 @@ every question in every flow below.
   as plain conversational text. Never use the options widget when the only
   real answer is free text, and never seed such questions with guessed
   options from memory or context.
+- Review confirmations use a two-turn preview protocol:
+  - Turn N: print the full artifact or preview inline and end the turn there.
+    Do not make a tool call, ask a choice question, or append approval text
+    after the preview.
+  - Turn N+1: after the content is visible, or after the user has replied,
+    ask the enumerable decision with AskUserQuestion or the host equivalent.
+    Use the numbered-list fallback only when the harness has no structured
+    choice tool.
+- Before asking approval for anything that will be written to disk, show the
+  full file content inline, not summary bullets. This applies to research
+  findings that will become files, draft `org.md` / `person.md` files, repair
+  previews, and consolidated scaffold previews.
 - Announce research before starting it: `This takes a couple of minutes — I
-  am researching so you do not have to type it.` Present findings inline and
-  get approval (iterating on corrections) before any durable write.
+  am researching so you do not have to type it.` Present findings and draft
+  file content inline using the two-turn preview protocol, then get approval
+  in the following turn (iterating on corrections) before any durable write.
 - Ask exactly one question, wait for the answer, then move to the next step.
   Do not look ahead or pre-collect answers for later steps.
 
@@ -58,8 +75,8 @@ every question in every flow below.
 
 Always start here when the skill is invoked, before any other action, unless
 the invocation itself already names a mode unambiguously (e.g. "import
-~/repos/acme-gtm" or "switch to the acme workspace") — then skip straight to
-that flow.
+~/repos/example-gtm" or "switch to the example workspace") — then skip
+straight to that flow.
 
 1. Check `$GTM_HOME` for existing workspaces: directories directly under
    `$GTM_HOME` (excluding `backups/`) that contain a root `org.md`.
@@ -108,8 +125,10 @@ user explicitly asks for them, using the same interaction rules.
      files are repairable after preview.
    - Every `suborgs/<id>/` has an `org.md`; ids are lowercase kebab-case;
      no empty directories; people live only under root `people/`.
-4. Preview any repairs (file list + what changes) and apply only after
-   confirmation. Commit repairs as `Repair GTM context repo`.
+4. Preview any repairs using the two-turn preview protocol. Include the file
+   list, what changes, and the full content of every file that would be
+   written. Apply only after confirmation. Commit repairs as `Repair GTM
+   context repo`.
 5. Register the project in `state.json`, set pins (same person logic as the
    Load flow), echo the resolved context, and finish with a setup summary
    including every issue found and whether it was fixed or left open.
@@ -117,7 +136,8 @@ user explicitly asks for them, using the same interaction rules.
 ## Create Flow
 
 Strictly one step at a time, in this order. Each research step follows the
-Interaction Rules: announce, research, present inline, confirm, iterate.
+Interaction Rules: announce, research, present the full draft inline, end the
+preview turn, confirm in the next turn, iterate.
 
 1. Org question — open, free text, one question:
    "Which org is this for? Give me the name, the website, and any relevant
@@ -126,23 +146,28 @@ Interaction Rules: announce, research, present inline, confirm, iterate.
 
 2. Org research and confirmation loop:
    Announce the research, then research public sources (website, LinkedIn,
-   recent news). Present inline, explicitly:
+   recent news). In the preview turn, present inline, explicitly:
    - Name: <company name>
    - Website: <url>
    - Links: <each given and discovered link, labeled, e.g. company LinkedIn>
-   - What I found: a short factual summary (what they do, positioning,
+   - What I found: a short factual summary (background, positioning,
      offers, rough size/segment) with low-confidence items marked as open
      questions rather than facts.
-   Then ask (choice question; free text welcome): "Is this okay, or do you
-   want to iterate or add something?" Apply corrections and re-present until
-   approved. Facts the user states override research.
+   - Draft `org.md`: the complete file content that would be written, using
+     `Background` as the first section after the H1.
+   End the preview turn after the draft content with no tool call. In the next
+   turn, ask with AskUserQuestion or the host equivalent: "Is this draft
+   approved, or should I iterate?" Free text is welcome. Apply corrections and
+   re-present the full draft until approved. Facts the user states override
+   research.
 
 3. Suborg question — choice, with a sized recommendation:
    First explain in a sentence or two what suborgs are for, with an example:
-   in a very large org (say, Google), a division or team may want its own
-   GTM motion with its own ICPs and personas — that's a suborg. If you can
-   do without them, simpler is better. Then ask "Do you want to set up any
-   sub-orgs?" and mark the recommendation from the researched company size:
+   in a very large organization with divisions or regions, one division,
+   region, or product line may want its own GTM motion with its own ICPs and
+   personas — that's a suborg. If you can do without them, simpler is better.
+   Then ask "Do you want to set up any sub-orgs?" and mark the recommendation
+   from the researched company size:
    small or single-motion company → "No (recommended)"; large enterprise
    with clearly separate divisions/regions → "Yes (recommended)".
 
@@ -161,23 +186,29 @@ Interaction Rules: announce, research, present inline, confirm, iterate.
    relevant here, add it."
 
 6. Person research and confirmation loop: same shape as step 2 — research,
-   present name / role / links / what-I-found inline, ask "Is this okay, or
-   do you want to change something?", iterate until approved.
+   then use the two-turn preview protocol. The preview turn presents name,
+   role, links, what-I-found, and the complete draft `person.md` content, then
+   ends with no tool call. The next turn asks with AskUserQuestion or the host
+   equivalent: "Is this draft approved, or should I iterate?" Iterate by
+   re-presenting the full draft until approved.
 
 7. Consolidated preview and scaffold — only after all confirmations above:
    a. Classify every collected link (see Source Links below).
-   b. Show ONE preview: project id and target path, org/suborg/person ids,
-      every file to be created (org.md per node, person.md, AGENTS.md,
-      CLAUDE.md, .gitignore from templates), source-link treatment, git
-      behavior, and the `state.json` update.
+   b. Show ONE preview using the two-turn preview protocol: project id and
+      target path, org/suborg/person ids, source-link treatment, git behavior,
+      the `state.json` update, and the complete content of every file to be
+      created (`org.md` per node, `person.md`, `AGENTS.md`, `CLAUDE.md`,
+      `.gitignore` from templates). End the preview turn after the full content
+      with no tool call.
    c. If the target path exists and is non-empty, never overwrite silently:
       if it is already a valid context repo, offer the Load or Import flow;
       otherwise offer to archive it to `$GTM_HOME/backups/<name>-<timestamp>/`
       and recreate only after explicit confirmation.
-   d. On confirmation: write the files (content from the confirmed research,
-      low-confidence items under Open Questions), `git init`, commit only
-      setup-owned files as `Initialize GTM context repo`, and update
-      `state.json` (active project, org pin root, person pin).
+   d. In the next turn, ask the scaffold confirmation with AskUserQuestion or
+      the host equivalent. On confirmation: write the files (content from the
+      confirmed research, low-confidence items under Open Questions), `git
+      init`, commit only setup-owned files as `Initialize GTM context repo`,
+      and update `state.json` (active project, org pin root, person pin).
    e. Write only setup-owned identity files. Do not create `icps/`,
       `personas/`, scoring files, or research folders.
 
@@ -207,10 +238,10 @@ Classify links before durable writes.
 - `state.json` shape:
   ```json
   {
-    "active": "google",
+    "active": "example-org",
     "projects": {
-      "google": {
-        "path": "~/.gtm/google",
+      "example-org": {
+        "path": "~/.gtm/example-org",
         "org": "cloud/emea",
         "person": "elias-stravik"
       }
@@ -258,8 +289,9 @@ ready to define targeting context.
   when a workspace actually existed.
 - Every question covered exactly one topic; open-ended questions were asked
   as free text, not options; every choice question allowed free input.
-- Each research pass was announced, presented inline, and approved before
-  any durable write.
+- Each research or repair pass was announced, previewed with full draft file
+  content inline, ended before any tool call, and approved with a structured
+  choice question in the next turn before any durable write.
 - Root has `org.md`, `AGENTS.md`, `CLAUDE.md`, `.gitignore`, and root-only
   `people/<id>/person.md`; `CLAUDE.md` contains exactly `@AGENTS.md`.
 - No empty directories or placeholder files were created.
