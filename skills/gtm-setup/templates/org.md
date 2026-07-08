@@ -1,6 +1,6 @@
 # {{org_display_name}}
 
-## What This Org Is
+## Background
 
 <!-- Company, division, product line, region, client, or other GTM scope. -->
 
