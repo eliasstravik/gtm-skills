@@ -2,7 +2,6 @@
 name: gtm-setup
 description: Set up, register, switch, validate, or extend a fractal GTM context repo. Use when the user wants to start using GTM skills, create or register a company context, change the active org/suborg or person, add a suborg, seed setup from company or profile links, join a shared repo, or recover after another gtm skill cannot resolve context.
 ---
-
 # GTM Setup
 
 Create and maintain a git-backed GTM context repo for one company. Default
@@ -31,137 +30,238 @@ directories, placeholders, or a default suborg.
 Canonical org paths omit the physical `suborgs/` segments: `cloud/emea` means
 `suborgs/cloud/suborgs/emea`; root is empty.
 
-## Core Workflow
+## Interaction Rules
 
-1. Pick the mode.
-   - Create: make a new context repo, initial root `org.md`, initial
-     `people/<you>/person.md`, `AGENTS.md`, `CLAUDE.md`, `.gitignore`, git init,
-     first local commit, and `state.json` registration.
-   - Register: validate an existing or cloned context repo, add it to
-     `state.json`, create the requested person file if absent, and set pins.
-   - Switch: update `state.json` active project, org path, or person only.
-   - Add suborg: create `suborgs/<id>/org.md` below root or a named org path.
-   - Validate/repair: check setup-owned files and repair only after preview.
-   - Share/sync/publish: only when explicitly requested.
+These rules exist because setup is a conversation, not a form. They apply to
+every question in every flow below.
 
-2. Resolve current context.
-   - Project: explicit project/path/company in the prompt -> current directory
-     inside a context repo (nearest ancestor with root `org.md` and
-     `AGENTS.md`) -> `state.json` active project -> ask when multiple projects
-     exist and none is active.
-   - Org: explicit org path in the prompt -> project pin in `state.json` ->
-     root.
-   - Person: explicit person in the prompt -> project pin -> sole person in
-     root `people/` -> ask when the action needs a person.
-   - Echo the result before acting: `Working in <project>/<org-path>` and add
-     `as <person>` only when a person resolves.
-   - If no context resolves, say: `I could not resolve a GTM context repo from
-     this prompt, current directory, or local state. Run gtm-setup or tell me
-     which GTM project to use.`
+- One topic per question. Never bundle two subjects (e.g. org + person, or
+  company + enrichment preference) into one dialog or one multi-question call.
+- Choice questions — picking between known options — use the structured
+  question tool (AskUserQuestion or the host equivalent). If no such tool
+  exists in this harness, print a numbered list and ask the user to reply
+  with a number.
+- Every choice question must accept free-form input. AskUserQuestion's
+  built-in "Other" covers this; in the numbered-list fallback, add "or just
+  type your answer".
+- Open-ended questions (names, links, descriptions, "tell me more") are asked
+  as plain conversational text. Never use the options widget when the only
+  real answer is free text, and never seed such questions with guessed
+  options from memory or context.
+- Announce research before starting it: `This takes a couple of minutes — I
+  am researching so you do not have to type it.` Present findings inline and
+  get approval (iterating on corrections) before any durable write.
+- Ask exactly one question, wait for the answer, then move to the next step.
+  Do not look ahead or pre-collect answers for later steps.
 
-3. Enforce path safety.
-   - Canonicalize repo roots and derived paths before reading or writing.
-   - Reject ids that are absolute, contain `..`, include path separators, are
-     not lowercase kebab-case, or resolve outside the repo through symlinks.
-   - Treat `state.json` paths as authoritative; expand `~` and environment
-     variables, and resolve relative paths against `$GTM_HOME` only when a
-     hermetic fixture intentionally uses them.
+## Entry Menu
 
-4. Handle create mode.
-   - Ask only for missing essentials: company display name, optional website or
-     public source links, initial person name, role, focus, and optional profile
-     links.
-   - Before source-assisted enrichment, say: `This takes a couple of minutes -
-     I am researching so you do not have to type it.`
-   - Generate and preview ids, target path, files, source-link treatment, git
-     behavior, and `state.json` update before writing.
-   - If the target path exists and is non-empty, never overwrite silently. If it
-     is already a valid context repo, offer register mode. Otherwise offer to
-     archive it to `$GTM_HOME/backups/<name>-<timestamp>/` and recreate only
-     after explicit confirmation.
-   - Write only setup-owned identity files. Do not create `icps/`,
-     `personas/`, scoring files, research folders, or suborgs unless the mode
-     explicitly requires them.
+Always start here when the skill is invoked, before any other action, unless
+the invocation itself already names a mode unambiguously (e.g. "import
+~/repos/acme-gtm" or "switch to the acme workspace") — then skip straight to
+that flow.
 
-5. Handle register mode.
-   - Accept a local path or a cloned repo path. Clone a GitHub URL only after
-     confirming the target path; keep remotes and history intact.
-   - Validate root `org.md` plus `AGENTS.md`. If either is missing, reject the
-     repo as not yet a GTM context repo and offer create mode or repair after
-     confirmation.
-   - Compare `AGENTS.md` and `CLAUDE.md` to the packaged contract. Missing
-     setup-owned files are repairable after preview; substantive differences
-     need explicit approval before activation.
-   - Create `people/<id>/person.md` only when the requested person is absent
-     and the user confirms the preview.
+1. Check `$GTM_HOME` for existing workspaces: directories directly under
+   `$GTM_HOME` (excluding `backups/`) that contain a root `org.md`.
+2. Ask exactly one choice question:
+   - "Set up a new GTM workspace" → Create flow.
+   - "Import a GTM workspace" → Import flow.
+   - "Load an existing GTM workspace" → Load flow. Include this option ONLY
+     when step 1 found at least one workspace; omit it entirely otherwise.
+3. Do not guess the company, mode, or intent from memory, email domains, or
+   prior conversations. The menu is the first question, every time.
 
-6. Handle add-suborg mode.
-   - Resolve the parent org first.
-   - Ask for suborg display name and optional positioning/focus when missing.
-   - Preview the canonical org path and physical file path.
-   - Create exactly `suborgs/<id>/org.md`. Do not create child collections or
-     skill files.
+Maintenance actions (switch pins, add a suborg to an existing workspace,
+validate/repair, share/sync) are not on the menu; run them directly when the
+user explicitly asks for them, using the same interaction rules.
 
-7. Classify source links before durable writes.
-   - Use `scripts/classify_context_links.py --stdin --json` when available,
-     one URL per input line.
-   - Public first-party links may be saved after confirmation. Private links
-     require explicit confirmation and should usually become safe labels.
-   - Secret-bearing, invite, tokenized, signed, credential-bearing, local-only,
-     or private-tunnel links are never committed or printed back verbatim.
-   - Low-confidence claims become open questions, not facts.
+## Load Flow
 
-8. Manage local state last.
-   - `state.json` shape:
-     ```json
-     {
-       "active": "google",
-       "projects": {
-         "google": {
-           "path": "~/.gtm/google",
-           "org": "cloud/emea",
-           "person": "elias-stravik"
-         }
-       }
-     }
-     ```
-   - Project id defaults to the repo directory basename. On collision, ask
-     whether to replace, rename, or keep both under distinct ids.
-   - Update pins only on explicit user request or as part of create/register.
-   - Never commit `state.json`.
+1. List the workspaces found under `$GTM_HOME` as one choice question. Label
+   each with the display name (H1 of the root `org.md`) and its path.
+2. On pick: set `state.json` active project to it. If the project has no
+   pins yet, pin org to root; if exactly one person exists under `people/`,
+   pin that person, otherwise ask which person to work as (choice question).
+3. Echo `Working in <project>/<org-path>` plus `as <person>` when resolved.
+4. Finish with a one-paragraph status: which orgs and people exist, whether
+   `icps/` and `personas/` are defined, and which gtm skill is the natural
+   next step.
 
-9. Commit only confirmed setup changes.
-   - Initialize git by default for new repos unless the user opts out.
-   - Commit only setup-owned files with `Initialize GTM context repo` or
-     `Repair GTM context repo`.
-   - Never push, open a PR, update CRM, trigger outreach, or sync externally
-     unless that mode was explicitly requested and confirmed.
+## Import Flow
 
-10. End with a setup summary.
-    - Include resolved project, org path, person, created/preserved/repaired/
-      skipped/failed files, source-link handling, state update, git status, and
-      any open questions.
-    - Recommend `gtm-define-icp` and `gtm-define-personas` only when those
-      collections are absent and the user is ready to define targeting context.
+1. Ask one choice question: "Do you want to give a path to a local folder or
+   repo, or a GitHub link?" (free text welcome — a pasted path or URL is the
+   answer).
+2. Acquire the repo:
+   - GitHub link: confirm the target path `$GTM_HOME/<repo-name>`, then
+     clone. Keep remotes and history intact.
+   - Local path: if it already lives under `$GTM_HOME`, register it in
+     place. Otherwise ask whether to copy it into `$GTM_HOME/<basename>` or
+     register it where it is.
+3. Run doctor checks against the expected shape:
+   - Root `org.md` and `AGENTS.md` exist (hard requirement — without them
+     this is not a context repo; offer Create flow or repair-by-scaffolding
+     after confirmation).
+   - `CLAUDE.md` contains exactly `@AGENTS.md`; `.gitignore` present.
+   - `AGENTS.md`/`CLAUDE.md` match the packaged templates; substantive
+     differences need explicit user approval before activation, missing
+     files are repairable after preview.
+   - Every `suborgs/<id>/` has an `org.md`; ids are lowercase kebab-case;
+     no empty directories; people live only under root `people/`.
+4. Preview any repairs (file list + what changes) and apply only after
+   confirmation. Commit repairs as `Repair GTM context repo`.
+5. Register the project in `state.json`, set pins (same person logic as the
+   Load flow), echo the resolved context, and finish with a setup summary
+   including every issue found and whether it was fixed or left open.
+
+## Create Flow
+
+Strictly one step at a time, in this order. Each research step follows the
+Interaction Rules: announce, research, present inline, confirm, iterate.
+
+1. Org question — open, free text, one question:
+   "Which org is this for? Give me the name, the website, and any relevant
+   links — for example the company LinkedIn URL. Anything else relevant you
+   want me to know, add it here too."
+
+2. Org research and confirmation loop:
+   Announce the research, then research public sources (website, LinkedIn,
+   recent news). Present inline, explicitly:
+   - Name: <company name>
+   - Website: <url>
+   - Links: <each given and discovered link, labeled, e.g. company LinkedIn>
+   - What I found: a short factual summary (what they do, positioning,
+     offers, rough size/segment) with low-confidence items marked as open
+     questions rather than facts.
+   Then ask (choice question; free text welcome): "Is this okay, or do you
+   want to iterate or add something?" Apply corrections and re-present until
+   approved. Facts the user states override research.
+
+3. Suborg question — choice, with a sized recommendation:
+   First explain in a sentence or two what suborgs are for, with an example:
+   in a very large org (say, Google), a division or team may want its own
+   GTM motion with its own ICPs and personas — that's a suborg. If you can
+   do without them, simpler is better. Then ask "Do you want to set up any
+   sub-orgs?" and mark the recommendation from the researched company size:
+   small or single-motion company → "No (recommended)"; large enterprise
+   with clearly separate divisions/regions → "Yes (recommended)".
+
+4. Suborg loop (only if yes) — for each suborg:
+   a. Open question mirroring the org question: "What's the suborg's name?
+      Are there any relevant links for it? Tell me more about it — anything
+      that distinguishes its market, offer, or motion from the parent org."
+   b. Research + confirm loop, same shape as step 2 (scoped to the suborg;
+      often the user's own description is the main source — research fills
+      gaps, it doesn't override them).
+   c. Ask whether to add another suborg (choice question). Repeat until no.
+
+5. Person question — open, free text, one question:
+   "Now tell me about yourself. What's your name and your job title? Any
+   links you can share — LinkedIn, personal site? Anything else that's
+   relevant here, add it."
+
+6. Person research and confirmation loop: same shape as step 2 — research,
+   present name / role / links / what-I-found inline, ask "Is this okay, or
+   do you want to change something?", iterate until approved.
+
+7. Consolidated preview and scaffold — only after all confirmations above:
+   a. Classify every collected link (see Source Links below).
+   b. Show ONE preview: project id and target path, org/suborg/person ids,
+      every file to be created (org.md per node, person.md, AGENTS.md,
+      CLAUDE.md, .gitignore from templates), source-link treatment, git
+      behavior, and the `state.json` update.
+   c. If the target path exists and is non-empty, never overwrite silently:
+      if it is already a valid context repo, offer the Load or Import flow;
+      otherwise offer to archive it to `$GTM_HOME/backups/<name>-<timestamp>/`
+      and recreate only after explicit confirmation.
+   d. On confirmation: write the files (content from the confirmed research,
+      low-confidence items under Open Questions), `git init`, commit only
+      setup-owned files as `Initialize GTM context repo`, and update
+      `state.json` (active project, org pin root, person pin).
+   e. Write only setup-owned identity files. Do not create `icps/`,
+      `personas/`, scoring files, or research folders.
+
+## Path Safety
+
+- Canonicalize repo roots and derived paths before reading or writing.
+- Reject ids that are absolute, contain `..`, include path separators, are
+  not lowercase kebab-case, or resolve outside the repo through symlinks.
+- Treat `state.json` paths as authoritative; expand `~` and environment
+  variables, and resolve relative paths against `$GTM_HOME` only when a
+  hermetic fixture intentionally uses them.
+
+## Source Links
+
+Classify links before durable writes.
+
+- Use `scripts/classify_context_links.py --stdin --json` when available,
+  one URL per input line.
+- Public first-party links may be saved after confirmation. Private links
+  require explicit confirmation and should usually become safe labels.
+- Secret-bearing, invite, tokenized, signed, credential-bearing, local-only,
+  or private-tunnel links are never committed or printed back verbatim.
+- Low-confidence claims become open questions, not facts.
+
+## Local State
+
+- `state.json` shape:
+  ```json
+  {
+    "active": "google",
+    "projects": {
+      "google": {
+        "path": "~/.gtm/google",
+        "org": "cloud/emea",
+        "person": "elias-stravik"
+      }
+    }
+  }
+  ```
+- Project id defaults to the repo directory basename. On collision, ask
+  whether to replace, rename, or keep both under distinct ids.
+- Update pins only on explicit user request or as part of create/import/load.
+- Never commit `state.json`.
+
+## Git Behavior
+
+- Initialize git by default for new repos unless the user opts out.
+- Commit only setup-owned files with `Initialize GTM context repo` or
+  `Repair GTM context repo`.
+- Never push, open a PR, update CRM, trigger outreach, or sync externally
+  unless that mode was explicitly requested and confirmed.
+
+## Setup Summary
+
+End every flow with a summary: resolved project, org path, person,
+created/preserved/repaired/skipped/failed files, source-link handling, state
+update, git status, and any open questions. Recommend `gtm-define-icp` and
+`gtm-define-personas` only when those collections are absent and the user is
+ready to define targeting context.
 
 ## Blocking Rules
 
+- Skipping the entry menu (except for an unambiguous explicit mode in the
+  invocation) is a flow violation — restart from the menu.
 - Missing company display name, initial person display name/role, unresolved
   path collision, unsafe id, or unconfirmed archive/rewrite blocks create.
-- Missing `org.md` or root `AGENTS.md` blocks register until repaired or a new
+- Missing `org.md` or root `AGENTS.md` blocks import until repaired or a new
   repo is created.
-- Missing source-enrichment facts do not block setup; keep files sparse and
-  record open questions.
+- Missing research facts never block setup; keep files sparse and record
+  open questions.
 - Divergent instruction files block activation until the user approves the
   differences.
 - Never overwrite human-authored files without explicit confirmation.
 
 ## Verification Checklist
 
+- The entry menu was the first question, and the load option appeared only
+  when a workspace actually existed.
+- Every question covered exactly one topic; open-ended questions were asked
+  as free text, not options; every choice question allowed free input.
+- Each research pass was announced, presented inline, and approved before
+  any durable write.
 - Root has `org.md`, `AGENTS.md`, `CLAUDE.md`, `.gitignore`, and root-only
-  `people/<id>/person.md`.
-- `CLAUDE.md` contains exactly `@AGENTS.md`.
+  `people/<id>/person.md`; `CLAUDE.md` contains exactly `@AGENTS.md`.
 - No empty directories or placeholder files were created.
 - Org paths in `state.json` use canonical form and resolve to existing orgs.
-- Every durable write was previewed and confirmed.
 - No local state, secrets, raw scratch, or ephemeral output was committed.
