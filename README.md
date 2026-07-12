@@ -84,6 +84,3 @@ is `cloud/emea/enterprise`.
 
 Start with `gtm-setup`, then define ICPs and personas. Segmentation, scoring,
 and research skills read inherited context from the active org path.
-
-Maintainer eval sources and fixture conventions live in
-[`dev/README.md`](dev/README.md).

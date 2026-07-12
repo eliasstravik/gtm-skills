@@ -22,15 +22,3 @@ __pycache__/
 # Agent/runtime scratch
 .hermes/tmp/
 .paperclip/
-
-# Local build state and historical dev machinery
-.wayfinder/
-
-# Skill rebuild runs and generated eval output
-dev/runs/
-dev/runs/**/iteration-*/
-dev/runs/**/benchmark.json
-dev/runs/**/benchmark.md
-dev/runs/**/feedback.json
-dev/runs/**/review.html
-dev/runs/**/skill-snapshot/
