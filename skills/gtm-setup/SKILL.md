@@ -260,7 +260,7 @@ approval with a numbered list in the same message, iterate.
   not lowercase kebab-case, or resolve outside the repo through symlinks.
 - Treat `state.json` paths as authoritative; expand `~` and environment
   variables, and resolve relative paths against `$GTM_HOME` only when a
-  hermetic fixture intentionally uses them.
+  portable context intentionally uses them.
 
 ## Source Links
 
