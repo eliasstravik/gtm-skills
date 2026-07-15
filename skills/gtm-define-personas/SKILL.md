@@ -5,72 +5,31 @@ description: Define or refine lead-level persona files in the active GTM org or 
 
 # GTM Define Personas
 
-Own the per-org `personas/` collection. Each persona is one markdown file named
-by its lowercase kebab-case id, written at the active org unless the user names
-another canonical org path.
+## Recipe
 
-## Core Workflow
+1. Resolve and echo `Working in <project>/<org-path>` plus `as <person>` only when explicitly named or pinned.
+2. Read the org chain, visible ICP files, and visible inherited or local persona files.
+3. Reject unresolved context, unsafe ids, path escapes, missing target orgs, unconfirmed destructive changes, and unsupported ownership.
+4. Choose create or refine for one per-org `personas/<id>.md` file at the target org.
+5. Draft lead-level persona content with the required label, evidence, confidence, review needs, ICP relevance, and open questions.
+6. Preview target path, section changes, unresolved questions, no-external-side-effect statement, and commit message; write only after explicit confirmation.
+7. Return project, org path, target label, files read, changed file, commit hash or skip reason, section status, altitude mismatch, dangling ICP references, open questions, and downstream recommendation.
 
-1. Resolve and echo context.
-   - Default `$GTM_HOME` to `~/.gtm`; read local state from
-     `$GTM_HOME/state.json`.
-   - Resolve project by prompt, current directory inside a context repo, then
-     active state. Resolve org by prompt, state pin, then root.
-   - Person is optional for this skill; omit it from the echo unless explicitly
-     named or already pinned.
-   - Echo: `Working in <project>/<org-path>` and add `as <person>` only when
-     one resolves.
-   - Read the `org.md` chain, visible ICP files, and visible persona files
-     inherited down to the target org.
+## Details
 
-2. Pick create or refine.
-   - Create when the requested persona id has no file at the target org.
-   - Refine when the user asks to update, tighten, merge, split, rename, remove,
-     or clarify an existing persona.
-   - ICP references are loose: use qualified ICP labels when known, but dangling
-     or future ICP references are allowed and should be marked clearly.
-   - If the user's description belongs higher or lower than the active org,
-     offer the better org path. If that org does not exist, hand off to
-     `gtm-setup` add-suborg mode.
-
-3. Draft the persona file.
-   - Include display name, qualified label, relevant titles, responsibilities,
-     buying influence, pains/priorities, objections, disqualifiers, outreach-safe
-     hooks, ICP relevance, source notes, confidence, review needs, and open
-     questions.
-   - Keep lead-level content only. Do not copy full ICP definitions, write
-     scores, create outreach drafts, or store one-off research.
-   - Put general bad-fit guidance in persona disqualifiers and org constraints;
-     do not create a fake persona just to represent `no-match`.
-
-4. Preview and write.
-   - Show target org path, file path, created/updated/preserved/deleted
-     sections, unresolved questions, and proposed commit message.
-   - State that no outreach, CRM update, export, sync, remote push, or other
-     external side effect will happen.
-   - Wait for explicit confirmation before editing.
-   - Write only the target `personas/<id>.md`; create `personas/` only when
-     writing the first persona file.
-   - Preserve human-authored sections unless replacement or deletion was
-     explicitly confirmed. Stage and commit only this skill's confirmed file
-     when committing is appropriate. Never push.
-
-5. End with an execution summary.
-   - Report project, org path, target label, files read, file changed, commit
-     hash or skip reason, and created/updated/preserved/removed personas.
-   - List open questions, dangling ICP references, and any altitude mismatch
-     that was resolved or left for `gtm-setup`.
-   - Recommend downstream lead segmentation, scoring, or research only when the
-     requested persona work is complete.
-
-## Blocking Rules
-
-- If no context resolves, stop with: `I could not resolve a GTM context repo
-  from this prompt, current directory, or local state. Run gtm-setup or tell me
-  which GTM project to use.`
-- Unsafe ids, path escapes, missing target orgs, or unconfirmed destructive
-  changes block writes.
-- If context is too thin to draft at least one useful persona, ask one focused
-  question with a recommended answer when possible.
-- Do not write unresolved conflicts as facts; record them as open questions or
-  mark the persona as needing review.
+- Default `$GTM_HOME` to `~/.gtm`; read state only from `$GTM_HOME/state.json`.
+- Resolve project by prompt, current context repo, then active state; resolve org by prompt, state pin, then root.
+- If no context resolves, stop with: `I could not resolve a GTM context repo from this prompt, current directory, or local state. Run gtm-setup or tell me which GTM project to use.`
+- Validate all ids and paths before reading; reject absolute paths, `..`, separators in ids, non-kebab ids, and symlink escapes.
+- This skill owns only per-org `personas/<id>.md` files and creates `personas/` only when writing the first persona.
+- Create when the requested persona id has no file at the target org; refine for update, tighten, merge, split, rename, remove, or clarify requests.
+- ICP references are loose: use qualified ICP labels when known, but mark dangling or future ICP references clearly.
+- If the description belongs higher or lower than the active org, offer the better org path; if that org does not exist, hand off to `gtm-setup` add-suborg mode.
+- Persona labels are org-qualified; `no-match` is bad-fit guidance in disqualifiers or org constraints, never a fake persona file.
+- Drafts include display name, qualified label, titles, responsibilities, influence, pains/priorities, objections, disqualifiers, outreach-safe hooks, ICP relevance, source notes, confidence, review needs, and open questions.
+- Keep lead-level content only; do not copy full ICP definitions, write scores, create outreach drafts, store one-off research, update CRM, export, sync, remote push, or edit unrelated files.
+- If context is too thin to draft at least one useful persona, ask one focused question with a recommended answer when possible.
+- Preserve human-authored sections unless replacement or deletion was explicitly confirmed.
+- Stage and commit only this skill's confirmed file when committing is appropriate; never push.
+- Do not write unresolved conflicts as facts; record them as open questions or mark the persona as needing review.
+- Recommend downstream lead segmentation, scoring, or research only when the requested persona work is complete.
