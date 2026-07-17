@@ -5,7 +5,7 @@ description: Set up, register, switch, validate, or extend a fractal GTM context
 
 # GTM Setup
 
-## Decision
+## Switch
 
 | Condition | Action |
 | --- | --- |
