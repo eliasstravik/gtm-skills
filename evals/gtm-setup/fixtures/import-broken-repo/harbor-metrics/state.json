@@ -1,0 +1,10 @@
+{
+  "active": "harbor-metrics",
+  "projects": {
+    "harbor-metrics": {
+      "path": "/Users/jonas/gtm/harbor-metrics",
+      "org": "",
+      "person": "jonas-berg"
+    }
+  }
+}

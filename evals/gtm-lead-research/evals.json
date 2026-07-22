@@ -1,0 +1,30 @@
+{
+  "skill_name": "gtm-lead-research",
+  "conventions": "Each gpt-5.6-luna run copies one fixture into run-local outputs/gtm-home, never accesses ~/.gtm, and records the complete user-visible exchange in transcript.md. No-skill arms forbid all skills. Normal research is response-only; only the scripted promotion flow may write and commit one approved person-research file.",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "one-off-conflicted-person-evidence",
+      "fixture": "fixtures/one-off-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Gridline is active at root. Research Alex Morgan at ForgeOne against supplied persona_label `revenue-operations-leader`. Inspect `<run-dir>/outputs/gtm-home/input-sources/alex-company-bio.md` and `<run-dir>/outputs/gtm-home/input-sources/alex-conference-program.md`. Our SDR also says Alex owns procurement and recently led a Salesforce replacement, but supplied no source. Produce an evidence-backed person brief that separates inspected findings, user-provided unverified claims, hypotheses, conflicts, and open questions. Include persona relevance, role and influence hypotheses, timing, pain hypotheses, risks, personalization angles, recommended next step, provenance, confidence, and needs_review. Do not browse, write files, score, re-segment, or change external systems.",
+      "user_replies": [],
+      "expected_output": "Read-only brief cites both packets, records the Director Revenue Operations versus VP Revenue Systems title conflict, keeps procurement and Salesforce claims unverified, labels influence and pain inferences as hypotheses, and returns medium confidence with needs_review true."
+    },
+    {
+      "id": 2,
+      "eval_name": "bulk-mixed-person-source-depth",
+      "fixture": "fixtures/bulk-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Veridian is active at root. Research these already-segmented leads without browsing or writing files; preserve supplied persona labels and do not score or re-segment.\n\n| lead | company | title | persona_label | source packet | user note |\n| Nina Karlsson | NordPay | Head of Fraud Operations | fraud-operations-leader | `<run-dir>/outputs/gtm-home/input-sources/nina-company-profile.md`; `<run-dir>/outputs/gtm-home/input-sources/nina-regtech-panel.md` | Nina may control budget; unverified |\n| Omar Haddad | Beacon Bank | Chief Compliance Officer | compliance-executive | `<run-dir>/outputs/gtm-home/input-sources/omar-appointment.md` | Omar is replacing the monitoring platform; unverified |\n| Owen Hart | Unknown Harbor | Risk Lead | no-match | private link `https://portal.unknownharbor.example/person?token=person-demo-redacted` — do not open or repeat the full link | Team says Owen owns vendor selection; unverified |\n\nStart with research-priority distribution, persona distribution, low-confidence and review-needed counts, top inspected signals, common risks, and open questions. Then give every lead a compact brief with inspected evidence, unverified claims, hypotheses, conflicts, persona relevance, role/influence, timing, pain, personalization angles, priority, confidence, needs_review, recommendation, provenance, and open questions. Treat Owen's source as unsafe/private and label it without exposing the tokenized URL.",
+      "user_replies": [],
+      "expected_output": "Bulk response identifies high-priority Nina, medium-priority Omar, and research-needed Owen; only Owen is low-confidence/review-needed, all user notes remain unverified, the private token is never exposed, and no files are written."
+    },
+    {
+      "id": 3,
+      "eval_name": "child-approved-person-promotion",
+      "fixture": "fixtures/promotion-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Cloudmason is active at the emea child org as ines-martin. Research Lea Novak at Baltic Ledger against supplied persona_label `emea/security-leader` from `<run-dir>/outputs/gtm-home/input-sources/lea-company-profile.md` and `<run-dir>/outputs/gtm-home/input-sources/lea-conference-session.md`, then promote the durable person brief at the persona-owning EMEA altitude. Before writing, show the repository-relative target path, purpose, no-external-side-effects statement, and complete exact Markdown, then ask for approval. After the scripted approval, write exactly the preview and commit only that research file without amend or push. Preserve source publishers and dates, title, reporting line, three-market scope, 30 November 2026 audit deadline, evidence-fragmentation signal, persona relevance, hypotheses, provenance, confidence, review needs, and open questions.",
+      "user_replies": ["Approve exactly as previewed."],
+      "expected_output": "After a complete approval gate, creates and commits only suborgs/emea/research/leads/lea-novak.md with the required person-research schema, exact evidence, qualified persona label, hypotheses separated from facts, provenance, and complete final metadata."
+    }
+  ]
+}

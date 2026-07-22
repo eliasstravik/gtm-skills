@@ -1,0 +1,22 @@
+[
+  {"query": "I want to start using the GTM skills for my company. Nothing is set up yet — my company is Fjellvik Robotics, fjellvikrobotics.no. Where do I begin?", "should_trigger": true},
+  {"query": "set up a gtm workspace for acme dental (acmedental.com), im the founder and do all sales myself", "should_trigger": true},
+  {"query": "My teammate pushed our GTM context repo to GitHub (github.com/nordwind-io/gtm-context) — get it onto this machine so I can use it here too", "should_trigger": true},
+  {"query": "switch my active gtm org to the emea suborg and work as lena going forward", "should_trigger": true},
+  {"query": "Can you add a sub-org for our new US division to my Copperline GTM workspace? It sells the same services but standalone team", "should_trigger": true},
+  {"query": "gtm-account-research just said it can't resolve a GTM context repo from this prompt or local state. fix that so I can rerun it", "should_trigger": true},
+  {"query": "validate my gtm context repo — i think a coworker committed some weird files into it last week", "should_trigger": true},
+  {"query": "I have a folder at ~/clients/brightpath-gtm from a colleague, it has org.md files in it — register it so the gtm tools can see it", "should_trigger": true},
+  {"query": "start tracking go-to-market context for my side project so other agents can pick it up later. it's called loopnote, loopnote.app, b2b saas for meeting notes", "should_trigger": true},
+  {"query": "who am I currently working as in my gtm setup? and switch me back to the root org", "should_trigger": true},
+  {"query": "define the ICP for my meridian solar workspace, mid-market industrial nordics", "should_trigger": false},
+  {"query": "score the accounts in my gtm context against our icp and rank them", "should_trigger": false},
+  {"query": "research harborview capital (harborviewcap.com) for me — funding, headcount, tech stack", "should_trigger": false},
+  {"query": "help me set up a new github repo for our marketing site, next.js, deploy on vercel", "should_trigger": false},
+  {"query": "my hubspot csv import is broken, malformed rows in the contacts file — fix the import", "should_trigger": false},
+  {"query": "create buyer personas for the freight suborg in my copperline workspace", "should_trigger": false},
+  {"query": "set up my dev workspace on this new laptop — vscode settings, dotfiles, node 22", "should_trigger": false},
+  {"query": "we're doing GTM planning next quarter — draft a go-to-market strategy deck for the board", "should_trigger": false},
+  {"query": "add jonas to our slack workspace and give him access to the #gtm channel", "should_trigger": false},
+  {"query": "my git repo says detached HEAD after I switched branches — repair it", "should_trigger": false}
+]

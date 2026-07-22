@@ -1,0 +1,10 @@
+{
+  "active": "heliodesk",
+  "projects": {
+    "heliodesk": {
+      "path": "__RUN_DIR__/outputs/gtm-home/heliodesk",
+      "org": "",
+      "person": "sana-ibrahim"
+    }
+  }
+}

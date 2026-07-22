@@ -1,0 +1,30 @@
+{
+  "skill_name": "gtm-account-scoring",
+  "conventions": "Each gpt-5.6-luna run copies one fixture into run-local outputs/gtm-home, never accesses ~/.gtm, and records complete user-facing output in transcript.md. No-skill arms forbid all skills. Scoring is ephemeral and read-only: context files, state, and Git history must remain unchanged.",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "one-off-root-exact-score",
+      "fixture": "fixtures/one-off-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Signalforge is active at root. Score Helix Metals (helixmetals.example) using its supplied segment_label `industrial-analytics-teams` and the visible account-scoring rubric. Component inputs are: segment evidence high; qualification coverage complete; timing active; evidence quality corroborated by CRM firmographics and two discovery-call notes. Show the arithmetic, exact band, confidence, needs_review, positives, risks, recommended action, provenance, and open questions. Do not change files or external systems.",
+      "user_replies": [],
+      "expected_output": "Read-only one-off score is exactly 100, top-priority, with four-component arithmetic, complete metadata and provenance, no review flag, and no side effects."
+    },
+    {
+      "id": 2,
+      "eval_name": "bulk-mixed-ranking",
+      "fixture": "fixtures/bulk-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and OrbitPay is active at root. Score and rank these accounts with the visible rubric. Treat the component ratings as supplied facts; do not re-segment or enrich.\n\n| account | website | segment_label | segment evidence | qualification coverage | timing | evidence quality | note |\n| NordPay Bank | nordpay.example | regional-digital-banks | high | complete | active | corroborated | licensed bank, internal fraud team, migration backlog |\n| Kestrel Commerce | kestrel.example | embedded-finance-platforms | medium | complete | emerging | single supplied source | embeds accounts/payments, internal risk ops, Germany launch |\n| Silver Birch Advisory | silverbirch.example | no-match | high | complete | none | corroborated | consulting reseller with explicit disqualifier |\n| Unknown Harbor | unknownharbor.example | no-match | low | unknown | none | unknown | operating model and qualification facts missing |\n\nStart with band distribution, average score, low-confidence count, review-needed count, common risks and open questions. Then rank every record with component breakdown, score, band, confidence, needs_review, reasoning, evidence, recommended action, and provenance. Preserve the no-match cap and do not write anything.",
+      "user_replies": [],
+      "expected_output": "Scores are NordPay 100 top-priority, Kestrel 71 priority, Silver Birch 39 no-fit by cap, Unknown Harbor 0 no-fit; average 52.5; only Unknown Harbor is low-confidence and review-needed; output is ranked and read-only."
+    },
+    {
+      "id": 3,
+      "eval_name": "child-nearest-rubric",
+      "fixture": "fixtures/child-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Cloudmason is active at the emea child org. Score Baltic Ledger (balticledger.example), supplied segment_label `emea/enterprise`, using nearest-file scoring precedence from that segment's org. Component inputs are: segment evidence medium; regulatory readiness complete; program timing active; evidence quality corroborated. Show which root and child scoring files were considered, the winning source, arithmetic, exact band, confidence, needs_review, recommendation, provenance, and no side effects.",
+      "user_replies": [],
+      "expected_output": "Child-local rubric wins over root and produces exactly 90, immediate; report both scoring sources and the precedence decision, with unchanged context."
+    }
+  ]
+}

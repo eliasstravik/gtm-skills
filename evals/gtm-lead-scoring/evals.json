@@ -1,0 +1,30 @@
+{
+  "skill_name": "gtm-lead-scoring",
+  "conventions": "Each gpt-5.6-luna run copies one fixture into run-local outputs/gtm-home, never accesses ~/.gtm, records complete user-facing output in transcript.md, and leaves copied GTM context and Git unchanged. No-skill arms forbid all skills.",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "one-off-root-exact-score",
+      "fixture": "fixtures/one-off-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Gridline is active at root. Score Alex Morgan at ForgeOne with our existing lead-scoring rubric. Supplied persona_label is `revenue-operations-leader`, already validated; do not re-segment. Supplied component ratings: persona fit `exact`; role authority `champion`; need/timing `active`; engagement `direct`. Show mappings, addition, any cap, final band, confidence, needs_review, positives, risks, recommended action, reasoning, provenance, and open questions. Do not browse, enrich, research the person, define a rubric, write files, or change external systems.",
+      "user_replies": [],
+      "expected_output": "Uses root lead-scoring.md and returns 40 + 20 + 20 + 15 = 95, hot, high confidence, needs_review false, with complete response-only metadata."
+    },
+    {
+      "id": 2,
+      "eval_name": "bulk-mixed-lead-ranking",
+      "fixture": "fixtures/bulk-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Veridian is active at root. Score and rank these already-segmented leads with the existing lead-scoring rubric; do not browse, enrich, research people, re-segment, define a rubric, or write files.\n\n| lead | company | title | persona_label | persona fit | role authority | need/timing | engagement |\n| Nina Karlsson | NordPay | Head of Fraud Operations | fraud-operations-leader | exact | champion | active | direct |\n| Omar Haddad | Beacon Bank | Chief Compliance Officer | compliance-executive | exact | economic | emerging | multi-signal |\n| Owen Hart | Hart Advisory | Fraud Advisor | no-match | no-match | practitioner | active | direct |\n| Priya Shah | Kestrel | VP Risk | compliance-executive | exact | not supplied | emerging | single |\n\nStart with band distribution, average final score, low-confidence and review-needed counts, common risks, and common open questions. Then rank every lead with company, title, persona label, component mappings, raw/final score, cap, band, confidence, needs_review, positives, risks, action, reasoning, provenance, and open questions.",
+      "user_replies": [],
+      "expected_output": "Ranks Nina 95 hot, Omar 85 hot, Priya 55 qualified and review-needed, and Owen raw 45 capped to 24 deprioritize; average 64.75, only Priya low-confidence/review-needed."
+    },
+    {
+      "id": 3,
+      "eval_name": "child-nearest-lead-rubric",
+      "fixture": "fixtures/child-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Cloudmason is active at the emea child org as ines-martin. Score Lea Novak at Baltic Ledger. Supplied persona_label is `emea/security-leader`, already validated; supplied component ratings are persona fit `exact`, role authority `champion`, need/timing `active`, engagement `multi-signal`. Use the nearest governing lead-scoring rubric, report every considered rubric source and persona source, and show exact arithmetic, cap handling, band, confidence, needs_review, positives, risks, action, reasoning, provenance, and open questions. Do not browse, enrich, research the person, re-segment, define a rubric, write files, or change external systems.",
+      "user_replies": [],
+      "expected_output": "Selects child suborgs/emea/lead-scoring.md over root lead-scoring.md and returns 25 + 25 + 35 + 10 = 95, immediate, high confidence, needs_review false."
+    }
+  ]
+}

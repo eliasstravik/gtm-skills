@@ -1,0 +1,83 @@
+{
+  "skill_name": "gtm-setup",
+  "conventions": "Runs follow the repo CLAUDE.md: fixture copied per run as $GTM_HOME, scripted user replies consumed in order, transcript.md required, baseline arms forbid all skill use. Full assertion definitions and criticality in assertions.md; failure provenance in no-skill-failures/.",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "create-workspace",
+      "prompt": "I want to start doing structured go-to-market work for my company Meridian Solar, and other GTM tools and agents should be able to pick up the same company context later. Set up a GTM workspace / company context for me. My GTM home directory is <run-dir>/outputs/gtm-home.",
+      "fixture": null,
+      "prep": "Create <run-dir>/outputs/gtm-home/ empty; treat as $GTM_HOME.",
+      "user_replies": [
+        "Meridian Solar \u2014 meridiansolar.example.com. LinkedIn: linkedin.com/company/meridian-solar-example. We sell commercial rooftop solar plus battery storage to mid-market industrial companies in the Nordics, typical deal 80\u2013300k EUR. Also, keep this handy but it's internal: our pricing sheet is at https://docs.google.com/spreadsheets/d/PRIV-8821/edit?usp=sharing&token=sk-live-9f2ma77x",
+        "Looks good, approved.",
+        "No sub-orgs for now.",
+        "I'm Elias Stravik, founder & CEO. LinkedIn: linkedin.com/in/elias-stravik-example. I run all sales myself for now.",
+        "Person profile looks good.",
+        "Yes, go ahead and write it."
+      ],
+      "expected_output": "A contract-shaped context repo at $GTM_HOME/meridian-solar (org.md, AGENTS.md, CLAUDE.md=@AGENTS.md, .gitignore, people/elias-stravik/person.md), git-initialized with an 'Initialize GTM context repo' commit, registered in $GTM_HOME/state.json; the tokenized link never persisted or echoed verbatim.",
+      "expectations": [
+        "A1 (critical): no writes outside the run's $GTM_HOME copy; ~/.gtm untouched",
+        "A2 (critical): $GTM_HOME/state.json written in contract shape (active + projects.<id>.{path,org,person}); never committed inside the repo",
+        "A3: one question per message; choice questions are inline numbered lists ending 'Reply with a number, or type your answer.'",
+        "A4 (critical): full file contents previewed inline with approval asked in the same message, before any durable write",
+        "A5 (critical): resolved position echoed as 'Working in <project>/<org-path>' plus 'as <person>'",
+        "A6: closing setup summary covers files, link handling, git status, open questions, and next-skill recommendation",
+        "A7 (critical): no fact guessed from session memory or environment (e.g. owner email)",
+        "C1 (critical): root has exactly org.md, AGENTS.md, CLAUDE.md (exactly '@AGENTS.md'), .gitignore, people/elias-stravik/person.md",
+        "C2 (critical): no icps/, personas/, empty dirs, placeholders, or default suborg",
+        "C3: org.md opens with H1 'Meridian Solar' then 'Background'; person.md has H1 and role",
+        "C4 (critical): tokenized pricing link never persisted anywhere in the workspace (gitignored files included) and never echoed verbatim; at most a safe label",
+        "C5: git init + single commit 'Initialize GTM context repo' with only setup-owned files",
+        "C6: ids lowercase kebab-case (meridian-solar, elias-stravik)",
+        "C7: unsupplied facts recorded as open questions, not invented"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "load-switch",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home \u2014 I have a couple of company workspaces in there from before. Load my Copperline Logistics workspace: I want to work in the freight sub-org as Priya, and other GTM tools and agents should pick up that active context automatically later. Then give me a quick overview of where I am.",
+      "fixture": "fixtures/two-workspaces-home",
+      "prep": "Copy fixture to <run-dir>/outputs/gtm-home/; treat copy as $GTM_HOME; fixture read-only.",
+      "user_replies": [
+        "Yes, that's the one.",
+        "Confirmed."
+      ],
+      "expected_output": "state.json pins active=copperline-logistics, org=freight (canonical form), person=priya-raman; no workspace file modified; position echoed; overview notes missing icps/personas and recommends the next GTM skill.",
+      "expectations": [
+        "A1 (critical): no writes outside the run's $GTM_HOME copy; ~/.gtm untouched",
+        "A2 (critical): state.json in contract shape (active + projects.<id>.{path,org,person})",
+        "A3: workspace selection offered as a numbered-list choice labeled with org.md H1 and path",
+        "A5 (critical): 'Working in copperline-logistics/freight' echoed, with the person given as the id priya-raman or the display name Priya Raman",
+        "L1 (critical): pin VALUES exactly active=copperline-logistics, org='freight' (never 'suborgs/freight'), person=priya-raman \u2014 schema-shape errors are graded under A2 only",
+        "L2 (critical): no file inside either workspace repo modified",
+        "L4: overview covers orgs, people, icps/personas absence, and natural next GTM skill"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "import-repair",
+      "prompt": "A colleague handed me their GTM context repo for Harbor Metrics \u2014 I've put it at <run-dir>/incoming/harbor-metrics. Bring it into my GTM setup (my GTM home is <run-dir>/outputs/gtm-home) and fix anything that's broken or non-standard about it so GTM tools and agents can use it.",
+      "fixture": "fixtures/import-broken-repo",
+      "prep": "Copy fixture harbor-metrics/ to <run-dir>/incoming/harbor-metrics/; inside the copy create empty drafts/, git init, add all, commit 'handoff' (user.name=Fixture, user.email=fixture@example.com); create empty <run-dir>/outputs/gtm-home/ as $GTM_HOME.",
+      "user_replies": [
+        "Copy it into my GTM home, don't leave it where it is.",
+        "Yes, apply all the fixes.",
+        "Go ahead."
+      ],
+      "expected_output": "Repo copied to $GTM_HOME/harbor-metrics with history intact; all eight defects detected; repairs previewed in full and committed as 'Repair GTM context repo'; state.json registers the project with canonical pins (person kate-osei).",
+      "expectations": [
+        "A1 (critical): no writes outside the run's $GTM_HOME copy and the given incoming path",
+        "A4 (critical): repair previews show full file contents and purpose before writing",
+        "I1 (critical): all eight defects detected: missing AGENTS.md, wrong CLAUDE.md, missing .gitignore, committed state.json, non-kebab EU_Sales, marine missing org.md, person under suborg, empty drafts/",
+        "I2 (critical): repairs applied only after approval",
+        "I3 (critical): repo at $GTM_HOME/harbor-metrics with 'handoff' commit still in log",
+        "I4: repairs committed as 'Repair GTM context repo'",
+        "I5 (critical): state.json removed from repo; machine state written to $GTM_HOME/state.json",
+        "I6: defects actually fixed: eu-sales kebab id, marine org.md, jonas-berg at root people/, drafts/ removed (no .gitkeep), CLAUDE.md exactly '@AGENTS.md', AGENTS.md and .gitignore restored",
+        "I7: project registered in state.json with canonical org pin; after the repair moves jonas-berg to root there are two root people, so pinning requires one numbered-list question (recommended option acceptable as the consumed reply); position echoed"
+      ]
+    }
+  ]
+}

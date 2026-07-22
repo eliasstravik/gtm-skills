@@ -1,0 +1,33 @@
+{
+  "skill_name": "gtm-define-personas",
+  "conventions": "Runs follow repo CLAUDE.md: copy the named fixture into each arm's run-local outputs/gtm-home, replace __RUN_DIR__ in copied state.json, git-init the copied context repo and commit every fixture file including dotfiles as 'fixture baseline', consume scripted replies in order, and save every complete user-facing message verbatim in transcript.md. Executors use gpt-5.6-luna; independent graders use gpt-5.6-terra. Baseline arms forbid every skill. Assertions are added only after saturated baseline failures are preserved.",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "create-first-persona",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Northstar Water is active at the root. Define our first persona as `network-operations-director`, relevant to the municipal-water-utilities ICP. Common titles are Director of Network Operations, Head of Distribution, and Leakage Manager. They own incident coordination and field response, champion the evaluation, and build the business case with a utility director or CFO. Priorities are restoring service quickly and making handoffs auditable. Their main objection is that a new workflow will duplicate the GIS and work-order system. A safe outreach hook is to ask how detected leaks move from network control to dispatched crews. Treat procurement consultants and student researchers as bad-fit guidance, not as a fake persona. This comes from Lena's seven discovery calls, so use medium confidence and review the title range after five more opportunities. Preserve the full inherited question about asset managers. Preview the complete file before writing anything.",
+      "fixture": "fixtures/create-first-home",
+      "user_replies": ["Approved. Write it and commit only the new persona file."],
+      "expected_output": "A complete preview followed by one committed root persona at northstar-water/personas/network-operations-director.md, with a stable lead-level persona contract, root qualified label, supplied role and evidence detail, no fake no-match persona, and the inherited asset-manager question preserved verbatim.",
+      "expectations": ["A1-A8 common process and safety contract", "S1-S4 stable lead-level persona contract", "C1-C3 exact create-first facts, evidence, and inherited question"]
+    },
+    {
+      "id": 2,
+      "eval_name": "refine-existing-persona",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Clearpath Payments is active at the root. Refine `fraud-operations-leader`: add VP of Fraud Operations as a common title; clarify that the role owns analyst capacity planning as well as queues and escalation policy; replace the current objection with `We cannot interrupt live investigations for a workflow migration.`; and change the evidence to Omar's review of eight qualified opportunities, still medium confidence. Preserve the complete Call Notes section byte-for-byte and keep the question about leaders with fewer than ten analysts unresolved. Show the complete revised file before changing it.",
+      "fixture": "fixtures/refine-existing-home",
+      "user_replies": ["Approved. Make exactly that revision and commit only the persona file."],
+      "expected_output": "A full revised-file preview followed by a single-file commit modifying only clearpath-payments/personas/fraud-operations-leader.md; exactly four requested changes, unchanged Call Notes, and the unresolved analyst-count question preserved.",
+      "expectations": ["A1-A8 common process and safety contract", "S1-S4 stable lead-level persona contract", "R1-R3 exact refinement and protected content"]
+    },
+    {
+      "id": 3,
+      "eval_name": "altitude-mismatch",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Caregrid is active at the root. Define a `benefits-program-director` persona for the government-benefits-agencies ICP. Common titles are Benefits Program Director and Regional Casework Director. They own service standards across regional caseworker teams, champion controlled queue changes, and need central IT for technical approval. Priorities are consistent decisions, auditability, and reducing reassignment delays. Their objection is that workflow change could disrupt statutory service levels. A safe hook is to ask where reassigned cases lose ownership. Exclude policy advisors without operating responsibility. This is specifically for Caseworker Enablement and comes from Maya's five public-agency calls at medium confidence; keep open whether deputy directors can approve pilots without central IT. Put it at the correct org level rather than blindly using the active root, and preview before writing.",
+      "fixture": "fixtures/altitude-mismatch-home",
+      "user_replies": ["Yes, use the public-sector suborg and the id `benefits-program-director`.", "Approved. Write it and commit only the new persona file."],
+      "expected_output": "The agent detects the root/public-sector altitude mismatch, confirms canonical org path public-sector and the id, previews fully, then commits only suborgs/public-sector/personas/benefits-program-director.md with qualified label public-sector/benefits-program-director, exact ICP relevance, supplied role details, evidence, and unresolved approval question.",
+      "expectations": ["A1-A8 common process and safety contract", "S1-S4 stable lead-level persona contract", "T1-T3 exact child placement, label, ICP relevance, and role facts"]
+    }
+  ]
+}

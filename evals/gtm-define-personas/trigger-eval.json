@@ -1,0 +1,22 @@
+[
+  {"query":"Define our first buyer persona for the network operations leaders who champion leak-response software at municipal utilities.","should_trigger":true},
+  {"query":"Turn these six discovery-call notes into a formal stakeholder persona with titles, buying influence, objections, evidence confidence, and open questions.","should_trigger":true},
+  {"query":"Our fraud-operations-leader persona is outdated—add VP titles, update the migration objection, and preserve the call notes exactly.","should_trigger":true},
+  {"query":"Create a Benefits Program Director persona under the public-sector org, linked to our government-agencies ICP.","should_trigger":true},
+  {"query":"Who should we target inside regional banks? Formalize the role, priorities, disqualifiers, and safe outreach hooks in our GTM context.","should_trigger":true},
+  {"query":"Document the economic buyer and operational champion personas for our new compliance offer; keep unsupported authority assumptions open.","should_trigger":true},
+  {"query":"Refine the CFO stakeholder profile in the enterprise suborg without overwriting the human-authored interview notes.","should_trigger":true},
+  {"query":"Our lead-scoring work is blocked because we have no persona for a Head of Fleet Operations—define that role first.","should_trigger":true},
+  {"query":"Add bad-fit guidance for consultants and interns to the existing operations persona; don't create a fake no-match contact.","should_trigger":true},
+  {"query":"Split our generic IT leader persona into a security leader and infrastructure leader, starting with the security role.","should_trigger":true},
+  {"query":"Define the ICP for Nordic water utilities with internal field crews and at least three service districts.","should_trigger":false},
+  {"query":"Segment our account list into enterprise, mid-market, and SMB tiers.","should_trigger":false},
+  {"query":"Score these companies against the municipal-water-utilities ICP and rank the best prospects.","should_trigger":false},
+  {"query":"Research Northstar Water's funding, headcount, technology stack, and recent regulatory activity.","should_trigger":false},
+  {"query":"Segment these individual leads by function, seniority, geography, and buying role.","should_trigger":false},
+  {"query":"Build a lead-scoring model using title fit, persona match, engagement, and source.","should_trigger":false},
+  {"query":"Research this named VP of Fraud Operations before tomorrow's call.","should_trigger":false},
+  {"query":"Switch my active GTM context to the public-sector suborg and work as Maya.","should_trigger":false},
+  {"query":"Write a five-email outbound sequence for fraud operations leaders using this objection and hook.","should_trigger":false},
+  {"query":"Import these contacts into HubSpot and assign each one a buyer-role property.","should_trigger":false}
+]

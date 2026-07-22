@@ -1,0 +1,30 @@
+{
+  "skill_name": "gtm-lead-segmentation",
+  "conventions": "Each gpt-5.6-luna run copies one fixture into run-local outputs/gtm-home, never accesses ~/.gtm, records complete user-facing output in transcript.md, and leaves the copied GTM context and Git unchanged. No-skill arms forbid all skills.",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "one-off-responsibility-match",
+      "fixture": "fixtures/one-off-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Gridline is active at root. Segment Alex Morgan at ForgeOne against the visible personas. Supplied facts only: title `Director of Revenue Systems`; internal employee; owns CRM architecture, lead routing, and the forecasting cadence. We do not know whether Alex is the executive sponsor. Return exactly one existing qualified persona label or `no-match`, with matched persona, confidence, needs_review, reasoning, evidence, disqualifiers considered, and open questions. Do not browse, enrich, score, research the person, write files, or change external systems.",
+      "user_replies": [],
+      "expected_output": "Response-only result assigns revenue-operations-leader with high confidence and needs_review false because supplied responsibilities are decisive; unknown executive sponsorship remains an open question rather than forcing review."
+    },
+    {
+      "id": 2,
+      "eval_name": "bulk-mixed-persona-routing",
+      "fixture": "fixtures/bulk-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Veridian is active at root. Segment these contacts against visible personas using supplied facts only; do not browse, enrich, score, research people, or write files.\n\n| lead | company | title | supplied facts |\n| Nina Karlsson | NordPay | Head of Fraud Operations | internal employee; owns 28 investigators, queue policy, analyst capacity, and case tooling |\n| Omar Haddad | Beacon Bank | Chief Compliance Officer | internal executive; owns AML policy, regulatory remediation, and compliance budget |\n| Owen Hart | Hart Advisory | Fraud Advisor | external advisor serving three clients; no internal operating authority |\n| Priya Shah | Kestrel | VP Risk | title only; employment type and responsibilities not supplied |\n\nStart with counts by qualified persona label, no-match, low-confidence, and review-needed plus common evidence and open questions. Then return every lead once with company, title, label, matched persona, confidence, needs_review, reasoning, evidence, disqualifiers considered, and open questions.",
+      "user_replies": [],
+      "expected_output": "Nina maps to fraud-operations-leader and Omar to compliance-executive, both high confidence/no review; Owen is high-confidence no-match due to the external-advisor disqualifier; Priya is low-confidence no-match and the only review-needed lead."
+    },
+    {
+      "id": 3,
+      "eval_name": "child-persona-override",
+      "fixture": "fixtures/child-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Cloudmason is active at the emea child org as ines-martin. Segment Lea Novak at Baltic Ledger against the personas visible at EMEA. Supplied facts only: title `Director of Cloud Security, EMEA`; internal employee; owns regional cloud-security controls, security engineering, and cloud-risk posture; explicitly does not own the DORA remediation program. Return one qualified persona label or `no-match`, explain persona visibility and same-stem precedence, and include confidence, needs_review, reasoning, evidence, disqualifiers considered, and open questions. Do not browse, enrich, score, research the person, write files, or change external systems.",
+      "user_replies": [],
+      "expected_output": "Uses child override emea/security-leader rather than root security-leader, rejects emea/dora-program-owner on supplied ownership evidence, reports inherited procurement-executive remains visible, and returns high confidence/no review without mutation."
+    }
+  ]
+}

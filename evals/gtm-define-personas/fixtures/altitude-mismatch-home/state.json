@@ -1,0 +1,10 @@
+{
+  "active": "caregrid",
+  "projects": {
+    "caregrid": {
+      "path": "__RUN_DIR__/outputs/gtm-home/caregrid",
+      "org": "",
+      "person": "maya-chen"
+    }
+  }
+}

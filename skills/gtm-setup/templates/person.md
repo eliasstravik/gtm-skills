@@ -6,11 +6,11 @@
 
 ## Focus
 
-<!-- Territory, segment, product area, region, or book of business. -->
+<!-- Territory, segment, product area, or book of business. -->
 
 ## Links / Sources
 
-<!-- User-approved profile links or safe labels. Never commit sensitive URLs. -->
+<!-- User-approved profile links or safe labels. Never sensitive URLs. -->
 
 ## Responsibilities
 

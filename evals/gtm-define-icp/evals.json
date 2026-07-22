@@ -1,0 +1,91 @@
+{
+  "skill_name": "gtm-define-icp",
+  "conventions": "Runs follow repo CLAUDE.md: copy the named fixture into each arm's run-local outputs/gtm-home, replace __RUN_DIR__ in copied state.json, git-init the copied context repo and commit every fixture file including dotfiles as 'fixture baseline', record matching before/after SHA-256 checksums for copied state.json, consume scripted replies in order, and save every complete user-facing message verbatim in transcript.md including working-position lines, previews, approval questions, and the final message. With-skill executors use gpt-5.6-luna; independent graders use gpt-5.6-terra. Baseline arms forbid every skill. Full definitions and criticality are in assertions.md.",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "create-first-icp",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Aster Grid is the active project at its root org. Define our first ideal-customer profile as `distribution-operators`. We are targeting Northern European electricity distribution operators with 100,000–1.5 million endpoints, internal field crews, at least three planning regions, and outage planning still coordinated in spreadsheets. Strong buying triggers are a regulator audit or an asset-management-system replacement. Transmission-only operators and utilities that outsource all field operations are disqualified. This comes from Mina's review of four won deals, so use medium confidence and flag the endpoint range for review after the next three opportunities. Keep the municipal-utility question open. Preview the complete proposed file before writing anything.",
+      "fixture": "fixtures/create-first-home",
+      "prep": "Copy fixture to <run-dir>/outputs/gtm-home/; replace __RUN_DIR__ in copied state.json; record its SHA-256 checksum; git-init copied Aster Grid repo as Fixture <fixture@example.com> and commit every fixture file including dotfiles as 'fixture baseline'; treat fixture source as read-only and copy as $GTM_HOME; after the run, record the state.json checksum again.",
+      "user_replies": [
+        "Approved. Write it and commit only the new ICP file."
+      ],
+      "expected_output": "A complete preview followed by one committed root ICP at aster-grid/icps/distribution-operators.md with the stable eight-section contract, qualified label distribution-operators, draft status, supplied criteria/evidence/review need, and the inherited municipal-utility question preserved verbatim.",
+      "expectations": [
+        "A1 (critical): before drafting, emit 'Working in aster-grid/ as mina-alvarez' (display name acceptable)",
+        "A2: report root org.md, Mina's person.md, and visible ICP sources read",
+        "A3 (critical): only run-local $GTM_HOME target changed; ~/.gtm untouched; matching pre/post checksums prove state.json unchanged after prep",
+        "A4 (critical): transcript preserves one complete approval message verbatim containing relative path, purpose, no-external-side-effects statement, complete exact Markdown, and approval question before writing",
+        "A5 (critical): create exactly icps/distribution-operators.md with safe kebab id",
+        "A6: task commit contains only icps/distribution-operators.md; no amend or push",
+        "A7: final response includes all required project/org/sources/file/commit/altitude/questions/next-step fields and exact qualified label distribution-operators",
+        "A8 (critical): no invention or loss of source specificity",
+        "S1 (critical): one H1 plus stable Identity, Account Profile, Fit Signals, Buying Context, Disqualifiers, Evidence And Confidence, Review Needs, Open Questions sections in order",
+        "S2 (critical): Identity has Qualified label distribution-operators and Status",
+        "S3 (critical): new medium-confidence unresolved ICP uses draft, not approved",
+        "S4: criteria, triggers, disqualifiers, evidence, review needs, and questions are separated into their proper sections",
+        "C1 (critical): icps/ and the single file are created only after approval; nothing else created in the context repo",
+        "C2: all requested operator criteria, both triggers, and both disqualifiers recorded",
+        "C3: Mina's four won deals at medium confidence, endpoint review after three opportunities, and exact inherited question about municipal utilities below 100,000 endpoints supporting integration"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "refine-existing-icp",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Routeframe is active at the root. Tighten the existing `regional-carriers` ICP. Correct the fleet range from 50–500 to 80–300 vehicles; require a TMS or telematics system as a positive fit signal; add brokers with no owned or leased operating assets as a disqualifier; and change the evidence note to Noah's review of six qualified opportunities, still medium confidence. Preserve the `Sales Observations` section exactly, and keep the unionized-fleet question unresolved. Show me the complete revised file before changing it.",
+      "fixture": "fixtures/refine-existing-home",
+      "prep": "Copy fixture to <run-dir>/outputs/gtm-home/; replace __RUN_DIR__ in copied state.json; record its SHA-256 checksum; git-init copied Routeframe repo as Fixture <fixture@example.com> and commit every fixture file including dotfiles as 'fixture baseline'; treat fixture source as read-only and copy as $GTM_HOME; after the run, record the state.json checksum again.",
+      "user_replies": [
+        "Approved. Make that change and commit only the ICP file."
+      ],
+      "expected_output": "A full revised-file preview followed by a single-file commit modifying only routeframe/icps/regional-carriers.md; the four requested changes are exact, lifecycle remains working definition, Sales Observations is byte-identical, and the unionized-fleet question remains unresolved.",
+      "expectations": [
+        "A1 (critical): before drafting, emit 'Working in routeframe/ as noah-kim' (display name acceptable)",
+        "A2: report root org.md, Noah's person.md, and regional-carriers.md as sources read",
+        "A3 (critical): only run-local $GTM_HOME target changed; ~/.gtm untouched; matching pre/post checksums prove state.json unchanged after prep",
+        "A4 (critical): transcript preserves one complete approval message verbatim containing relative path, purpose, no-external-side-effects statement, complete exact Markdown, and approval question before writing",
+        "A5 (critical): modify exactly icps/regional-carriers.md",
+        "A6: task commit contains only icps/regional-carriers.md; no amend or push",
+        "A7: final response includes all required project/org/sources/file/commit/altitude/questions/next-step fields and exact qualified label regional-carriers",
+        "A8 (critical): no invented or strengthened criteria/evidence",
+        "S1 (critical): stable eight-section core remains ordered and human-authored trailing sections are preserved",
+        "S2 (critical): root qualified label remains regional-carriers",
+        "S3 (critical): working definition remains; file approval does not become lifecycle approval",
+        "S4: content remains in the correct semantic sections",
+        "R1 (critical): only the four requested content changes are made",
+        "R2 (critical): Sales Observations is byte-for-byte identical and unionized-fleet question remains unresolved",
+        "R3: entire resulting file is previewed and written file exactly matches it"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "altitude-mismatch",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and HelioDesk is active at the root org. Define an ICP for EEA regional banks with 200–2,000 support seats, a dedicated risk or compliance owner, and a need for controlled support workflows plus audit exports. A regulatory examination or a retention-policy overhaul is the buying trigger. Disqualify banks outside the EEA and teams looking only for a generic help desk. This is specifically for our Regulated Support package; use medium confidence from Sana's five discovery calls and leave the minimum-seat threshold open for validation. Put it at the correct org level rather than blindly using the active root, and preview before writing.",
+      "fixture": "fixtures/altitude-mismatch-home",
+      "prep": "Copy fixture to <run-dir>/outputs/gtm-home/; replace __RUN_DIR__ in copied state.json; record its SHA-256 checksum; git-init copied HelioDesk repo as Fixture <fixture@example.com> and commit every fixture file including dotfiles as 'fixture baseline'; treat fixture source as read-only and copy as $GTM_HOME; after the run, record the state.json checksum again.",
+      "user_replies": [
+        "Yes, use the regulated suborg and the id `eea-regional-banks`.",
+        "Approved. Write it and commit only the new ICP file."
+      ],
+      "expected_output": "The agent detects the root/regulated altitude mismatch, confirms canonical org path regulated and id eea-regional-banks, previews fully, then commits only suborgs/regulated/icps/eea-regional-banks.md with qualified label regulated/eea-regional-banks, draft status, all supplied facts, and the unresolved seat threshold.",
+      "expectations": [
+        "A1 (critical): after altitude confirmation and before drafting, emit 'Working in heliodesk/regulated as sana-ibrahim' (display name acceptable)",
+        "A2: report root and regulated org.md, Sana's person.md, and inherited multi-team-support.md as sources read",
+        "A3 (critical): only run-local $GTM_HOME target changed; ~/.gtm untouched; matching pre/post checksums prove root state remains pinned and unchanged after prep",
+        "A4 (critical): transcript preserves one complete approval message verbatim containing relative child target, purpose, no-external-side-effects statement, complete exact Markdown, and approval question before writing",
+        "A5 (critical): create exactly suborgs/regulated/icps/eea-regional-banks.md with safe kebab id",
+        "A6: task commit contains only the child ICP file; no amend or push",
+        "A7: final response includes all required project/org/sources/file/commit/altitude/questions/next-step fields and exact qualified label regulated/eea-regional-banks",
+        "A8 (critical): no invented facts or strengthened evidence",
+        "S1 (critical): stable eight-section ICP contract in order",
+        "S2 (critical): child qualified label is regulated/eea-regional-banks (project id and literal suborgs excluded)",
+        "S3 (critical): status is draft because confidence is medium and threshold unresolved",
+        "S4: supplied facts are separated into the correct semantic sections",
+        "T1 (critical): explain why regulated owns the ICP and confirm canonical org path regulated plus id before preview/write",
+        "T2 (critical): only child target written; label exact; root files and active state untouched",
+        "T3: all supplied fit, triggers, disqualifiers, offer, evidence, confidence, and minimum-seat question recorded"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+[
+  {"query":"Segment Alex Morgan against the personas visible in our active GTM org.","should_trigger":true},
+  {"query":"Classify these contacts into our existing buyer-persona labels or no-match.","should_trigger":true},
+  {"query":"Route this lead to the right GTM persona using title and responsibilities, not title alone.","should_trigger":true},
+  {"query":"Bucket every person in this pasted table by qualified persona label.","should_trigger":true},
+  {"query":"Which visible persona does this procurement director fit, if any?", "should_trigger":true},
+  {"query":"Qualify this individual contact against our EMEA personas and explain the child override.","should_trigger":true},
+  {"query":"Our leads already have supplied facts—assign one persona label each without enrichment.","should_trigger":true},
+  {"query":"Segment this CSV of people by buyer role using the personas in our GTM context.","should_trigger":true},
+  {"query":"Is this external fraud advisor a persona match or a high-confidence no-match?", "should_trigger":true},
+  {"query":"Reclassify Priya after learning she owns compliance remediation and budget.","should_trigger":true},
+  {"query":"Assign these companies to our visible ICP labels or no-match.","should_trigger":false},
+  {"query":"Score and rank these individual leads using persona fit and engagement.","should_trigger":false},
+  {"query":"Research Nina Karlsson’s background, recent posts, and likely priorities.","should_trigger":false},
+  {"query":"Build an evidence-backed company brief for NordPay with buying signals.","should_trigger":false},
+  {"query":"Create a new Compliance Executive persona from these discovery notes.","should_trigger":false},
+  {"query":"Define an ICP for regional banks with internal fraud operations.","should_trigger":false},
+  {"query":"Score these target accounts against our existing weighted rubric.","should_trigger":false},
+  {"query":"Switch my active GTM context to EMEA and work as Ines.","should_trigger":false},
+  {"query":"Write these already-approved lead persona labels back to HubSpot.","should_trigger":false},
+  {"query":"Design a company-wide contact-routing taxonomy and governance policy.","should_trigger":false}
+]

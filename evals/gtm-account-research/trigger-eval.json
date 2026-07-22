@@ -1,0 +1,22 @@
+[
+  {"query":"Research Helix Metals against our active ICP and give me an evidence-backed account brief.","should_trigger":true},
+  {"query":"Inspect these local company snapshots and separate verified facts, conflicts, hypotheses, and open questions for Acme.","should_trigger":true},
+  {"query":"Research this batch of target accounts using their supplied segment labels and rank the strongest buying signals.","should_trigger":true},
+  {"query":"Build a company-level brief for Baltic Ledger with fit, timing, risks, likely committee, and personalization angles.","should_trigger":true},
+  {"query":"Refresh our research on Northwind using the new regulatory notice, but keep unsupported sales notes unverified.","should_trigger":true},
+  {"query":"Which evidence about this account is inspected fact versus a user claim or hypothesis? Interpret it against our ICP.","should_trigger":true},
+  {"query":"Research these three companies without browsing and tell me which account needs more evidence before outreach.","should_trigger":true},
+  {"query":"Promote the approved account research brief into the owning EMEA GTM context.","should_trigger":true},
+  {"query":"Create a source-backed target-account dossier from these packets, including provenance and conflicts.","should_trigger":true},
+  {"query":"Investigate this company’s current initiative and explain why now, fit risks, and the recommended sales next step.","should_trigger":true},
+  {"query":"Assign these companies to our visible ICP labels or no-match.","should_trigger":false},
+  {"query":"Score and rank these accounts from 0 to 100 using our existing weighted rubric.","should_trigger":false},
+  {"query":"Research the named procurement director at Helix Metals before tomorrow’s call.","should_trigger":false},
+  {"query":"Segment these individual leads by function, seniority, geography, and buyer role.","should_trigger":false},
+  {"query":"Define an ICP for regulated European banks with internal fraud operations.","should_trigger":false},
+  {"query":"Create a buyer persona for cloud-controls leaders reporting to the CRO.","should_trigger":false},
+  {"query":"Switch my active GTM context to the EMEA child org and work as Ines.","should_trigger":false},
+  {"query":"Write a general Wikipedia-style history of Siemens with no sales or GTM context.","should_trigger":false},
+  {"query":"Push these already-approved account-research fields into HubSpot.","should_trigger":false},
+  {"query":"Define a new account-research template and governance policy for the whole company.","should_trigger":false}
+]

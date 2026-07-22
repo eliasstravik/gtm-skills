@@ -1,37 +1,30 @@
 ---
 name: gtm-lead-scoring
-description: Score lead relevance and outreach timing after lead segmentation. Use when the user asks to rank, prioritize, score, qualify, grade, or choose next actions for leads against personas, including one-off leads, CSVs, routing lists, research outputs, or outbound prioritization.
+description: Triggers when a user asks to score, rank, qualify, or prioritize individual leads against an existing GTM lead-scoring rubric.
 ---
 
-# GTM Lead Scoring
+# Score Leads
 
 ## Recipe
 
-1. Resolve and echo `Working in <project>/<org-path>` from the prompt, current context repo, then `$GTM_HOME/state.json`.
-2. Read the org chain, visible persona files, and governing `lead-scoring.md` files for the relevant org chains.
-3. Accept a supplied `persona_label` only when it is `no-match` or exactly matches a visible qualified persona label; otherwise compose segmentation.
-4. Resolve nearest scoring criteria from the persona org upward, or active-org criteria for `no-match`; preview missing criteria before any write.
-5. Score each lead from 1-100, cap `no-match` at 49, and assign the exact fit band.
-6. Return metadata, one-off or bulk scoring fields, provenance, open questions, and a side-effect statement.
+1. Resolve the supplied `$GTM_HOME/state.json` to project, canonical org path, and active person; never access or modify `~/.gtm`, state, context, Git, or external systems.
+2. Validate each supplied `persona_label` as `no-match` or an exact visible qualified persona label; do not re-segment, enrich, research, or invent labels.
+3. From the persona's owning org, walk toward root and use the nearest `lead-scoring.md`; if none exists, stop with a prerequisite report rather than inventing or writing a rubric.
+4. Report the root-to-target org chain, persona source, and every considered scoring source, then emit `Working in <project>/<canonical-org-path> as <person-id>` before scoring.
+5. Preserve supplied component ratings and missing inputs, map them to rubric points, show the addition, apply caps, and assign the exact rubric band.
+6. Set confidence and `needs_review` from missing, conflicting, or invalid scoring inputs, not merely from a submaximal or single-signal component.
+7. For one-off work, return lead, company, title, persona label, components, raw/final score, cap, band, confidence, review flag, positives, risks, action, reasoning, provenance, and open questions.
+8. For bulk work, rank every lead, then recompute from final scores the band distribution, average, low-confidence and review counts, common risks, and common questions.
+9. Return scoring only in the response; finish with project/org/mode/persona-source/rubric-source/prerequisite/skipped-activity/no-side-effects metadata.
 
 ## Details
 
-- Default `$GTM_HOME` to `~/.gtm`; read state only from `$GTM_HOME/state.json`.
-- Context resolution order is prompt, current directory inside a context repo, then active state; person is omitted unless explicitly named.
-- If no context resolves, stop with: `I could not resolve a GTM context repo from this prompt, current directory, or local state. Run gtm-setup or tell me which GTM project to use.`
-- Validate all ids and paths before reading or writing; reject absolute paths, `..`, separators in ids, non-kebab ids, and symlink escapes.
-- If no visible persona files exist, stop and route to `gtm-define-personas`.
-- Never invent persona labels; route new persona needs to `gtm-define-personas`.
-- If no `persona_label` is supplied, compose `gtm-lead-segmentation` for the same input and score from its label, confidence, evidence, and open questions.
-- For each lead with a persona label, start at that persona's org and walk up to root; the nearest `lead-scoring.md` governs that record.
-- If no governing criteria exist, draft a concise `lead-scoring.md` proposal for the active org, preview it, and wait for confirmation.
-- Write only `lead-scoring.md` at the confirmed org; do not edit personas, ICPs, account criteria, research files, CRM, outreach, exports, sync, or remotes.
-- Score bands are exactly `1-49:not-a-fit`, `50-74:good-fit`, `75-89:great-fit`, and `90-100:excellent-fit`.
-- `persona_label: no-match` always returns `not-a-fit` with `score <= 49`.
-- Include evidence summary, positives, risks/disqualifiers, recommended action, confidence, `needs_review`, reasoning, provenance, and open questions.
-- Set `needs_review` for low confidence, material ambiguity, private-source dependency, possible disqualifiers, unclear buying influence, or high scores backed by weak evidence.
-- Metadata includes project, active org path, persona source, scoring source per record, prerequisites, and supplied or composed segmentation state.
-- One-off output includes lead name, account name when known, `persona_label`, score, fit label, evidence summary, positives, risks, recommended action, confidence, review flag, reasoning, evidence, and open questions.
-- Bulk output starts with fit distribution, low-confidence count, review-needed count, common risks, common open questions, then compact per-record fields.
-- Malformed CSV/table input blocks bulk scoring until corrected.
-- Normal output states that no CRM, outreach, export, sync, remote push, file write, or external side effect occurred unless scoring criteria were explicitly previewed, confirmed, and written.
+- State's `person` is the active operator, never the lead being scored. Take the canonical org path directly from `state.projects[state.active].org`: an absent or empty value means root, otherwise use that value verbatim. Never derive the canonical path from filesystem directories and never include project or literal `suborgs/`. Thus org `emea` renders exactly `Working in <project>/emea as <person-id>`; root renders `Working in <project>/ as <person-id>` and metadata `root (empty)`.
+- After any host-mandated one-sentence skill-use notice, begin workflow output immediately at `Sources read:` with no intervening progress narration. List every root-to-target `org.md`, exact matched persona file, overridden same-stem persona when present, and every considered rubric path relative to the context-repository root. Use full paths such as `personas/x.md` and `suborgs/emea/personas/x.md`, never bare filenames. Then emit the unquoted exact working line before any score, rank, band, count, or scoring conclusion; never preview arithmetic or outcomes first.
+- Lead scoring has no interactive gate. With complete inputs, never mention a question, reply, gate, interaction, clarification, or whether one is needed. Ask only when a missing prerequisite makes scoring impossible.
+- Score confidence means confidence that the supplied inputs support the computation. Complete valid inputs yield high confidence even when a component is submaximal; set review only for a missing, conflicting, or invalid input that could change the calculation.
+- Apply guardrails literally: `no-match` always maps persona fit to the rubric's no-match points regardless of another supplied adjective, then apply its final-score cap. Preserve missing values, map them to the rubric's missing-input value, and flag them for review.
+- Every one-off result uses literal fields `Lead`, `Company`, `Title`, `Persona label`, `Component mappings`, `Raw score`, `Final score`, `Cap`, `Band`, `Confidence`, `needs_review`, `Positives`, `Risks`, `Recommended action`, `Reasoning`, `Provenance`, and `Open questions`.
+- Every bulk row repeats every one-off field with `Lead` explicit and keeps `Raw score` and `Final score` as separate labels; headings, combined `Raw/final score`, or prose do not satisfy those fields. Never calculate bulk totals mentally: use an available calculator or arithmetic tool on the completed final-score list, cross-check the sum against every displayed row, and show `sum of final scores / lead count = average`. Include literal `Band distribution`, `Average final score`, `Low-confidence count`, `Review-needed count`, `Common risks`, and `Common open questions`, even when the user asks for the summary before the rows.
+- Every final metadata block uses all literal fields `Project`, `Canonical org path`, `Mode`, `Persona sources`, `Rubric sources`, `Prerequisite/gap status`, `Skipped activity`, and `No side effects`; provenance elsewhere never substitutes for a metadata field.
+- When the host requires `transcript.md`, copy the actual complete final response under `## FINAL MESSAGE`; never replace it with a source report, working line, or reconstruction.
