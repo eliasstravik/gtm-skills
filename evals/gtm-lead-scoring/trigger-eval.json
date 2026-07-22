@@ -1,0 +1,22 @@
+[
+  {"query":"Score Maya Chen with our existing lead rubric and tell me her priority band.","should_trigger":true},
+  {"query":"Rank these already-segmented contacts by persona fit, authority, timing, and engagement.","should_trigger":true},
+  {"query":"Qualify this individual prospect against our current lead-scoring criteria.","should_trigger":true},
+  {"query":"Prioritize this CSV of leads using the scoring rubric in our active GTM org.","should_trigger":true},
+  {"query":"Re-score Jordan after their need changed from emerging to active.","should_trigger":true},
+  {"query":"Apply the EMEA child lead rubric to Lea Novak and show the component arithmetic.","should_trigger":true},
+  {"query":"Which of these contacts should sales work first? Use our existing weighted lead score.","should_trigger":true},
+  {"query":"Give every lead a score, band, confidence, review flag, and next action.","should_trigger":true},
+  {"query":"Their persona labels are already supplied—score and rank the people without re-segmenting.","should_trigger":true},
+  {"query":"Compute the lead-score distribution and average after applying no-match caps.","should_trigger":true},
+  {"query":"Assign each contact to one of our visible buyer personas or no-match.","should_trigger":false},
+  {"query":"Define a new lead-scoring rubric with weights and bands for our SDR team.","should_trigger":false},
+  {"query":"Research Maya Chen's background, responsibilities, and recent activity before outreach.","should_trigger":false},
+  {"query":"Score and rank these target companies using segment fit and buying timing.","should_trigger":false},
+  {"query":"Segment these accounts against our ICP library.","should_trigger":false},
+  {"query":"Research Acme's funding, headcount, stack, and recent buying signals.","should_trigger":false},
+  {"query":"Define an ICP for regional digital banks with internal fraud teams.","should_trigger":false},
+  {"query":"Create a buyer persona for plant operations analytics leaders.","should_trigger":false},
+  {"query":"Switch my active GTM org to EMEA and work as Ines.","should_trigger":false},
+  {"query":"Write these already-computed lead scores back to HubSpot.","should_trigger":false}
+]

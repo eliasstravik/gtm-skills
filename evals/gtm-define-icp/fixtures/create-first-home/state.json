@@ -1,0 +1,10 @@
+{
+  "active": "aster-grid",
+  "projects": {
+    "aster-grid": {
+      "path": "__RUN_DIR__/outputs/gtm-home/aster-grid",
+      "org": "",
+      "person": "mina-alvarez"
+    }
+  }
+}

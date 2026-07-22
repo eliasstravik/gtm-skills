@@ -1,37 +1,27 @@
 ---
 name: gtm-account-scoring
-description: Score account fit and timing after account segmentation. Use when the user asks to rank, prioritize, score, qualify, grade, or choose next actions for accounts against ICPs, including one-off accounts, CSVs, routing lists, research outputs, or outbound prioritization.
+description: Triggers when a user asks to score, rank, qualify, or prioritize accounts against an existing GTM account-scoring rubric.
 ---
 
-# GTM Account Scoring
+# Score Accounts
 
 ## Recipe
 
-1. Resolve and echo `Working in <project>/<org-path>` from the prompt, current context repo, then `$GTM_HOME/state.json`.
-2. Read the org chain, visible ICP files, and governing `account-scoring.md` files for the relevant org chains.
-3. Accept a supplied `segment_label` only when it is `no-match` or exactly matches a visible qualified ICP label; otherwise compose segmentation.
-4. Resolve nearest scoring criteria from the ICP org upward, or active-org criteria for `no-match`; preview missing criteria before any write.
-5. Score each account from 1-100, cap `no-match` at 49, and assign the exact fit band.
-6. Return metadata, one-off or bulk scoring fields, provenance, open questions, and a side-effect statement.
+1. Resolve the supplied `$GTM_HOME/state.json` to project, canonical org path, and person; never access or modify `~/.gtm`, state, context, Git, or external systems.
+2. Validate each supplied `segment_label` as `no-match` or an exact visible qualified ICP label; do not re-segment, enrich, or invent labels.
+3. From the segment's owning org, walk toward root and use the nearest `account-scoring.md`; if none exists, stop with a prerequisite report rather than inventing or writing a rubric.
+4. Report the root-to-target org chain, segment source, and every considered scoring source, then emit `Working in <project>/<canonical-org-path> as <person-id>` before scoring.
+5. Preserve supplied component ratings, map them to rubric points, show the addition, apply caps, and assign the exact rubric band.
+6. Set confidence and `needs_review` from missing or conflicting scoring inputs, not merely from a submaximal component or evidence-quality rating.
+7. For one-off work, return account, website, segment, components, raw/final score, band, confidence, review flag, positives, risks, action, reasoning, evidence, provenance, and open questions.
+8. For bulk work, rank every record, then recompute from final scores the band distribution, average, low-confidence and review counts, common risks, and common questions.
+9. Return scoring only in the response; persist no score artifact, and finish with project/org/mode/source/prerequisite metadata plus explicit no-side-effects status.
 
 ## Details
 
-- Default `$GTM_HOME` to `~/.gtm`; read state only from `$GTM_HOME/state.json`.
-- Context resolution order is prompt, current directory inside a context repo, then active state; person is omitted unless explicitly named.
-- If no context resolves, stop with: `I could not resolve a GTM context repo from this prompt, current directory, or local state. Run gtm-setup or tell me which GTM project to use.`
-- Validate all ids and paths before reading or writing; reject absolute paths, `..`, separators in ids, non-kebab ids, and symlink escapes.
-- If no visible ICP files exist, stop and route to `gtm-define-icp`.
-- Never invent ICP labels; route new targeting needs to `gtm-define-icp`.
-- If no `segment_label` is supplied, compose `gtm-account-segmentation` for the same input and score from its label, confidence, evidence, and open questions.
-- For each account with an ICP label, start at that ICP's org and walk up to root; the nearest `account-scoring.md` governs that record.
-- If no governing criteria exist, draft a concise `account-scoring.md` proposal for the active org, preview it, and wait for confirmation.
-- Write only `account-scoring.md` at the confirmed org; do not edit ICPs, personas, lead criteria, research files, CRM, outreach, exports, sync, or remotes.
-- Score bands are exactly `1-49:not-a-fit`, `50-74:good-fit`, `75-89:great-fit`, and `90-100:excellent-fit`.
-- `segment_label: no-match` always returns `not-a-fit` with `score <= 49`.
-- Include evidence summary, positives, risks/disqualifiers, recommended action, confidence, `needs_review`, reasoning, provenance, and open questions.
-- Set `needs_review` for low confidence, material ambiguity, private-source dependency, possible disqualifiers, or high scores backed by weak evidence.
-- Metadata includes project, active org path, segment source, scoring source per record, prerequisites, and supplied or composed segmentation state.
-- One-off output includes account name, `segment_label`, score, fit label, evidence summary, positives, risks/disqualifiers, recommended action, confidence, review flag, reasoning, evidence, and open questions.
-- Bulk output starts with fit distribution, low-confidence count, review-needed count, common risks, common open questions, then compact per-record fields.
-- Malformed CSV/table input blocks bulk scoring until corrected.
-- Normal output states that no CRM, outreach, export, sync, remote push, file write, or external side effect occurred unless scoring criteria were explicitly previewed, confirmed, and written.
+- Canonical org paths exclude the project id and literal `suborgs/`; root is empty. Before arithmetic, emit `Sources read:` with every root-to-target `org.md`, the exact segment ICP when matched, and every considered scoring file, then the exact working line; for root use `Working in <project>/ as <person-id>` and report `root (empty)` in metadata.
+- Score confidence means confidence that the supplied inputs support the computed score. Complete explicit ratings may yield high confidence even when the rubric deliberately discounts a single-source component; set review only when an input is missing, conflicting, invalid, or could change the calculation. Do not invent account gaps that contradict supplied ratings.
+- Apply rubric guardrails before adjectival component mappings: when `segment_label` is `no-match`, its segment-evidence points are always the rubric's `no-match` value regardless of a supplied high/medium/low adjective. Show the supplied adjective in provenance if useful, but never add its qualified-segment points; then apply the final-score cap.
+- In every one-off response, including child precedence, label every field from Recipe 7 and separately state mode and prerequisite status. In bulk, include those fields per row before calculating distribution, average, and counts from final post-cap scores.
+- In bulk, `Open questions` is a required field on every ranked record, including `None`; a portfolio-level common-questions list never substitutes for per-record open questions.
+- Persist the complete final user-facing score under `## FINAL MESSAGE` in the transcript before ending; a source report or working-position line alone is never completion.

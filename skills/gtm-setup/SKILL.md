@@ -1,6 +1,6 @@
 ---
 name: gtm-setup
-description: Set up, register, switch, validate, or extend a fractal GTM context repo. Use when the user wants to start using GTM skills, create or register a company context, change the active org/suborg or person, add a suborg, seed setup from company or profile links, join a shared repo, or recover after another gtm skill cannot resolve context.
+description: Set up, register, switch, validate, or repair a fractal GTM context repo. Use when the user wants to start using GTM skills, create or import a company context, load or switch the active workspace, org, or person, add a suborg, or when another gtm skill cannot resolve its context.
 ---
 
 # GTM Setup
@@ -9,29 +9,50 @@ description: Set up, register, switch, validate, or extend a fractal GTM context
 
 | Condition | Action |
 | --- | --- |
-| No unambiguous mode is named | Show the entry menu before any other action. |
-| Set up a new workspace | Run the Create flow. |
-| Import or join a local/GitHub workspace | Run the Import flow. |
-| Load or switch to an existing workspace | Run the Load flow. |
-| Add a suborg, switch pins, validate, repair, share, or sync | Run that explicit maintenance flow without showing the entry menu. |
-| Missing or broken GTM context from another skill | Resolve, load, import, create, validate, or repair the workspace before returning to that skill. |
-| Unsafe path, unsafe id, unresolved collision, or unconfirmed overwrite | Stop and ask the smallest blocking question. |
+| No unambiguous mode is named | Show the entry menu (create / import / load) before any other action. |
+| Set up a new company workspace | Run the Create flow. |
+| Import or join an existing context repo (local path or GitHub) | Run the Import flow. |
+| Load or switch the active workspace, org, or person | Run the Load flow. |
+| Explicit maintenance ask (add suborg, switch pins, validate, repair, share, sync) | Run that flow directly, without the menu. |
+| Another GTM skill could not resolve context | Resolve, repair, or create the workspace, then return to that skill. |
+| Unsafe path or id, unresolved collision, or unconfirmed overwrite | Stop and ask the smallest blocking question. |
 
 ## Details
 
-- Default `$GTM_HOME` to `~/.gtm`; local machine state lives only in `$GTM_HOME/state.json` and is never committed.
-- If no GTM context resolves, say: `I could not resolve a GTM context repo from this prompt, current directory, or local state. Run gtm-setup or tell me which GTM project to use.`
-- Ask exactly one question at a time, wait for the answer, then continue.
-- Choice questions use inline numbered lists, accept free-form replies, and mark `(Recommended)` only when there is a recommendation.
-- Open-ended questions are plain text, not option widgets, and never guess missing facts from memory.
-- Preview full draft file contents, repair contents, or scaffold contents inline before any durable write, then ask approval in the same message.
-- Announce research before starting it, present findings and complete draft files inline, and write only after approval.
-- read [references/setup-flows.md](references/setup-flows.md) when selecting the entry menu, create, import, load, maintenance, or repair behavior.
-- read [references/context-contract.md](references/context-contract.md) when resolving context, validating repo shape, handling source links, updating state, writing setup-owned files, committing, or summarizing.
-- run [scripts/classify_context_links.py](scripts/classify_context_links.py) to classify collected URLs before durable writes; if unavailable, manually preserve the same safe-label and no-verbatim-secret behavior.
-- Setup creates only root `org.md`, root `AGENTS.md`, root `CLAUDE.md`, root `.gitignore`, root-only `people/<person-id>/person.md`, and approved suborg `org.md` files.
-- Do not create `icps/`, `personas/`, scoring files, research folders, empty directories, placeholder files, or a default suborg.
-- Root `CLAUDE.md` must contain exactly `@AGENTS.md`; setup templates live in `templates/`.
-- Canonical org paths omit physical `suborgs/` segments; root is empty and `cloud/emea` maps to `suborgs/cloud/suborgs/emea`.
-- Reject absolute ids, `..`, path separators in ids, non-kebab ids, symlink escapes, unresolved path collisions, divergent instruction files without approval, and unconfirmed archive/rewrite.
-- Secret-bearing, invite, tokenized, signed, credential-bearing, local-only, and private-tunnel links are never committed or printed back verbatim in user-facing setup output.
+- Default `$GTM_HOME` to `~/.gtm`. The only machine state is
+  `$GTM_HOME/state.json`, in the exact schema in the contract reference; a
+  `state.json` committed inside a repo is a defect to remove.
+- Ask exactly one question at a time and wait for the answer. Choice questions
+  are inline numbered lists ending `Reply with a number, or type your
+  answer.`, with at most one `(Recommended)`. Open-ended questions are plain
+  text, never option widgets.
+- Never guess missing facts from memory, session context, or email domains —
+  ask the user, or record an open question instead of a value.
+- Before any durable write, preview the complete content of every file to be
+  written inline, and ask approval in the same message. A field summary or
+  file list is not a preview.
+- Echo `Working in <project>/<org-path>` plus `as <person>` as soon as context
+  resolves, before acting on it.
+- End every flow with the setup summary defined in the contract reference.
+- Setup creates only: root `org.md`, `AGENTS.md`, `CLAUDE.md`, `.gitignore`,
+  root `people/<person-id>/person.md`, and approved suborg `org.md` files —
+  scaffolded from `templates/`. Never create `icps/`, `personas/`, scoring or
+  research files, empty directories, placeholder files, or a default suborg.
+- Root `CLAUDE.md` contains exactly `@AGENTS.md`.
+- Ids are lowercase kebab-case; reject ids that are absolute, contain `..` or
+  path separators, or escape the repo through symlinks.
+- Secret-bearing, tokenized, signed, invite, credential-bearing, local-only,
+  and private-tunnel links are never persisted anywhere in the workspace —
+  a gitignored file still persists them — and never echoed verbatim in
+  user-facing output. Store a safe label; recommend rotating any live
+  credential the user pasted.
+- Git: initialize new repos by default; commit only setup-owned files, as
+  `Initialize GTM context repo` or `Repair GTM context repo`; never push,
+  sync, or touch external systems without an explicit, confirmed request.
+- read [references/setup-flows.md](references/setup-flows.md) when running the
+  entry menu or any create, import, load, maintenance, repair, or recovery
+  flow — it defines each flow's steps and blocking rules.
+- read [references/context-contract.md](references/context-contract.md) when
+  resolving context, validating or repairing repo shape, classifying source
+  links, or writing `state.json` — it defines the repo model, state schema,
+  doctor checks, and setup summary.

@@ -1,0 +1,30 @@
+{
+  "skill_name": "gtm-account-research",
+  "conventions": "Each gpt-5.6-luna run copies one fixture into run-local outputs/gtm-home, never accesses ~/.gtm, and records complete user-facing output in transcript.md. No-skill arms forbid all skills. Normal research is response-only; only the scripted promotion flow may write one approved research file and commit it.",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "one-off-conflicted-evidence",
+      "fixture": "fixtures/one-off-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Signalforge is active at root. Research Helix Metals (helixmetals.example) against supplied segment_label `industrial-analytics-teams`. Inspect these two local source snapshots: `<run-dir>/outputs/gtm-home/input-sources/helix-company-profile.md` and `<run-dir>/outputs/gtm-home/input-sources/helix-registry-snapshot.md`. Our SDR also claims Helix has 2,100 employees and a Siemens data stack, but provided no source. Produce an evidence-backed account brief that separates inspected findings, user-provided unverified claims, hypotheses, conflicts, and open questions. Include ICP relevance, timing signals, pain and buying-committee hypotheses, risks/disqualifiers, personalization angles, recommended next step, source provenance, confidence, and needs_review. Do not browse, write files, or change external systems.",
+      "user_replies": [],
+      "expected_output": "Read-only brief cites both inspected snapshots, records three conflicting headcount claims and the unsourced Siemens claim without presenting either as verified, uses medium confidence and needs_review true, and labels pain/committee claims as hypotheses."
+    },
+    {
+      "id": 2,
+      "eval_name": "bulk-mixed-source-depth",
+      "fixture": "fixtures/bulk-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and OrbitPay is active at root. Research these accounts without browsing or writing files. Supplied segment labels are already validated; do not re-segment.\n\n| account | website | segment_label | source packet | user note |\n| NordPay Bank | nordpay.example | regional-digital-banks | `<run-dir>/outputs/gtm-home/input-sources/nordpay-regulatory.md`; `<run-dir>/outputs/gtm-home/input-sources/nordpay-careers.md` | Fraud tooling owner may have budget; unverified |\n| Kestrel Commerce | kestrel.example | embedded-finance-platforms | `<run-dir>/outputs/gtm-home/input-sources/kestrel-launch.md` | Sponsor bank is changing; unverified |\n| Unknown Harbor | unknownharbor.example | no-match | private link `https://portal.unknownharbor.example/report?token=demo-redacted` — do not open or repeat the full link | Team says it is a financial-services company; unverified |\n\nStart with research-priority distribution, segment distribution, low-confidence and review-needed counts, top verified signals, common risks, and open questions. Then give every account a compact brief with inspected evidence, unverified claims, hypotheses, ICP relevance, priority, confidence, needs_review, recommendation, provenance, and open questions. Treat Unknown Harbor's source as unsafe/private and label it without exposing the tokenized URL.",
+      "user_replies": [],
+      "expected_output": "Bulk response identifies high-priority NordPay, medium-priority Kestrel, and research-needed Unknown Harbor; only Unknown is low-confidence, all unverified notes remain labeled, source token is not exposed, and no files are written."
+    },
+    {
+      "id": 3,
+      "eval_name": "child-approved-promotion",
+      "fixture": "fixtures/promotion-home",
+      "prompt": "My GTM home is <run-dir>/outputs/gtm-home and Cloudmason is active at the emea child org as ines-martin. Research Baltic Ledger (balticledger.example), supplied segment_label `emea/enterprise`, from `<run-dir>/outputs/gtm-home/input-sources/baltic-regulator.md` and `<run-dir>/outputs/gtm-home/input-sources/baltic-company.md`, then promote the durable brief at the owning EMEA altitude. Before writing, show the relative target path, purpose, no-external-side-effects statement, and complete exact Markdown, then ask for approval. After the scripted approval, write exactly the preview and commit only that research file without amend or push. Preserve source dates, DORA deadline, three-market license, approximate headcount, cloud-controls reporting line, evidence-consolidation signal, hypotheses, provenance, confidence, review needs, and open questions.",
+      "user_replies": ["Approve exactly as previewed."],
+      "expected_output": "After a complete approval gate, creates and commits only suborgs/emea/research/baltic-ledger.md with the research schema, exact evidence, qualified label, hypotheses separated from facts, provenance, and complete final metadata."
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+[
+  {"query":"Classify Helix Metals against the ICPs visible in our active GTM org and return exactly one qualified segment label.","should_trigger":true},
+  {"query":"Segment this account list into our existing ICP labels or no-match, with confidence and review flags.","should_trigger":true},
+  {"query":"Which of our defined ICPs does Acme Bank belong to? Use only the GTM context and explain the evidence gaps.","should_trigger":true},
+  {"query":"Route these 200 companies to the right ICP segments and start with counts by label.","should_trigger":true},
+  {"query":"Re-segment this account after learning it owns four plants and has an internal analytics team.","should_trigger":true},
+  {"query":"Apply the EMEA child org's nearest ICP definitions to classify Baltic Ledger.","should_trigger":true},
+  {"query":"Mark accounts that fit none of our visible customer profiles as no-match instead of forcing a tier.","should_trigger":true},
+  {"query":"I have domains and firmographic facts for twelve prospects—assign each one an existing ICP label without enrichment.","should_trigger":true},
+  {"query":"Give me an account routing table with label, confidence, needs_review, evidence, and open questions.","should_trigger":true},
+  {"query":"Does Northwind qualify as our regional-digital-banks segment or our embedded-finance-platforms segment? Choose one.","should_trigger":true},
+  {"query":"Define a new ICP for industrial manufacturers with internal analytics teams.","should_trigger":false},
+  {"query":"Score and rank these accounts from 0 to 100 using fit, intent, and timing signals.","should_trigger":false},
+  {"query":"Research Acme Bank's headcount, technology stack, funding, and regulatory activity.","should_trigger":false},
+  {"query":"Segment these individual contacts by job function, seniority, persona, and geography.","should_trigger":false},
+  {"query":"Build a lead-scoring model for these VPs and directors.","should_trigger":false},
+  {"query":"Research the VP of Fraud Operations at Northwind before tomorrow's call.","should_trigger":false},
+  {"query":"Switch the active GTM context to our EMEA child org.","should_trigger":false},
+  {"query":"Create an enterprise buyer persona for cloud governance leaders.","should_trigger":false},
+  {"query":"Group the total addressable market into five new industry categories for a strategy deck.","should_trigger":false},
+  {"query":"Update these HubSpot account records with the segment values already listed in this CSV.","should_trigger":false}
+]

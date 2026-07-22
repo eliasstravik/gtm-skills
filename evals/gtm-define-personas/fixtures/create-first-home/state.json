@@ -1,0 +1,10 @@
+{
+  "active": "northstar-water",
+  "projects": {
+    "northstar-water": {
+      "path": "__RUN_DIR__/outputs/gtm-home/northstar-water",
+      "org": "",
+      "person": "lena-berg"
+    }
+  }
+}

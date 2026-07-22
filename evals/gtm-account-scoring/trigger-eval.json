@@ -1,0 +1,22 @@
+[
+  {"query":"Score Helix Metals from 0 to 100 with our existing account rubric and tell me its priority band.","should_trigger":true},
+  {"query":"Rank these segmented accounts by fit and timing, preserving the no-match cap.","should_trigger":true},
+  {"query":"Qualify this account against our account-scoring criteria and recommend the next action.","should_trigger":true},
+  {"query":"Prioritize this CSV of companies using the scoring rubric in our active GTM org.","should_trigger":true},
+  {"query":"Re-score Northwind after its timing signal changed from emerging to active.","should_trigger":true},
+  {"query":"Apply the EMEA child account rubric to Baltic Ledger and show the component arithmetic.","should_trigger":true},
+  {"query":"Which of these target accounts should sales work first? Use our existing weighted account score.","should_trigger":true},
+  {"query":"Give every account a score, fit band, confidence, review flag, and recommended action.","should_trigger":true},
+  {"query":"Our accounts already have segment labels—score and rank them without re-segmenting.","should_trigger":true},
+  {"query":"Compute the portfolio score distribution and average after applying rubric caps.","should_trigger":true},
+  {"query":"Assign each company to one of our visible ICP labels or no-match.","should_trigger":false},
+  {"query":"Define a new account scoring rubric with weights and bands for our sales team.","should_trigger":false},
+  {"query":"Research Acme's funding, headcount, stack, and recent buying signals.","should_trigger":false},
+  {"query":"Score and rank these individual directors using persona fit and engagement.","should_trigger":false},
+  {"query":"Segment these leads by function, seniority, geography, and buyer role.","should_trigger":false},
+  {"query":"Research the named procurement lead at Helix Metals before our meeting.","should_trigger":false},
+  {"query":"Define an ICP for regional digital banks with internal fraud teams.","should_trigger":false},
+  {"query":"Create a buyer persona for plant operations analytics leaders.","should_trigger":false},
+  {"query":"Switch my active GTM org to EMEA and work as Ines.","should_trigger":false},
+  {"query":"Write these already-computed account scores back to HubSpot.","should_trigger":false}
+]

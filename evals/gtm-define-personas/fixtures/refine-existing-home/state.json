@@ -1,0 +1,10 @@
+{
+  "active": "clearpath-payments",
+  "projects": {
+    "clearpath-payments": {
+      "path": "__RUN_DIR__/outputs/gtm-home/clearpath-payments",
+      "org": "",
+      "person": "omar-haddad"
+    }
+  }
+}

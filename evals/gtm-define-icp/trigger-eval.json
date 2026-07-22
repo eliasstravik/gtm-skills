@@ -1,0 +1,22 @@
+[
+  {"query": "Define our first ICP in the active GTM workspace: Nordic electricity distributors with internal field crews and more than 100,000 endpoints.", "should_trigger": true},
+  {"query": "Turn the patterns from our last twelve won deals into a formal ideal customer profile, including fit signals, disqualifiers, evidence confidence, and open questions.", "should_trigger": true},
+  {"query": "Our regional-carriers ICP is too broad. Narrow the fleet range, add telematics as a fit signal, and preserve the sales notes exactly.", "should_trigger": true},
+  {"query": "Create an ICP for regulated EEA banks, but place it under the regulated sub-org where that offer belongs.", "should_trigger": true},
+  {"query": "Update our existing enterprise-retail ICP with the new qualification evidence and another disqualifier. Preview the complete file before committing.", "should_trigger": true},
+  {"query": "We know our best customers are multi-site veterinary groups, but we don't have an ICP document yet. Help me formalize one in the GTM context.", "should_trigger": true},
+  {"query": "Define the best-fit account profile for our compliance product from these criteria and buying triggers, and leave anything unsupported as an open question.", "should_trigger": true},
+  {"query": "Refresh our ideal customer profile now that we've moved upmarket from startups to companies with 500–5,000 employees.", "should_trigger": true},
+  {"query": "Add a second ICP for hospital networks to the healthcare org without changing the existing private-clinics ICP.", "should_trigger": true},
+  {"query": "Review and refine the current ICP in my GTM repo, keep its unresolved questions and custom notes, and show me the exact revision before writing.", "should_trigger": true},
+  {"query": "Create buyer personas for the CFO, procurement lead, and operations manager at our target accounts.", "should_trigger": false},
+  {"query": "Split our account list into enterprise, mid-market, and SMB segments.", "should_trigger": false},
+  {"query": "Score these companies against our existing ICP and rank the best prospects.", "should_trigger": false},
+  {"query": "Research Northstar Logistics—headcount, funding, technology stack, and recent buying signals.", "should_trigger": false},
+  {"query": "Segment these leads by seniority, function, geography, and funnel stage.", "should_trigger": false},
+  {"query": "Build a lead-scoring model using title, engagement, company size, and source.", "should_trigger": false},
+  {"query": "Research this VP of Operations before tomorrow's discovery call.", "should_trigger": false},
+  {"query": "Switch my active GTM context from the root org to the EMEA sub-org.", "should_trigger": false},
+  {"query": "Give me LinkedIn campaign targeting settings for operations executives at Nordic utilities.", "should_trigger": false},
+  {"query": "Which accounts in this CSV match the ICP we already defined?", "should_trigger": false}
+]
