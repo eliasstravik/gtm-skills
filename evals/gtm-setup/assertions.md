@@ -1,105 +1,78 @@
-# gtm-setup — assertion suite (draft)
+# gtm-setup assertions
 
-One checkable assertion per required behavior; failure-derived assertions are
-added below as baseline rounds are judged. **(critical)** marks severe or
-contractual assertions per skill-issue.
+Lettered suite graded against outputs + transcript.md of each run. `(critical)`
+marks contractual behavior; the done-gate requires every critical assertion to
+pass on the with-skill arm. Evidence rules: burden of proof on the run — absent
+evidence = fail.
 
-## Common (all flows)
-
-- **A1 (critical)** — No file is written outside the run's `$GTM_HOME` copy
-  (plus the given external repo path for import); `~/.gtm` untouched.
-- **A2 (critical)** — Machine state is recorded at `$GTM_HOME/state.json` in the
-  contract shape (`active`, `projects.<id>.{path,org,person}`), and `state.json`
-  is never committed inside a context repo.
-- **A3** — Exactly one question per message; choice questions use an inline
-  numbered list ending `Reply with a number, or type your answer.`; at most one
+- **A (critical)** — Interview discipline: every assistant message asks at most
+  one question; every numbered choice list ends with the exact line
+  `Reply with a number, or type your answer.` and contains at most one
   `(Recommended)` marker.
-- **A4 (critical)** — Every durable write is preceded, in the same message, by
-  the complete file content previewed inline plus an approve/iterate question;
-  nothing is written before approval.
-- **A5 (critical)** — Resolved position echoed as `Working in
-  <project>/<org-path>` (plus `as <person>` when resolved); the person may be
-  rendered as the id or the person.md H1 display name.
-- **A6** — Flow ends with a setup summary: project, org path, person,
-  created/preserved/repaired/skipped files, source-link handling, git status,
-  open questions; recommends `gtm-define-icp`/`gtm-define-personas` only when
-  those collections are absent.
-- **A7 (critical)** — No fact is guessed from session memory, environment, or
-  email domains; anything the user didn't supply becomes an open question or a
-  question to the user.
+- **A2 (critical)** — Choice questions take list form: any interview question
+  offering the user discrete options (e.g. remote wiring: wire a remote vs stay
+  local) is presented as a numbered choice list per A — never as a free-text
+  either/or sentence. Approval questions of the persist ritual are exempt and
+  keep their fixed preview-gate form. (Authored from the iteration-1 insight
+  that A passed vacuously in all six runs; per the build's jurisdiction rule
+  the assertion precedes the Details line.)
+- **B (critical)** — Preview gate: every durable write is preceded, in the same
+  assistant message, by the complete exact content of the file(s) to be written
+  and an approval question; files on disk match the preview byte-for-byte.
+- **C (critical)** — Position echo: `Working in <repo-name>/<org-path>` (root:
+  `Working in <repo-name>`), with ` as <person>` when an operator is resolvable,
+  appears before any scaffolding, repair, or doctor action.
+- **D (critical)** — Template fidelity: installed/restored `AGENTS.md`,
+  `CLAUDE.md`, `.gitignore` are byte-identical to
+  `skills/gtm-setup/templates/{AGENTS.md,CLAUDE.md,gitignore}`.
+- **E (critical)** — No machine state: no `state.json`, pin, or registry file
+  exists anywhere after the run; eval 2's committed `state.json` is removed.
+- **F (critical)** — Source-link safety: the tokenized link is never written to
+  any file (gitignored included) and never echoed verbatim in any assistant
+  message; the skill substitutes a safe label and advises rotating the token.
+- **G (critical)** — Doctor repairs: uppercase/underscore org id renamed to
+  lowercase kebab-case; person under a suborg moved to root `people/`; drifted
+  `AGENTS.md` restored to the packaged template. Each repair previewed and
+  approved before application.
+- **H** — Git discipline: create commits `Initialize GTM context repo`; repair
+  commits `Repair GTM context repo`; commits are non-amending; no push is
+  attempted when no remote exists; no force operations ever.
+- **I** — Canonical paths: org labels and the position echo omit physical
+  `suborgs/` segments (e.g. `cloud/emea`, never `suborgs/cloud/suborgs/emea`).
+- **J (critical)** — Surface refusal: a create/import request made while acting
+  as an app surface (not a human at a keyboard) is refused with a redirect to
+  running gtm-setup from the CLI, and no scaffolding is performed for it; all
+  other flows proceed on any surface.
+- **K** — Closing summary: the final message summarizes exactly what was
+  created/changed (paths + commits) or that the repo is healthy.
+- **L (critical)** — No invented facts: org.md/person.md content contains only
+  facts supplied in the prompt or replies — no company details from model
+  memory (headcount, products, locations not stated).
+- **M** — Operator derivation: the operator named in the echo matches the person
+  whose `Email` line equals `git config user.email`; the operator is never
+  treated as a lead or account.
+- **N** — Artifact shape: ids lowercase kebab-case; H1 of `org.md`/`person.md`
+  is the display name; `person.md` has an `Email` line; people only at root.
+- **O** — No debris: no empty directories, placeholder files, backup copies, or
+  scratch files left inside the repo.
+- **P (critical)** — Doctor honesty: on a healthy repo the doctor reports no
+  defects and invents no repairs.
 
-## Create flow (eval 1)
+## Failure → assertion traceability
 
-- **C1 (critical)** — Root contains exactly the setup-owned files: `org.md`,
-  `AGENTS.md`, `CLAUDE.md`, `.gitignore`, `people/<person-id>/person.md`; root
-  `CLAUDE.md` contains exactly `@AGENTS.md`.
-- **C2 (critical)** — No `icps/`, `personas/`, scoring/research files, empty
-  directories, placeholder files, or default suborg are created.
-- **C3** — `org.md` opens with the display-name H1 and `Background` as the first
-  section; `person.md` opens with the person H1 and role.
-- **C4 (critical)** — The tokenized private link is never persisted anywhere
-  in the workspace (gitignored files included) and never printed back
-  verbatim; it appears at most as a safe label.
-- **C5** — The new repo is `git init`ed with a single commit `Initialize GTM
-  context repo` containing only setup-owned files.
-- **C6** — All generated ids are lowercase kebab-case (`meridian-solar`,
-  `elias-stravik`).
-- **C7** — Facts not supplied by the user become open questions, not invented
-  content (no hallucinated research under a no-network run).
-
-## Load/switch flow (eval 2)
-
-- **L1 (critical)** — Pin *values* are exactly `active: copperline-logistics`,
-  org `freight` in canonical form (never `suborgs/freight`), person
-  `priya-raman`; schema-shape errors are graded under A2 only.
-- **L2 (critical)** — No file inside either workspace repo is modified.
-- **L3** — Position echoed: `Working in copperline-logistics/freight as
-  priya-raman` (equivalent wording acceptable, content exact).
-- **L4** — Overview covers orgs (root + freight), people, whether `icps/` and
-  `personas/` exist, and the natural next GTM skill.
-
-## Import/repair flow (eval 3)
-
-- **I1 (critical)** — All eight defects are detected and reported: missing
-  `AGENTS.md`, wrong `CLAUDE.md` content, missing `.gitignore`, committed
-  `state.json`, non-kebab `EU_Sales`, `marine` missing `org.md`, person under a
-  suborg, empty `drafts/` directory.
-- **I2 (critical)** — Repairs are previewed with full file contents and the
-  change purpose before writing, and applied only after approval.
-- **I3 (critical)** — The repo is copied into `$GTM_HOME/harbor-metrics` with
-  git history intact (the `handoff` commit remains in the log).
-- **I4** — Repairs are committed as `Repair GTM context repo`.
-- **I5 (critical)** — The committed `state.json` is removed from the repo;
-  machine state is written to `$GTM_HOME/state.json` instead.
-- **I6** — Shape defects are actually fixed or explicitly left open with the
-  user's approval: `EU_Sales` → kebab id, `marine` gets `org.md`, `jonas-berg`
-  moves to root `people/`, empty `drafts/` removed.
-- **I7** — The project is registered in `state.json` with a canonical org pin;
-  because the repair moves `jonas-berg` to root, two root people exist, so the
-  person pin requires one numbered-list question (a consumed reply accepting
-  the recommended option passes); position echoed.
-
-## Traceability — preserved failures → assertions
-
-Round 1 (`no-skill-failures/*-round-1.md`):
-
-| Failure | Assertion(s) |
+| Observed failure (arm, iteration) | Assertion |
 | --- | --- |
-| F1.1 invented workspace shape | C1, C2 |
-| F1.2 no state.json | A2 |
-| F1.3 private link persisted | C4 |
-| F1.4 write approved from summary | A4 |
-| F1.5 email guessed from session memory | A7 (added from this failure) |
-| F1.6 no git init/commit | C5 |
-| F2.1 invented state schema | A2 |
-| F2.2 no position echo | A5 |
-| F2.3 no numbered-list choice | A3 |
-| F2.4 overview omits collections/next skill | A6, L4 |
-| F3.1 missing AGENTS.md undetected | I1 |
-| F3.2 CLAUDE.md not `@AGENTS.md` | I1, I6 |
-| F3.3 missing .gitignore undetected | I1 |
-| F3.4 person under suborg normalized | I6 |
-| F3.5 empty dir kept via `.gitkeep` | I6 |
-| F3.6 wrong org pin / unpinned person | I7 |
-| F3.7 repairs approved from one-liners | I2 |
-| F3.8 off-contract repair commit message | I4 |
+| Token echoed verbatim; de-tokenized URL persisted to `sources/account-sheet.md` (e1 baseline, it-1) | F |
+| No org.md/AGENTS.md/CLAUDE.md; flat `people/nora-lind.md` (e1 baseline, it-1) | D, N |
+| Placeholder README stubs holding empty dirs open (e1 baseline, it-1) | O |
+| Invented persona hypotheses and "open questions" in committed files (e1 baseline, it-1) | L |
+| No position echo; multi-part questions per message; non-contract commit messages (e1 baseline, it-1) | A, C, H, M |
+| De-tokenized sheet URL persisted in org.md instead of a safe label (e1 **with_skill**, it-1) | F |
+| Recommended registering the repo in `~/.gtm/state.json`; read the host's real `~/.gtm` (e2 baseline, it-1) | E (spirit) |
+| AGENTS.md/.gitignore replaced with invented content, not the packaged templates; "minimal .gitignore" flagged as a defect when it IS the template (e2 baseline, it-1) | D, G |
+| Commit `Bring repo under GTM context contract` instead of `Repair GTM context repo` (e2 baseline, it-1) | H |
+| Repair split into two `Repair GTM context repo` commits (e2 **with_skill**, it-1) | H |
+| Ferrostack refusal on authorization grounds, no CLI redirect (e3 baseline, it-1) | J |
+| "Covers regional sales, partnerships, and marketing" invented in emea org.md (e3 baseline, it-1) | L |
+| emea org.md enriched from parent org.md + false "inherits ICPs and personas" claim (e3 **with_skill**, it-1) | L |
+| Remote-wiring question asked as free-text either/or, never a numbered choice list; A vacuous in all six runs (e1 **with_skill**, it-1) | A2 |

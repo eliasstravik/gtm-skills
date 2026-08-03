@@ -1,32 +1,44 @@
 ---
 name: gtm-account-research
-description: "Research target accounts from supplied source packets or an active GTM context: produce or refresh evidence-backed briefs, dossiers, investigations, buying-signal analysis, and fact/conflict/hypothesis/question breakdowns; also durably promote an approved account-research brief into its owning GTM organization. Not for segmentation or scoring, person or lead research, ICP/persona definition, GTM setup, generic company history, CRM writes, or governance/template design."
+description: Triggers when a user asks to research target accounts from supplied source packets or a GTM context repository, produce evidence-backed account briefs, or promote an approved account-research brief. Not for account segmentation or scoring, individual lead research, ICP or persona definition, setup, or CRM writes.
 ---
 
 # Research Accounts
 
 ## Recipe
 
-1. Resolve the supplied `$GTM_HOME/state.json` to project, canonical org path, and person; never access or modify `~/.gtm`.
-2. Read and report the root-to-target `org.md` chain, every visible ICP, relevant saved research, and each allowed source packet.
-3. Normalize account identity and supplied segment; accept only `no-match` or an exact visible qualified ICP label, without re-segmenting or inventing facts.
-4. Reject or safely label private, tokenized, local-only, or otherwise unsafe sources; inspect only allowed sources, and obey any no-browse constraint.
-5. Separate inspected findings, user-provided unverified claims, hypotheses, conflicts, and open questions; preserve source publisher, date, and provenance.
-6. Interpret the evidence against visible ICP criteria: fit, timing, risks/disqualifiers, pain and committee hypotheses, personalization angles, priority, confidence, review flag, and recommended next step.
-7. For bulk work, return every account once and start with priority/segment distributions, confidence/review counts, top inspected signals, common risks, and common questions.
-8. Keep normal research response-only; finish with project/org/mode/sources/prerequisites/supplied-segment/skipped-activity/no-side-effects metadata.
-9. For durable promotion, infer the owning org, draft one `<target-org>/research/<account-id>.md` with one H1 and H2s in this order: `Identity`, `Research Scope`, `Executive Brief`, `Inspected Findings`, `Unverified Claims`, `ICP Relevance`, `Timing Signals`, `Pain Hypotheses`, `Buying Committee Hypotheses`, `Risks And Disqualifiers`, `Personalization Angles`, `Recommended Next Step`, `Evidence`, `Conflicts`, `Review Needs`, `Open Questions`.
-10. Before promotion, show relative target, purpose, complete exact Markdown, and no-external-side-effects statement in one message and obtain explicit approval; then write exactly that file and commit only it without amend or push.
+1. Keep ordinary research response-only.
+2. Reserve durable changes for an explicit promotion request.
+3. Derive the context-repo root and canonical org path from the logical working directory.
+4. Resolve the operator by matching root Git identity to a person file and taking that file's H1 display name exactly.
+5. Render the pre-conclusion line alone as `Working in <repo-name>/<org-path> as <person>`, omitting the slash and org path at root.
+6. Inspect the active org chain, visible ICPs, saved account research, and supplied source packets.
+7. Exclude unsafe or tokenized sources from opening, reproduction, and persistence under a safe source label.
+8. Report repository-relative context sources and safe source-packet labels before conclusions or a promotion preview.
+9. Separate inspected findings, unverified claims, pain hypotheses, buying-committee hypotheses, conflicts, and open questions with publisher, date, and provenance intact.
+10. Interpret fit, timing, risks, personalization angles, and a recommended next step against the supplied segment and visible ICP without re-segmenting or inventing facts.
+11. Assign exactly one priority from `high`, `medium`, or `research-needed` with evidence-calibrated Confidence and `needs_review`.
+12. Return one-off or bulk research with fixed account fields, source metadata, and an explicit no-side-effects statement.
+13. Map a promotion's canonical owning org to its physical `research/<account-id>.md` target.
+14. Draft the promoted artifact with the fixed sixteen-section account-research schema.
+15. Present the repo-relative target, purpose, no-external-side-effects statement, complete exact Markdown, and one approval question in a single message.
+16. Persist the exact approved artifact through the repository's artifact ritual.
+17. Report the changed file, commit, and full research metadata.
 
 ## Details
 
-- Canonical org paths exclude the project id and literal `suborgs/`: root is empty and child `emea` is canonical `emea`. Physical paths are different: root research is `research/<account-id>.md`; canonical child `emea` maps to `suborgs/emea/research/<account-id>.md`. Resolve the context-repository root from state and perform every file and Git operation inside it.
-- Before any research conclusion or promotion preview, emit `Sources read:` with the root-to-target `org.md` paths, every visible ICP path, relevant saved-research paths or `none`, and allowed source packets; then emit exactly `Working in <project>/<canonical-org-path> as <person-id>`, using `Working in <project>/ as <person-id>` at root.
-- Priority measures strength and immediacy of an evidence-backed research case. Use high only for a material current pain or deadline supported by enough inspected evidence; a future launch/fit signal from one packet without demonstrated pain is medium; no inspectable evidence is `research-needed`, not a numbered or low-priority band.
-- `needs_review` is true for a material evidence conflict, unsafe-source dependency, or gap that blocks a reliable recommendation. Keep ancillary unverified notes in claims and open questions without automatically setting review; confidence may be medium while review remains false.
-- In bulk, every compact account row explicitly labels: account, website, supplied segment, inspected evidence, unverified claims, hypotheses, conflicts, ICP relevance, timing, risks/disqualifiers, personalization angles, priority, confidence, `needs_review`, recommendation, provenance, and open questions. Write `None identified` or `None supported` rather than omitting an empty field.
-- Give every account an explicit `Personalization angles` field distinct from its recommended next step, including compact bulk rows; ground each angle in inspected evidence and use `None supported` when evidence is insufficient.
-- For approval, show one complete message with the repository-relative physical target, purpose, no-external-side-effects statement, exact full Markdown, and one approval question. Consume the next scripted reply as the answer after asking; do not ask again, alter the preview, or announce a different path.
-- After approval, create the parent directory under the resolved context-repository root, write the preview byte-for-byte, stage that repository-relative file alone, verify the staged diff contains only it, and create one non-amending local commit. Never claim success if the exact file or commit is absent; final output names the physical file and commit.
-- Every final response, including a completed promotion, ends with project, canonical org path, mode, inspected source files, prerequisite/approval status, exact supplied-segment status, skipped activity, and actual side effects; do not let the changed-file/commit summary replace this metadata.
-- Persist the complete user-visible exchange under `transcript.md`, including source report, working line, full preview, approval reply, and final response under `## FINAL MESSAGE`; the transcript is run evidence, not a GTM context artifact.
+- Treat `<repo-name>` only as the case-sensitive repo-root directory basename and `<person>` only as the exact H1 of the Git-identity-matched person file; never retain `/` when the org path is empty.
+- Render `Sources read:` before any conclusion or preview with every context path and supplied packet actually inspected or used, including inherited sources, using only `Private source withheld` for an unsafe source.
+- Render the literal boundaries `Inspected Findings`, `Unverified Claims`, `Pain Hypotheses`, `Buying Committee Hypotheses`, `Conflicts`, and `Open Questions` for every account, preserving publisher, date, and supplied-packet provenance.
+- Keep facts from separate sources separate unless one source explicitly joins them; never infer that unnamed markets, teams, or events are the named ones from another packet.
+- Use `Confidence: medium` with `needs_review: true` for a material conflict or material unverified claim, `low`/`true` when no inspectable evidence exists, and `high`/`false` only when the decision evidence is complete and unconflicted.
+- Give every account the literal fields `Account`, `Website`, `segment_label`, `Executive Brief`, all six evidence boundaries, `ICP Relevance`, `Timing Signals`, `Risks And Disqualifiers`, `Personalization Angles`, `Priority`, `Confidence`, `needs_review`, `Recommended Next Step`, and `Evidence`.
+- Use `Priority: high` only for inspected fit plus a clear active or dated buying signal without material conflict, `medium` when useful fit or timing evidence has a material conflict or unverified dependency, and `research-needed` when no inspectable evidence exists.
+- End normal research with `Side effects: No files, Git history, or external systems changed.` exactly.
+- Open bulk output with `Research-priority distribution`, `Segment distribution`, `Low-confidence count`, `Review-needed count`, `Top inspected signals`, `Common risks`, and `Common open questions` before any account row.
+- Give every bulk account its own complete fixed-field row, then report `Context repo`, `Canonical org path`, `Mode`, `Sources read`, `Prerequisite or approval status`, `Supplied segment status`, `Skipped activity`, and final `Side effects`.
+- Represent an unsafe source only as `Private source withheld`; never add its host, path, query, token status, sanitized form, or descriptive parenthetical.
+- State `No external systems will be changed.` verbatim in the single promotion-gate message.
+- Draft promoted Markdown with H1 account name and exactly these H2s in order: `Identity`, `Research Scope`, `Executive Brief`, `Inspected Findings`, `Unverified Claims`, `ICP Relevance`, `Timing Signals`, `Pain Hypotheses`, `Buying Committee Hypotheses`, `Risks And Disqualifiers`, `Personalization Angles`, `Recommended Next Step`, `Evidence`, `Conflicts`, `Review Needs`, `Open Questions`.
+- Put literal `Account`, `Website`, `segment_label`, `Priority`, `Confidence`, and `needs_review` keys inside the fixed promotion sections while preserving approximate values and cross-source boundaries exactly.
+- Consume one approval reply without re-asking, write preview-identical bytes, stage only the target, verify its staged diff, make one non-amending commit, and push only when a remote exists; finish with literal `Changed file`, `Commit`, `Context repo`, `Canonical org path`, `Physical target`, `Mode`, `Sources read`, `Prerequisite or approval status`, `Supplied segment status`, `Skipped activity`, and `Side effects` fields.

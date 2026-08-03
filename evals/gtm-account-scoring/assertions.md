@@ -1,65 +1,53 @@
 # gtm-account-scoring — assertion suite
 
-One checkable assertion per required behavior. **(critical)** marks severe or
-contractual assertions per skill-issue.
+One checkable assertion covers each required behavior. **(critical)** marks contractual or severe behavior. Grading gives no partial credit; missing transcript or filesystem evidence fails the assertion.
 
-## Common
+## Common process and safety
 
-- **A1 (critical)** — Resolve project, canonical org path, and person from the
-  supplied `$GTM_HOME/state.json`; emit
-  `Working in <project>/<org-path> as <person-id>` before scoring.
-- **A2** — Read and report the root-to-target `org.md` chain, the supplied
-  segment's visible ICP source, and every considered `account-scoring.md` source.
-- **A3 (critical)** — Never access `~/.gtm`; never modify state, context, Git,
-  external systems, or persist a score/report artifact. Scoring is response-only.
-- **A4 (critical)** — Accept only `no-match` or an exact visible qualified ICP
-  label, use an existing governing rubric, and stop with a prerequisite report
-  rather than inventing a label or rubric.
-- **A5 (critical)** — Map components, add arithmetic, apply caps, choose bands,
-  sort ranks, and recompute portfolio aggregates exactly from final scores.
-- **A6** — Treat supplied component ratings as facts for this run; preserve them
-  without re-segmentation, enrichment, or invented evidence.
-- **A7** — Calibrate confidence and `needs_review` to missing, conflicting, or
-  label-changing scoring inputs. A deliberately submaximal component or
-  single-source evidence score does not itself require review.
-- **A8** — Final output names project, canonical org path, mode, segment source,
-  scoring source per record, prerequisites, and explicit no-side-effects status.
+- **A (critical)** — Derive the repo root and canonical org from the supplied cwd and resolve the fixture operator through root Git identity; define `<repo-name>` as the case-sensitive repository-root directory basename and `<person>` as the exact H1 display name from the matching `people/<id>/person.md`; emit a whole line exactly equal to `Working in <repo-name>/<org-path> as <person>` before any message reveals or previews a Band judgment, with no trailing punctuation or extra prose; at root remove both the slash and empty org path so the form is exactly `Working in <repo-name> as <person>`. Generic non-result context-inspection progress is allowed before the line.
+- **B** — Emit `Visible ICP sources:` with repo-relative paths for every visible ICP after nearest same-stem resolution; identify overridden same-stem sources separately rather than presenting them as visible.
+- **C (critical)** — Keep scoring response-only and ephemeral: do not modify any fixture byte, HEAD, Git history, index, worktree status, external system, or machine state; do not create a scoring file, rubric, or durable score artifact; never access `~/.gtm`, a real repo, or home config.
+- **D (critical)** — Ask zero questions and introduce no approval, confirmation, prerequisite, or invented gate when the supplied inputs, labels, and visible ICP context are complete.
+- **E (critical)** — Validate and preserve each supplied `segment_label` exactly as an existing visible qualified ICP label or literal `no-match`; never invent, shorten, combine, revise, or re-segment it.
+- **F (critical)** — Use only qualitative judgment: no numeric score, points, weights, component scoring, formula, arithmetic, total, average, percentage, rubric file, or invented rubric.
+- **G (critical)** — Assign each account exactly one `Band` from the exact vocabulary `strong-fit`, `good-fit`, `weak-fit`, or `no-fit`.
+- **H (critical)** — Ground each matched-label rationale in named content from that exact visible ICP: name matched Fit Signals and every hit Disqualifier, and never use an overridden ICP as a judgment basis.
+- **I (critical)** — Calibrate `Confidence` (`high`, `medium`, or `low`) and `needs_review` only to evidence gaps or conflicts for the account; never inherit an ICP’s `Evidence And Confidence`, `Review Needs`, or `Open Questions` as an account-level gap.
+- **J (critical)** — One-off rows use literal fields `Account`, `Website`, `segment_label`, `Band`, `Rationale`, `Matched Fit Signals`, `Hit Disqualifiers`, `Confidence`, `needs_review`, `Evidence`, and `Open questions`; `needs_review` is the literal boolean `true` or `false`; metadata uses `Context repo`, `Canonical org path`, `Mode`, `Visible ICP sources`, `Prerequisite or gap status`, and `Side effects`; `Side effects` explicitly states that no files, Git history, or external systems changed.
+- **K** — Keep the command log chronological, verbatim, and safe; every Git inspection uses `git -C <repo-root>`, and the log corroborates the transcript plus unchanged manifests and Git state.
 
-## One-off contract
+## One-off strong-fit contract
 
-- **O1 (critical)** — Return account, website, `segment_label`, component
-  breakdown, raw and final score when a cap applies, exact band, confidence,
-  `needs_review`, positives, risks, recommended action, reasoning, evidence,
-  provenance, and open questions.
-- **O2** — Helix Metals scores exactly `40 + 25 + 20 + 15 = 100`, band
-  `top-priority`, high confidence, and `needs_review: false`, without inventing
-  gaps that contradict the complete supplied component ratings.
+- **O1 (critical)** — Return Helix Metals and `helixmetals.example` exactly once with all eleven row fields and all six metadata fields; preserve `segment_label: industrial-analytics-teams` and assign `Band: strong-fit`.
+- **O2 (critical)** — Name all three exact matched Fit Signals — `Internal analytics ownership`, `Cloud plant-data foundation`, and `Multi-site standardization urgency` — cite their supplied account evidence, and report no hit disqualifier.
+- **O3 (critical)** — Set Helix Metals `Confidence` to `high` and `needs_review` to `false`; keep the ICP’s Snowflake proxy review note separate from account evidence gaps.
 
-## Bulk contract
+## Bulk all-bands contract
 
-- **B1 (critical)** — Start with band distribution, average final score,
-  low-confidence count, review-needed count, common risks, and common questions.
-- **B2 (critical)** — Rank every input account exactly once and include website,
-  segment, component arithmetic, final score, band, confidence, review flag,
-  reasoning, evidence, action, provenance, and open questions.
-- **B3 (critical)** — Return NordPay 100/top-priority, Kestrel 71/priority,
-  Silver Birch raw 40 capped to 39/no-fit, and Unknown Harbor 0/no-fit; average
-  is 52.5 and only Unknown Harbor is low-confidence and review-needed.
+- **B1 (critical)** — Return NordPay Bank, Kestrel Commerce, Silver Birch Bank, and Unknown Harbor exactly once each with the supplied website, unchanged segment_label, and all eleven literal row fields.
+- **B2 (critical)** — Assign NordPay Bank `strong-fit`, Kestrel Commerce `good-fit`, Silver Birch Bank `weak-fit`, and Unknown Harbor `no-fit`, producing exactly one account in each Band.
+- **B3 (critical)** — For NordPay, name `Operating-license fit`, `Internal fraud ownership`, and `Migration backlog urgency`; for Kestrel, name `Owned embedded product` and `Direct API` while accurately treating dedicated ownership and active launch as absent rather than fabricated; for Silver Birch, name its otherwise strong matched signals and the exact `Outsourced investigation ownership` disqualifier, explicitly stating that this hit caps the Band at `weak-fit`.
+- **B4 (critical)** — Map Unknown Harbor’s `no-match` directly to `no-fit` without reading a matched ICP for it, re-segmenting it, or manufacturing fit signals or disqualifiers.
+- **B5 (critical)** — After all four rows and the metadata through `Prerequisite or gap status`, render literal closing fields `Band distribution`, `Low-confidence count`, `Review-needed count`, `Common fit signals`, `Common disqualifiers`, `Common open questions`, and final `Side effects`; distribution is one account in each Band, both counts are zero, all four rows are `Confidence: high` and `needs_review: false`, and `Side effects` is the final field.
 
 ## Child precedence contract
 
-- **P1 (critical)** — Resolve scoring criteria from the supplied segment's org;
-  the nearest `account-scoring.md` wins over inherited criteria.
-- **P2 (critical)** — Report root and child scoring paths, select the EMEA child
-  source, and return Baltic Ledger exactly `20 + 30 + 25 + 15 = 90`, `immediate`.
+- **P1 (critical)** — At `emea`, replace root `icps/enterprise.md` with nearer `suborgs/emea/icps/enterprise.md`, retain non-colliding root `icps/mid-market.md` as visible, and report the override plus all relevant repo-relative source paths.
+- **P2 (critical)** — Preserve `segment_label: emea/enterprise`, use only `suborgs/emea/icps/enterprise.md` as the judgment basis, assign `Band: strong-fit`, and never use the root enterprise ICP’s content in the rationale.
+- **P3 (critical)** — Name all three child Fit Signals — `Dedicated controls ownership`, `DORA remediation urgency`, and `Multi-country EEA operations` — with the supplied evidence, report no hit disqualifier, and set `Confidence: high` with `needs_review: false` despite the child ICP’s maintenance backlog.
+- **P4 (critical)** — Return Baltic Ledger and `balticledger.example` exactly once with all eleven row fields and all six metadata fields.
 
-## Failure traceability
+## Failure-to-assertion traceability
 
-| Failure | Assertion(s) |
+| Known or anticipated failure | Assertion(s) |
 | --- | --- |
-| F1 missing position/source/final metadata | A1-A2, A8, O1, B2 |
-| F2 weak evidence mechanically triggered review | A7, B3 |
-| F3 score report persisted despite ephemeral contract | A3 |
-| F4 complete supplied ratings were contradicted by invented gaps | A6-A7, O2 |
-| F5 portfolio average or no-match score/band was miscomputed | A5, B1, B3 |
-| F6 unnecessary approval question delayed read-only scoring | A1, A6 |
+| Band or classification leaks before the exact working line | A |
+| Missing repo-relative sources or wrong child precedence | B, H, P1-P2 |
+| File, Git, machine-state, external, scoring-file, or rubric side effect | C, J, K |
+| Invented question or approval gate despite complete inputs | D |
+| Segment label is revised or `no-match` is re-segmented | E, B4 |
+| Numeric scoring, arithmetic, or rubric behavior returns | F |
+| Wrong or invented Band | G, O1, B2, P2 |
+| Generic rationale omits named signals or disqualifier | H, O2, B3, P3 |
+| ICP maintenance backlog becomes account review | I, O3, B5, P3 |
+| Missing fixed row, metadata, distribution, final no-effects field, or exact child account identity | J, O1, B1, B5, P4 |

@@ -1,99 +1,57 @@
 # gtm-define-personas — assertion suite
 
-One checkable assertion per required behavior. **(critical)** marks severe or
-contractual assertions per skill-issue.
+One checkable assertion per required behavior. **(critical)** marks severe or contractual assertions per skill-issue. Grading gives no partial credit; missing transcript or filesystem evidence fails the assertion.
 
-## Common
+## Common process and safety
 
-- **A1 (critical)** — Resolve project, canonical org path, and person from the
-  supplied `$GTM_HOME/state.json`; after settling altitude and before drafting,
-  emit `Working in <project>/<org-path> as <person>`.
-- **A2** — Read and report the root-to-target `org.md` chain, resolved
-  `person.md`, all visible inherited/local ICPs, and all visible inherited/local
-  personas.
-- **A3 (critical)** — Operate only inside the supplied run-local `$GTM_HOME`;
-  never access or modify `~/.gtm` or `state.json`, and change only the approved
-  persona path.
-- **A4 (critical)** — Before writing, show one approval message containing the
-  relative target path, purpose, no-external-side-effects statement, complete
-  exact Markdown, and approval question; write nothing before approval.
-- **A5 (critical)** — Create or modify exactly one safe lowercase-kebab persona
-  file at `<target-org>/personas/<persona-id>.md`; physical placement matches
-  the confirmed content altitude.
-- **A6** — Commit only the approved persona file in the copied context repo;
-  never amend or push, and report a genuine commit blocker without widening
-  scope.
-- **A7** — Final response names project, canonical org path, exact qualified
-  persona label, source paths, changed file, commit or skip status, altitude
-  decision, preserved open questions, and downstream recommendation.
-- **A8 (critical)** — Preserve supplied facts, evidence strength, existing
-  constraints, review needs, and inherited open questions without invention or
-  loss of specificity; new-persona flows carry relevant inherited constraints,
-  while exact refinements do not add unrelated inherited material.
+- **A (critical)** — Derive the repo root and canonical position from cwd, resolve the fixture operator through root git identity, and emit a whole line exactly equal to `Working in <repo-name>/<org-path> as <person>` before any draft or classification, with no trailing punctuation; omit the org suffix at root.
+- **B** — Emit `Sources read:` with repo-relative paths for the root-to-target `org.md` chain, resolved root person record, and every inherited or local visible ICP and persona.
+- **C (critical)** — Operate only in the supplied run-local copy; never access or modify `~/.gtm`, a real context repo, home config, or machine state; keep harness evidence outside the copied repo.
+- **D (critical)** — Before any task write, present one user-facing message containing the repo-relative target path, persona purpose, explicit no-external-side-effects statement, complete exact Markdown, approval question, and no split or reconstructed approval elements.
+- **E (critical)** — Create or modify exactly one safe lowercase-kebab persona path at the confirmed altitude after approval, and write bytes identical to the approved preview.
+- **F (critical)** — Run every task Git command with `git -C <repo-root>`, stage only the persona file, verify the staged diff, make one non-amending artifact commit, never push without a remote, and leave the repo clean.
+- **G** — The final response names canonical position, exact qualified persona label, altitude decision, repo-relative sources, changed file, commit or skip status, preserved open questions, and a natural downstream recommendation.
+- **H (critical)** — Preserve every supplied role fact, constraint, evidence count, confidence, review need, and unresolved question without invention, weakened specificity, or enrichment from unrelated parent context.
+- **I (critical)** — Every non-target fixture file remains byte-identical to its before manifest; `AGENTS.md`, `CLAUDE.md`, and `.gitignore` remain byte-identical to packaged setup templates.
+- **J** — The chronological command log is verbatim and complete, contains no reconstructed or duplicate task commands, uses no unsafe path, and corroborates the transcript and final repository state.
 
-## Persona file contract
+## Persona artifact contract
 
-- **S1 (critical)** — One H1 is followed by these H2 sections in order:
-  `Identity`, `Titles And Responsibilities`, `Buying Role`,
-  `Pains And Priorities`, `Objections And Disqualifiers`, `Outreach Hooks`,
-  `ICP Relevance`, `Evidence And Confidence`, `Review Needs`, `Open Questions`.
-  Existing human-authored sections after the core remain byte-for-byte unless
-  the user explicitly asks to edit them.
-- **S2 (critical)** — `Identity` records `Display name` and `Qualified label`;
-  root labels are `<persona-id>`, child labels are
-  `<canonical-org-path>/<persona-id>`, and ICP labels never become part of the
-  persona label.
-- **S3 (critical)** — Content remains lead-level: roles, titles,
-  responsibilities, buying influence, pains, objections, disqualifiers, and
-  outreach-safe hooks. Bad-fit or `no-match` contacts are guidance under
-  disqualifiers, never a synthetic persona file.
-- **S4** — `ICP Relevance` uses visible qualified ICP labels when known and
-  clearly marks an unresolved future/dangling reference rather than inventing
-  one.
+- **S1 (critical)** — The persona has one H1 followed by these H2s in exact order: `Identity`, `Titles And Responsibilities`, `Buying Role`, `Pains And Priorities`, `Objections And Disqualifiers`, `Outreach Hooks`, `ICP Relevance`, `Evidence And Confidence`, `Review Needs`, `Open Questions`; an existing human-authored section after this core remains byte-identical unless explicitly edited.
+- **S2 (critical)** — `Identity` contains a human-readable persona title as `Display name`, never the id or slug, plus `Qualified label`; a root label is the bare persona id and a child label is `<canonical-org-path>/<persona-id>`, with no physical `suborgs/` segment or ICP label embedded.
+- **S3 (critical)** — Content stays at individual-buyer or stakeholder altitude: titles, responsibilities, buying role, pains, objections, disqualifiers, and outreach-safe hooks; bad-fit or no-match contacts appear only as guidance under `Objections And Disqualifiers` and never produce another persona file.
+- **S4 (critical)** — `ICP Relevance` copies each task-relevant visible qualified ICP label exactly, excludes visible ICPs that are irrelevant or expressly disqualify the target, keeps ICP labels separate from the persona label, and marks any unresolved reference rather than inventing one.
 
 ## Create-first flow
 
-- **C1 (critical)** — Create only
-  `personas/network-operations-director.md` after approval, creating only its
-  `personas/` directory if absent.
-- **C2** — Record all supplied titles, responsibilities, buying influence,
-  priorities, objection, safe hook, and bad-fit guidance in their proper
-  sections; reference `municipal-water-utilities` exactly.
-- **C3** — Record Lena's seven calls at medium confidence, review titles after
-  five opportunities, and preserve verbatim the inherited asset-manager
-  question.
+- **C1 (critical)** — Create only `personas/network-operations-director.md` after approval, creating only its `personas/` directory when absent.
+- **C2** — Record all three titles, incident coordination and field response ownership, champion and business-case roles, both priorities, exact objection meaning, safe hook, and both bad-fit contact types in their proper sections; reference `municipal-water-utilities` exactly.
+- **C3 (critical)** — Record Lena’s seven discovery calls at medium confidence, review the title range after five more opportunities, and preserve verbatim: `Do asset managers participate before a leak-response workflow reaches procurement?`
 
 ## Refine-existing flow
 
-- **R1 (critical)** — Make exactly four content changes: add VP of Fraud
-  Operations, add analyst capacity planning, replace the objection with the
-  supplied sentence, and change evidence to Omar's eight qualified
-  opportunities at medium confidence.
-- **R2 (critical)** — Preserve `Call Notes` byte-for-byte and keep the
-  fewer-than-ten-analysts question unresolved.
-- **R3** — Preview the entire resulting file, not a diff or summary, and write
-  exactly the approved preview.
+- **R1 (critical)** — Make exactly four requested semantic edits: add `VP of Fraud Operations`; add analyst capacity planning to existing queue and escalation-policy ownership; replace the objection with exactly `We cannot interrupt live investigations for a workflow migration.`; replace the evidence with Omar’s eight qualified opportunities at medium confidence.
+- **R2 (critical)** — Preserve all unrelated core content and keep `Do leaders with fewer than ten analysts own capacity planning directly?` unresolved.
+- **R3 (critical)** — Preserve the `## Call Notes` heading through EOF byte-for-byte, with identical captured before/after bytes and SHA-256 values.
+- **R4** — Preview the entire resulting file rather than a diff or summary, and make the written file byte-identical to the approved preview.
 
 ## Altitude-mismatch flow
 
-- **T1 (critical)** — Explain that Caseworker Enablement and the local ICP make
-  `public-sector` the owner; confirm canonical org path and persona id before
-  previewing or writing.
-- **T2 (critical)** — Write only
-  `suborgs/public-sector/personas/benefits-program-director.md`; exact qualified
-  label is `public-sector/benefits-program-director`.
-- **T3** — Reference `public-sector/government-benefits-agencies` and record all
-  supplied titles, role, approval dependency, priorities, objection, safe hook,
-  disqualifier, evidence, confidence, and exact deputy-director question.
+- **T1 (critical)** — Before drafting, explain that Caseworker Enablement belongs to canonical child org `public-sector`, explicitly name its visible qualified ICP label `public-sector/government-benefits-agencies`, and obtain one confirmation covering the child path and persona id.
+- **T2 (critical)** — Consume the altitude confirmation once and immediately emit `Working in caregrid/public-sector as Maya Chen` before drafting or previewing.
+- **T3 (critical)** — Create only `suborgs/public-sector/personas/benefits-program-director.md`; its qualified persona label is exactly `public-sector/benefits-program-director` and its ICP relevance is exactly `public-sector/government-benefits-agencies`.
+- **T4** — Record both titles, service-standard ownership, champion role, central-IT dependency, all three priorities, objection, safe hook, policy-advisor disqualifier guidance, Maya’s five calls at medium confidence, and verbatim: `Can deputy directors approve pilots without central IT?`
 
-## Failure traceability
+## Failure-to-assertion traceability
 
-| Failure | Assertion(s) |
+| Known or anticipated failure | Assertion(s) |
 | --- | --- |
-| F1.1/F4.3 unstable schema | S1-S4 |
-| F1.2/F2.1 missing position and sources | A1-A2 |
-| F1.3/F3.3 incomplete approval/final reports | A4, A7 |
-| F2.2/F4.1 false commit handling | A3, A6 |
-| F3.1 missing child path | S2, T2 |
-| F3.2 corrected altitude not echoed | A1, T1 |
-| F4.2 ICP inserted into persona label | S2, T2 |
+| Improvised or unstable persona schema | S1-S4 |
+| Missing working-position echo or source paths | A, B, T2 |
+| Approval split across messages or missing path, purpose, boundary, Markdown, or question | D, E, R4 |
+| Git run from the eval directory or false outer-index blocker | C, F, J |
+| Missing, physical, or ICP-contaminated child persona label | S2, T3 |
+| Ownership explanation omits owning org’s visible ICP label | T1 |
+| Protected human notes altered during refinement | H, I, R2-R3 |
+| Bad-fit contact turned into a synthetic persona | E, S3, C2, T4 |
+| Incomplete closing report | G |

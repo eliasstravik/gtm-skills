@@ -1,64 +1,53 @@
 # gtm-lead-segmentation — assertion suite
 
-One checkable assertion per required behavior. **(critical)** marks severe or
-contractual assertions per skill-issue.
+One checkable assertion covers each required behavior. **(critical)** marks contractual or severe behavior. Grading gives no partial credit; missing transcript or filesystem evidence fails the assertion.
 
-## Common
+## Common process and safety
 
-- **A1 (critical)** — Resolve project, canonical org path, and person from the
-  supplied state; emit `Working in <project>/<org-path> as <person-id>` before
-  any lead label, count, or lead-fit conclusion.
-- **A2** — Read and report repository-relative paths for the root-to-target
-  `org.md` chain and every visible persona source, including inherited,
-  overridden, and local files.
-- **A3 (critical)** — Never access `~/.gtm`, browse, enrich, score, research a
-  person, write a segmentation artifact, or mutate state, context, Git, or an
-  external system; do not invent an interaction gate when inputs are complete.
-- **A4 (critical)** — Assign exactly one existing visible qualified persona
-  label or `no-match`; never invent, rewrite, or multiply labels.
-- **A5 (critical)** — Use supplied responsibilities, scope, employment type,
-  and disqualifiers rather than title alone; preserve gaps and explain why the
-  selected label wins over plausible alternatives.
-- **A6** — Calibrate confidence and `needs_review` to lead-level ambiguity that
-  could change the label; persona-maintenance questions or unknown buying-role
-  details that do not affect the match do not force review.
-- **A7** — Final output names project, canonical org path, mode, visible persona
-  source paths, prerequisite/gap status, skipped activity, and no side effects.
+- **A (critical)** — Derive the repo root and canonical org from the supplied cwd and resolve the fixture operator through root Git identity; before any message reveals or previews a lead result, emit exactly `Working in <repo-name> as <person>` at root or `Working in <repo-name>/<org-path> as <person>` at a child, with no trailing punctuation. The root form has no slash. The operator is never a segmented lead.
+- **B (critical)** — After any platform skill-use notice, emit exactly one consolidated `Sources read:` report as the first workflow content; include repo-relative paths for the complete root-to-target `org.md` chain and every visible persona source after nearest-stem resolution, identify overridden same-stem sources separately, and never emit a provisional source-progress line.
+- **C (critical)** — Keep segmentation response-only and ephemeral: do not modify any fixture byte, HEAD, Git history, index, worktree status, external system, or machine state, and never access `~/.gtm`, a real repo, or home config.
+- **D (critical)** — Ask zero questions and introduce no approval, confirmation, prerequisite, or invented gate when the supplied inputs and visible persona context are complete; outside the required `Open questions` result field, do not narrate question, reply, interaction, gate, clarification, approval, or scripted-reply handling, including in `Skipped activity`.
+- **E (critical)** — Assign each lead exactly one existing visible qualified persona label or the literal `no-match`; never invent, shorten, combine, or return multiple labels.
+- **F** — Use only supplied lead facts and visible repo context, preserve evidence gaps and conflicts, and never browse, enrich from model memory, or claim nonexistent collections or facts.
+- **G (critical)** — Prioritize supplied responsibilities and scope over title, apply explicit disqualifiers, and calibrate `Confidence` and `needs_review` only to evidence gaps or conflicts for that lead; never inherit a persona’s maintenance backlog as a lead-level gap.
+- **H** — Explain why the selected label wins over every plausible visible alternative while retaining exactly one classification.
+- **I (critical)** — End with literal metadata fields `Context repo`, `Canonical org path`, `Mode`, `Persona sources`, `Prerequisite/gap status`, `Skipped activity`, and `Side effects`; values must be accurate, `Context repo` must copy the repository directory basename verbatim, the canonical path must be `root` at root or omit physical `suborgs/` segments at a child, and `Side effects` must explicitly state that no files, Git history, or external systems changed.
+- **J** — Keep the command log chronological, verbatim, and safe; any Git inspection uses `git -C <repo-root>`, and the log corroborates the transcript plus unchanged manifests and Git state.
 
-## One-off contract
+## One-off responsibility contract
 
-- **O1 (critical)** — Return lead, company, title, qualified label, matched
-  persona display name, confidence, `needs_review`, reasoning, supplied
-  evidence, disqualifiers considered, and open questions.
-- **O2** — Alex Morgan maps to `revenue-operations-leader` with high confidence
-  and `needs_review: false`; unknown executive sponsorship remains an open
-  question because responsibilities decisively establish the label.
+- **O1 (critical)** — Return literal fields `Lead`, `Company`, `Title`, `Qualified label`, `Matched persona`, `Confidence`, `needs_review`, `Reasoning`, `Evidence`, `Disqualifiers considered`, and `Open questions`, each exactly once for Alex Morgan; preserve exact values `Company: ForgeOne` and `Title: Director of Revenue Systems`.
+- **O2 (critical)** — Assign Alex Morgan exactly `revenue-operations-leader`, name the persona display title, cite internal employment plus CRM architecture, lead routing, and forecasting cadence, and explain why `sales-operations-manager` loses despite the supplied title.
+- **O3 (critical)** — Set Alex Morgan `Confidence` to `high` and `needs_review` to `false`; retain unknown executive sponsorship as an open question without turning it or the persona’s maintenance backlog into label ambiguity.
 
 ## Bulk contract
 
-- **B1 (critical)** — Start with counts by qualified label and `no-match`, plus
-  low-confidence and review-needed counts, common evidence, and common open
-  questions, all recomputed from completed rows.
-- **B2 (critical)** — Return every lead once with company, title, qualified
-  label, matched persona, confidence, review flag, reasoning, evidence,
-  disqualifiers considered, and open questions.
-- **B3** — Nina maps to `fraud-operations-leader` and Omar to
-  `compliance-executive`, both high/false; Owen is high-confidence `no-match`
-  without review; Priya is low-confidence `no-match` and the sole review-needed
-  lead.
+- **B1 (critical)** — Before any lead row, render literal summary fields `Counts by qualified label`, `No-match count`, `Low-confidence count`, `Review-needed count`, `Common evidence`, and `Common open questions`; derive the two common summaries from completed rows without fabricating a shared pattern.
+- **B2 (critical)** — Return Nina Karlsson / NordPay / Head of Fraud Operations / Fraud Operations Leader, Omar Haddad / Beacon Bank / Chief Compliance Officer / Compliance Executive, Owen Hart / Hart Advisory / Fraud Advisor / no-match, and Priya Shah / Kestrel / VP Risk / no-match exactly once each using literal columns `Lead | Company | Title | Qualified label | Matched persona | Confidence | needs_review | Reasoning | Evidence | Disqualifiers considered | Open questions`.
+- **B3 (critical)** — Assign Nina exactly `fraud-operations-leader`, Omar exactly `compliance-executive`, and both Owen and Priya exactly `no-match`.
+- **B4 (critical)** — Report one `fraud-operations-leader`, one `compliance-executive`, and two `no-match`, with `No-match count: 2`, `Low-confidence count: 1`, and `Review-needed count: 1`, recomputed from completed rows.
+- **B5 (critical)** — Make Priya the only `low`-confidence and `needs_review: true` row; make Owen a high-confidence `no-match` with `needs_review: false` because supplied external-advisor facts hit the visible disqualifier; do not turn persona maintenance backlogs into lead review.
 
 ## Child precedence contract
 
-- **P1 (critical)** — At EMEA, child `personas/security-leader.md` overrides the
-  same-stem root file; child `dora-program-owner` and inherited non-colliding
-  `procurement-executive` remain visible, with all source paths reported.
-- **P2** — Lea maps to `emea/security-leader`, not root `security-leader` or
-  `emea/dora-program-owner`, with high confidence and `needs_review: false`.
+- **P1 (critical)** — At `emea`, replace root `personas/security-leader.md` with nearer `suborgs/emea/personas/security-leader.md`, retain inherited `personas/procurement-executive.md` and local `suborgs/emea/personas/dora-program-owner.md` as visible, and report the override decision and all relevant repo-relative source paths.
+- **P2 (critical)** — Assign Lea Novak exactly `emea/security-leader`, never root `security-leader`, `emea/dora-program-owner`, `procurement-executive`, a combined label, or `no-match`; explicitly explain that DORA Program Owner loses on supplied non-ownership, Procurement Executive loses for lack of procurement authority, and root Security Leader is excluded by the child same-stem override.
+- **P3 (critical)** — Render literal `Confidence: high` and `needs_review: false` for Lea, citing internal employment and all supplied regional security-control, engineering, risk-posture, and non-ownership facts while keeping persona maintenance backlogs separate.
+- **P4 (critical)** — Return literal fields `Lead`, `Company`, `Title`, `Qualified label`, `Matched persona`, `Confidence`, `needs_review`, `Reasoning`, `Evidence`, `Disqualifiers considered`, and `Open questions`, each exactly once for Lea Novak; preserve exact values `Company: Baltic Ledger`, `Title: Director of Cloud Security, EMEA`, and `Matched persona: EMEA Security Leader`.
 
-## Failure traceability
+## Failure-to-assertion traceability
 
-| Failure | Assertion(s) |
+| Known or anticipated failure | Assertion(s) |
 | --- | --- |
-| F1 missing working/source/final metadata | A1-A2, A7 |
-| F2 unknown executive sponsorship inflated review | A6, O2 |
-| F3 one-off field shape drifted or omitted explicit label | O1 |
+| Workflow preface before sources or classification before working line | A, B, B1 |
+| Duplicate/provisional source report or interaction narration | B, D |
+| Operator confused with the segmented lead | A, O1, B2, P2 |
+| Missing repo-relative sources or child precedence details | B, I, P1-P2 |
+| Invented question or approval gate despite complete inputs | D |
+| Forced least-bad, title-only, shortened, combined, or invisible label | E, G-H, B3, P2 |
+| Persona maintenance backlog becomes lead review | G, O3, B4-B5, P3 |
+| Missing fixed field, bulk row, column, summary, or metadata | I, O1, B1-B2 |
+| Child one-off fields or literal confidence values drift | P3-P4 |
+| Browse/enrichment or nonexistent context claim | F |
+| Any file, Git, machine-state, or external side effect | C, I, J |

@@ -1,29 +1,10 @@
-# {{org_display_name}}
+# {{display-name}}
 
-## Background
+## Overview
+<!-- What this organization does, for whom, and how it makes money. Supplied facts only. -->
 
-<!-- What this org is: company, division, product line, region, or client. -->
+## Products And Services
+<!-- The offerings go-to-market work sells for this org. -->
 
-## Offers
-
-<!-- Products, services, packages, or motions this org sells. -->
-
-## Positioning
-
-<!-- Durable narrative, differentiators, approved claims, proof points. -->
-
-## ICP And Persona Notes
-
-<!-- High-level targeting context only; detailed ICPs and personas live in icps/ and personas/. -->
-
-## Constraints
-
-<!-- Disallowed claims, excluded segments, compliance limits, bad-fit signals. -->
-
-## Sources
-
-<!-- User-approved public links or safe labels for private sources. -->
-
-## Open Questions
-
-<!-- Unknowns agents must not assume. -->
+## Notes
+<!-- Anything an agent should know before acting for this org. -->

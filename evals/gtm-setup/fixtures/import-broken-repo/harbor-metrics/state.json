@@ -2,9 +2,9 @@
   "active": "harbor-metrics",
   "projects": {
     "harbor-metrics": {
-      "path": "/Users/jonas/gtm/harbor-metrics",
-      "org": "",
-      "person": "jonas-berg"
+      "path": "~/.gtm/harbor-metrics",
+      "org": "EU_Sales",
+      "person": "maja-lindqvist"
     }
   }
 }

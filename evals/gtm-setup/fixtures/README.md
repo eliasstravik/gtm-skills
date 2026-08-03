@@ -1,32 +1,41 @@
 # gtm-setup fixtures
 
-Pristine, read-only. Every run copies a fixture into its own run directory and
-treats the copy as `$GTM_HOME` (or as the external repo path) per the
-fixture-isolation convention in the repo CLAUDE.md. All companies and people are
-fictional; domains use `.example.com`.
+Committed fixtures are pristine and read-only; every run copies its fixture into
+`<run-dir>/outputs/<repo-name>/`, git-inits the copy, sets the fixture person's
+git identity, commits everything (dotfiles included) as `fixture baseline`, and
+operates with the copy as cwd. No fixture has a nested `.git`. Runs never touch
+any real context repo.
 
-## two-workspaces-home/
+## Eval 1 — create-workspace: no fixture
 
-A valid `$GTM_HOME` containing two well-formed GTM context repos, no
-`state.json`. Used by Load/switch scenarios.
+Create starts from a truly empty directory, so eval 1 has no fixture. Run prep
+instead creates `<run-dir>/outputs/northwind-robotics/` empty and writes
+`<run-dir>/gitconfig` with the operator identity (Nora Lind /
+nora@northwindrobotics.com), exported as `GIT_CONFIG_GLOBAL` so operator
+derivation from git identity works before any repo-local config exists.
 
-- `bluewater-analytics/` — flat org, one person (`dana-whitfield`).
-- `copperline-logistics/` — one suborg (`freight`), one person (`priya-raman`).
+## `import-broken-repo/harbor-metrics/` — deliberately defective (eval 2)
 
-## import-broken-repo/
+This fixture intentionally violates the context contract; the defects are the
+test substance for the doctor/repair flow:
 
-`harbor-metrics/` — a handed-over context repo with deliberate defects, used by
-Import+repair scenarios. Defects:
+1. `state.json` committed at root — machine state is banned everywhere.
+2. `suborgs/EU_Sales/` — uppercase/underscore id; must become kebab-case
+   `eu-sales`.
+3. `suborgs/EU_Sales/people/jonas-berg/person.md` — people never live under
+   suborgs; must move to root `people/`.
+4. `AGENTS.md` drifted from the packaged template — must be restored
+   byte-identical to `skills/gtm-setup/templates/AGENTS.md`.
 
-1. `AGENTS.md` missing (hard doctor requirement).
-2. `CLAUDE.md` content is not exactly `@AGENTS.md`.
-3. `.gitignore` missing.
-4. `state.json` committed inside the repo (local state must never be committed).
-5. `suborgs/EU_Sales/` — id not lowercase kebab-case.
-6. `suborgs/marine/` — has `notes.md` but no `org.md`.
-7. `suborgs/marine/people/jonas-berg/person.md` — person under a suborg
-   (people are root-only).
+`CLAUDE.md` and `.gitignore` are healthy copies of the packaged templates;
+`people/maja-lindqvist/person.md` is the root person whose identity run prep
+sets as git identity.
 
-Runtime-added defects (git cannot store them; the run prompt's prep step adds
-them to the copy): an empty `drafts/` directory, and `git init` + initial commit
-so the copy behaves like a real handed-over repo.
+## `healthy-two-level/cloudmason/` — pristine (eval 3)
+
+Contract-shaped two-level repo: root org `Cloudmason` with `AGENTS.md`,
+`CLAUDE.md`, `.gitignore` byte-identical to `skills/gtm-setup/templates/`,
+root person `elin-sund`, and one suborg `cloud`. Eval 3 runs with cwd
+`suborgs/cloud/` to exercise position-from-cwd, adds an `emea` suborg under it
+(physical `suborgs/cloud/suborgs/emea/`, canonical `cloud/emea`), then runs a
+doctor pass that must find nothing, then probes the chat-surface refusal row.

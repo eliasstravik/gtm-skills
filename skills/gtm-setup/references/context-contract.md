@@ -1,101 +1,65 @@
-# GTM Context Contract
+# The GTM context contract
+
+The installable form of this contract is `templates/AGENTS.md`, written verbatim
+into every repo root; this file adds what gtm-setup itself needs: the doctor
+checklist and source-link safety.
 
 ## Repo model
 
-One context repo per company, normally at `$GTM_HOME/<project-id>/` (default
-`$GTM_HOME` is `~/.gtm`). Every org node — root and each `suborgs/<id>/` — has
-this shape:
+One plain git repo per company. Every org node — root and each `suborgs/<id>/` —
+has `org.md`, optional `icps/`, `personas/`, skill-owned files, and nested
+`suborgs/<child>/`. Root-only: `AGENTS.md`, `CLAUDE.md` (exactly `@AGENTS.md`),
+`.gitignore`, `people/<person-id>/person.md`. Ids lowercase kebab-case; H1 of
+`org.md`/`person.md` is the display name; no empty dirs, no placeholder files.
+Canonical org paths omit `suborgs/` segments (root = empty path; `cloud/emea` ↔
+`suborgs/cloud/suborgs/emea`). Labels are org-qualified: `<org-path>/<file-stem>`,
+bare `<file-stem>` at root.
 
-```text
-<org>/
-  org.md
-  icps/          (only when defined)
-  personas/      (only when defined)
-  <skill-owned files>
-  suborgs/<child-org>/
-```
+## Derivations — no machine state
 
-- Root-only files: `AGENTS.md`, `CLAUDE.md` (containing exactly `@AGENTS.md`),
-  `.gitignore`, `people/<person-id>/person.md`. People never live under
-  suborgs.
-- Ids are lowercase kebab-case; the H1 of `org.md`/`person.md` is the display
-  name.
-- Never create empty directories, placeholder files (no `.gitkeep`), or a
-  default suborg.
-- Canonical org paths omit physical `suborgs/` segments: root is the empty
-  path; `cloud/emea` resolves to `suborgs/cloud/suborgs/emea`.
+- Position = cwd (explicit org in the request overrides for that invocation
+  only). Operator = git identity matched against `people/*/person.md` Email
+  lines ("as X" overrides per invocation; no match → ask once, conversation
+  only). The operator is never the lead or account being worked on.
+- Echo `Working in <repo-name>/<org-path> as <person>` before acting (omit
+  ` as <person>` when no operator is resolvable and none is needed).
+- Durable writes are persist-artifact rituals: preview complete exact content →
+  ask approval in the same message → write byte-for-byte → stage only the owned
+  file(s) → verify the staged diff → one non-amending commit →
+  `git pull --rebase && git push` when a remote exists (no remote: commit only;
+  push rejected: rebase and retry, never force). One commit per completed
+  artifact — a doctor repair is one artifact.
 
-## Machine state
+## Doctor checklist
 
-`$GTM_HOME/state.json` is the only local machine state, is never committed
-inside any repo, and has exactly this shape:
+1. No `state.json`, registry, pin, or other machine-state file anywhere — any
+   found is a defect to remove.
+2. `AGENTS.md`, `CLAUDE.md`, `.gitignore` byte-identical to the packaged
+   templates (`templates/AGENTS.md`, `templates/CLAUDE.md`,
+   `templates/gitignore`).
+3. Every org node has `org.md`; H1s are display names; ids lowercase
+   kebab-case.
+4. People only at root `people/<id>/person.md`, each with an `Email` line; a
+   person found under a suborg moves to root.
+5. No empty directories, placeholder files, caches, or scratch inside the repo.
+6. `git config user.name`/`user.email` matches a person in `people/` (report,
+   don't repair, when it doesn't — offer to add the person).
+7. Repairs follow the persist-artifact ritual and land as one
+   `Repair GTM context repo` commit. On a healthy repo report healthy and
+   change nothing.
 
-```json
-{
-  "active": "example-org",
-  "projects": {
-    "example-org": {
-      "path": "~/.gtm/example-org",
-      "org": "cloud/emea",
-      "person": "elias-stravik"
-    }
-  }
-}
-```
+## Source-link safety
 
-- `active` is a project id; `projects.<id>.path` is the repo location;
-  `org` is a canonical org path (`""` = root); `person` is a root person id.
-- Project id defaults to the repo directory basename. On collision, ask
-  whether to replace, rename, or keep both under distinct ids.
-- Update pins only on explicit user request or as part of create, import, or
-  load. If a project has no org pin, pin root; if exactly one root person
-  exists, pin that person, otherwise ask one numbered-list question.
-- A `state.json` found committed inside a repo is a defect: remove it from the
-  repo and rebuild correct state at `$GTM_HOME/state.json`.
+Classify every pasted link before recording anything. Safe: plain public or
+org-internal URLs without credentials. Unsafe: links carrying `token=`, keys,
+signatures, invite codes, or session ids, and local-only paths. Unsafe links
+are never persisted to any file (gitignored included), never echoed back —
+not even stripped, shortened, or de-tokenized. Record a safe label naming the
+source (e.g. "the team's account sheet (Google Sheets)") and advise rotating
+the exposed credential. Never open unsafe links.
 
-## Path safety
+## Remote wiring
 
-- Canonicalize repo roots and derived paths before reading or writing; expand
-  `~` and environment variables; treat `state.json` paths as authoritative.
-- Reject ids that are absolute, contain `..` or path separators, are not
-  lowercase kebab-case, or resolve outside the repo through symlinks.
-
-## Source links
-
-- Classify every collected URL before any durable write.
-- Public first-party links may be saved after confirmation.
-- Private links require explicit confirmation and usually become safe labels
-  (e.g. `internal pricing sheet — ask <owner>`).
-- Secret-bearing, tokenized, signed, invite, credential-bearing, local-only,
-  and private-tunnel links are never persisted anywhere in the workspace and
-  never echoed verbatim back in user-facing output — gitignoring a file that
-  contains one does not make it safe. Strip nothing, store nothing: safe label
-  only, and recommend rotation if a live credential was shared.
-- Low-confidence claims become open questions, not facts.
-
-## Doctor checks (import and validate)
-
-- Root `org.md` and root `AGENTS.md` are hard requirements — without them this
-  is not a context repo.
-- `CLAUDE.md` contains exactly `@AGENTS.md`; `.gitignore` is present.
-- `AGENTS.md` and `CLAUDE.md` match the packaged templates unless the user
-  approves substantive differences.
-- Every `suborgs/<id>/` has an `org.md`; ids are lowercase kebab-case.
-- No empty directories; people only under root `people/`; no committed local
-  state, secrets, scratch, or logs.
-
-## Git behavior
-
-- Initialize git by default for new repos unless the user opts out.
-- Commit only setup-owned files, as `Initialize GTM context repo` (create) or
-  `Repair GTM context repo` (import/repair).
-- Never push, open a PR, update a CRM, trigger outreach, or sync externally
-  unless that was explicitly requested and confirmed.
-
-## Setup summary
-
-End every flow with: resolved project, org path, person; files
-created/preserved/repaired/skipped/failed; source-link handling; `state.json`
-update; git status; open questions. Recommend `gtm-define-icp` and
-`gtm-define-personas` only when those collections are absent and the user is
-ready to define targeting context.
+Offer during create and import: a remote is optional (absent remote is the
+legal solo case). When the user supplies one, `git remote add origin <url>`
+then push; never create remotes or accounts on the user's behalf.
