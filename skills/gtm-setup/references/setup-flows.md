@@ -1,131 +1,67 @@
-# GTM Setup Flows
+# Setup flows
 
-## Entry menu
+Interaction rules for every flow: exactly one question per message. A question
+offering discrete options is a numbered list ending exactly
+`Reply with a number, or type your answer.` with at most one `(Recommended)`;
+open questions are plain text. Every durable write is previewed as complete
+exact content with approval asked in the same message. Echo position before
+acting. Never guess company facts from model memory — scaffolded content
+carries supplied facts only. End every flow with a closing summary of what was
+created or changed (paths + commits) or that the repo is healthy.
 
-Show this first unless the invocation names one mode unambiguously (an import
-path, a named workspace to load, an explicit maintenance ask).
+## Create (keyboard surfaces only)
 
-1. Check `$GTM_HOME` for directories directly under it (excluding `backups/`)
-   containing a root `org.md`.
-2. Ask exactly one numbered-list question:
-   ```text
-   What do you want to do?
-   1. Set up a new GTM workspace
-   2. Import a GTM workspace
-   3. Load an existing GTM workspace
+1. Interview: company facts (open) → operator name/email/role (open) → any
+   other context (open) → remote wiring (numbered choice).
+2. Preview and write the boilerplate byte-for-byte from `templates/`
+   (`AGENTS.md`, `CLAUDE.md`, `gitignore` → `.gitignore`); `git init`; commit
+   `Initialize GTM context repo`.
+3. Preview and write `org.md` (template skeleton, supplied facts, H1 = display
+   name); commit.
+4. Preview and write `people/<id>/person.md` (Email line mandatory); commit.
+5. Wire the remote if supplied, then push; otherwise note the solo case.
+6. Confirm the operator now resolves from git identity; closing summary.
 
-   Reply with a number, or type your answer.
-   ```
-3. Include the load option only when step 1 found at least one workspace;
-   otherwise omit it and renumber.
-4. Route the pick to Create, Import, or Load. Never guess the company, mode,
-   or intent from memory, email domains, or prior conversations.
+## Import (keyboard surfaces only)
 
-Maintenance actions (switch pins, add suborg, validate, repair, share, sync)
-are not on the menu — run them directly when explicitly asked, keeping the
-same one-question interaction rules.
+1. Inventory the directory against the contract; report findings (defects and
+   healthy parts) before changing anything.
+2. Run the doctor flow below on the findings; `git init` first when the
+   directory is not yet a repo (commit `Initialize GTM context repo` for
+   net-new scaffolding, `Repair GTM context repo` for repairs).
+3. Offer remote wiring; closing summary.
 
-## Create flow
+## Add suborg
 
-Ask one question at a time; research and confirm before any durable write.
+1. Derive the parent org from position or the request; id lowercase
+   kebab-case; ask only for facts the user hasn't given.
+2. Preview `suborgs/.../org.md` (template skeleton, supplied facts only);
+   write after approval; commit; refer to the org by its canonical path.
 
-1. Ask: `Which org is this for? Give me the name, the website, and any
-   relevant links — for example the company LinkedIn URL. Anything else
-   relevant you want me to know, add it here too.`
-2. Announce research before starting it (`This takes a couple of minutes — I
-   am researching so you do not have to type it.`). Without network access,
-   work from what the user supplied and record gaps as open questions.
-3. Present findings and the complete draft `org.md` content inline —
-   `Background` is the first section after the H1 — then ask in the same
-   message:
-   ```text
-   Is this draft approved, or should I iterate?
-   1. Approve and continue (Recommended)
-   2. Iterate the draft
+## Add person
 
-   Reply with a number, or type your answer.
-   ```
-   Put `(Recommended)` on iterate instead when the draft is not ready.
-   User-stated facts override research.
-4. Explain suborgs briefly with an example, then ask whether to set any up —
-   recommend No for simple or single-motion orgs, Yes for clearly separate
-   enterprise divisions or regions. For each approved suborg: ask its name,
-   links, and distinguishing motion; confirm its full `org.md`; then ask
-   whether to add another (No recommended).
-5. Ask: `Now tell me about yourself. What's your name and your job title? Any
-   links you can share — LinkedIn, personal site? Anything else that's
-   relevant here, add it.` Research and confirm the complete `person.md`.
-6. Classify collected links (see the contract), then show one consolidated
-   preview: project id, target path, org/suborg/person ids, source-link
-   treatment, git behavior, `state.json` update, and the complete content of
-   every file to be created.
-7. If the target path exists and is non-empty, never overwrite silently:
-   offer Load or Import when it is a valid repo, or ask before archiving to
-   `$GTM_HOME/backups/<name>-<timestamp>/`.
-8. On confirmation: write only approved setup-owned files, `git init`, commit
-   `Initialize GTM context repo`, update `state.json`, echo the resolved
-   position, and give the setup summary.
+1. Root-only `people/<id>/person.md` from the template; Email line mandatory.
+2. Preview, write after approval, commit.
 
-## Import flow
+## Doctor / repair
 
-1. Ask how to import (numbered list: local path / GitHub link).
-2. GitHub link: confirm target `$GTM_HOME/<repo-name>`, clone keeping remotes
-   and history. Local path under `$GTM_HOME`: register in place. Local path
-   outside: ask whether to copy into `$GTM_HOME/<basename>` or register where
-   it is.
-3. Run the doctor checks from the contract against the repo.
-4. Preview repairs: the file list, each change's purpose, and the full content
-   of every file that would be written; ask approval in the same message.
-   Repairs include restoring `AGENTS.md`/`CLAUDE.md`/`.gitignore` from
-   templates, removing committed local state, renaming non-kebab ids, adding
-   missing suborg `org.md`, moving people to root `people/`, and deleting
-   empty directories.
-5. Apply only after confirmation; commit `Repair GTM context repo`.
-6. Register the project in `state.json`, set pins with Load logic, echo the
-   resolved position, and end with a summary naming every issue fixed or left
-   open.
+1. Check the full doctor checklist in `references/context-contract.md`.
+2. Report every defect found; propose exact repairs; preview them (complete
+   content for rewrites, exact operations for moves/renames/deletions).
+3. Apply approved repairs; batch them into one non-amending
+   `Repair GTM context repo` commit; report healthy and change nothing when
+   nothing is wrong.
 
-## Load flow
+## Recovery (another GTM skill failed)
 
-1. List workspaces under `$GTM_HOME` as one numbered-list question labeled
-   with each root `org.md` H1 and path.
-2. On pick, set `state.json` active project.
-3. No org pin yet → pin root. Exactly one root person → pin them; otherwise
-   ask one numbered-list question.
-4. Echo `Working in <project>/<org-path>` plus `as <person>` when resolved.
-5. Close with one paragraph covering orgs, people, whether `icps/` and
-   `personas/` exist, and the natural next GTM skill.
+1. Identify which derivation failed: position (cwd outside a repo?), operator
+   (git identity matches no person?), or repo shape (contract defect?).
+2. Run doctor; report what was fixed and what the calling skill should now
+   resolve.
 
-## Maintenance and repair
+## Surface refusal
 
-- Add-suborg mirrors the Create suborg loop; writes only the approved suborg
-  `org.md`; updates pins only on explicit request.
-- Switch-pin changes project, org, or person in `state.json` only after the
-  target exists and ambiguous choices are confirmed.
-- Validate reports doctor-check results without writing.
-- Repair previews exact contents and differences, writes only after explicit
-  confirmation.
-- Share/sync require explicit request and confirmation before any push or
-  external sync.
-
-## Recovery (another GTM skill could not resolve context)
-
-If no GTM context resolves from the prompt, current directory, or
-`state.json`, say: `I could not resolve a GTM context repo from this prompt,
-current directory, or local state. Run gtm-setup or tell me which GTM project
-to use.` Then resolve, load, import, create, validate, or repair before
-returning to the calling skill.
-
-## Blocking rules
-
-- No unambiguous mode named and no entry menu shown is a flow violation —
-  restart from the menu.
-- Create blocks on: missing company display name, missing initial person name
-  or role, unresolved path collision, unsafe id, unconfirmed archive/rewrite.
-- Import blocks on missing root `org.md`/`AGENTS.md` until repaired (or a new
-  repo is created instead).
-- Missing research facts never block — keep files sparse and record open
-  questions.
-- Divergent instruction files block activation until the user approves the
-  differences. Never overwrite human-authored files without explicit
-  confirmation.
+Create and import need a keyboard. Requested while acting as an app surface,
+refuse and redirect: repo creation needs a keyboard — run gtm-setup from your
+CLI. Perform nothing for that request. Every other flow proceeds on any
+surface.

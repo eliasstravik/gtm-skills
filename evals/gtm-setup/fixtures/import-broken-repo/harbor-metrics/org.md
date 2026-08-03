@@ -1,19 +1,12 @@
 # Harbor Metrics
 
-## Background
+## Overview
+Harbor Metrics sells port-logistics analytics dashboards to terminal operators
+and freight forwarders in Northern Europe. Around 40 employees, Gothenburg HQ.
 
-Harbor Metrics provides quay-crane utilization benchmarking for container
-terminals. ~25 employees, HQ Hamburg.
+## Products And Services
+- Berth-utilization analytics (SaaS)
+- Customs-delay forecasting add-on
 
-## Offers
-
-- CraneBench: quarterly utilization benchmark reports.
-- Live terminal dashboards (pilot stage).
-
-## Positioning
-
-The neutral benchmark terminal operators trust in board decks.
-
-## Open Questions
-
-- Whether dashboards become a standalone product in 2026.
+## Notes
+GTM work is run by the growth team; EU sales operates as a suborg.

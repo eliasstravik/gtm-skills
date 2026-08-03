@@ -1,9 +1,11 @@
-# Harbor Metrics EU Sales
+# EU Sales
 
-## Background
+## Overview
+The European sales region for Harbor Metrics, covering the EU and UK terminal
+operators.
 
-European sales region for CraneBench.
+## Products And Services
+Sells the core berth-utilization analytics product with EU data residency.
 
-## Offers
-
-- CraneBench subscriptions, EU terminals.
+## Notes
+Run by Jonas Berg from Hamburg.

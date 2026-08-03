@@ -1,27 +1,33 @@
 ---
 name: gtm-account-scoring
-description: Triggers when a user asks to score, rank, qualify, or prioritize accounts against an existing GTM account-scoring rubric.
+description: Triggers when a user asks to score, rank, qualify, or prioritize accounts against visible ICPs using existing segment labels in a GTM context repository. Not for assigning segment labels, authoring scoring rubrics or point systems, or numeric scoring and arithmetic.
 ---
 
 # Score Accounts
 
 ## Recipe
 
-1. Resolve the supplied `$GTM_HOME/state.json` to project, canonical org path, and person; never access or modify `~/.gtm`, state, context, Git, or external systems.
-2. Validate each supplied `segment_label` as `no-match` or an exact visible qualified ICP label; do not re-segment, enrich, or invent labels.
-3. From the segment's owning org, walk toward root and use the nearest `account-scoring.md`; if none exists, stop with a prerequisite report rather than inventing or writing a rubric.
-4. Report the root-to-target org chain, segment source, and every considered scoring source, then emit `Working in <project>/<canonical-org-path> as <person-id>` before scoring.
-5. Preserve supplied component ratings, map them to rubric points, show the addition, apply caps, and assign the exact rubric band.
-6. Set confidence and `needs_review` from missing or conflicting scoring inputs, not merely from a submaximal component or evidence-quality rating.
-7. For one-off work, return account, website, segment, components, raw/final score, band, confidence, review flag, positives, risks, action, reasoning, evidence, provenance, and open questions.
-8. For bulk work, rank every record, then recompute from final scores the band distribution, average, low-confidence and review counts, common risks, and common questions.
-9. Return scoring only in the response; persist no score artifact, and finish with project/org/mode/source/prerequisite metadata plus explicit no-side-effects status.
+1. Keep the workflow read-only and the result ephemeral.
+2. Derive the context-repo root and canonical org path from the logical working directory.
+3. Resolve the operator by matching root Git identity to a person file and taking that file's H1 display name exactly.
+4. Render the pre-judgment line alone as `Working in <repo-name>/<org-path> as <person>`, using the case-sensitive repo-root directory basename, no trailing punctuation or prose, and the exact root form `Working in <repo-name> as <person>` with no slash.
+5. Read the active org chain and resolve visible ICPs by nearest same-stem precedence while retaining non-colliding inherited files.
+6. Report the repo-relative visible ICP sources and list overridden sources separately.
+7. Validate each supplied `segment_label` as `no-match` or an exact visible qualified ICP label, and keep it unchanged.
+8. Map `no-match` directly to `no-fit` without re-segmenting the account.
+9. For a matched label, assign exactly one qualitative Band from `strong-fit`, `good-fit`, `weak-fit`, or `no-fit` by comparing account facts with named ICP content without arithmetic.
+10. Cap the Band at `weak-fit` when any ICP disqualifier is hit.
+11. Name the matched fit signals and every hit disqualifier in the rationale.
+12. Set Confidence and `needs_review` from gaps in the account evidence, not from the ICP document's own maintenance backlog.
+13. Return one-off results with `Account`, `Website`, `segment_label`, `Band`, `Rationale`, `Matched Fit Signals`, `Hit Disqualifiers`, `Confidence`, `needs_review`, `Evidence`, and `Open questions`, followed by `Context repo`, `Canonical org path`, `Mode`, `Visible ICP sources`, `Prerequisite or gap status`, and `Side effects`.
+14. Return bulk results with the same fields per row, followed by the metadata through `Prerequisite or gap status`, then `Band distribution`, `Low-confidence count`, `Review-needed count`, `Common fit signals`, `Common disqualifiers`, `Common open questions`, and a final `Side effects` statement.
 
 ## Details
 
-- Canonical org paths exclude the project id and literal `suborgs/`; root is empty. Before arithmetic, emit `Sources read:` with every root-to-target `org.md`, the exact segment ICP when matched, and every considered scoring file, then the exact working line; for root use `Working in <project>/ as <person-id>` and report `root (empty)` in metadata.
-- Score confidence means confidence that the supplied inputs support the computed score. Complete explicit ratings may yield high confidence even when the rubric deliberately discounts a single-source component; set review only when an input is missing, conflicting, invalid, or could change the calculation. Do not invent account gaps that contradict supplied ratings.
-- Apply rubric guardrails before adjectival component mappings: when `segment_label` is `no-match`, its segment-evidence points are always the rubric's `no-match` value regardless of a supplied high/medium/low adjective. Show the supplied adjective in provenance if useful, but never add its qualified-segment points; then apply the final-score cap.
-- In every one-off response, including child precedence, label every field from Recipe 7 and separately state mode and prerequisite status. In bulk, include those fields per row before calculating distribution, average, and counts from final post-cap scores.
-- In bulk, `Open questions` is a required field on every ranked record, including `None`; a portfolio-level common-questions list never substitutes for per-record open questions.
-- Persist the complete final user-facing score under `## FINAL MESSAGE` in the transcript before ending; a source report or working-position line alone is never completion.
+- Treat `<repo-name>` only as the case-sensitive repo-root directory basename and `<person>` only as the exact H1 of the Git-identity-matched person file; never retain `/` when the org path is empty.
+- Render `needs_review` only as `true` or `false`, and state `No files, Git history, or external systems changed.` in `Side effects`.
+- Treat explicit presence or absence of a Fit Signal as sufficient judgment evidence; an absent signal may lower Band without lowering Confidence or creating review.
+- For `no-match`, use `Confidence: high`, `needs_review: false`, no matched signals, no hit disqualifiers, and no open questions unless the supplied label itself conflicts.
+- When a disqualifier caps a matched result, explicitly say it caps the Band at `weak-fit` and still list every matched signal established by supplied facts.
+- Use `strong-fit` for clear core-profile fit with all or nearly all named signals, `good-fit` for core-profile fit with meaningful signals but notable absent signals and no disqualifier, and `weak-fit` for marginal core fit or a disqualifier cap.
+- Copy every Fit Signal and Disqualifier name verbatim from its ICP, including capitalization.

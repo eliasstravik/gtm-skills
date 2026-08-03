@@ -1,30 +1,35 @@
 ---
 name: gtm-lead-scoring
-description: Triggers when a user asks to score, rank, qualify, or prioritize individual leads against an existing GTM lead-scoring rubric.
+description: Triggers when a user asks to score, rank, qualify, or prioritize individual leads against visible personas using existing persona labels in a GTM context repository. Not for assigning persona labels.
 ---
 
 # Score Leads
 
 ## Recipe
 
-1. Resolve the supplied `$GTM_HOME/state.json` to project, canonical org path, and active person; never access or modify `~/.gtm`, state, context, Git, or external systems.
-2. Validate each supplied `persona_label` as `no-match` or an exact visible qualified persona label; do not re-segment, enrich, research, or invent labels.
-3. From the persona's owning org, walk toward root and use the nearest `lead-scoring.md`; if none exists, stop with a prerequisite report rather than inventing or writing a rubric.
-4. Report the root-to-target org chain, persona source, and every considered scoring source, then emit `Working in <project>/<canonical-org-path> as <person-id>` before scoring.
-5. Preserve supplied component ratings and missing inputs, map them to rubric points, show the addition, apply caps, and assign the exact rubric band.
-6. Set confidence and `needs_review` from missing, conflicting, or invalid scoring inputs, not merely from a submaximal or single-signal component.
-7. For one-off work, return lead, company, title, persona label, components, raw/final score, cap, band, confidence, review flag, positives, risks, action, reasoning, provenance, and open questions.
-8. For bulk work, rank every lead, then recompute from final scores the band distribution, average, low-confidence and review counts, common risks, and common questions.
-9. Return scoring only in the response; finish with project/org/mode/persona-source/rubric-source/prerequisite/skipped-activity/no-side-effects metadata.
+1. Keep the workflow read-only and the result ephemeral.
+2. Derive the context-repo root and canonical org path from the logical working directory.
+3. Resolve the operator by matching root Git identity to a person file and taking that file's H1 display name exactly.
+4. Render the pre-judgment line alone as `Working in <repo-name>/<org-path> as <person>`, using the case-sensitive repo-root directory basename, no trailing punctuation or prose, and the exact root form `Working in <repo-name> as <person>` with no slash.
+5. Read the active org chain and resolve visible personas by nearest same-stem precedence while retaining non-colliding inherited files.
+6. Report the repo-relative visible persona sources and list overridden sources separately.
+7. Validate each supplied `persona_label` as `no-match` or an exact visible qualified persona label, preserving it unchanged.
+8. Map `no-match` directly to `no-fit` without re-segmenting the lead.
+9. For a matched label, assign exactly one qualitative Band from `strong-fit`, `good-fit`, `weak-fit`, or `no-fit` by comparing lead facts with the matched persona's responsibilities, pains, and buying-role content without arithmetic or a rubric.
+10. Cap the Band at `weak-fit` when any persona disqualifier is hit.
+11. Name the matched persona content and every hit disqualifier in the rationale.
+12. Set Confidence and `needs_review` from gaps in the lead evidence, not from the persona document's maintenance backlog.
+13. Treat missing key lead facts as low-confidence review rather than a refusal.
+14. Proceed without questions or approval gates when inputs are complete.
+15. Return one-off results with `Lead`, `Company`, `Title`, `persona_label`, `Band`, `Rationale`, `Matched Persona Content`, `Hit Disqualifiers`, `Confidence`, `needs_review`, `Evidence`, and `Open questions`, followed by `Context repo`, `Canonical org path`, `Mode`, `Visible persona sources`, `Prerequisite or gap status`, and `Side effects`.
+16. Return bulk results with the same fields per row, followed by the metadata through `Prerequisite or gap status`, then `Band distribution`, `Low-confidence count`, `Review-needed count`, `Common persona content`, `Common disqualifiers`, `Common open questions`, and a final `Side effects` statement.
 
 ## Details
 
-- State's `person` is the active operator, never the lead being scored. Take the canonical org path directly from `state.projects[state.active].org`: an absent or empty value means root, otherwise use that value verbatim. Never derive the canonical path from filesystem directories and never include project or literal `suborgs/`. Thus org `emea` renders exactly `Working in <project>/emea as <person-id>`; root renders `Working in <project>/ as <person-id>` and metadata `root (empty)`.
-- After any host-mandated one-sentence skill-use notice, begin workflow output immediately at `Sources read:` with no intervening progress narration. List every root-to-target `org.md`, exact matched persona file, overridden same-stem persona when present, and every considered rubric path relative to the context-repository root. Use full paths such as `personas/x.md` and `suborgs/emea/personas/x.md`, never bare filenames. Then emit the unquoted exact working line before any score, rank, band, count, or scoring conclusion; never preview arithmetic or outcomes first.
-- Lead scoring has no interactive gate. With complete inputs, never mention a question, reply, gate, interaction, clarification, or whether one is needed. Ask only when a missing prerequisite makes scoring impossible.
-- Score confidence means confidence that the supplied inputs support the computation. Complete valid inputs yield high confidence even when a component is submaximal; set review only for a missing, conflicting, or invalid input that could change the calculation.
-- Apply guardrails literally: `no-match` always maps persona fit to the rubric's no-match points regardless of another supplied adjective, then apply its final-score cap. Preserve missing values, map them to the rubric's missing-input value, and flag them for review.
-- Every one-off result uses literal fields `Lead`, `Company`, `Title`, `Persona label`, `Component mappings`, `Raw score`, `Final score`, `Cap`, `Band`, `Confidence`, `needs_review`, `Positives`, `Risks`, `Recommended action`, `Reasoning`, `Provenance`, and `Open questions`.
-- Every bulk row repeats every one-off field with `Lead` explicit and keeps `Raw score` and `Final score` as separate labels; headings, combined `Raw/final score`, or prose do not satisfy those fields. Never calculate bulk totals mentally: use an available calculator or arithmetic tool on the completed final-score list, cross-check the sum against every displayed row, and show `sum of final scores / lead count = average`. Include literal `Band distribution`, `Average final score`, `Low-confidence count`, `Review-needed count`, `Common risks`, and `Common open questions`, even when the user asks for the summary before the rows.
-- Every final metadata block uses all literal fields `Project`, `Canonical org path`, `Mode`, `Persona sources`, `Rubric sources`, `Prerequisite/gap status`, `Skipped activity`, and `No side effects`; provenance elsewhere never substitutes for a metadata field.
-- When the host requires `transcript.md`, copy the actual complete final response under `## FINAL MESSAGE`; never replace it with a source report, working line, or reconstruction.
+- Render `needs_review` only as `true` or `false`, and state `No files, Git history, or external systems changed.` in `Side effects`.
+- Copy the matched persona's Responsibilities, Buying Role, and Pains sentences verbatim into `Matched Persona Content`.
+- State the fit or gap between lead evidence and each matched Responsibilities, Buying Role, and Pains category in the rationale.
+- Copy every hit disqualifier verbatim and explicitly state that it caps the Band at `weak-fit`.
+- Render `Open questions: None` when lead evidence is complete, without transferring persona-maintenance questions.
+- Remove each physical `suborgs/` container segment when rendering the canonical org path or working line.
+- Render missing-fact items in `Open questions` as declarative gap phrases, never as interrogative questions.

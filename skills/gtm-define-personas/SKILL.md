@@ -7,26 +7,31 @@ description: Triggers when a user asks to create, define, or refine a buyer or s
 
 ## Recipe
 
-1. Resolve the supplied `$GTM_HOME/state.json` to the active project, canonical org path, and person; never access or modify `~/.gtm` or `state.json`.
-2. Read and report the root-to-target `org.md` chain, resolved `person.md`, and every ICP and persona visible at the target through inheritance.
-3. Infer the persona's owning altitude from the offer, ICP, and evidence; if it differs from the active org or remains ambiguous, explain why and confirm the canonical org path and lowercase kebab-case persona id before drafting.
-4. Echo `Working in <project>/<canonical-org-path> as <person>` after altitude is settled.
-5. Draft one `<target-org>/personas/<persona-id>.md` with one H1 and these H2s in order: `Identity`, `Titles And Responsibilities`, `Buying Role`, `Pains And Priorities`, `Objections And Disqualifiers`, `Outreach Hooks`, `ICP Relevance`, `Evidence And Confidence`, `Review Needs`, `Open Questions`.
-6. Record `Display name` and `Qualified label` under `Identity`; label root personas `<persona-id>` and child personas `<canonical-org-path>/<persona-id>`, keep known ICP labels in `ICP Relevance`, and express bad-fit or no-match contacts as disqualifier guidance rather than persona files.
-7. Preserve sourced facts, constraints, confidence, review needs, and open questions without invention or loss of specificity; retain existing human-authored sections after the core exactly unless explicitly asked to edit them.
-8. Before writing, show the target path, purpose, complete exact Markdown, and no-external-side-effects statement in one message and obtain explicit approval.
-9. After approval, write exactly the previewed file inside the supplied `$GTM_HOME`, creating only its `personas/` directory if needed, then commit only that file in the context repo without amending or pushing; report genuine blockers cleanly.
-10. Summarize project, canonical org path, qualified label, altitude decision, sources, changed file, commit or skip status, preserved open questions, and downstream recommendation.
+1. Derive the repo root, canonical org position from cwd, and operator from root git identity, honoring an explicit org or operator for this invocation only.
+2. Echo `Working in <repo-name>/<org-path> as <person>` before acting, omitting the org suffix at root and the person clause when unresolved and unnecessary.
+3. Read the root-to-target `org.md` chain, the resolved root `people/<id>/person.md`, and every inherited or local visible ICP and persona as repo-relative sources.
+4. Infer the persona's owning altitude from the offer, visible ICPs, and evidence.
+5. Confirm the canonical target org and lowercase kebab-case persona id before drafting when ownership differs from the current position or remains ambiguous.
+6. Echo the corrected working position immediately after confirmation changes the target org.
+7. Draft exactly one `<target-org>/personas/<persona-id>.md` with one H1 followed by `Identity`, `Titles And Responsibilities`, `Buying Role`, `Pains And Priorities`, `Objections And Disqualifiers`, `Outreach Hooks`, `ICP Relevance`, `Evidence And Confidence`, `Review Needs`, and `Open Questions` H2s in that order.
+8. Record `Display name` and `Qualified label` as `<org-path>/<persona-id>` or the bare id at root under `Identity`.
+9. Preserve supplied facts, evidence strength, uncertainties, open questions, and every unrelated existing section byte-identically.
+10. Express bad-fit or no-match contacts as disqualifier guidance instead of creating a persona for them.
+11. Present one approval message containing the relative target path, purpose, no-external-side-effects statement, complete exact Markdown, and approval question.
+12. Write exactly the approved bytes after explicit approval, creating only the target `personas/` directory when absent.
+13. Stage only the owned persona file with `git -C <repo-root>`.
+14. Verify the staged diff with `git -C <repo-root>`.
+15. Commit the completed artifact once without amending with `git -C <repo-root>`.
+16. Synchronize without force when a remote exists, treating no remote as the legal commit-only case.
+17. Summarize the position, qualified label, altitude decision, repo-relative sources, changed file, commit or skip status, preserved questions, and natural next step.
 
 ## Details
 
-- Derive the canonical org path independently of the filesystem path: root is empty; a child is only nested org ids joined by `/`, excluding the project id and every literal `suborgs/`. Persona labels never include an ICP label.
-- After any altitude confirmation and before any draft or preview, emit the exact user-facing line `Working in <project>/<org-path> as <person>`; for root, `<org-path>` is empty.
-- Under `ICP Relevance`, copy each visible qualified ICP label exactly; never shorten, expand, or embed it in the persona label, and mark an unresolved reference as such.
-- Carry every relevant inherited open question and constraint forward verbatim unless the user explicitly resolves or rephrases it; preserve thresholds, roles, objects, and conditions rather than summarizing them.
-- For a new persona, map every relevant root-to-target org or ICP constraint into the closest persona section, usually `Objections And Disqualifiers`; for a refinement, preserve the existing file and add inherited constraints only when requested so exact edits do not cause unrelated churn. When the user explicitly rephrases an inherited question, use the user's wording exactly without restoring omitted qualifiers.
-- Before drafting, emit `Sources read:` with repo-relative paths for every root-to-target `org.md`, the resolved `person.md`, and every visible inherited or local ICP and persona.
-- Anchor all writes and every Git command at the resolved context-repository root using that directory or `git -C`; never run task Git commands from the eval run directory or an outer workspace. Make the approval request one user-facing message containing the relative target path, purpose, no-external-side-effects statement, complete exact Markdown, and approval question; internal drafts, diffs, or later transcript reconstructions do not satisfy the gate.
-- When ownership differs from the active org, make the altitude explanation name the owning org's visible qualified ICP label alongside the offer and evidence before requesting confirmation.
-- In the final user-facing response, explicitly name the project, canonical org path, qualified persona label, source files read, changed file, commit or skip status, altitude decision, preserved open questions, and downstream recommendation.
-- In that final report, state a root canonical org path as `root (empty)` separately from the project id; the working-position display `<project>/` is not itself the canonical org path.
+- Resolve and retain the physical root with `git -C <repo-root> rev-parse --show-toplevel`; emit the working-position line as an exact standalone literal without leading or trailing punctuation, using that root directory's lowercase basename rather than the display-name H1.
+- Before drafting, emit `Sources read:` with the repo-relative root-to-target `org.md` chain, resolved person record, and every inherited or local visible ICP and persona.
+- In the approval message, name the persona path relative to the repository root, including every physical `suborgs/<id>/` segment for a child target.
+- Preserve the boundary between sourced responsibilities and buying authority; never infer sponsorship, pilot authority, participation, or product fit from a title, pain, or dependency.
+- When ownership differs from the active org, explain the named offer and evidence alongside the owning org's exact visible qualified ICP label before requesting confirmation.
+- After an altitude confirmation, immediately repeat the exact lowercase-basename working-position line before any draft or preview.
+- Close with labeled fields for `Canonical position`, `Qualified persona label`, `Altitude decision`, repo-relative `Sources`, `Changed file`, `Commit status`, `Preserved open questions`, and `Next step`.
+- Under `Identity`, make `Display name` the human-readable persona title derived from evidence or the id, never the lowercase kebab-case id itself.

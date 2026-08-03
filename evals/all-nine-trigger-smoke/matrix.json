@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "acceptance": "36/36 majority-vote decisions correct; three runs per query",
+  "queries": [
+    {
+      "id": "setup-01",
+      "expected": "gtm-setup",
+      "source": "gtm-setup positive",
+      "query": "We are ready to use the GTM skills at Volta Labs. Set up a fresh company context repo in this empty folder, including the root scaffold and our first operator."
+    },
+    {
+      "id": "setup-02",
+      "expected": "gtm-setup",
+      "source": "gtm-setup positive",
+      "query": "Import ~/work/acme-gtm into the GTM context-repo contract and repair whatever makes the other GTM skills fail to resolve it."
+    },
+    {
+      "id": "setup-03",
+      "expected": "gtm-setup",
+      "source": "gtm-setup positive",
+      "query": "Add Priya Sharma as a person in this GTM context repo, then run the repo health check because our Git identity lookup is failing."
+    },
+    {
+      "id": "icp-01",
+      "expected": "gtm-define-icp",
+      "source": "gtm-define-icp p01",
+      "query": "Create our first ICP in this GTM context repo for Nordic warehouse operators, and preview the complete file before saving it."
+    },
+    {
+      "id": "icp-02",
+      "expected": "gtm-define-icp",
+      "source": "gtm-define-icp p02",
+      "query": "Refine the existing regional-carriers ideal customer profile without changing its unrelated Sales Observations notes."
+    },
+    {
+      "id": "icp-03",
+      "expected": "gtm-define-icp",
+      "source": "gtm-define-icp p10",
+      "query": "Move the intended ICP altitude to the DACH child org, preserve every unrelated section byte-for-byte, and show the exact Markdown for approval."
+    },
+    {
+      "id": "persona-01",
+      "expected": "gtm-define-personas",
+      "source": "gtm-define-personas p01",
+      "query": "Create our first buyer persona in this GTM context repo for network operations directors, and preview the complete file before saving it."
+    },
+    {
+      "id": "persona-02",
+      "expected": "gtm-define-personas",
+      "source": "gtm-define-personas p02",
+      "query": "Refine the existing fraud-operations-leader persona without changing its unrelated Call Notes section."
+    },
+    {
+      "id": "persona-03",
+      "expected": "gtm-define-personas",
+      "source": "gtm-define-personas p10",
+      "query": "These contacts are bad fits for our target buyer. Update the persona definition with disqualifier guidance rather than inventing a fake persona for them."
+    },
+    {
+      "id": "account-segmentation-01",
+      "expected": "gtm-account-segmentation",
+      "source": "gtm-account-segmentation p01",
+      "query": "Segment Helix Metals against the ICPs visible in this GTM context repo and return exactly one qualified label or no-match."
+    },
+    {
+      "id": "account-segmentation-02",
+      "expected": "gtm-account-segmentation",
+      "source": "gtm-account-segmentation p05",
+      "query": "pls segmnt these acounts aganst the visble ICPs, one label per company; dont score them, ask questions, or write files"
+    },
+    {
+      "id": "account-segmentation-03",
+      "expected": "gtm-account-segmentation",
+      "source": "gtm-account-segmentation p10",
+      "query": "At the EMEA child org, use inherited and local ICP definitions with nearest same-stem precedence to classify Baltic Ledger."
+    },
+    {
+      "id": "account-scoring-01",
+      "expected": "gtm-account-scoring",
+      "source": "gtm-account-scoring p01",
+      "query": "Score Helix Metals against its already assigned industrial-analytics-teams segment label and return a qualitative fit band with rationale, confidence, and needs_review."
+    },
+    {
+      "id": "account-scoring-02",
+      "expected": "gtm-account-scoring",
+      "source": "gtm-account-scoring p04",
+      "query": "The upstream account segment_label is no-match. Judge its fit without segmenting it again and return the required no-fit result."
+    },
+    {
+      "id": "account-scoring-03",
+      "expected": "gtm-account-scoring",
+      "source": "gtm-account-scoring p09",
+      "query": "For this bulk account list with existing segment_label values, return strong-fit, good-fit, weak-fit, or no-fit for each and end with a band distribution."
+    },
+    {
+      "id": "account-research-01",
+      "expected": "gtm-account-research",
+      "source": "gtm-account-research p01",
+      "query": "Research Acme Robotics from these supplied source packets and return an evidence-backed target-account brief with inspected facts, conflicts, and open questions."
+    },
+    {
+      "id": "account-research-02",
+      "expected": "gtm-account-research",
+      "source": "gtm-account-research p05",
+      "query": "Research this bulk list of three target companies and show priority, confidence, buying signals, conflicts, and next steps for each account."
+    },
+    {
+      "id": "account-research-03",
+      "expected": "gtm-account-research",
+      "source": "gtm-account-research p08",
+      "query": "Promote the already approved Baltic Ledger account-research brief into the owning EMEA organization in our GTM context repo."
+    },
+    {
+      "id": "lead-segmentation-01",
+      "expected": "gtm-lead-segmentation",
+      "source": "gtm-lead-segmentation p03",
+      "query": "Route Alex Morgan to exactly one visible buyer persona or no-match using responsibilities and scope rather than title alone."
+    },
+    {
+      "id": "lead-segmentation-02",
+      "expected": "gtm-lead-segmentation",
+      "source": "gtm-lead-segmentation p06",
+      "query": "pls segmnt these contcts by visble personas, one exact qualified label each or no-mtch; do not score them"
+    },
+    {
+      "id": "lead-segmentation-03",
+      "expected": "gtm-lead-segmentation",
+      "source": "gtm-lead-segmentation p08",
+      "query": "At the EMEA child org, classify Lea against the locally visible and inherited contact personas using nearest same-stem precedence."
+    },
+    {
+      "id": "lead-scoring-01",
+      "expected": "gtm-lead-scoring",
+      "source": "gtm-lead-scoring p01",
+      "query": "Score Alex Morgan against the existing revenue-operations-leader persona_label and return a qualitative fit band with evidence-based rationale."
+    },
+    {
+      "id": "lead-scoring-02",
+      "expected": "gtm-lead-scoring",
+      "source": "gtm-lead-scoring p04",
+      "query": "The upstream lead persona_label is no-match. Score this person without assigning a different persona and return no-fit."
+    },
+    {
+      "id": "lead-scoring-03",
+      "expected": "gtm-lead-scoring",
+      "source": "gtm-lead-scoring p09",
+      "query": "For this bulk contact list with existing persona_label values, return strong-fit, good-fit, weak-fit, or no-fit and a band distribution."
+    },
+    {
+      "id": "lead-research-01",
+      "expected": "gtm-lead-research",
+      "source": "gtm-lead-research p02",
+      "query": "Build an evidence-backed person brief for Alex Morgan with role, influence, pain hypotheses, timing signals, and outreach angles from the supplied sources."
+    },
+    {
+      "id": "lead-research-02",
+      "expected": "gtm-lead-research",
+      "source": "gtm-lead-research p07",
+      "query": "Bulk research Nina, Omar, and Owen as individual people and return source-grounded contact briefs for each lead."
+    },
+    {
+      "id": "lead-research-03",
+      "expected": "gtm-lead-research",
+      "source": "gtm-lead-research p03",
+      "query": "Promote the already approved Lea Novak lead-research brief into the owning EMEA context repo under the lead-research namespace."
+    },
+    {
+      "id": "none-01-score-vs-segment",
+      "expected": "NONE",
+      "source": "score-vs-segment near miss",
+      "query": "Explain the conceptual difference between account segmentation and account scoring for our onboarding guide. Do not classify or score any account and do not inspect a GTM repo."
+    },
+    {
+      "id": "none-02-account-vs-lead",
+      "expected": "NONE",
+      "source": "account-vs-lead near miss",
+      "query": "Should our sales team research Acme Robotics as an account or Alex Morgan as a lead? Just explain which object type to investigate; do not perform research or inspect sources."
+    },
+    {
+      "id": "none-03-crm-write",
+      "expected": "NONE",
+      "source": "CRM mutation exclusion",
+      "query": "Update lifecycle stage, owner, and last-contacted fields for these accounts and contacts in our CRM, then log the activity."
+    },
+    {
+      "id": "none-04-outbound-copy",
+      "expected": "NONE",
+      "source": "outbound execution exclusion",
+      "query": "Write and send a five-email outbound sequence using the approved account and lead research briefs."
+    },
+    {
+      "id": "none-05-rubric-authoring",
+      "expected": "NONE",
+      "source": "scoring-rubric near miss",
+      "query": "Design a weighted 100-point account-scoring rubric with numeric component weights and save it as account-scoring.md."
+    },
+    {
+      "id": "none-06-pipeline-dashboard",
+      "expected": "NONE",
+      "source": "generic analytics",
+      "query": "Build a dashboard chart showing pipeline value by stage, rep, and month from this CSV export."
+    },
+    {
+      "id": "none-07-spreadsheet-cleanup",
+      "expected": "NONE",
+      "source": "generic data cleanup",
+      "query": "Clean and deduplicate this contacts spreadsheet, normalize phone numbers, and merge rows with the same email address."
+    },
+    {
+      "id": "none-08-generic-git-repo",
+      "expected": "NONE",
+      "source": "non-GTM repository near miss",
+      "query": "Initialize a regular Git repository for our product source code with a Node .gitignore and an MIT license; this is not a GTM context repo."
+    },
+    {
+      "id": "none-09-content-publishing",
+      "expected": "NONE",
+      "source": "publishing exclusion",
+      "query": "Turn these buyer insights into three LinkedIn posts and publish the best one to the company page."
+    }
+  ]
+}
