@@ -40,8 +40,8 @@
       ],
       "allowed_example_values": [],
       "available_gtm_workflows": [
-        "gtm-define-personas",
-        "gtm-define-icp",
+        "gtm-persona",
+        "gtm-icp",
         "gtm-account-research"
       ]
     },
@@ -79,14 +79,15 @@
     {
       "id": 5,
       "name": "delete-a-suborg",
-      "prompt": "Delete the Consumer suborg from my Northstar Group GTM context. Simulate Amina, a non-technical operator. She selects Consumer, understands that its nested Youth suborg also disappears and that the remote copy is not being deleted, accepts removal of both paths and removal of consumer/youth affiliations from her person file, and does not want to delete Enterprise or the whole repo. Complete the guided deletion inside this run's HOME.",
-      "expected_output": "Consumer and its descendant are deleted, Enterprise and the repo survive, affiliations are repaired, and one deletion is saved to main history without touching the configured remote.",
+      "prompt": "Delete the Consumer suborg from my Northstar Group GTM context. Simulate Amina, a non-technical operator. She selects Consumer, understands that its nested Youth suborg also disappears, that Consumer owns the Family Learning ICP and Household Buyer persona, that Youth owns the Teen Program Director persona, and that the remote copy is not being deleted. She accepts removal of the complete Consumer subtree and removal of consumer/youth affiliations from her person file, and does not want to delete Enterprise or the whole repo. Complete the guided deletion inside this run's HOME.",
+      "expected_output": "Consumer, its descendant, and their owned ICP/persona files are named in the consequence report and deleted; Enterprise and the repo survive, affiliations are repaired, and one deletion is saved to main history without touching the configured remote.",
       "files": ["evals/fixtures/delete-suborg"],
       "assertions": [
         "The Consumer subtree is absent while Enterprise and the root repo remain.",
         "Amina's person.md no longer lists consumer or youth and retains enterprise.",
         "The repo stays on main and gains exactly one history entry for the accepted deletion.",
         "The configured remote remains present and is not deleted or force-modified.",
+        "The accepted consequence proposal names every ICP and persona owned by the Consumer subtree before deletion.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
       ],
       "allowed_example_values": []
@@ -178,7 +179,7 @@
       ],
       "allowed_example_values": [],
       "available_gtm_workflows": [
-        "gtm-define-icp"
+        "gtm-icp"
       ]
     },
     {
@@ -197,6 +198,35 @@
       "available_gtm_workflows": [
         "gtm-market-orbit"
       ]
+    },
+    {
+      "id": 12,
+      "name": "doctor-healthy-skill-content",
+      "prompt": "Doctor my Solstice Freight GTM context. Simulate Noor, a non-technical operator. The repo is intentionally healthy and contains legitimate icps/ and personas/ directories at both the root and Europe suborg. Report those skill-owned directories as healthy placement, do not judge or rewrite their file contents, make no changes, and complete the health report inside this run's HOME.",
+      "expected_output": "A clean bill of health that recognizes root and suborg ICP/persona directories as legitimate, leaves every file and history entry unchanged, and performs no repair.",
+      "files": ["evals/fixtures/doctor-healthy-skill-content"],
+      "assertions": [
+        "The healthy Solstice Freight repo remains clean on main with exactly its seeded history and all ICP/persona files unchanged.",
+        "The health report recognizes both root and Europe icps/ and personas/ directories as legitimate placements.",
+        "No defect, repair proposal, or durable change is reported for the healthy skill-owned content.",
+        "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
+      ],
+      "allowed_example_values": []
+    },
+    {
+      "id": 13,
+      "name": "doctor-stray-skill-content",
+      "prompt": "Doctor my Aster Ridge GTM context. Simulate Imani, a non-technical operator. The root personas/ directory is legitimate, but archive/icps/ is deliberately stray because archive has no org.md. Identify that exact placement defect and explain it plainly. Imani cancels the repair proposal, so change nothing and complete the report inside this run's HOME.",
+      "expected_output": "The doctor flags archive/icps/ because its parent is not an organization node, leaves the legitimate root personas/ content alone, and makes no change after cancellation.",
+      "files": ["evals/fixtures/doctor-stray-skill-content"],
+      "assertions": [
+        "The Aster Ridge repo remains clean on main with exactly its seeded history after the repair is cancelled.",
+        "The report names archive/icps/ and explains that its parent lacks org.md or is not an organization node.",
+        "The legitimate root personas/ directory is not reported as a defect or rewritten.",
+        "No repair commit or filesystem change occurs after cancellation.",
+        "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
+      ],
+      "allowed_example_values": []
     }
   ]
 }

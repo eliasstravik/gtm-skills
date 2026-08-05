@@ -459,11 +459,26 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
         ]
     if name == "delete-a-suborg":
         repo = root / "northstar-group"; person = repo / "people/amina-yusuf/person.md"; text = person.read_text() if person.exists() else ""
+        turns, _ = conversation_turns(run_dir)
+        consequence = next(
+            (
+                turn
+                for role, turn in turns
+                if role == "Assistant" and "Accept and save" in turn and "suborgs/consumer" in turn
+            ),
+            "",
+        )
+        owned_paths = (
+            "suborgs/consumer/icps/family-learning.md",
+            "suborgs/consumer/personas/household-buyer.md",
+            "suborgs/consumer/suborgs/youth/personas/teen-program-director.md",
+        )
         return [
             result(not (repo / "suborgs/consumer").exists() and (repo / "suborgs/enterprise/org.md").is_file() and (repo / "org.md").is_file(), "Checked Consumer subtree absence and Enterprise/root survival."),
             result("enterprise" in text and "consumer" not in text.lower() and "youth" not in text.lower(), "Checked affiliation cleanup while preserving Enterprise."),
             result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2, "Checked main and exactly one deletion commit beyond seed."),
             result(bool(git(repo, "remote", "get-url", "origin")) and "northstar-group.git" in git(repo, "remote", "get-url", "origin"), "Checked that origin remains configured to the seeded remote."),
+            result(all(path in consequence for path in owned_paths), f"Checked the accepted consequence proposal for owned artifact paths: {owned_paths!r}."),
         ]
     if name == "doctor-broken-repo":
         repo = root / "atlas-labs"; europe = repo / "suborgs/europe/org.md"; person = repo / "people/sam-rivera/person.md"
@@ -482,6 +497,60 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             result(person.is_file() and "sam@atlas-labs.example" in person.read_text() and root_only_people(repo), "Checked Sam's root-only move and supplied email."),
             result(not (repo / "state.json").exists() and not (repo / "suborgs/europe/empty-notes").exists(), "Checked seeded state file and empty directory removal."),
             result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2 and git(repo, "log", "-1", "--pretty=%s") == "Repair GTM context repo", "Checked main, exactly one repair commit, and exact repair message."),
+        ]
+    if name == "doctor-healthy-skill-content":
+        repo = root / "solstice-freight"
+        output = user_output(run_dir)
+        lower = output.lower()
+        expected_paths = (
+            "icps/logistics-operators.md",
+            "personas/vp-operations.md",
+            "suborgs/europe/icps/regional-carriers.md",
+            "suborgs/europe/personas/compliance-director.md",
+        )
+        unchanged = (
+            git(repo, "branch", "--show-current") == "main"
+            and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 1
+            and not git(repo, "status", "--porcelain")
+            and all((repo / path).is_file() for path in expected_paths)
+        )
+        placements_reported = all(
+            marker in lower
+            for marker in ("icps/", "personas/", "suborgs/europe")
+        ) and any(word in lower for word in ("healthy", "valid", "legitimate"))
+        no_repair = "repair proposal" not in lower and "accept and save" not in output and "repair gtm context repo" not in lower
+        no_defect_claim = not any(
+            marker in lower
+            for marker in ("defects found", "defect:", "needs repair", "invalid placement", "stray placement")
+        )
+        return [
+            result(unchanged, "Checked main, one seeded commit, a clean tree, and all four skill-owned artifact paths."),
+            result(placements_reported, "Checked the health report for root and Europe ICP/persona placement plus healthy language."),
+            result(no_repair and no_defect_claim, "Checked that no defect, repair proposal, acceptance gate, or repair commit was reported."),
+        ]
+    if name == "doctor-stray-skill-content":
+        repo = root / "aster-ridge"
+        output = user_output(run_dir)
+        lower = output.lower()
+        unchanged = (
+            git(repo, "branch", "--show-current") == "main"
+            and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 1
+            and not git(repo, "status", "--porcelain")
+            and (repo / "archive/icps/legacy-targets.md").is_file()
+            and (repo / "personas/revenue-leader.md").is_file()
+        )
+        stray_explained = "archive/icps" in lower and (
+            "org.md" in lower or "organization node" in lower or "organisation node" in lower
+        )
+        root_persona_ok = not re.search(
+            r"(?:defect|invalid|stray|wrong|repair)[^\n]{0,120}(?:root/)?personas/|(?:root/)?personas/[^\n]{0,120}(?:defect|invalid|stray|wrong|repair)",
+            lower,
+        )
+        return [
+            result(unchanged, "Checked main, one seeded commit, a clean tree, and preservation of the stray ICP plus legitimate root persona."),
+            result(stray_explained, "Checked the report for archive/icps and an explanation tied to the missing org.md or organization node."),
+            result(root_persona_ok, "Checked that root personas/ was not paired with defect or repair language."),
+            result("cancel" in lower and unchanged, "Checked cancellation language and confirmed no repair commit or filesystem change."),
         ]
     if name == "hosted-create-refusal":
         repo = root / "northwind-gtm"
