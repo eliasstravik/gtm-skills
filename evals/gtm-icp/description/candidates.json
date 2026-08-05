@@ -1,0 +1,16 @@
+{
+  "candidates": [
+    {
+      "description": "Triggers when a user asks to create, update, delete, or doctor an ideal customer profile in a connected GTM context. Not for personas, segmentation, scoring, research, or managing the context repository itself.",
+      "rationale": "Bare-core description with concise branch triggers and broad exclusions."
+    },
+    {
+      "description": "Triggers when a user asks to create, define, refine, update, delete, or doctor an ideal customer profile file in a connected GTM context, including choosing which organization owns it. Not for personas, segmentation, scoring, account or lead research, or creating, importing, deleting, or repairing the context repository itself.",
+      "rationale": "Adds natural define/refine language, the ownership boundary, and explicit repo-level exclusions."
+    },
+    {
+      "description": "Triggers when the requested outcome is to add, revise, remove, or validate ICP Markdown owned by an organization in an existing GTM context. Not for persona files, account classification, fit scoring, prospect research, or context-repository setup and repair.",
+      "rationale": "Frames discovery around the durable ICP-file outcome while separating downstream read-only work."
+    }
+  ]
+}

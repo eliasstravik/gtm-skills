@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Use /gtm-icp to create a new ideal customer profile for Harbor Cloud in our connected GTM context. It should target regional banks with 500+ staff and exclude institutions that cannot use SaaS.",
+    "should_trigger": true
+  },
+  {
+    "query": "We need to define our first ICP in the Northwind context repo. Interview me one question at a time and save the accepted profile for the root organization.",
+    "should_trigger": true
+  },
+  {
+    "query": "Refine the enterprise/manufacturing-groups ICP in ~/.gtm/ironpeak. Change the minimum plant count to five but preserve the rest of the file.",
+    "should_trigger": true
+  },
+  {
+    "query": "Delete the SMB agencies ICP from our GTM context and make sure the consequence preview explains what segmentation will stop seeing.",
+    "should_trigger": true
+  },
+  {
+    "query": "Doctor the ICP library in the Acme context. There are weird filenames, a TODO-only profile, and I think one icps folder is under archive instead of an org node.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our ideal-customer definitions in the saved GTM folder are a mess and I don't know whether to add a new one or repair what is there. Walk me through the right ICP action.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add a distinct healthcare-payers ICP owned by the Public Sector suborganization, not the company root, and check it isn't a duplicate of that node's existing profiles.",
+    "should_trigger": true
+  },
+  {
+    "query": "Can you audit just our ICP artifacts for missing H1s, empty shells, and slugs that aren't lowercase kebab-case? Leave personas and the rest of the context alone.",
+    "should_trigger": true
+  },
+  {
+    "query": "Update the logistics-platforms ICP so its disqualifiers include companies without an internal implementation owner. Show me the full before and after first.",
+    "should_trigger": true
+  },
+  {
+    "query": "I have two GTM context repos under ~/.gtm and want to create an ideal customer profile in one of them. List the contexts, let me choose, then save the accepted ICP.",
+    "should_trigger": true
+  },
+  {
+    "query": "Create a buyer persona for VP Operations in our connected GTM context, including responsibilities, pains, and what would disqualify a lead.",
+    "should_trigger": false
+  },
+  {
+    "query": "Segment these 80 companies against the ICPs already saved in our GTM context and give each company one qualified label or no-match.",
+    "should_trigger": false
+  },
+  {
+    "query": "Score the accounts labeled enterprise/manufacturing-groups into strong-fit, good-fit, weak-fit, or no-fit using the ICP prose.",
+    "should_trigger": false
+  },
+  {
+    "query": "Research Blue Harbor Bank as a target account, use current web sources, and interpret the findings against our existing banking ICP without changing the repo.",
+    "should_trigger": false
+  },
+  {
+    "query": "Route these leads to the visible personas. Responsibilities should outweigh title, and every person needs one persona label or no-match.",
+    "should_trigger": false
+  },
+  {
+    "query": "Score Maya Chen against the revenue-operations-leader persona and return exactly one fit band with confidence and review needs.",
+    "should_trigger": false
+  },
+  {
+    "query": "Build a sourced lead brief for Omar Haddad and use our saved personas to explain fit and outreach angles. Do not write anything to the context repo.",
+    "should_trigger": false
+  },
+  {
+    "query": "Set up a brand-new GTM context repository for Cedar Labs, add our operator, and configure it for local single-player use.",
+    "should_trigger": false
+  },
+  {
+    "query": "Doctor the whole GTM context repo: restore AGENTS.md, move nested people to root, remove state.json, and check Git health.",
+    "should_trigger": false
+  },
+  {
+    "query": "I'm preparing a board workshop. Explain what an ideal customer profile is and give me five brainstorming questions, but don't access or change any GTM context files.",
+    "should_trigger": false
+  }
+]
