@@ -1,0 +1,82 @@
+[
+  {
+    "query": "/gtm-context — set up a fresh context for Fjord Robotics. We are a five-person team, our site is https://fjord-robotics.example, and I want to keep it only on this Mac for now. I do not know Git, so guide me through it.",
+    "should_trigger": true
+  },
+  {
+    "query": "I have a messy folder at ~/Desktop/northwind-company-notes with an about-us doc and bios for four teammates. Please turn it into the GTM context folder you use under ~/.gtm, but leave my original alone.",
+    "should_trigger": true
+  },
+  {
+    "query": "Our GTM context says Anika is Head of Sales, but she became CRO and her LinkedIn is https://linkedin.com/in/anika-example. Update her profile and save the change properly.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add our new teammate Omar Nasser (omar@solace.example, Partner Marketing) to the Solace GTM folder. He works with the alliances suborg. I'm not technical, so show me the draft before saving it.",
+    "should_trigger": true
+  },
+  {
+    "query": "We shut down the consumer division. Remove that suborg and its nested youth unit from our Northstar GTM context, clean up people's affiliations, and explain what can be recovered afterward.",
+    "should_trigger": true
+  },
+  {
+    "query": "Please delete the entire old-acme GTM context from ~/.gtm. There may still be a GitHub copy; I only mean the local organization folder and understand its local history goes too.",
+    "should_trigger": true
+  },
+  {
+    "query": "Something is wrong with ~/.gtm/atlas-labs: a teammate is nested under suborgs/europe, Europe's org file has no title, and I found state.json. Can you doctor the folder and propose repairs first?",
+    "should_trigger": true
+  },
+  {
+    "query": "Refresh the facts in our Ember Health org.md from the public links already in the file. Show me exactly what changed and let me correct the draft before it becomes part of the context.",
+    "should_trigger": true
+  },
+  {
+    "query": "We have three repos under ~/.gtm and I can't remember which one contains Casey Lee. Help me choose the right organization and update Casey's email without assuming I know command-line tools.",
+    "should_trigger": true
+  },
+  {
+    "query": "Import git@github.com:our-company/meridian-notes.git as a private shared GTM context, convert any loose markdown to the minimal structure, move nested people to root, and walk me through any GitHub login issue.",
+    "should_trigger": true
+  },
+  {
+    "query": "Define our ICP for Meridian Cloud. We sell compliant data hosting to banks; I need firmographics, buying triggers, disqualifiers, and a concise ICP markdown document.",
+    "should_trigger": false
+  },
+  {
+    "query": "Create buyer personas for a clinic scheduling product: economic buyer, champion, end user, their pains, objections, and messaging. The company context already exists and is healthy.",
+    "should_trigger": false
+  },
+  {
+    "query": "Segment the 420 accounts in accounts.csv against our existing SMB and enterprise ICPs, add a segment column, and explain ambiguous classifications. Do not change our context repo.",
+    "should_trigger": false
+  },
+  {
+    "query": "Score these target accounts from 0–100 using the rubric in our GTM repo, rank them, and show the evidence for each score. The context files themselves must stay unchanged.",
+    "should_trigger": false
+  },
+  {
+    "query": "Research Snowflake as a target account for our observability product. I need current initiatives, likely pain points, relevant executives, and source links for an account brief.",
+    "should_trigger": false
+  },
+  {
+    "query": "Research Priya Shah at Contoso before my call tomorrow—verify her current role, career history, recent posts, and likely priorities. She is a sales lead, not one of our teammates.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add Ben to our HubSpot account as a sales user, give him permission to edit deals, and remove the old contractor's seat. This is workspace administration, not our markdown context.",
+    "should_trigger": false
+  },
+  {
+    "query": "Something is wrong with the .git folder in ~/dev/storefront: feature branches disappeared after a rebase and CI rejects main. Diagnose the repository, but this project has nothing to do with GTM context.",
+    "should_trigger": false
+  },
+  {
+    "query": "Delete ~/Downloads/old-company-assets after checking it only contains exported logos and PDFs. It is an ordinary folder with no GTM context or git history.",
+    "should_trigger": false
+  },
+  {
+    "query": "Turn the founder notes and teammate bios I pasted into a polished Notion onboarding wiki with pages for mission, team, norms, and FAQs. I do not want a ~/.gtm repo.",
+    "should_trigger": false
+  }
+]

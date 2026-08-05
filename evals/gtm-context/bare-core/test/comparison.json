@@ -1,0 +1,121 @@
+{
+  "winner": "A",
+  "reasoning": "Output A better serves a nontechnical user: it explains concrete outcomes, gives a safe and understandable starting sequence, addresses sensitive teammate data, and ends with one clear next action. Output B covers a broader lifecycle, but several paths are irrelevant to the user's immediate situation, its discrete choices are not numbered, and terms such as 'GTM context' and 'background history' are not explained. Both outputs fail the required exact closing sentence, so A wins on overall usefulness and novice usability.",
+  "rubric": {
+    "A": {
+      "content": {
+        "task_alignment": 5,
+        "outcome_coverage": 4,
+        "next_step_clarity": 5
+      },
+      "structure": {
+        "organization": 5,
+        "option_format_compliance": 4,
+        "novice_usability": 5
+      },
+      "content_score": 4.7,
+      "structure_score": 4.7,
+      "overall_score": 9.4
+    },
+    "B": {
+      "content": {
+        "task_alignment": 4,
+        "outcome_coverage": 5,
+        "next_step_clarity": 4
+      },
+      "structure": {
+        "organization": 4,
+        "option_format_compliance": 2,
+        "novice_usability": 3
+      },
+      "content_score": 4.3,
+      "structure_score": 3.0,
+      "overall_score": 7.3
+    }
+  },
+  "output_quality": {
+    "A": {
+      "score": 9.4,
+      "strengths": [
+        "Explains concrete outcomes in plain language",
+        "Provides a safe, practical sequence",
+        "Addresses privacy risks in teammate details",
+        "Guides the user to one immediate next action"
+      ],
+      "weaknesses": [
+        "Does not end with the required exact reply instruction",
+        "Mentions two ways to provide the folder information without numbering them"
+      ]
+    },
+    "B": {
+      "score": 7.3,
+      "strengths": [
+        "Explicitly lists available lifecycle outcomes",
+        "Marks only import as recommended",
+        "Directs the user toward import as the likely next step"
+      ],
+      "weaknesses": [
+        "Presents discrete choices as bullets rather than numbered options",
+        "Does not end with the required exact reply instruction",
+        "Uses unexplained terms that may confuse a nontechnical user",
+        "Includes delete and repair paths that distract from the immediate need"
+      ]
+    }
+  },
+  "expectation_results": {
+    "A": {
+      "passed": 4,
+      "total": 5,
+      "pass_rate": 0.8,
+      "details": [
+        {
+          "text": "Response explains the available outcomes",
+          "passed": true
+        },
+        {
+          "text": "Response guides the user to exactly one next choice",
+          "passed": true
+        },
+        {
+          "text": "Any discrete options are numbered",
+          "passed": true
+        },
+        {
+          "text": "At most one option is Recommended",
+          "passed": true
+        },
+        {
+          "text": "It ends the choice with exactly `Reply with a number, or type your answer.`",
+          "passed": false
+        }
+      ]
+    },
+    "B": {
+      "passed": 3,
+      "total": 5,
+      "pass_rate": 0.6,
+      "details": [
+        {
+          "text": "Response explains the available outcomes",
+          "passed": true
+        },
+        {
+          "text": "Response guides the user to exactly one next choice",
+          "passed": true
+        },
+        {
+          "text": "Any discrete options are numbered",
+          "passed": false
+        },
+        {
+          "text": "At most one option is Recommended",
+          "passed": true
+        },
+        {
+          "text": "It ends the choice with exactly `Reply with a number, or type your answer.`",
+          "passed": false
+        }
+      ]
+    }
+  }
+}
