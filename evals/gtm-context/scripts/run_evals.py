@@ -66,6 +66,8 @@ def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> str | None:
         "update-a-person": ("ember-health", "Morgan Vale", "morgan@ember-health.example"),
         "delete-a-suborg": ("northstar-group", "Amina Yusuf", "amina@northstar-group.example"),
         "doctor-broken-repo": ("atlas-labs", "Sam Rivera", "sam@atlas-labs.example"),
+        "doctor-healthy-skill-content": ("solstice-freight", "Noor Haddad", "noor@solstice-freight.example"),
+        "doctor-stray-skill-content": ("aster-ridge", "Imani Cole", "imani@aster-ridge.example"),
     }
     if eval_case["name"] in existing:
         slug, name, email = existing[eval_case["name"]]

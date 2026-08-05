@@ -10,13 +10,18 @@ Use this contract when creating, importing, updating, deleting, or doctoring a G
 ├── CLAUDE.md
 ├── .gitignore
 ├── org.md
+├── icps/<icp-slug>.md
+├── personas/<persona-slug>.md
 ├── suborgs/<suborg-slug>/org.md
+│   ├── icps/<icp-slug>.md
+│   ├── personas/<persona-slug>.md
 │   └── suborgs/<child-slug>/org.md
 └── people/<person-slug>/person.md
 ```
 
 - A repo represents one organization. Its directory slug is lowercase kebab-case.
 - Every organization node has `org.md`. Suborganizations may nest through repeated `suborgs/<slug>/` directories.
+- An organization node may carry `icps/` and `personas/` directories. Their files are owned and validated by the skills that manage ICPs and personas, not by gtm-context.
 - People exist only at root under `people/<person-slug>/person.md`; their optional `Suborgs:` line contains zero or more comma-separated suborg slugs.
 - The H1 of every `org.md` and `person.md` is its display name.
 - `person.md` contains a non-empty `- Email:` line. Role and Suborgs are optional facts, not required guesses.
@@ -43,12 +48,13 @@ Report healthy checks as well as defects.
 
 1. Root contract files exist: `AGENTS.md`, `CLAUDE.md`, `.gitignore`; `CLAUDE.md` is exactly `@AGENTS.md` plus a final newline.
 2. Every org node, including the root, has `org.md`; every org/person file has a display-name H1.
-3. Repo, suborg, and person slugs are lowercase kebab-case.
-4. Every person is root-only at `people/<slug>/person.md` and has a non-empty `- Email:` line; listed Suborgs resolve to existing suborg slugs.
-5. No machine-state files, empty directories, placeholder files, logs, or `.tmp` content are tracked.
-6. Git is initialized, the checked-out branch is `main`, and the tree is either clean or has changes that can be previewed and committed.
-7. Repo-local `user.name` and `user.email` are set. The temporary identity `GTM Context <gtm@local>` is valid and is not a defect.
-8. When a remote exists, report upstream, ahead/behind/diverged state, and authentication or reachability problems without changing anything first.
+3. Every `icps/` or `personas/` directory is a direct child of an organization node whose `org.md` exists. Do not inspect or flag healthy files inside these skill-owned directories.
+4. Repo, suborg, and person slugs are lowercase kebab-case.
+5. Every person is root-only at `people/<slug>/person.md` and has a non-empty `- Email:` line; listed Suborgs resolve to existing suborg slugs.
+6. No machine-state files, empty directories, placeholder files, logs, or `.tmp` content are tracked.
+7. Git is initialized, the checked-out branch is `main`, and the tree is either clean or has changes that can be previewed and committed.
+8. Repo-local `user.name` and `user.email` are set. The temporary identity `GTM Context <gtm@local>` is valid and is not a defect.
+9. When a remote exists, report upstream, ahead/behind/diverged state, and authentication or reachability problems without changing anything first.
 
 For defects, preview the exact repair operations and replacement content, then use the accept loop. Apply approved repairs as one `Repair GTM context repo` commit. A healthy repo changes nothing.
 

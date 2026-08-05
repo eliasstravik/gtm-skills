@@ -136,8 +136,8 @@ Write nothing, draft nothing, and research nothing for the refused request; do n
 15. Close with a tree-style list of files created, explain they are saved to history, and state whether sharing is local single-player or multiplayer. Then add a short `Recommended next step` paragraph using only the explicit capability/skill catalog supplied by the hosting environment. Normalize only these exact workflow IDs and choose the first listed below that is available, regardless of conversational hints:
 
    1. `gtm-account-research` → `Research [target account] as a potential customer for <saved organization display name>.`
-   2. `gtm-define-icp` → `Define the ideal customer profile for <saved organization display name>.`
-   3. `gtm-define-personas` → `Define the buyer personas for <saved organization display name>.`
+   2. `gtm-icp` → `Define the ideal customer profile for <saved organization display name>.`
+   3. `gtm-persona` → `Define the buyer personas for <saved organization display name>.`
 
    Ignore every unrecognized ID. If the catalog is absent, empty, or contains only unrecognized IDs, use the account-research request above as a generic natural-language fallback without claiming that a workflow is installed. Keep `[target account]` visibly bracketed and never invent an account. Follow the request with one sentence saying the agent will use the saved GTM context.
 
@@ -166,7 +166,7 @@ Write nothing, draft nothing, and research nothing for the refused request; do n
 ## Delete
 
 1. Resolve the repo, then ask what to delete: a person / a suborg / content within a file / the entire organization context.
-2. List valid targets when needed. For a suborg, include all nested suborgs and affected person affiliations in the consequence report. For file content, show the complete resulting file.
+2. List valid targets when needed. For a suborg, include all nested suborgs, every ICP and persona owned by each deleted node, and affected person affiliations in the consequence report. For file content, show the complete resulting file.
 3. Explain exact paths that disappear, what affiliation lines change, and recovery. In-repo deletion is recoverable from history. Whole-repo deletion removes the local folder and all local history; a GitHub copy survives and is not deleted.
 4. For a person, suborg, or file-content deletion, present exact operations through the normal accept loop. On acceptance, apply the deletions, remove directories made empty by the accepted deletion, and verify every promised target path is absent before running background git and closing with recovery guidance.
 5. Whole-repo deletion is keyboard-only: on a fixed-connection surface, use the surface refusal instead of this step. For a whole repo, show the consequence report, then ask the user to type the org slug exactly. A mismatch changes nothing and asks again or offers cancel. An exact match authorizes removal of only the resolved `~/.gtm/<slug>` directory; do not run git afterward.
