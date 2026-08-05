@@ -1,6 +1,25 @@
-# Build workspaces and eval run scratch (committed evidence lives in evals/<name>/)
-skills/*-workspace/
+# Raw evaluation executions; curated evidence belongs in evals/<name>/evidence/.
 evals/*/runs/
+
+# Local Superpowers planning artifacts do not belong in this repository.
+docs/superpowers/
+
+# Per-run description transcripts.
+evals/*/description/**/transcripts/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
 
 # macOS
 .DS_Store
@@ -8,18 +27,3 @@ evals/*/runs/
 .LSOverride
 Icon?
 ._*
-
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Node
-node_modules/
-npm-debug.log*
-yarn-error.log*

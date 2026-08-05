@@ -1,0 +1,6 @@
+{
+  "total_tokens": null,
+  "duration_ms": 27000,
+  "total_duration_seconds": 27.0,
+  "note": "Runtime did not expose token usage; duration is agent-reported."
+}
