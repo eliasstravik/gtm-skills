@@ -1,0 +1,78 @@
+{
+  "skill_name": "gtm-account-segmentation",
+  "evals": [
+    {
+      "id": 1,
+      "name": "root-single-match",
+      "prompt": "Use the Atlas Grid GTM context at the root node. Segment Riverbend Electric Cooperative using only these supplied facts: it is an electric utility cooperative with 640 employees; it is modernizing grid operations; its buying team owns outage response and field dispatch. Do not enrich the account.",
+      "expected_output": "A compact root-node classification to regional-utilities, grounded in visible ICP prose and distinguished from the losing industrial alternative.",
+      "files": [],
+      "expectations": [
+        "States the Atlas Grid context line with two visible ICPs.",
+        "Assigns exactly one bare root label, regional-utilities.",
+        "Cites matching language from the regional-utilities ICP and names industrial-energy-operators as a losing alternative.",
+        "Uses the required compact result fields and calibrated values.",
+        "Does not enrich, ask a question, or change durable state.",
+        "Closes with the exact no-side-effects sentence."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "suborg-bulk-node-local",
+      "prompt": "Use the Enterprise node in the Northstar Cloud GTM context. Segment these accounts from supplied facts only: (1) Meridian Bank, a regulated bank with 8,200 employees, a cloud platform team, and a mandatory third-party security review; (2) Harbor Mutual, a national insurer with 3,400 employees modernizing claims infrastructure; (3) Sunbeam Solar, a 45-person residential solar installer with no regulated-data workload. Do not enrich them.",
+      "expected_output": "A three-account bulk result using only Enterprise-local ICPs, with two qualified Enterprise labels and one no-match.",
+      "files": [],
+      "expectations": [
+        "States the Northstar Enterprise context line with two visible ICPs.",
+        "Assigns enterprise/regulated-financial-platforms, enterprise/national-insurers, and no-match exactly once each.",
+        "Opens with accurate label, low-confidence, and review-needed counts.",
+        "Cites Enterprise ICP language, names plausible losing alternatives, and honors the residential-installer disqualifier.",
+        "Never reads or mentions root-only ICP content.",
+        "Uses every compact item field, asks no question, and closes with the exact no-side-effects sentence.",
+        "Leaves the context repo and Git history unchanged."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "root-target-reverse-visibility",
+      "prompt": "Use the root node of the Northstar Cloud GTM context. Segment Patchbay, a 72-person developer-tools company with product-led adoption and an engineering-owned cloud stack. Use supplied facts only and do not enrich it.",
+      "expected_output": "A root classification to developer-tools-startups that excludes all Enterprise-local ICP prose.",
+      "files": [],
+      "expectations": [
+        "States the Northstar Cloud root context line with one visible ICP.",
+        "Assigns the bare label developer-tools-startups.",
+        "Cites root ICP prose without naming or using either Enterprise ICP.",
+        "Uses the required compact fields with no question.",
+        "Leaves all durable state unchanged and closes with the exact no-side-effects sentence."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "obvious-suborg-node",
+      "prompt": "In the Arbor Transit GTM context, segment MetroLink Authority from supplied facts only: it is a public transit agency operating bus and light rail, with 2,100 employees and a network-planning modernization program. No organization node is specified. Do not enrich it.",
+      "expected_output": "Automatic selection of the only node carrying ICPs and a qualified mobility/public-transit-agencies result without a node question.",
+      "files": [],
+      "expectations": [
+        "Selects Arbor Mobility as the obvious node without asking.",
+        "States one visible ICP and assigns mobility/public-transit-agencies.",
+        "Grounds the result in the local ICP prose and explains that no other visible alternative exists.",
+        "Uses the required compact fields and exact no-side-effects close.",
+        "Leaves all durable state unchanged."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "empty-visible-set",
+      "prompt": "Use the root node of the Empty Harbor GTM context. Segment Lakeside Components, a 300-person component manufacturer. Use only supplied facts and do not enrich it.",
+      "expected_output": "A plain missing-prerequisite stop because the explicitly targeted root has no visible ICPs, even though a suborg owns one.",
+      "files": [],
+      "expectations": [
+        "States the Empty Harbor root context line with zero visible ICPs.",
+        "Reports the missing ICP prerequisite and stops without classifying the account.",
+        "Does not inspect, mention, or borrow the suborg-only ICP.",
+        "Asks no question and invents no ICP or segment label.",
+        "Leaves all durable state unchanged and closes with the exact no-side-effects sentence."
+      ]
+    }
+  ]
+}
