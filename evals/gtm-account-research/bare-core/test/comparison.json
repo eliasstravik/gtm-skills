@@ -1,0 +1,87 @@
+{
+  "winner": "A",
+  "reasoning": "A satisfies the decisive org-only storage rule explicitly, preserves the supplied label without re-segmenting, applies the visible ICP and persona cautiously, and still provides a complete reusable brief. Its confirmed facts, context-derived conclusions, and hypotheses are clearly separated, with unknowns and provenance stated. It also makes no claim that approval is needed and ends with an exact, unambiguous no-change statement. B is usable but gives the wrong reason for not saving—preview/acceptance and read-only execution rather than the org-only principle—and describes the brief as a proposed artifact at the root node, which weakens compliance with the storage boundary. B also overstates the likely persona as the strongest owner or champion before qualifying that inference.",
+  "rubric": {
+    "expectation_compliance": {
+      "A": 5,
+      "B": 3
+    },
+    "factual_correctness": {
+      "A": 5,
+      "B": 4
+    },
+    "evidence_discipline": {
+      "A": 5,
+      "B": 4
+    },
+    "structure": {
+      "A": 5,
+      "B": 4
+    },
+    "usability": {
+      "A": 5,
+      "B": 4
+    }
+  },
+  "output_quality": {
+    "A": {
+      "strengths": [
+        "Explains the org-only principle directly.",
+        "Provides a complete, copyable account brief.",
+        "Preserves developer-tools-startups without re-segmenting.",
+        "Distinguishes supplied facts, context-derived targeting, hypotheses, and unknowns.",
+        "Includes practical personalization angles, risks, discovery questions, and provenance.",
+        "Closes with a precise no-change statement."
+      ],
+      "weaknesses": [
+        "Slightly verbose, though the added detail materially improves reuse and evidence discipline."
+      ]
+    },
+    "B": {
+      "strengths": [
+        "Provides a complete copyable brief.",
+        "Preserves the requested label.",
+        "Uses the visible ICP and notes missing packet details.",
+        "Clearly states that no repository or Git changes occurred."
+      ],
+      "weaknesses": [
+        "Attributes non-saving to preview/acceptance and read-only constraints instead of the required org-only storage principle.",
+        "Calling it a proposed artifact at the root node conflicts with the intended account-research storage boundary.",
+        "Persona ownership language is initially stronger than the evidence supports.",
+        "The commit hash is unnecessary and does not establish byte-for-byte invariance by itself."
+      ]
+    }
+  },
+  "expectation_results": [
+    {
+      "expectation": "Explains that account research is not stored in the org-only context repo.",
+      "A": "pass",
+      "B": "fail",
+      "reason": "A states the durable-context boundary explicitly. B cites preview, acceptance, and read-only execution instead."
+    },
+    {
+      "expectation": "Still renders the complete copyable brief rather than refusing or asking for approval.",
+      "A": "pass",
+      "B": "pass",
+      "reason": "Both outputs provide substantial reusable briefs without asking a question."
+    },
+    {
+      "expectation": "Preserves the label and uses the visible ICP for fit without re-segmenting.",
+      "A": "pass",
+      "B": "pass",
+      "reason": "Both preserve developer-tools-startups and evaluate fit against the Developer Tools Startups ICP."
+    },
+    {
+      "expectation": "Makes no write or commit, asks no question, and closes exactly.",
+      "A": "pass",
+      "B": "partial",
+      "reason": "Both report no mutation and ask no question, but A has the cleaner exact closure. B adds an unnecessary commit hash and frames the result around run constraints."
+    },
+    {
+      "expectation": "Leaves the context repo byte-for-byte unchanged.",
+      "A": "pass",
+      "B": "partial",
+      "reason": "A explicitly states that no files, Git history, or external systems changed. B says the repository and Git history remain unchanged, but a matching commit hash alone does not prove byte-for-byte worktree invariance."
+    }
+  ]
+}
