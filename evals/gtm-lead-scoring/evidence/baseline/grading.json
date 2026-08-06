@@ -1,0 +1,82 @@
+{
+  "expectations": [
+    {
+      "text": "States the Northstar Enterprise context line with one visible persona.",
+      "passed": false,
+      "evidence": "Checked exact Enterprise context line."
+    },
+    {
+      "text": "Validates and preserves enterprise/cloud-security-director.",
+      "passed": false,
+      "evidence": "Checked validation and preservation of the supplied qualified label."
+    },
+    {
+      "text": "Assigns exactly weak-fit and explicitly says the disqualifier caps the band.",
+      "passed": false,
+      "evidence": "Checked weak-fit disqualifier cap."
+    },
+    {
+      "text": "Quotes the persona's own external-advisor language while still naming matched responsibilities.",
+      "passed": false,
+      "evidence": "Checked exact disqualifier quote and retained matched responsibilities."
+    },
+    {
+      "text": "Never reads or mentions root-only persona content.",
+      "passed": true,
+      "evidence": "Checked absence of root-only content in transcript and output."
+    },
+    {
+      "text": "Uses the compact scoring fields, never treats Mira as the user or operator, asks no question, and closes exactly.",
+      "passed": false,
+      "evidence": "Checked compact fields, lead/operator separation, no question, and exact close."
+    },
+    {
+      "text": "Leaves all durable state unchanged.",
+      "passed": true,
+      "evidence": "commit_count=1; status=''"
+    },
+    {
+      "text": "No old-model concept appears in execution or output.",
+      "passed": true,
+      "evidence": "dead-model pattern hits=[]"
+    }
+  ],
+  "summary": {
+    "passed": 3,
+    "failed": 5,
+    "total": 8,
+    "pass_rate": 0.375
+  },
+  "execution_metrics": {
+    "tool_calls": {
+      "codex_items": 6
+    },
+    "total_tool_calls": 6,
+    "total_steps": 6,
+    "files_created": [
+      "artifact-report.md",
+      "final.md"
+    ],
+    "errors_encountered": 0,
+    "output_chars": 2942,
+    "transcript_chars": 10528
+  },
+  "timing": {
+    "total_tokens": 109807,
+    "duration_ms": 42193,
+    "total_duration_seconds": 42.193,
+    "input_tokens": 108501,
+    "cached_input_tokens": 94464,
+    "output_tokens": 1306
+  },
+  "claims": [],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Assertions are deterministic and scenario-specific."
+  }
+}
