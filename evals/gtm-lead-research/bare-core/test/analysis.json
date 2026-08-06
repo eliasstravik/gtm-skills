@@ -1,0 +1,89 @@
+{
+  "comparison_summary": {
+    "winner": "A",
+    "strength": "clear but relative",
+    "rubric_scores": {
+      "expectation_satisfaction": {
+        "A": 4.5,
+        "B": 3.0
+      },
+      "evidence_discipline": {
+        "A": 5.0,
+        "B": 3.5
+      },
+      "structure": {
+        "A": 5.0,
+        "B": 4.0
+      },
+      "usability": {
+        "A": 5.0,
+        "B": 4.0
+      }
+    },
+    "with_skill_grading": {
+      "passed": 20,
+      "failed": 17,
+      "total": 37,
+      "pass_rate": 0.5405
+    },
+    "interpretation": "A won because it was more complete, cautious, structured, and reusable. However, its corresponding save-request run still passed only half of its deterministic expectations, so the comparison establishes relative superiority rather than full contract compliance."
+  },
+  "winner_strengths": [
+    "Produced a substantially more complete, standalone, copyable research brief.",
+    "Preserved the supplied persona label without introducing a replacement segment.",
+    "Separated inspected evidence, uncertainty, hypotheses, conflicts, risks, and provenance more carefully.",
+    "Avoided fabricating missing contact or buying-process details.",
+    "Explained why no durable artifact was written, asked no question, reported no mutation, and used the required operational close.",
+    "Converted limited evidence into cautious outreach guidance without presenting hypotheses as facts."
+  ],
+  "loser_weaknesses": [
+    "Returned a materially thinner brief with weaker interpretation, risk analysis, conflict handling, and provenance.",
+    "Presented several inferences as qualification signals more confidently than the supplied evidence supported.",
+    "Proposed a repository location and person artifact without clearly establishing that the org-only repository was an appropriate storage location.",
+    "Explained non-modification mainly through evaluation and approval constraints instead of the general org-only storage rule.",
+    "Did not use the exact required closing statement."
+  ],
+  "instruction_following": {
+    "strong": [
+      "All six runs left the GTM repositories and Git histories unchanged.",
+      "All six runs avoided deprecated model concepts.",
+      "No executor errors were recorded.",
+      "Most runs resolved and reported the requested context and avoided asking questions.",
+      "The outputs generally recognized the need to distinguish evidence from unsupported interpretation."
+    ],
+    "weak": [
+      "Exact persona-label and visibility behavior passed only two of six relevant grading rows, despite several outputs mentioning labels semantically.",
+      "The target-suborganization run used the root display name, inspected root-only artifacts, and failed the node-local visibility contract.",
+      "The unsafe-source run neither used the exact safe replacement label nor fully avoided descriptive references to the unsafe source.",
+      "Complete brief structure, confidence, review status, priority calibration, and exact closing requirements were inconsistently rendered.",
+      "Bulk output omitted the required middle priority category and did not provide the complete fixed record structure for every lead.",
+      "The save-request response did not clearly state the general org-only storage rule.",
+      "The empty-visible-set response recognized the missing prerequisite but still inspected the packet and enumerated excluded suborganization material before stopping."
+    ],
+    "diagnosis": "The bare snapshot expresses the intended behavior at a high level but leaves key deterministic contracts implicit, especially the literal brief schema, target-node visibility boundary, safe-source substitution, confidence and review fields, bulk record shape, and save-request semantics."
+  },
+  "improvement_suggestions": [
+    "Define the literal one-off brief schema, required field names, ordering, allowed priority values, confidence field, review boolean, and exact final close. Semantic approximations should not count as compliance.",
+    "Make organization-node visibility explicit: resolve the target node first, count only artifacts visible there, inspect the active organization chain and permitted node-local ICPs and personas, and never read or mention artifacts from excluded branches.",
+    "Require exact persona-label preservation. Record whether the supplied label is visible at the target node, but never substitute, normalize, or re-segment it.",
+    "Specify a strict evidence model with separate inspected findings, unverified claims, tentative role or influence hypotheses, pain hypotheses, conflicts, open questions, and evidence provenance including publisher and date.",
+    "For unsafe or tokenized sources, replace the source everywhere with the exact standalone label \"Private source withheld\". Never open, reproduce, paraphrase, characterize, or leak the original label.",
+    "Define evidence-calibrated priority rules. Use high only for strong verified fit and timing, medium for useful but materially limited evidence, and research-needed when foundational identity, role, relevance, or timing evidence is absent or unusable.",
+    "Require confidence and review status to follow evidence gaps and conflicts rather than merely mirroring priority.",
+    "In bulk mode, compute the distribution directly from the completed per-lead records and give every lead the same complete schema and provenance boundaries.",
+    "When no personas are visible, stop before processing person evidence or enumerating excluded branches; return only the context statement, missing prerequisite, preserved label status, and no-side-effects close.",
+    "For save requests against an org-only context repository, state the general storage limitation, make no write, ask no approval question, and still return a complete copyable brief.",
+    "Add an explicit anti-fixture-leakage requirement: shipped instructions must encode reusable decision rules and output contracts only. They must not contain fixture names, fixture organizations, sentinel phrases, predetermined per-fixture priorities, confidence values, review flags, or any other memorized evaluation verdict."
+  ],
+  "transcript_insights": [
+    "The agents consistently read the skill first, inspected local context files, checked Git state, wrote only evaluation-output artifacts, and verified that the context repository remained clean.",
+    "Repository-wide file enumeration was too broad. In the suborganization scenario it exposed and then read irrelevant root-only artifacts, directly undermining the visibility boundary.",
+    "The transcripts show a recurring gap between semantic intent and deterministic output shape: labels were often described as preserved, but literal field contracts and visibility status were missing or inconsistent.",
+    "The unsafe source was not opened, which was good, but the response still described it instead of applying the required exact safe replacement label.",
+    "Brief headings varied across runs, and confidence and review fields were commonly absent. The phrase \"lean person-brief spine\" was not specific enough to produce stable output.",
+    "Bulk reasoning treated two different uncertainty profiles identically, collapsing both into research-needed and eliminating the medium category.",
+    "The save-request run focused on read-only evaluation constraints, acceptance, and missing contact data instead of first stating the reusable domain rule governing where lead research may be stored.",
+    "The empty-context run correctly recognized that research should stop, but only after reading the packet and listing an excluded branch. Prerequisite checks should precede person-evidence inspection.",
+    "Tool execution was error-free but relatively expensive: runs used five to seven tool calls, lasted roughly 47 to 86 seconds, and consumed about 92,000 to 162,000 total tokens. Narrower target-node discovery and a fixed rendering contract would reduce both cost and variance."
+  ]
+}

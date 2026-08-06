@@ -1,0 +1,22 @@
+[
+  {"query": "Research Mira Chen and produce an evidence-backed person brief.", "should_trigger": true},
+  {"query": "Use web access and our GTM context to prepare outreach for this individual prospect.", "should_trigger": true},
+  {"query": "Analyze this lead's role, influence, timing, risks, and outreach angles.", "should_trigger": true},
+  {"query": "Build sourced briefs for these 20 contacts and rank research priority.", "should_trigger": true},
+  {"query": "I need a person brief for tomorrow's call with this VP.", "should_trigger": true},
+  {"query": "Use /gtm-lead-research on this supplied contact packet.", "should_trigger": true},
+  {"query": "Research this person without changing the supplied persona label.", "should_trigger": true},
+  {"query": "Investigate whether this buyer has an active initiative and draft an opener.", "should_trigger": true},
+  {"query": "Save this lead research brief into the GTM context repo.", "should_trigger": true},
+  {"query": "Turn these profile sources into a provenance-preserving outreach brief.", "should_trigger": true},
+  {"query": "Segment these contacts into our visible personas.", "should_trigger": false},
+  {"query": "Assign strong-fit bands to these already-labeled leads.", "should_trigger": false},
+  {"query": "Research Meridian Bank and produce a company account brief.", "should_trigger": false},
+  {"query": "Create a buyer persona for security directors.", "should_trigger": false},
+  {"query": "Write these contact notes into Salesforce.", "should_trigger": false},
+  {"query": "Set up a GTM context repo.", "should_trigger": false},
+  {"query": "Design a numeric lead scoring model.", "should_trigger": false},
+  {"query": "Update this person's durable person.md profile.", "should_trigger": false},
+  {"query": "Create an ICP for developer tools companies.", "should_trigger": false},
+  {"query": "Segment and score these target accounts.", "should_trigger": false}
+]
