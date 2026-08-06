@@ -1,0 +1,96 @@
+{
+  "skill_name": "gtm-persona",
+  "evals": [
+    {
+      "id": 1,
+      "name": "guided-root-create",
+      "prompt": "Begin with the deliberately unclear request: 'I need help getting our buyer thinking organized.' Simulate Maya, a non-technical operator, through completion. Two valid context repos exist. Maya chooses create from the guided menu, then chooses Harbor Signal. Harbor has no suborgs, so root should be used without an ownership question. She supplies the persona name Regional Operations Director and these facts one answer at a time when asked: leads dispatch and technician capacity across at least five branches; owns workflow standardization; a buying trigger is missed service-level targets after an acquisition; advisory consultants with no operational authority are disqualified; final budget authority is still unknown. She supplies /source/harbor-interviews.md for research and also pastes the unsafe URL https://crm.example/people?token=persona-secret-456, which must never be opened or echoed. She accepts an accurate complete draft. Complete all work inside this run's HOME.",
+      "expected_output": "A freeform root persona for Harbor Signal created through the guided flow, grounded in supplied facts and the safe local source, with the unsafe URL suppressed and one accepted history entry.",
+      "files": ["evals/gtm-persona/fixtures/guided-root-create"],
+      "assertions": [
+        "The guided menu offers create, update, delete, and doctor without import or clear, then repo resolution lists both valid repos before Harbor Signal is selected.",
+        "The context line identifies Harbor Signal with zero visible personas, and no organization-owner question is asked because Harbor has no suborgs.",
+        "The accepted file is personas/regional-operations-director.md with its display-name H1 and every supplied responsibility, trigger, disqualifier, and open-question fact.",
+        "The accepted persona is freeform, factual, flat, and contains the interview-notes fact without adopting an old fixed schema or machine metadata.",
+        "The unsafe credential-bearing URL and token are never opened, persisted, or echoed; only a plain source label may remain.",
+        "The complete preview bytes equal the saved file, and the repo is clean on main with exactly one commit beyond the seed changing only that persona.",
+        "The close says the persona was saved to history and gives the bare root label regional-operations-director.",
+        "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+        "No dead-model operator, cwd-position, inherited-visibility, fixed-schema, altitude, or machine-state language appears."
+      ],
+      "allowed_example_values": []
+    },
+    {
+      "id": 2,
+      "name": "suborg-create-destination",
+      "prompt": "Create a new buyer persona in my Solace Cloud GTM context. Simulate Theo through completion. Solace has an Enterprise suborganization and persona artifacts at both nodes. Because the request does not name an owner, Theo answers the required ownership question by selecting Solace Enterprise even though root is recommended first. The new persona is Cloud Governance Lead: manages cross-functional cloud policy for regulated workloads, influences security review, and does not hold final budget approval; disqualify advisory architects without policy ownership. The existing Enterprise persona Security Assurance Director is adjacent but not a duplicate. Accept the accurate complete draft and save it. Complete all work inside this run's HOME.",
+      "expected_output": "A node-local Enterprise persona created after the mandatory destination choice, grounded only in Enterprise context and carrying the qualified label enterprise/cloud-governance-lead.",
+      "files": ["evals/gtm-persona/fixtures/suborg-create-destination"],
+      "assertions": [
+        "Create asks exactly which organization should own this persona, lists Solace Cloud root first as `(Recommended)`, and lists Solace Enterprise before continuing.",
+        "After selection the context line identifies Solace Enterprise with one visible persona.",
+        "The run reads the Enterprise org chain and Enterprise Security Assurance Director persona but does not read, quote, or use the root Startup Platform Engineer persona.",
+        "The accepted file is suborgs/enterprise/personas/cloud-governance-lead.md with the display-name H1 and every supplied responsibility, influence, authority boundary, and disqualifying fact.",
+        "The draft is distinct from the adjacent Enterprise persona, remains freeform, and omits empty or invented sections.",
+        "The complete preview bytes equal the saved file, and the repo is clean on main with one new commit changing only the new persona.",
+        "The close says saved to history and gives the qualified label enterprise/cloud-governance-lead.",
+        "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+        "No dead-model operator, cwd-position, inherited-visibility, fixed-schema, altitude, or machine-state language appears."
+      ],
+      "allowed_example_values": []
+    },
+    {
+      "id": 3,
+      "name": "root-update-node-local",
+      "prompt": "Update the root Founder-Led Revenue Leader persona in Solace Cloud. Simulate Priya through completion. Change the managed revenue-team size from 3–8 to 5–12 and add responsibility for partner-led pipeline. Preserve all unrelated facts, including that the persona does not own procurement approval. The request explicitly names the root organization, so do not ask which node. Accept the complete before/after proposal and save it. Complete all work inside this run's HOME.",
+      "expected_output": "A root-only persona update that never reads Enterprise persona content, preserves unrelated bytes, and records one accepted history entry.",
+      "files": ["evals/gtm-persona/fixtures/root-update-node-local"],
+      "assertions": [
+        "The explicit root target is honored without a node-selection question, and the context line identifies Solace Cloud with one visible persona.",
+        "The run reads the root Founder-Led Revenue Leader persona but never reads, quotes, or uses the Enterprise Security Assurance Director persona.",
+        "The proposal shows complete before and complete after Markdown for the target file.",
+        "The saved persona changes 3–8 to 5–12, adds partner-led pipeline responsibility, and preserves all unrelated facts including the procurement-authority boundary.",
+        "The repo remains clean on main with exactly one new history entry changing only the root persona, and the close says saved to history.",
+        "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+        "No dead-model operator, cwd-position, inherited-visibility, fixed-schema, altitude, or machine-state language appears."
+      ],
+      "allowed_example_values": []
+    },
+    {
+      "id": 4,
+      "name": "delete-obvious-node",
+      "prompt": "Delete the Transit Innovation Director persona from my Northstar Transit GTM context. Simulate Leon through completion. Only the Mobility node has any persona, so use that obvious node without asking which organization. Show the full consequence and recovery guidance, accept the deletion, and save it. Complete all work inside this run's HOME.",
+      "expected_output": "The sole Mobility persona is removed after a complete consequence preview while the org and ICP remain intact, with one history entry and recovery guidance.",
+      "files": ["evals/gtm-persona/fixtures/delete-obvious-node"],
+      "assertions": [
+        "The only persona-bearing Mobility node is selected without a node question, and the context line identifies Northstar Mobility with one visible persona.",
+        "The consequence report names Northstar Mobility, the qualified label mobility/transit-innovation-director, and that downstream lead segmentation and scoring will no longer see it.",
+        "The accepted proposal names the exact persona path that will be deleted.",
+        "Only suborgs/mobility/personas/transit-innovation-director.md disappears; root org, Mobility org, and the Mobility ICP remain byte-preserved.",
+        "The repo is clean on main with exactly one new history entry, and the close says saved to history with recovery guidance.",
+        "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+        "No dead-model operator, cwd-position, inherited-visibility, fixed-schema, altitude, or machine-state language appears."
+      ],
+      "allowed_example_values": []
+    },
+    {
+      "id": 5,
+      "name": "doctor-persona-scope",
+      "prompt": "Doctor the persona artifacts in my Copper Finch GTM context. Simulate Sam through completion. Report every healthy check and defect, keep the work strictly scoped to personas even though an ICP is malformed, preserve useful persona facts while repairing what can be repaired, remove unrecoverable husks, accept the complete repair set, save it once, and rerun the health checks. Complete all work inside this run's HOME.",
+      "expected_output": "A repo-wide persona-only repair that fixes placement, slug, H1, substance, and husk defects in one exact Repair Persona artifacts history entry while leaving the malformed ICP untouched.",
+      "files": ["evals/gtm-persona/fixtures/doctor-persona-scope"],
+      "assertions": [
+        "The report identifies the stray archive/personas directory, uppercase/underscore slug, missing H1, TODO husk, and non-matchable vague persona.",
+        "The report explicitly limits repair scope to personas and leaves the malformed ICP for its owning skill.",
+        "The useful Revenue Operations Leader facts survive in exactly one lowercase-kebab persona file with a display-name H1.",
+        "The TODO husk, non-matchable vague persona, and stray persona artifact are absent after repair.",
+        "The malformed ICP remains byte-for-byte unchanged.",
+        "The repo is clean on main and gains exactly one `Repair Persona artifacts` history entry changing only persona paths.",
+        "The close reruns the checks, reports persona health, and says saved to history.",
+        "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+        "No dead-model operator, cwd-position, inherited-visibility, fixed-schema, altitude, or machine-state language appears."
+      ],
+      "allowed_example_values": []
+    }
+  ]
+}

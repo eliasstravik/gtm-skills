@@ -1,0 +1,16 @@
+{
+  "candidates": [
+    {
+      "description": "Triggers when a user asks to create, update, delete, or doctor a buyer or stakeholder persona in a connected GTM context. Not for ICPs, segmentation, scoring, research, or managing the context repository itself.",
+      "rationale": "Bare-core description with concise branch triggers and broad exclusions."
+    },
+    {
+      "description": "Triggers when a user asks to create, define, refine, update, delete, or doctor a buyer or stakeholder persona file in a connected GTM context, including choosing which organization owns it. Not for ICPs, lead segmentation or scoring, account or lead research, teammate records, general persona advice, or creating, importing, deleting, or repairing the context repository itself.",
+      "rationale": "Adds natural define/refine language, the ownership boundary, and explicit sibling and repo-level exclusions."
+    },
+    {
+      "description": "Triggers when the requested outcome is to add, revise, remove, or validate persona Markdown owned by an organization in an existing GTM context. Not for ICP files, teammate profiles, lead classification, fit scoring, prospect research, generic buyer-persona exercises, or context-repository setup and repair.",
+      "rationale": "Frames discovery around the durable persona-file outcome while separating similar uses of persona language."
+    }
+  ]
+}
