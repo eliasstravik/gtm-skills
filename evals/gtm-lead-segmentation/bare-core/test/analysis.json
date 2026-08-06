@@ -1,0 +1,104 @@
+{
+  "comparison_summary": {
+    "winner": "A",
+    "winner_skill": "/Users/eliasstravik/dev/gtmskills/evals/gtm-lead-segmentation/bare-core/snapshot/skill.snapshot.md",
+    "loser_skill": "",
+    "comparator_reasoning": "Output A won 8.3 to 6.7 because it was substantially more complete and auditable. It stated the Northstar Enterprise context and persona count, grounded every decision in supplied facts and persona prose, named losing alternatives, applied the external-consultant disqualifier, included totals, and used the required no-side-effects closing sentence. Output B reached broadly correct decisions but omitted most of that reporting contract. Both outputs missed exact qualified machine labels, opening quality counts, and visible confidence and review-needed fields."
+  },
+  "winner_strengths": [
+    "The recipe explicitly required the context header: \"State `Using GTM context: <display name> — <N> personas visible`.\" The winner reproduced it as \"Using GTM context: Northstar Enterprise — 2 personas visible,\" satisfying an expectation that the loser missed.",
+    "The instruction to compare leads with the target node's \"own freeform persona prose\" kept the winner scoped to the Enterprise personas. Its transcript read the two Enterprise persona files without using or mentioning the root-only Startup Founder content.",
+    "The instruction to assign one label \"with cited language and losing alternatives\" materially improved auditability. For Mira and Tomas, the output quoted the matching responsibility and explained why the other persona lost; for Ava, it cited both advisor disqualifiers.",
+    "The explicit `no-match` instruction caused the winner to use the correct human-readable negative outcome for Ava, whereas the loser improvised \"None\" and \"Disqualified.\"",
+    "The instruction to render \"bulk counts\" prompted a complete tally of one Cloud Security Director, one Insurance Transformation VP, one no-match, and three total leads.",
+    "The exact closing instruction produced \"No files, git history, or external systems changed.\" The transcript also verified repository status, commit identity, and file hashes before and after execution.",
+    "The winner recovered from an initial repository-scope command failure by addressing `.gtm/northstar-cloud` directly and then completed the read-only analysis."
+  ],
+  "loser_weaknesses": [
+    "The loser had an empty skill, so there was no output contract requiring the context line, persona visibility count, exact negative label, cited persona language, losing alternatives, bulk counts, or the exact no-side-effects sentence.",
+    "Without a qualified-label rule, the loser used display names such as \"Cloud Security Director\" and \"Insurance Transformation VP\" instead of `enterprise/cloud-security-director` and `enterprise/insurance-transformation-vp`, and used \"None\" rather than the literal `no-match`.",
+    "Without a per-item schema, the loser produced only Lead, Enterprise segment, Decision, and Supplied-fact basis columns. It omitted confidence, review-needed status, matching persona language, and explicit losing alternatives.",
+    "Without a bulk-summary rule, the loser did not open with accurate-label, low-confidence, and review-needed counts or provide segment totals.",
+    "The loser read and surfaced the root-only Startup Founder persona before later finding the Enterprise files. Although its final output did not mention that persona, an explicit node-local visibility rule would have prevented the unnecessary access.",
+    "The loser correctly inferred the consultant disqualification, but compressed both persona disqualifiers into a generalized sentence rather than separately citing the governing language.",
+    "Both runs encountered an initial Git command failure because the sandbox root was not itself a repository. The empty loser skill supplied no repository-resolution procedure, and the winner skill only said to resolve the repo without giving a precise method."
+  ],
+  "instruction_following": {
+    "winner": {
+      "score": 9,
+      "issues": [
+        "It used persona display names rather than fully qualified labels such as `enterprise/cloud-security-director` and `enterprise/insurance-transformation-vp`; the phrase \"qualified persona label\" was not operationally defined in the skill.",
+        "Its bulk counts appeared after the items and did not include accurate-label, low-confidence, or review-needed counts.",
+        "The compact item fields were not defined, so the output omitted confidence and review-needed fields.",
+        "It created the required evaluation artifact, but its literal closing claim that no files changed could be misread unless evaluation-output files are explicitly excluded from that statement."
+      ]
+    },
+    "loser": {
+      "score": 10,
+      "issues": [
+        "There was no loser skill and therefore no skill-specific instruction to violate; this score reflects vacuous instruction following, not output quality.",
+        "The absence of instructions left the agent to improvise the output contract, directly contributing to the comparator's completeness findings."
+      ]
+    }
+  },
+  "improvement_suggestions": [
+    {
+      "priority": "high",
+      "category": "instructions",
+      "suggestion": "Create a loser skill with an explicit node-local segmentation procedure: resolve the requested organization node, read only that node's `org.md` and `personas/*.md`, and never inspect ancestor or sibling persona directories unless the user explicitly requests them.",
+      "expected_impact": "Would preserve node boundaries, avoid unnecessary access to root-only persona content, and reliably produce the required Enterprise context."
+    },
+    {
+      "priority": "high",
+      "category": "instructions",
+      "suggestion": "Define the label contract precisely: derive each persona label as `<target-node-slug>/<persona-file-stem>` and assign exactly one such label or the literal `no-match` per lead.",
+      "expected_impact": "Would fix the exact-label failure shared by both outputs and prevent improvised values such as \"None.\""
+    },
+    {
+      "priority": "high",
+      "category": "structure",
+      "suggestion": "Specify an exact response template that begins with `Using GTM context: <display name> — <N> personas visible` followed immediately by `Accurate labels: <N>; low confidence: <N>; review needed: <N>`.",
+      "expected_impact": "Would satisfy the missing context and opening-count expectations and make bulk results immediately auditable."
+    },
+    {
+      "priority": "high",
+      "category": "structure",
+      "suggestion": "Require these fields for every lead: supplied facts, exact label, confidence, review needed, matching persona language, plausible losing alternatives, and disqualifier applied. Define allowed confidence and review values.",
+      "expected_impact": "Would address the comparator's largest completeness gap and make every decision independently reviewable."
+    },
+    {
+      "priority": "high",
+      "category": "instructions",
+      "suggestion": "Require the exact final sentence `No files, git history, or external systems changed.` after verifying the context repository remains clean and its HEAD is unchanged.",
+      "expected_impact": "Would satisfy the closing requirement and provide evidence that segmentation was read-only."
+    },
+    {
+      "priority": "medium",
+      "category": "examples",
+      "suggestion": "Add a compact bulk example containing one exact persona match, one competing-persona comparison, and one `no-match` caused by an explicit disqualifier, including confidence and review-needed fields and opening counts.",
+      "expected_impact": "Would demonstrate the complete output contract and reduce ambiguity around negative classifications and losing alternatives."
+    },
+    {
+      "priority": "medium",
+      "category": "tools",
+      "suggestion": "Add a lightweight validation utility or checklist that verifies the context line, opening quality counts, one exact qualified label per item, all required item fields, total counts, and the exact closing sentence.",
+      "expected_impact": "Would catch every formatting and completeness defect identified by the comparator before the final response is written."
+    },
+    {
+      "priority": "medium",
+      "category": "error_handling",
+      "suggestion": "Document repository discovery and Git verification explicitly: locate the GTM repository under `.gtm/<slug>`, run Git checks with `git -C <resolved-repo>`, and avoid assuming the execution directory is a Git worktree.",
+      "expected_impact": "Would eliminate the initial failed Git commands seen in both transcripts and reduce unnecessary filesystem scanning."
+    },
+    {
+      "priority": "medium",
+      "category": "instructions",
+      "suggestion": "Define how to calculate confidence and review-needed status from evidence: direct responsibility plus no disqualifier yields high confidence and no review; partial or conflicting evidence yields low confidence and review needed; an explicit disqualifier yields `no-match` with the disqualifier cited.",
+      "expected_impact": "Would make the required quality counts reproducible rather than leaving them to agent improvisation."
+    }
+  ],
+  "transcript_insights": {
+    "winner_execution_pattern": "Read the supplied skill, searched for the GTM context, encountered a non-repository Git failure at the sandbox root, resolved `.gtm/northstar-cloud`, read the Enterprise organization and its two persona files, verified repository state and hashes, rendered evidence-rich per-lead decisions with alternatives and totals, then reverified that the context repository was unchanged.",
+    "loser_execution_pattern": "Inspected the filesystem without a skill, encountered the same non-repository Git failure, read root organization and root-only persona content before locating the Enterprise node, correctly inferred the three human-readable decisions, then produced a concise table with supplied-fact bases but no prescribed context header, exact labels, alternatives, confidence or review fields, counts, or exact closing sentence."
+  }
+}

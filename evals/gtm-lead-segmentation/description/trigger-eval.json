@@ -1,0 +1,22 @@
+[
+  {"query": "Segment Jordan Lee against the personas in our GTM context.", "should_trigger": true},
+  {"query": "Classify this list of 40 contacts into our buyer-persona segments.", "should_trigger": true},
+  {"query": "Which persona bucket does this VP belong in based on her responsibilities?", "should_trigger": true},
+  {"query": "Route these individual leads to one visible persona or no-match.", "should_trigger": true},
+  {"query": "Can you do lead segmentation for this CSV of people?", "should_trigger": true},
+  {"query": "Use /gtm-lead-segmentation on these three contacts.", "should_trigger": true},
+  {"query": "Assign each named buyer to the best-fit persona using only these facts.", "should_trigger": true},
+  {"query": "Tell me whether Priya is enterprise/security-director or another persona segment.", "should_trigger": true},
+  {"query": "Bucket our contact list against the persona prose already in the repo.", "should_trigger": true},
+  {"query": "Qualify these people into a single persona label apiece.", "should_trigger": true},
+  {"query": "Score these already-segmented leads as strong-fit, good-fit, weak-fit, or no-fit.", "should_trigger": false},
+  {"query": "Research Mira Chen and build an evidence-backed person brief.", "should_trigger": false},
+  {"query": "Create a new persona for cloud security directors.", "should_trigger": false},
+  {"query": "Segment these companies against our ICPs.", "should_trigger": false},
+  {"query": "Set up a new GTM context repository for Northstar.", "should_trigger": false},
+  {"query": "Doctor the persona files and repair vague profiles.", "should_trigger": false},
+  {"query": "Score this account after I assigned the ICP label regional-utilities.", "should_trigger": false},
+  {"query": "Research Meridian Bank and prepare account outreach angles.", "should_trigger": false},
+  {"query": "Create an ICP for national insurers.", "should_trigger": false},
+  {"query": "Import our organization notes into the GTM context.", "should_trigger": false}
+]
