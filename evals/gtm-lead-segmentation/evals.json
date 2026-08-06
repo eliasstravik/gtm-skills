@@ -1,0 +1,79 @@
+{
+  "skill_name": "gtm-lead-segmentation",
+  "evals": [
+    {
+      "id": 1,
+      "name": "responsibility-over-title",
+      "prompt": "Use the Beacon Revenue GTM context at the root node. Segment Jordan Lee at CompassWorks using only these supplied facts: title Sales Director; owns forecasting, pipeline governance, and revenue systems across sales and marketing; has no frontline quota team and no direct reports. Do not enrich the lead.",
+      "expected_output": "A revenue-operations-leader classification based on responsibilities and scope rather than the Sales Director title.",
+      "files": [],
+      "expectations": [
+        "States the Beacon Revenue context line with two visible personas.",
+        "Assigns exactly one bare root label, revenue-operations-leader.",
+        "Explicitly weighs responsibilities and cross-functional scope over title.",
+        "Cites persona language, applies the sales-director disqualifier, and names that losing alternative.",
+        "Uses the compact lead fields and never treats Jordan as the user or operator.",
+        "Does not enrich, ask a question, or change durable state.",
+        "Closes with the exact no-side-effects sentence."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "suborg-bulk-node-local",
+      "prompt": "Use the Enterprise node in the Northstar Cloud GTM context. Segment these leads from supplied facts only: (1) Mira Chen, Director of Cloud Security at Meridian Bank, who owns cloud-risk reviews and vendor approval; (2) Tomas Ruiz, VP Transformation at Harbor Mutual, who owns the claims-modernization budget and cross-functional program; (3) Ava Holt, Cloud Security Advisor at ClearPath Consulting, an external consultant with no internal approval authority. Do not enrich them.",
+      "expected_output": "A three-lead bulk result using only Enterprise-local personas, with two qualified labels and one disqualifier-driven no-match.",
+      "files": [],
+      "expectations": [
+        "States the Northstar Enterprise context line with two visible personas.",
+        "Assigns enterprise/cloud-security-director, enterprise/insurance-transformation-vp, and no-match exactly once each.",
+        "Opens with accurate label, low-confidence, and review-needed counts.",
+        "Cites persona language, names plausible losing alternatives, and honors the external-consultant disqualifier.",
+        "Never reads or mentions root-only persona content.",
+        "Uses every compact item field, asks no question, and closes with the exact no-side-effects sentence.",
+        "Leaves the context repo and Git history unchanged."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "root-target-reverse-visibility",
+      "prompt": "Use the root node of the Northstar Cloud GTM context. Segment Priya Nair at Patchbay using supplied facts only: title Engineering Manager; owns developer productivity, internal tooling, and the developer-experience roadmap across four engineering teams. Do not enrich her.",
+      "expected_output": "A root developer-experience-lead classification based on responsibility and scope, excluding Enterprise persona prose.",
+      "files": [],
+      "expectations": [
+        "States the Northstar Cloud root context line with one visible persona.",
+        "Assigns the bare label developer-experience-lead.",
+        "Cites root persona prose and explains the title-versus-responsibility judgment without using Enterprise personas.",
+        "Uses the required compact fields, asks no question, and does not treat Priya as the user or operator.",
+        "Leaves all durable state unchanged and closes with the exact no-side-effects sentence."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "obvious-suborg-node",
+      "prompt": "In the Arbor Transit GTM context, segment Sam Okafor at MetroLink Authority from supplied facts only: title Program Manager; owns network planning, evaluates service changes, and coordinates planners across bus and light-rail teams. No organization node is specified. Do not enrich the lead.",
+      "expected_output": "Automatic selection of the only persona-owning node and a mobility/transit-planning-director result without a node question.",
+      "files": [],
+      "expectations": [
+        "Selects Arbor Mobility as the obvious node without asking.",
+        "States one visible persona and assigns mobility/transit-planning-director.",
+        "Grounds the result in responsibilities and scope rather than title, and explains that no other visible alternative exists.",
+        "Uses the required compact fields and exact no-side-effects close.",
+        "Leaves all durable state unchanged."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "empty-visible-set",
+      "prompt": "Use the root node of the Empty Harbor GTM context. Segment Elena Rossi, Operations Director at Lakeside Components, who oversees production planning. Use only supplied facts and do not enrich her.",
+      "expected_output": "A plain missing-prerequisite stop because the explicitly targeted root has no visible personas, even though a suborg owns one.",
+      "files": [],
+      "expectations": [
+        "States the Empty Harbor root context line with zero visible personas.",
+        "Reports the missing persona prerequisite and stops without classifying the lead.",
+        "Does not inspect, mention, or borrow the suborg-only persona.",
+        "Asks no question, invents no persona label, and never treats Elena as the user or operator.",
+        "Leaves all durable state unchanged and closes with the exact no-side-effects sentence."
+      ]
+    }
+  ]
+}
