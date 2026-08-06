@@ -1,0 +1,22 @@
+[
+  {"query": "Score Riverbend's fit now that its segment label is regional-utilities.", "should_trigger": true},
+  {"query": "Rank these already-segmented accounts by strong-fit, good-fit, weak-fit, or no-fit.", "should_trigger": true},
+  {"query": "Use the supplied ICP labels to qualify these companies without changing their segments.", "should_trigger": true},
+  {"query": "Prioritize this account list by qualitative fit against each labeled ICP.", "should_trigger": true},
+  {"query": "Can you score these labeled target accounts from the facts in this CSV?", "should_trigger": true},
+  {"query": "Use /gtm-account-scoring for these three companies.", "should_trigger": true},
+  {"query": "The label is enterprise/regulated-platforms; tell me the account fit band.", "should_trigger": true},
+  {"query": "Map no-match accounts to no-fit and score the rest against their ICP prose.", "should_trigger": true},
+  {"query": "Which of our segmented companies are strong-fit versus weak-fit?", "should_trigger": true},
+  {"query": "Check these account labels and assign one qualitative band apiece.", "should_trigger": true},
+  {"query": "Segment these companies into the best visible ICP or no-match.", "should_trigger": false},
+  {"query": "Design a 100-point account scoring rubric with weighted firmographic criteria.", "should_trigger": false},
+  {"query": "Research Meridian Bank and build an evidence-backed company brief.", "should_trigger": false},
+  {"query": "Score these individual leads against their persona labels.", "should_trigger": false},
+  {"query": "Create a new ICP for regional electric utilities.", "should_trigger": false},
+  {"query": "Set up a new GTM context repository for Northstar.", "should_trigger": false},
+  {"query": "Calculate a numeric lead score from engagement events.", "should_trigger": false},
+  {"query": "Segment these contacts against our buyer personas.", "should_trigger": false},
+  {"query": "Research this VP and prepare outreach angles.", "should_trigger": false},
+  {"query": "Doctor our ICP files and repair vague profiles.", "should_trigger": false}
+]
