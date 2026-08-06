@@ -1,0 +1,662 @@
+{
+  "metadata": {
+    "skill_name": "gtm-lead-research",
+    "skill_path": "skills/gtm-lead-research",
+    "executor_model": "gpt-5.6-sol",
+    "analyzer_model": "gpt-5.6-sol",
+    "timestamp": "2026-08-06T09:11:00Z",
+    "evals_run": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 92.619,
+        "tokens": 7235,
+        "tool_calls": 11,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States Atlas Dev context with one visible ICP and one visible persona.",
+          "passed": true,
+          "evidence": "context/counts"
+        },
+        {
+          "text": "Preserves platform-engineering-leader without re-segmenting.",
+          "passed": true,
+          "evidence": "label preserved"
+        },
+        {
+          "text": "Separates inspected findings, unverified claims, and tentative role or pain hypotheses with provenance.",
+          "passed": true,
+          "evidence": "evidence boundaries"
+        },
+        {
+          "text": "Interprets persona relevance, timing, risks, and outreach angles and assigns high priority with calibrated confidence.",
+          "passed": true,
+          "evidence": "interpretation/priority"
+        },
+        {
+          "text": "Uses the lean person-brief spine, asks no question, and closes exactly.",
+          "passed": true,
+          "evidence": "brief/no question/close"
+        },
+        {
+          "text": "Leaves all durable state unchanged.",
+          "passed": true,
+          "evidence": "commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "old-model hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 75.49,
+        "tokens": 5673,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States Northstar Enterprise context with one visible ICP and one visible persona.",
+          "passed": true,
+          "evidence": "context/counts"
+        },
+        {
+          "text": "Preserves enterprise/cloud-security-director and never re-segments.",
+          "passed": true,
+          "evidence": "label preserved"
+        },
+        {
+          "text": "Uses Enterprise persona prose while never reading or mentioning root-only artifacts.",
+          "passed": true,
+          "evidence": "node-local artifacts"
+        },
+        {
+          "text": "Represents the unsafe source only as Private source withheld.",
+          "passed": true,
+          "evidence": "safe source label"
+        },
+        {
+          "text": "Uses the complete brief spine, one allowed priority, calibrated confidence, and exact close.",
+          "passed": true,
+          "evidence": "brief/priority/close"
+        },
+        {
+          "text": "Leaves all durable state unchanged.",
+          "passed": true,
+          "evidence": "commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "old-model hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 94.921,
+        "tokens": 5098,
+        "tool_calls": 8,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States Northstar Cloud root context with one visible ICP and one visible persona.",
+          "passed": true,
+          "evidence": "context/counts"
+        },
+        {
+          "text": "Preserves enterprise/cloud-security-director, flags it not visible, and never re-segments.",
+          "passed": true,
+          "evidence": "label visibility"
+        },
+        {
+          "text": "Never reads or mentions Enterprise-only artifact content.",
+          "passed": true,
+          "evidence": "suborg excluded"
+        },
+        {
+          "text": "Preserves packet provenance and renders a complete research-needed brief.",
+          "passed": true,
+          "evidence": "provenance/cautious brief"
+        },
+        {
+          "text": "Asks no question, closes exactly, and leaves durable state unchanged.",
+          "passed": true,
+          "evidence": "no question/close/state: commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "old-model hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 90.646,
+        "tokens": 9229,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States Signal Harbor context and preserves all labels.",
+          "passed": true,
+          "evidence": "context/labels"
+        },
+        {
+          "text": "Opens with one high, one medium, and one research-needed priority.",
+          "passed": true,
+          "evidence": "priority distribution"
+        },
+        {
+          "text": "Keeps findings, claims, hypotheses, conflicts, and sources separate per person.",
+          "passed": true,
+          "evidence": "boundaries/provenance"
+        },
+        {
+          "text": "Renders a complete brief per lead with confidence and review fields.",
+          "passed": true,
+          "evidence": "three briefs"
+        },
+        {
+          "text": "Asks no question, closes exactly, and leaves durable state unchanged.",
+          "passed": true,
+          "evidence": "no question/close/state: commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "old-model hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 76.265,
+        "tokens": 5144,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Explains that lead research is not stored in the org-only context repo.",
+          "passed": true,
+          "evidence": "org-only explanation"
+        },
+        {
+          "text": "Still renders the complete copyable brief without approval.",
+          "passed": true,
+          "evidence": "copyable complete brief"
+        },
+        {
+          "text": "Preserves the persona label and uses the visible persona without re-segmenting.",
+          "passed": true,
+          "evidence": "label/relevance"
+        },
+        {
+          "text": "Makes no write, asks no question, and closes exactly.",
+          "passed": true,
+          "evidence": "state/no question/close: commit_count=1; status=''"
+        },
+        {
+          "text": "Leaves the context repo byte-for-byte unchanged.",
+          "passed": true,
+          "evidence": "commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "old-model hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 71.801,
+        "tokens": 2411,
+        "tool_calls": 8,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States Empty Harbor root context with zero visible ICPs and personas.",
+          "passed": true,
+          "evidence": "zero context"
+        },
+        {
+          "text": "Reports the missing persona prerequisite and stops without a priority or brief.",
+          "passed": true,
+          "evidence": "missing prerequisite stop"
+        },
+        {
+          "text": "Preserves the label and never inspects or mentions the suborg persona.",
+          "passed": true,
+          "evidence": "label/suborg exclusion"
+        },
+        {
+          "text": "Never treats the lead as user or operator, asks no question, closes exactly, and leaves durable state unchanged.",
+          "passed": true,
+          "evidence": "no question/lead separation/close/state: commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "old-model hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.2857,
+        "passed": 2,
+        "failed": 5,
+        "total": 7,
+        "time_seconds": 74.897,
+        "tokens": 7742,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States Atlas Dev context with one visible ICP and one visible persona.",
+          "passed": false,
+          "evidence": "context/counts"
+        },
+        {
+          "text": "Preserves platform-engineering-leader without re-segmenting.",
+          "passed": false,
+          "evidence": "label preserved"
+        },
+        {
+          "text": "Separates inspected findings, unverified claims, and tentative role or pain hypotheses with provenance.",
+          "passed": false,
+          "evidence": "evidence boundaries"
+        },
+        {
+          "text": "Interprets persona relevance, timing, risks, and outreach angles and assigns high priority with calibrated confidence.",
+          "passed": false,
+          "evidence": "interpretation/priority"
+        },
+        {
+          "text": "Uses the lean person-brief spine, asks no question, and closes exactly.",
+          "passed": false,
+          "evidence": "brief/no question/close"
+        },
+        {
+          "text": "Leaves all durable state unchanged.",
+          "passed": true,
+          "evidence": "commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "old-model hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4286,
+        "passed": 3,
+        "failed": 4,
+        "total": 7,
+        "time_seconds": 74.684,
+        "tokens": 5666,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States Northstar Enterprise context with one visible ICP and one visible persona.",
+          "passed": false,
+          "evidence": "context/counts"
+        },
+        {
+          "text": "Preserves enterprise/cloud-security-director and never re-segments.",
+          "passed": false,
+          "evidence": "label preserved"
+        },
+        {
+          "text": "Uses Enterprise persona prose while never reading or mentioning root-only artifacts.",
+          "passed": true,
+          "evidence": "node-local artifacts"
+        },
+        {
+          "text": "Represents the unsafe source only as Private source withheld.",
+          "passed": false,
+          "evidence": "safe source label"
+        },
+        {
+          "text": "Uses the complete brief spine, one allowed priority, calibrated confidence, and exact close.",
+          "passed": false,
+          "evidence": "brief/priority/close"
+        },
+        {
+          "text": "Leaves all durable state unchanged.",
+          "passed": true,
+          "evidence": "commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "old-model hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 64.336,
+        "tokens": 4685,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States Northstar Cloud root context with one visible ICP and one visible persona.",
+          "passed": false,
+          "evidence": "context/counts"
+        },
+        {
+          "text": "Preserves enterprise/cloud-security-director, flags it not visible, and never re-segments.",
+          "passed": false,
+          "evidence": "label visibility"
+        },
+        {
+          "text": "Never reads or mentions Enterprise-only artifact content.",
+          "passed": true,
+          "evidence": "suborg excluded"
+        },
+        {
+          "text": "Preserves packet provenance and renders a complete research-needed brief.",
+          "passed": false,
+          "evidence": "provenance/cautious brief"
+        },
+        {
+          "text": "Asks no question, closes exactly, and leaves durable state unchanged.",
+          "passed": false,
+          "evidence": "no question/close/state: commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "old-model hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.1667,
+        "passed": 1,
+        "failed": 5,
+        "total": 6,
+        "time_seconds": 86.817,
+        "tokens": 6858,
+        "tool_calls": 5,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States Signal Harbor context and preserves all labels.",
+          "passed": false,
+          "evidence": "context/labels"
+        },
+        {
+          "text": "Opens with one high, one medium, and one research-needed priority.",
+          "passed": false,
+          "evidence": "priority distribution"
+        },
+        {
+          "text": "Keeps findings, claims, hypotheses, conflicts, and sources separate per person.",
+          "passed": false,
+          "evidence": "boundaries/provenance"
+        },
+        {
+          "text": "Renders a complete brief per lead with confidence and review fields.",
+          "passed": false,
+          "evidence": "three briefs"
+        },
+        {
+          "text": "Asks no question, closes exactly, and leaves durable state unchanged.",
+          "passed": false,
+          "evidence": "no question/close/state: commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "old-model hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 60.851,
+        "tokens": 3207,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Explains that lead research is not stored in the org-only context repo.",
+          "passed": false,
+          "evidence": "org-only explanation"
+        },
+        {
+          "text": "Still renders the complete copyable brief without approval.",
+          "passed": false,
+          "evidence": "copyable complete brief"
+        },
+        {
+          "text": "Preserves the persona label and uses the visible persona without re-segmenting.",
+          "passed": false,
+          "evidence": "label/relevance"
+        },
+        {
+          "text": "Makes no write, asks no question, and closes exactly.",
+          "passed": false,
+          "evidence": "state/no question/close: commit_count=1; status=''"
+        },
+        {
+          "text": "Leaves the context repo byte-for-byte unchanged.",
+          "passed": true,
+          "evidence": "commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "old-model hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 64.488,
+        "tokens": 4227,
+        "tool_calls": 9,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States Empty Harbor root context with zero visible ICPs and personas.",
+          "passed": false,
+          "evidence": "zero context"
+        },
+        {
+          "text": "Reports the missing persona prerequisite and stops without a priority or brief.",
+          "passed": false,
+          "evidence": "missing prerequisite stop"
+        },
+        {
+          "text": "Preserves the label and never inspects or mentions the suborg persona.",
+          "passed": true,
+          "evidence": "label/suborg exclusion"
+        },
+        {
+          "text": "Never treats the lead as user or operator, asks no question, closes exactly, and leaves durable state unchanged.",
+          "passed": false,
+          "evidence": "no question/lead separation/close/state: commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "old-model hits=[]"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 83.6237,
+        "stddev": 10.1778,
+        "min": 71.801,
+        "max": 94.921
+      },
+      "tokens": {
+        "mean": 5798.3333,
+        "stddev": 2290.9317,
+        "min": 2411,
+        "max": 9229
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.3246,
+        "stddev": 0.0928,
+        "min": 0.1667,
+        "max": 0.4286
+      },
+      "time_seconds": {
+        "mean": 71.0122,
+        "stddev": 9.6825,
+        "min": 60.851,
+        "max": 86.817
+      },
+      "tokens": {
+        "mean": 5397.5,
+        "stddev": 1695.7505,
+        "min": 3207,
+        "max": 7742
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.68",
+      "time_seconds": "+12.6",
+      "tokens": "+401"
+    }
+  },
+  "notes": [
+    "The first full treatment passes all 37 assertions across six scenarios; paired no-skill runs pass 12/37.",
+    "The suborg and root-qualified-label cases prove node-local persona visibility in both directions while preserving supplied labels and never re-segmenting.",
+    "Unsafe tokenized input is never opened, reproduced, or characterized and appears only as the plain label Private source withheld.",
+    "Bulk output reconciles one high, one medium, and one research-needed priority while retaining independent evidence boundaries per person.",
+    "A save request produces the full copyable brief after the org-only explanation and leaves the context repository unchanged.",
+    "The shipped skill passes the explicit fixture-name and fixture-verdict leakage scan.",
+    "Description selection used three runs per query and achieved 60/60; artifact evaluation used one run per configuration per scenario."
+  ]
+}
