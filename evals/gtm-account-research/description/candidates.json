@@ -1,0 +1,20 @@
+{
+  "candidates": [
+    {
+      "description": "Triggers when a user asks to research target accounts from supplied sources or web access and produce an evidence-backed company brief in a GTM context. Not for segmentation, scoring, lead research, ICP or persona authoring, CRM writes, or context setup.",
+      "rationale": "Direct research outcome with sibling exclusions."
+    },
+    {
+      "description": "Triggers when a user asks for company research, an account brief, buying-signal analysis, ICP-fit interpretation, or account personalization grounded in sources and a GTM context. Not for assigning labels or scores, researching people, writing CRM data, defining ICPs or personas, or managing context repos.",
+      "rationale": "Covers common account-research deliverables."
+    },
+    {
+      "description": "Triggers when a user wants an evidence-backed company brief, account research, fit or timing analysis, or sales personalization using supplied sources or web access. Not for segmentation, scoring, lead research, ICP or persona authoring, CRM writes, or context setup.",
+      "rationale": "Observable outcomes plus clear adjacent-workflow seams."
+    },
+    {
+      "description": "Triggers when a user wants one or many evidence-backed account briefs, company research, research-priority triage, fit or timing analysis, sales personalization, or handling of a request to save account research, using supplied sources or web access. Not for segment-label assignment, fit-band or numeric scoring, lead research, ICP or persona authoring, CRM writes, org-profile editing, or context setup.",
+      "rationale": "Makes bulk priority and the response-only save-request contract observable while separating org-profile edits."
+    }
+  ]
+}
