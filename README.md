@@ -16,6 +16,20 @@ Install one skill by name:
 npx skills add <repo-path-or-url> --skill gtm-context -g
 ```
 
+## Available skills
+
+The repository ships nine installable skills:
+
+- `gtm-context` — create, import, update, delete, and validate organization context repositories.
+- `gtm-icp` — create, update, delete, and validate node-owned ICP artifacts.
+- `gtm-persona` — create, update, delete, and validate node-owned persona artifacts.
+- `gtm-account-segmentation` — assign account labels against visible ICP prose.
+- `gtm-lead-segmentation` — assign lead labels against visible persona prose.
+- `gtm-account-scoring` — score labeled accounts into fit bands.
+- `gtm-lead-scoring` — score labeled leads into fit bands.
+- `gtm-account-research` — produce evidence-backed, ephemeral company briefs.
+- `gtm-lead-research` — produce evidence-backed, ephemeral person briefs.
+
 ## Repository structure
 
 The repository has one deliberate seam:
@@ -26,13 +40,13 @@ The repository has one deliberate seam:
 
 ```text
 skills/
-└── gtm-context/
+└── <name>/
     ├── SKILL.md
     ├── references/
-    └── templates/
+    └── templates/     # when required at runtime
 
 evals/
-└── gtm-context/
+└── <name>/
     ├── evals.json
     ├── fixtures/
     ├── scripts/
@@ -55,4 +69,18 @@ Extract shared evaluation machinery to `evals/_shared/` only after a second skil
 
 ## Current validation
 
-`gtm-context` passes 28/28 artifact assertions with the skill versus 15/28 without it. Its Codex/GPT description classifier passes 60/60 trigger and near-miss runs. Curated results live in `evals/gtm-context/evidence/final/`.
+All nine skills pass the repository layout check and skill validator. Every description classifier uses Codex/GPT and passes 60/60 trigger and sibling-workflow near-miss runs.
+
+| Skill | Artifact validation | Control |
+| --- | ---: | ---: |
+| `gtm-context` | 80/80 current; 28/28 curated | 15/28 curated |
+| `gtm-icp` | 41/41 | 18/41 |
+| `gtm-persona` | 41/41 | 16/41 |
+| `gtm-account-segmentation` | 33/33 | 10/33 |
+| `gtm-lead-segmentation` | 34/34 | 9/34 |
+| `gtm-account-scoring` | 36/36 | 12/36 |
+| `gtm-lead-scoring` | 36/36 | 10/36 |
+| `gtm-account-research` | 37/37 | 12/37 |
+| `gtm-lead-research` | 37/37 | 12/37 |
+
+The `gtm-context` current result is its full extended regression suite; its existing curated row and the other eight rows are paired with-skill and no-skill benchmarks. Curated results live under each skill's `evals/<name>/evidence/final/` directory.
