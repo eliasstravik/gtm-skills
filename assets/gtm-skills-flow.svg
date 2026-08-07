@@ -1,34 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420" role="img" aria-labelledby="title desc">
-  <title id="title">GTM Skills turns one GTM context into the next qualified action</title>
-  <desc id="desc">A simple terminal shows a GTM context request followed by a ready organization context with ICP, persona, account, and lead skills.</desc>
+  <title id="title">GTM Skills account scoring agent chat</title>
+  <desc id="desc">A user asks the GTM Skills agent to score Northstar Labs against the Enterprise SaaS ICP. The agent returns a natural-language strong-fit answer grounded in shared GTM context.</desc>
 
   <rect width="960" height="420" rx="20" fill="#f6f8fa"/>
-  <rect x="72" y="42" width="816" height="336" rx="16" fill="#0d1117" stroke="#30363d" stroke-width="2"/>
+  <rect x="72" y="30" width="816" height="360" rx="16" fill="#ffffff" stroke="#d0d7de" stroke-width="2"/>
 
-  <rect x="72" y="42" width="816" height="46" rx="16" fill="#161b22"/>
-  <rect x="72" y="70" width="816" height="18" fill="#161b22"/>
-  <circle cx="98" cy="65" r="6" fill="#ff7b72"/>
-  <circle cx="118" cy="65" r="6" fill="#f2cc60"/>
-  <circle cx="138" cy="65" r="6" fill="#56d364"/>
-  <text x="480" y="70" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="12" font-weight="700" fill="#8b949e">GTM SKILLS</text>
+  <line x1="72" y1="92" x2="888" y2="92" stroke="#d8dee4"/>
+  <circle cx="112" cy="61" r="16" fill="#1f2328"/>
+  <text x="112" y="67" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" font-weight="600" fill="#ffffff">C</text>
+  <circle cx="728" cy="61" r="5" fill="#2da44e"/>
+  <text x="744" y="67" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#656d76">Shared GTM context</text>
 
-  <rect x="128" y="124" width="704" height="62" rx="10" fill="#161b22" stroke="#30363d"/>
-  <text x="154" y="161" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="16" font-weight="700" fill="#7ee787">/gtm-context</text>
-  <text x="286" y="161" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="16" fill="#f0f6fc">Build our GTM context</text>
+  <path d="M321 122h505a14 14 0 0 1 14 14v37a5 5 0 0 1-5 5H321a14 14 0 0 1-14-14v-28a14 14 0 0 1 14-14Z" fill="#1f2328"/>
+  <text x="335" y="156" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#ffffff">/gtm-account-scoring Northstar Labs, northstarlab.com</text>
 
-  <rect x="128" y="208" width="704" height="116" rx="10" fill="#111820" stroke="#238636" stroke-width="2"/>
-  <circle cx="160" cy="240" r="11" fill="#238636"/>
-  <path d="m154 240 4 4 8-10" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="184" y="246" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#f0f6fc">GTM context ready</text>
+  <circle cx="128" cy="231" r="16" fill="#dafbe1"/>
+  <text x="128" y="237" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" font-weight="600" fill="#1a7f37">C</text>
+  <path d="M174 208h614a14 14 0 0 1 14 14v84a14 14 0 0 1-14 14H174a14 14 0 0 1-14-14v-84a14 14 0 0 1 14-14Z" fill="#f6f8fa"/>
+  <text x="186" y="240" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#1f2328">Northstar Labs is a strong fit.</text>
+  <text x="186" y="266" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#1f2328">It matches your Enterprise SaaS ICP on company scale,</text>
+  <text x="186" y="292" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#1f2328">multi-market GTM, and dedicated RevOps ownership. Confidence is high.</text>
 
-  <rect x="154" y="270" width="106" height="30" rx="7" fill="#21262d"/>
-  <text x="207" y="289" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11" fill="#79c0ff">Context</text>
-  <rect x="274" y="270" width="126" height="30" rx="7" fill="#21262d"/>
-  <text x="337" y="289" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11" fill="#79c0ff">ICP</text>
-  <rect x="414" y="270" width="126" height="30" rx="7" fill="#21262d"/>
-  <text x="477" y="289" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11" fill="#79c0ff">Personas</text>
-  <rect x="554" y="270" width="154" height="30" rx="7" fill="#21262d"/>
-  <text x="631" y="289" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="11" fill="#79c0ff">Accounts + leads</text>
-
-  <text x="480" y="354" text-anchor="middle" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="12" fill="#8b949e">Define · Segment · Score · Research</text>
+  <rect x="160" y="344" width="642" height="42" rx="21" fill="#f6f8fa"/>
+  <text x="186" y="370" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#8c959f">Ask the next GTM question…</text>
+  <circle cx="780" cy="365" r="15" fill="#1f2328"/>
+  <path d="m775 367 5-5 5 5M780 362v8" fill="none" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
