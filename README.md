@@ -158,3 +158,7 @@ One repository holds what your team knows about the market. Nine focused skills 
 <p align="center">
   ✓ 100% free and open source &nbsp;&nbsp; ✓ Nine GTM skills, one install &nbsp;&nbsp; ✓ Built for the full GTM motion
 </p>
+
+<p align="center">
+  ⭐ Used by top GTM teams
+</p>
