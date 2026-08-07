@@ -1,0 +1,92 @@
+{
+  "comparison_summary": {
+    "mapping": "After reading the blind comparison, A maps to the with-skill output and B maps to the no-skill output.",
+    "result": "A won decisively: 6/7 expectations in the blind comparison versus 3/7 for B. Transcript-aware grading also favored with-skill, 5/8 versus 3/8.",
+    "shared_failure": "Both configurations converted the persona disqualifier into no-fit. The expected behavior was weak-fit with an explicit statement that the disqualifier capped the band.",
+    "grader_disagreement": "The blind comparison credited A for reproducing the persona-specific disqualifier language and satisfying the compact-format closure requirement. The transcript grader rejected A on the strict quotation criterion and, less plausibly, on the compound formatting/closure criterion even though the artifact visibly uses the requested fields and exact closing sentence."
+  },
+  "winner_strengths": [
+    {
+      "gain": "Declared the resolved target context and visible persona count.",
+      "recipe_source": "Instructions 1 and 2."
+    },
+    {
+      "gain": "Preserved the supplied qualified label and validated it against the target node's persona.",
+      "recipe_source": "Instruction 4."
+    },
+    {
+      "gain": "Grounded the rationale in both matched responsibilities and the persona's decisive disqualifier language.",
+      "recipe_source": "Instructions 4 and 6."
+    },
+    {
+      "gain": "Used the canonical compact Lead, Label, Fit, and Reason fields.",
+      "recipe_source": "Instruction 7."
+    },
+    {
+      "gain": "Ended with the exact durable-state assurance.",
+      "recipe_source": "Instruction 8."
+    },
+    {
+      "gain": "Kept root-only persona content out of both execution and output.",
+      "recipe_source": "The target-node restriction in instruction 4."
+    }
+  ],
+  "loser_weaknesses": [
+    "Omitted the context declaration and visible-persona count.",
+    "Used an ad hoc heading and Score/Rationale presentation instead of the canonical compact fields.",
+    "Paraphrased the decisive persona language rather than clearly quoting it.",
+    "Replaced the required durable-state closure with a narrower statement about enrichment.",
+    "Read a root-only persona and exposed its internal marker in the transcript, despite the request targeting a suborganization node.",
+    "Like A, treated a disqualifier as an automatic no-fit outcome instead of a cap on an otherwise matching lead."
+  ],
+  "instruction_following": {
+    "with_skill": {
+      "followed": [
+        "Resolved the intended context and target node.",
+        "Declared the context and persona count.",
+        "Preserved and validated the supplied label.",
+        "Used qualitative scoring without arithmetic.",
+        "Rendered compact scoring fields.",
+        "Used the exact state-change closure.",
+        "Avoided enrichment and durable changes."
+      ],
+      "missed": [
+        "Did not assign the required weak-fit band.",
+        "Did not explicitly say that the disqualifier capped the band.",
+        "Reproduced only the decisive phrase rather than presenting an unmistakable verbatim quotation under the strict grader."
+      ]
+    },
+    "without_skill": {
+      "followed": [
+        "Preserved the supplied label.",
+        "Compared supplied facts with the target persona.",
+        "Named both matching responsibilities and the disqualifying condition.",
+        "Avoided enrichment and durable changes."
+      ],
+      "missed": [
+        "No canonical context declaration.",
+        "No canonical compact output fields.",
+        "No exact durable-state closure.",
+        "No strict verbatim quotation.",
+        "Wrong fit-band treatment.",
+        "Violated target-node isolation during execution by reading root-only persona content."
+      ]
+    }
+  },
+  "improvement_suggestions": [
+    "Define the allowed qualitative bands explicitly and state that an explicit persona disqualifier caps an otherwise matching lead at weak-fit; reserve no-fit for a label that does not match a visible persona.",
+    "When a disqualifier controls the result, explicitly say that it caps the band and include both the positive match evidence and the limiting evidence.",
+    "Quote decisive persona language verbatim and visibly mark it as a quotation rather than relying on a close paraphrase.",
+    "Scope persona discovery and reading to the selected organization node. Do not inspect parent, sibling, or descendant persona content unless the request explicitly includes it.",
+    "Avoid repository-wide history or content commands that can reveal out-of-scope personas; inspect only the files required to resolve the selected node and supplied label."
+  ],
+  "transcript_insights": [
+    "The with-skill run operationalized the recipe into a better final contract: context declaration, canonical fields, exact closure, and target-node persona isolation.",
+    "The no-skill run found the correct target persona but then unnecessarily opened the root persona and displayed its internal evaluation marker. This failure is visible only in transcript-aware grading, not in the neutral output comparison.",
+    "Both runs correctly left the GTM repository clean and at the original commit.",
+    "The with-skill run made one failed repository-status command from the wrong working directory and performed broad filesystem enumeration before locating the context. This did not affect the answer but shows that context resolution can be made more targeted.",
+    "Both executors reasoned that the persona's plain-language disqualifier directly determined no-fit. Because the desired taxonomy instead treats it as a weak-fit cap, that policy must be stated explicitly; it cannot reliably be inferred from the persona prose alone.",
+    "The strict grading result shows that reproducing a distinctive phrase is insufficient when the requirement says quote: explicit quotation boundaries and complete decisive wording are safer.",
+    "The transcript grader's rejection of A's compact-format/exact-close expectation conflicts with the artifact and blind comparison. The artifact should be treated as compliant on that point, while the shared band error remains unambiguous."
+  ]
+}

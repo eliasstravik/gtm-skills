@@ -1,0 +1,7 @@
+{
+  "candidates": [
+    {"description": "Triggers when a user asks for evidence-backed person research or outreach preparation using a GTM context, supplied sources, or web access. Not for segmentation, scoring, account research, persona authoring, CRM writes, or context setup.", "rationale": "Concise intent."},
+    {"description": "Triggers when a user asks for a person brief, lead research, role or timing analysis, or personalized outreach grounded in sources and a GTM context. Not for assigning persona labels or scores, company research, persona authoring, CRM writes, or context management.", "rationale": "Deliverable-oriented."},
+    {"description": "Triggers when a user wants one or many evidence-backed person briefs, lead research, role or timing analysis, outreach preparation, or handling of a request to save lead research, using supplied sources or web access. Not for persona-label assignment, fit-band or numeric scoring, account research, persona authoring, CRM writes, person-record editing, or context setup.", "rationale": "Observable one-off, bulk, outreach, and save outcomes."}
+  ]
+}

@@ -1,0 +1,26 @@
+# Skill Benchmark: gtm-context
+
+**Model**: gpt-5.6-sol
+**Date**: 2026-08-05T11:57:52Z
+**Evals**: 1, 2, 3, 4, 5, 6 (1 runs each per configuration)
+
+## Summary
+
+| Metric | With Skill | Without Skill | Delta |
+|--------|------------|---------------|-------|
+| Pass Rate | 100% ± 0% | 57% ± 34% | +0.43 |
+| Time | 110.6s ± 22.7s | 87.2s ± 21.7s | +23.3s |
+| Tokens | 227096 ± 56476 | 136777 ± 20691 | +90319 |
+
+## Notes
+
+- Across the 28 paired assertions, 13 (46.4%) discriminate in favor of with_skill and 15 (53.6%) pass in both configurations. No assertion fails with_skill, passes only without_skill, or fails in both configurations; the entire 0.4333 mean pass-rate advantage comes from those 13 skill-only passes.
+- The discriminating checks are concentrated in evals 1, 2, 3, and 6: with_skill passes all 18 of their assertions, whereas without_skill passes 7 of 18. In eval 1, without_skill fails all four substantive creation/content/person/history checks and passes only the local-only no-remote/no-state check. In eval 2, it fails organization construction, people placement/affiliations, and six-entry history, while passing no-remote and repository-hygiene checks. In eval 3, it fails imported-repo shaping, person conversion, and conversion/history cleanup, while passing source immutability and no-remote checks.
+- Eval 6 shows a more granular boundary than evals 1-3: without_skill successfully repairs the Europe org H1/overview and relocates Sam with the supplied email, but fails exact root-contract restoration, state/empty-directory cleanup, and the exact one-commit repair-history requirement. With_skill passes all five.
+- All eight assertions in evals 4 and 5 pass under both configurations, making these two evals wholly non-discriminating in this benchmark. The targeted person update in eval 4 and subtree deletion/affiliation cleanup in eval 5 are therefore substantially easier than the creation, import-conversion, and repair scenarios represented by evals 1-3 and 6.
+- Several guardrail-style checks are also non-discriminating outside evals 4-5: preserving a local-only/no-remote state (evals 1 and 3), leaving no remote after multiplayer is declined and avoiding empty/placeholding/machine-state artifacts (eval 2), and preserving the source fixture byte-for-byte (eval 3) all pass in both configurations. These checks confirm invariants but do not contribute to the measured skill lift in this single-run sample.
+- Repository history is the most consistent discriminating theme: without_skill fails the multi-entry history requirements in evals 1 and 2, the combined conversion-history check in eval 3, and the exact repair commit requirement in eval 6, while with_skill passes every one. By contrast, the exactly-one-entry update and deletion history checks in evals 4 and 5 pass in both configurations.
+- With_skill increases mean runtime from 87.216 to 110.553 seconds (+23.337 seconds, about +26.8%), mean tokens from 136,777 to 227,096 (+90,319, about +66.0%), and total tool calls from 42 to 60 (+18, or +42.9%). The token increase is much larger proportionally than the runtime increase.
+- Resource deltas vary sharply by eval. Eval 2 has the largest runtime penalty (+55.274 seconds, +86.8%), followed by eval 3 (+40.812 seconds, +53.0%). Eval 5 has essentially identical runtime (+0.048 seconds) despite using 127,538 more tokens (+83.5%) and four more tool calls with_skill. Eval 4 is the sole case where with_skill uses fewer tokens (12,247 fewer, -7.5%) and fewer tool calls (two fewer), while still taking 5.493 seconds longer.
+- The highest with_skill token counts occur in eval 6 (286,364) and eval 5 (280,255), but their runtimes differ by 30.308 seconds (130.937 versus 100.629). Eval 1 nearly doubles token use relative to without_skill (+96.2%), and eval 6 does likewise (+98.1%); these large token gaps are not mirrored by equally large runtime gaps (+12.7% and +22.6%, respectively).
+- Only one run was executed per configuration per eval. Consequently, the observed pass/fail pairings and resource differences describe cross-eval patterns, but they provide no within-eval evidence about flakiness or run-to-run variance; the reported standard deviations aggregate different evals rather than repeated executions of the same eval.

@@ -1,0 +1,53 @@
+{
+  "winner": "A",
+  "reasoning": "A is substantially more complete, evidence-disciplined, and usable. It renders a comprehensive copyable brief, preserves the supplied persona without re-segmenting, distinguishes inspected facts from hypotheses, documents uncertainties and provenance, asks no question, reports no mutation, and ends with the exact operational close. B preserves the persona and avoids fabrication, but its brief is materially thinner, treats several inferences as qualification signals, provides weaker provenance and uncertainty handling, and does not close exactly. Neither output clearly states the general rule that lead research is not stored in an org-only context repo, though A comes closer by explicitly explaining why the person artifact was not saved.",
+  "rubric": {
+    "expectation_satisfaction": {
+      "A": 4.5,
+      "B": 3.0
+    },
+    "evidence_discipline": {
+      "A": 5.0,
+      "B": 3.5
+    },
+    "structure": {
+      "A": 5.0,
+      "B": 4.0
+    },
+    "usability": {
+      "A": 5.0,
+      "B": 4.0
+    }
+  },
+  "output_quality": {
+    "A": "High. The brief is complete, clearly organized, cautious about unsupported conclusions, explicit about provenance and gaps, and immediately reusable.",
+    "B": "Moderate. It is concise and copyable, but omits important interpretation, risk, conflict, and provenance detail and makes stronger qualification claims than the supplied evidence supports."
+  },
+  "expectation_results": [
+    {
+      "expectation": "Explains that lead research is not stored in the org-only context repo.",
+      "A": "Partial pass: explicitly explains that the durable person artifact was not saved, but does not clearly articulate the broader org-only storage rule.",
+      "B": "Fail: explains non-modification through acceptance and evaluation constraints, not because an org-only context repo is not the storage location for lead research."
+    },
+    {
+      "expectation": "Still renders the complete copyable brief without approval.",
+      "A": "Pass: provides a complete, standalone brief without requesting approval.",
+      "B": "Partial pass: provides a copyable brief, but it is materially less complete."
+    },
+    {
+      "expectation": "Preserves the persona label and uses the visible persona without re-segmenting.",
+      "A": "Pass: preserves `platform-engineering-leader` explicitly and anchors the assessment to the visible persona.",
+      "B": "Pass: preserves `platform-engineering-leader` and does not introduce a replacement segment."
+    },
+    {
+      "expectation": "Makes no write, asks no question, and closes exactly.",
+      "A": "Pass: reports no mutation, asks no question, and closes with \"No files, git history, or external systems changed.\"",
+      "B": "Partial pass: reports no mutation and asks no question, but does not use the exact close."
+    },
+    {
+      "expectation": "Leaves the context repo byte-for-byte unchanged.",
+      "A": "Pass based on the output's explicit statement that no files or Git history changed.",
+      "B": "Pass based on the output's explicit statement that the context was not modified or committed."
+    }
+  ]
+}

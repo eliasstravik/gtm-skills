@@ -1,0 +1,12 @@
+{
+  "candidates": [
+    {
+      "description": "Triggers when the user invokes `/gtm-context` or asks to create or import a Markdown GTM context repo at `~/.gtm/<org-slug>/`, change or delete stored organization, suborganization, or teammate files in that repo, or validate or repair the repo's contract or Git health. The requested outcome must modify the context repo itself or report its health. Excludes tasks that only read or depend on existing context without maintaining it.",
+      "rationale": "Uses one outcome boundary instead of repeating near-miss keywords that increased false-positive inspection."
+    },
+    {
+      "description": "Triggers when the user invokes `/gtm-context` or directly asks to create or import, edit or delete content within, or inspect or repair the structure and Git health of a `~/.gtm/<org-slug>/` GTM context repo or folder. The intended result must be a change to that repo or a health report about it; using context as input to another task does not qualify.",
+      "rationale": "Tightens selection around a direct repository outcome and removes near-miss domain vocabulary."
+    }
+  ]
+}

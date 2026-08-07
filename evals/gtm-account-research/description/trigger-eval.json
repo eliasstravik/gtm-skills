@@ -1,0 +1,22 @@
+[
+  {"query": "Research Meridian Bank and give me an evidence-backed account brief from these source packets.", "should_trigger": true},
+  {"query": "Use our GTM context and web access to find current buying signals for Copperline.", "should_trigger": true},
+  {"query": "Prepare ICP-fit, timing, risks, and personalization angles for this target company.", "should_trigger": true},
+  {"query": "Build company briefs for these 20 accounts and rank their research priority.", "should_trigger": true},
+  {"query": "I need a sourced account brief for tomorrow's discovery call.", "should_trigger": true},
+  {"query": "Use /gtm-account-research on this supplied company packet.", "should_trigger": true},
+  {"query": "Research this prospect company but don't change its supplied segment label.", "should_trigger": true},
+  {"query": "Can you investigate whether this account has an active evaluation and suggest a sales angle?", "should_trigger": true},
+  {"query": "Save an account research brief into our context repo for reuse.", "should_trigger": true},
+  {"query": "Turn these company sources into a provenance-preserving research brief.", "should_trigger": true},
+  {"query": "Segment these accounts into our visible ICPs.", "should_trigger": false},
+  {"query": "Assign strong-fit or weak-fit bands to these already-labeled companies.", "should_trigger": false},
+  {"query": "Research Jordan Lee and prepare personalized outreach for that individual.", "should_trigger": false},
+  {"query": "Create an ICP for regulated banks.", "should_trigger": false},
+  {"query": "Write these account notes into Salesforce.", "should_trigger": false},
+  {"query": "Set up a GTM context repository for Atlas Dev.", "should_trigger": false},
+  {"query": "Create a buyer persona for platform engineering leaders.", "should_trigger": false},
+  {"query": "Design a numeric account scoring model from intent data.", "should_trigger": false},
+  {"query": "Update the company overview in org.md.", "should_trigger": false},
+  {"query": "Find and segment individual leads at these target accounts.", "should_trigger": false}
+]

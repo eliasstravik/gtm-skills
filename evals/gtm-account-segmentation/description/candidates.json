@@ -1,0 +1,16 @@
+{
+  "candidates": [
+    {
+      "description": "Triggers when a user asks to classify or segment companies against ICPs in a connected GTM context. Not for account scoring, company research, ICP authoring, lead segmentation, or repository management.",
+      "rationale": "Direct task noun and sibling exclusions."
+    },
+    {
+      "description": "Triggers when a user asks to classify, segment, route, or bucket companies against ICPs in a connected GTM context. Not for scoring already-labeled accounts, researching or enriching companies, defining ICPs, segmenting leads, or managing the context repository.",
+      "rationale": "Covers common segmentation verbs while making the labels-in scoring seam explicit."
+    },
+    {
+      "description": "Triggers when a user wants one ICP segment or no-match assigned to each supplied company using a connected GTM context. Not for point or band scoring, enrichment, account research, ICP creation, people segmentation, or context setup.",
+      "rationale": "Describes the observable output and sharpens company-versus-person intent."
+    }
+  ]
+}

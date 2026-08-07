@@ -1,0 +1,584 @@
+{
+  "metadata": {
+    "skill_name": "gtm-account-segmentation",
+    "skill_path": "skills/gtm-account-segmentation",
+    "executor_model": "gpt-5.6-sol",
+    "analyzer_model": "gpt-5.6-sol",
+    "timestamp": "2026-08-06T07:59:36Z",
+    "evals_run": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 53.912,
+        "tokens": 3142,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States the Atlas Grid context line with two visible ICPs.",
+          "passed": true,
+          "evidence": "Checked exact root context line."
+        },
+        {
+          "text": "Assigns exactly one bare root label, regional-utilities.",
+          "passed": true,
+          "evidence": "Checked the single Label field."
+        },
+        {
+          "text": "Cites matching language from the regional-utilities ICP and names industrial-energy-operators as a losing alternative.",
+          "passed": true,
+          "evidence": "Checked winning ICP language and the named losing alternative."
+        },
+        {
+          "text": "Uses the required compact result fields and calibrated values.",
+          "passed": true,
+          "evidence": "Checked compact fields and confidence vocabulary."
+        },
+        {
+          "text": "Does not enrich, ask a question, or change durable state.",
+          "passed": true,
+          "evidence": "Checked no question/enrichment and clean state: commit_count=1; status=''"
+        },
+        {
+          "text": "Closes with the exact no-side-effects sentence.",
+          "passed": true,
+          "evidence": "Checked exact terminal close."
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "time_seconds": 54.204,
+        "tokens": 4997,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States the Northstar Enterprise context line with two visible ICPs.",
+          "passed": true,
+          "evidence": "Checked exact Enterprise context line."
+        },
+        {
+          "text": "Assigns enterprise/regulated-financial-platforms, enterprise/national-insurers, and no-match exactly once each.",
+          "passed": true,
+          "evidence": "Checked three exact Label fields."
+        },
+        {
+          "text": "Opens with accurate label, low-confidence, and review-needed counts.",
+          "passed": true,
+          "evidence": "Checked bulk opening and label counts."
+        },
+        {
+          "text": "Cites Enterprise ICP language, names plausible losing alternatives, and honors the residential-installer disqualifier.",
+          "passed": true,
+          "evidence": "Checked ICP-language grounding, alternatives, and disqualifier."
+        },
+        {
+          "text": "Never reads or mentions root-only ICP content.",
+          "passed": true,
+          "evidence": "Checked absence of root-only content in transcript and output."
+        },
+        {
+          "text": "Uses every compact item field, asks no question, and closes with the exact no-side-effects sentence.",
+          "passed": true,
+          "evidence": "Checked every compact field, no question, and exact close."
+        },
+        {
+          "text": "Leaves the context repo and Git history unchanged.",
+          "passed": true,
+          "evidence": "commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 61.936,
+        "tokens": 3262,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States the Northstar Cloud root context line with one visible ICP.",
+          "passed": true,
+          "evidence": "Checked exact root context line."
+        },
+        {
+          "text": "Assigns the bare label developer-tools-startups.",
+          "passed": true,
+          "evidence": "Checked bare root label."
+        },
+        {
+          "text": "Cites root ICP prose without naming or using either Enterprise ICP.",
+          "passed": true,
+          "evidence": "Checked root grounding and reverse visibility."
+        },
+        {
+          "text": "Uses the required compact fields with no question.",
+          "passed": true,
+          "evidence": "Checked compact fields and no question."
+        },
+        {
+          "text": "Leaves all durable state unchanged and closes with the exact no-side-effects sentence.",
+          "passed": true,
+          "evidence": "Checked clean state and exact close: commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 47.798,
+        "tokens": 2883,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Selects Arbor Mobility as the obvious node without asking.",
+          "passed": true,
+          "evidence": "Checked obvious-node selection and no question."
+        },
+        {
+          "text": "States one visible ICP and assigns mobility/public-transit-agencies.",
+          "passed": true,
+          "evidence": "Checked qualified suborg label."
+        },
+        {
+          "text": "Grounds the result in the local ICP prose and explains that no other visible alternative exists.",
+          "passed": true,
+          "evidence": "Checked ICP grounding and absence of an alternative."
+        },
+        {
+          "text": "Uses the required compact fields and exact no-side-effects close.",
+          "passed": true,
+          "evidence": "Checked compact fields and exact close."
+        },
+        {
+          "text": "Leaves all durable state unchanged.",
+          "passed": true,
+          "evidence": "commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 42.216,
+        "tokens": 2241,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States the Empty Harbor root context line with zero visible ICPs.",
+          "passed": true,
+          "evidence": "Checked exact zero-visible context line."
+        },
+        {
+          "text": "Reports the missing ICP prerequisite and stops without classifying the account.",
+          "passed": true,
+          "evidence": "Checked missing-prerequisite stop and absence of classification."
+        },
+        {
+          "text": "Does not inspect, mention, or borrow the suborg-only ICP.",
+          "passed": true,
+          "evidence": "Checked absence of suborg-only content."
+        },
+        {
+          "text": "Asks no question and invents no ICP or segment label.",
+          "passed": true,
+          "evidence": "Checked no question or invented label."
+        },
+        {
+          "text": "Leaves all durable state unchanged and closes with the exact no-side-effects sentence.",
+          "passed": true,
+          "evidence": "Checked clean state and exact close: commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.1429,
+        "passed": 1,
+        "failed": 6,
+        "total": 7,
+        "time_seconds": 47.351,
+        "tokens": 2827,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States the Atlas Grid context line with two visible ICPs.",
+          "passed": false,
+          "evidence": "Checked exact root context line."
+        },
+        {
+          "text": "Assigns exactly one bare root label, regional-utilities.",
+          "passed": false,
+          "evidence": "Checked the single Label field."
+        },
+        {
+          "text": "Cites matching language from the regional-utilities ICP and names industrial-energy-operators as a losing alternative.",
+          "passed": false,
+          "evidence": "Checked winning ICP language and the named losing alternative."
+        },
+        {
+          "text": "Uses the required compact result fields and calibrated values.",
+          "passed": false,
+          "evidence": "Checked compact fields and confidence vocabulary."
+        },
+        {
+          "text": "Does not enrich, ask a question, or change durable state.",
+          "passed": false,
+          "evidence": "Checked no question/enrichment and clean state: commit_count=1; status=''"
+        },
+        {
+          "text": "Closes with the exact no-side-effects sentence.",
+          "passed": false,
+          "evidence": "Checked exact terminal close."
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.375,
+        "passed": 3,
+        "failed": 5,
+        "total": 8,
+        "time_seconds": 43.879,
+        "tokens": 3882,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States the Northstar Enterprise context line with two visible ICPs.",
+          "passed": false,
+          "evidence": "Checked exact Enterprise context line."
+        },
+        {
+          "text": "Assigns enterprise/regulated-financial-platforms, enterprise/national-insurers, and no-match exactly once each.",
+          "passed": false,
+          "evidence": "Checked three exact Label fields."
+        },
+        {
+          "text": "Opens with accurate label, low-confidence, and review-needed counts.",
+          "passed": false,
+          "evidence": "Checked bulk opening and label counts."
+        },
+        {
+          "text": "Cites Enterprise ICP language, names plausible losing alternatives, and honors the residential-installer disqualifier.",
+          "passed": false,
+          "evidence": "Checked ICP-language grounding, alternatives, and disqualifier."
+        },
+        {
+          "text": "Never reads or mentions root-only ICP content.",
+          "passed": true,
+          "evidence": "Checked absence of root-only content in transcript and output."
+        },
+        {
+          "text": "Uses every compact item field, asks no question, and closes with the exact no-side-effects sentence.",
+          "passed": false,
+          "evidence": "Checked every compact field, no question, and exact close."
+        },
+        {
+          "text": "Leaves the context repo and Git history unchanged.",
+          "passed": true,
+          "evidence": "commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 41.466,
+        "tokens": 3031,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States the Northstar Cloud root context line with one visible ICP.",
+          "passed": false,
+          "evidence": "Checked exact root context line."
+        },
+        {
+          "text": "Assigns the bare label developer-tools-startups.",
+          "passed": false,
+          "evidence": "Checked bare root label."
+        },
+        {
+          "text": "Cites root ICP prose without naming or using either Enterprise ICP.",
+          "passed": true,
+          "evidence": "Checked root grounding and reverse visibility."
+        },
+        {
+          "text": "Uses the required compact fields with no question.",
+          "passed": false,
+          "evidence": "Checked compact fields and no question."
+        },
+        {
+          "text": "Leaves all durable state unchanged and closes with the exact no-side-effects sentence.",
+          "passed": false,
+          "evidence": "Checked clean state and exact close: commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 48.15,
+        "tokens": 2707,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Selects Arbor Mobility as the obvious node without asking.",
+          "passed": false,
+          "evidence": "Checked obvious-node selection and no question."
+        },
+        {
+          "text": "States one visible ICP and assigns mobility/public-transit-agencies.",
+          "passed": false,
+          "evidence": "Checked qualified suborg label."
+        },
+        {
+          "text": "Grounds the result in the local ICP prose and explains that no other visible alternative exists.",
+          "passed": false,
+          "evidence": "Checked ICP grounding and absence of an alternative."
+        },
+        {
+          "text": "Uses the required compact fields and exact no-side-effects close.",
+          "passed": false,
+          "evidence": "Checked compact fields and exact close."
+        },
+        {
+          "text": "Leaves all durable state unchanged.",
+          "passed": true,
+          "evidence": "commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.3333,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 43.995,
+        "tokens": 2597,
+        "tool_calls": 5,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "States the Empty Harbor root context line with zero visible ICPs.",
+          "passed": false,
+          "evidence": "Checked exact zero-visible context line."
+        },
+        {
+          "text": "Reports the missing ICP prerequisite and stops without classifying the account.",
+          "passed": false,
+          "evidence": "Checked missing-prerequisite stop and absence of classification."
+        },
+        {
+          "text": "Does not inspect, mention, or borrow the suborg-only ICP.",
+          "passed": false,
+          "evidence": "Checked absence of suborg-only content."
+        },
+        {
+          "text": "Asks no question and invents no ICP or segment label.",
+          "passed": true,
+          "evidence": "Checked no question or invented label."
+        },
+        {
+          "text": "Leaves all durable state unchanged and closes with the exact no-side-effects sentence.",
+          "passed": false,
+          "evidence": "Checked clean state and exact close: commit_count=1; status=''"
+        },
+        {
+          "text": "No old-model concept appears in execution or output.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 52.0132,
+        "stddev": 7.4266,
+        "min": 42.216,
+        "max": 61.936
+      },
+      "tokens": {
+        "mean": 3305.0,
+        "stddev": 1024.8734,
+        "min": 2241,
+        "max": 4997
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.3036,
+        "stddev": 0.0916,
+        "min": 0.1429,
+        "max": 0.375
+      },
+      "time_seconds": {
+        "mean": 44.9682,
+        "stddev": 2.7477,
+        "min": 41.466,
+        "max": 48.15
+      },
+      "tokens": {
+        "mean": 3008.8,
+        "stddev": 513.9759,
+        "min": 2597,
+        "max": 3882
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.70",
+      "time_seconds": "+7.0",
+      "tokens": "+296"
+    }
+  },
+  "notes": [
+    "The full skill passes all 33 assertions across five scenarios, while paired no-skill runs pass 10/33 (30.3%); 23 assertions discriminate in favor of the skill and none favor the baseline.",
+    "Both node-local visibility directions are fully green with the skill: the Enterprise bulk run excludes root-only content, and the root run excludes both Enterprise-only ICPs. Their baselines pass only 3/8 and 2/6 respectively.",
+    "The obvious-node and empty-visible-set cases each pass 6/6 with-skill versus 2/6 without-skill, pinning the shared read-only rule: select the sole artifact-owning node automatically, but honor an explicit zero-artifact target and stop without borrowing another node's ICP.",
+    "The bulk case reconciles all three qualified labels with opening counts, compact per-account fields, quoted ICP prose, losing alternatives, and applicable disqualifiers.",
+    "The full skill averages 7.0 more seconds and 296 more measured output tokens per eval than the baseline while improving mean pass rate by 69.6 percentage points.",
+    "Only one artifact run per configuration per eval was used, so within-eval variance is not measured. Description selection separately used three runs per query and achieved 60/60."
+  ]
+}

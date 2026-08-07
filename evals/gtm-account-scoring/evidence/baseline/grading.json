@@ -1,0 +1,82 @@
+{
+  "expectations": [
+    {
+      "text": "States the Northstar Enterprise context line with one visible ICP.",
+      "passed": false,
+      "evidence": "Checked exact Enterprise context line."
+    },
+    {
+      "text": "Validates and preserves enterprise/regulated-financial-platforms.",
+      "passed": true,
+      "evidence": "Checked validation and preservation of the supplied qualified label."
+    },
+    {
+      "text": "Assigns exactly weak-fit and explicitly says the disqualifier caps the band.",
+      "passed": false,
+      "evidence": "Checked weak-fit disqualifier cap."
+    },
+    {
+      "text": "Quotes the ICP's own prohibition language while still naming matched fit signals.",
+      "passed": false,
+      "evidence": "Checked exact disqualifier quote and retained matched signals."
+    },
+    {
+      "text": "Never reads or mentions root-only ICP content.",
+      "passed": true,
+      "evidence": "Checked absence of root-only content in transcript and output."
+    },
+    {
+      "text": "Uses the compact scoring fields, asks no question, and closes with the exact no-side-effects sentence.",
+      "passed": false,
+      "evidence": "Checked compact fields, no question, and exact close."
+    },
+    {
+      "text": "Leaves all durable state unchanged.",
+      "passed": true,
+      "evidence": "commit_count=1; status=''"
+    },
+    {
+      "text": "No old-model concept appears in execution or output.",
+      "passed": true,
+      "evidence": "dead-model pattern hits=[]"
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 4,
+    "total": 8,
+    "pass_rate": 0.5
+  },
+  "execution_metrics": {
+    "tool_calls": {
+      "codex_items": 5
+    },
+    "total_tool_calls": 5,
+    "total_steps": 5,
+    "files_created": [
+      "artifact-report.md",
+      "final.md"
+    ],
+    "errors_encountered": 0,
+    "output_chars": 3167,
+    "transcript_chars": 14945
+  },
+  "timing": {
+    "total_tokens": 102251,
+    "duration_ms": 43450,
+    "total_duration_seconds": 43.45,
+    "input_tokens": 100973,
+    "cached_input_tokens": 76288,
+    "output_tokens": 1278
+  },
+  "claims": [],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": "Assertions are deterministic and scenario-specific."
+  }
+}
