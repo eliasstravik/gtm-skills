@@ -1,16 +1,20 @@
 {
   "candidates": [
     {
-      "description": "Triggers when a user asks to create, update, delete, or doctor a buyer or stakeholder persona in a connected GTM workspace. Not for ICPs, teammate records, general persona advice, or managing the context repository itself.",
-      "rationale": "Bare-core description with concise lifecycle triggers and neighboring artifact boundaries."
+      "description": "Triggers when a user asks to create, define, refine, update, delete, or doctor a buyer or stakeholder persona file in a connected GTM workspace, including choosing which organization owns it. Not for ICPs, teammate records, general persona advice, or creating, importing, deleting, or repairing the workspace repository itself.",
+      "rationale": "Incumbent routing rule measured as the non-regression baseline."
     },
     {
-      "description": "Triggers when a user asks to create, define, refine, update, delete, or doctor a buyer or stakeholder persona file in a connected GTM workspace, including choosing which organization owns it. Not for ICPs, teammate records, general persona advice, or creating, importing, deleting, or repairing the context repository itself.",
-      "rationale": "Adds natural define/refine language, the ownership boundary, and explicit sibling and repository-level exclusions."
+      "description": "Triggers when the user asks to create, define, refine, update, delete, or doctor a buyer or stakeholder persona Markdown artifact in an existing GTM workspace, including choosing its owner organization node and preserving responsibilities, buying influence, authority boundaries, disqualifiers, uncertainty, node-local visibility, approval, and scoped persistence. Not for ICP lifecycle work, teammate records, workspace creation/import/structural repair, lead research, lead segmentation or scoring, generic persona advice, fictional customer-avatar copywriting, or workflows that only read or use an existing persona without changing its workspace artifact.",
+      "rationale": "Best balance of explicit lifecycle verbs, artifact scope, ownership, preserved semantics, and sharp read-versus-write boundaries."
     },
     {
-      "description": "Triggers when the requested outcome is to add, revise, remove, or validate persona Markdown owned by an organization in an existing GTM workspace. Not for ICP files, teammate profiles, generic buyer-persona exercises, or context-repository setup and repair.",
-      "rationale": "Frames discovery around the durable persona-file outcome while separating similar uses of persona language."
+      "description": "Triggers when the user wants to create or define a node-owned buyer or stakeholder persona, refine or update an existing persona Markdown file, delete one, or doctor/repair a persona artifact in an existing GTM workspace, including deciding which organization node owns it. Not for reading a persona as context, ICP creation or maintenance, teammate records, workspace setup/import/structural repair, lead research, segmentation or scoring, general buyer-persona guidance, or fictional customer-avatar copy that does not modify workspace artifacts.",
+      "rationale": "Uses natural request wording and clearly separates persona artifact mutation from downstream workflows that merely consume persona data."
+    },
+    {
+      "description": "Triggers when a request changes the lifecycle state of one node-owned buyer or stakeholder persona Markdown artifact in an existing GTM workspace—for example, “create a persona,” “define our buyer,” “refine or update this stakeholder persona,” “delete it,” or “doctor this persona”—while retaining authority, influence, responsibilities, disqualifiers, uncertainty, visibility, approval, and ownership scope. Not for persona lookups or read-only use, ICP work, teammate data, workspace creation/import/repair, lead research, lead segmentation/scoring, generic advice, or fictional avatar copywriting.",
+      "rationale": "The example phrases improve routing recall while the lifecycle-state framing and negative list keep the skill narrowly scoped."
     }
   ]
 }

@@ -8,6 +8,7 @@ import concurrent.futures
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -65,6 +66,7 @@ USER REQUEST:
     transcript = output / "transcripts" / f"q{index + 1:02d}-r{repetition}.txt"
     transcript.parent.mkdir(parents=True, exist_ok=True)
     transcript.write_text(raw)
+    token_match = re.search(r"tokens used\s*\n([\d,]+)", raw)
     return {
         "query_index": index,
         "repetition": repetition,
@@ -75,6 +77,7 @@ USER REQUEST:
         "correct": observed == expected,
         "reason": parsed["reason"],
         "duration_seconds": round(time.monotonic() - started, 3),
+        "tokens_used": int(token_match.group(1).replace(",", "")) if token_match else 0,
         "model": model,
         "transcript": str(transcript.relative_to(output)),
     }
@@ -128,6 +131,8 @@ def main() -> None:
             "overall": metrics(records),
             "train": metrics(train),
             "held_out": metrics(held),
+            "total_duration_seconds": round(sum(row["duration_seconds"] for row in records), 3),
+            "total_tokens": sum(row["tokens_used"] for row in records),
             "failures": [row for row in records if not row["correct"]],
         },
         "records": records,

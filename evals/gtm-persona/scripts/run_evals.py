@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run gtm-persona evals in isolated HOME directories with Codex/GPT."""
+"""Run gtm-persona evals against the candidate and untouched skill snapshot."""
 
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ import time
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 EVAL_ROOT = Path(__file__).resolve().parents[1]
+SKILL_ROOT = REPO_ROOT / "skills" / "gtm-persona"
 CONTEXT_TEMPLATES = REPO_ROOT / "skills" / "gtm-workspace" / "templates"
 MODEL = "gpt-5.6-sol"
 AUTH_FILES = ("auth.json", ".credentials.json", "installation_id")
@@ -46,12 +47,12 @@ def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> None:
         run_git(repo, "commit", "-m", "Seed fixture", env=env)
 
 
-def copy_skill(skill_file: Path, home: Path) -> Path:
+def copy_skill(skill_root: Path, home: Path) -> Path:
     target = home / "skill"
     target.mkdir()
-    shutil.copy2(skill_file, target / "SKILL.md")
+    shutil.copy2(skill_root / "SKILL.md", target / "SKILL.md")
     for directory in ("references", "templates"):
-        source_dir = skill_file.parent / directory
+        source_dir = skill_root / directory
         if source_dir.is_dir():
             shutil.copytree(source_dir, target / directory)
     return target
@@ -84,9 +85,13 @@ def artifact_report(home: Path) -> str:
 
 def executor_prompt(eval_case: dict, skill_path: Path | None) -> str:
     skill_instruction = (
-        f"Read {skill_path}/SKILL.md completely and follow it, including every referenced file required by its Calls."
+        f"Read {skill_path}/SKILL.md completely and follow it, including every referenced file required by its References section."
         if skill_path
         else "No skill is available. Do not search for or read any SKILL.md. Solve the task from the user request alone."
+    )
+    environment_contract = eval_case.get(
+        "environment_contract",
+        "No environment-declared connected repo or replacement durable-write mechanism exists in this run.",
     )
     return f"""You are an independent executor in a controlled, non-interactive evaluation.
 
@@ -94,7 +99,7 @@ def executor_prompt(eval_case: dict, skill_path: Path | None) -> str:
 
 Isolation and capabilities:
 - HOME is a disposable sandbox. Work only inside HOME and never access the real ~/.gtm.
-- No environment-declared connected repo exists in this run.
+- Environment contract: {environment_contract}
 - Use only Codex/GPT and ordinary local tools. Do not use Claude.
 - Web access is unavailable. Local supplied sources remain readable.
 - Use repo-local git configuration only.
@@ -117,7 +122,7 @@ def run_one(
     eval_case: dict,
     configuration: str,
     iteration: Path,
-    skill_file: Path | None,
+    baseline_skill_root: Path | None,
 ) -> dict:
     eval_dir = iteration / f"eval-{eval_case['id']}-{eval_case['name']}"
     run_dir = eval_dir / configuration / "run-1"
@@ -143,7 +148,8 @@ def run_one(
             }
         )
         seed_home(eval_case, home, env)
-        skill_path = copy_skill(skill_file, home) if configuration == "with_skill" and skill_file else None
+        skill_root = SKILL_ROOT if configuration == "with_skill" else baseline_skill_root
+        skill_path = copy_skill(skill_root, home) if skill_root else None
         (home / "eval-output").mkdir()
 
         command = [
@@ -257,16 +263,18 @@ def run_one(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("iteration", type=Path)
-    parser.add_argument("--skill-file", type=Path)
+    parser.add_argument("--baseline-skill-root", type=Path)
     parser.add_argument("--ids")
-    parser.add_argument("--configurations", default="with_skill,without_skill")
+    parser.add_argument("--configurations", default="with_skill,baseline_skill")
     parser.add_argument("--max-workers", type=int, default=6)
     args = parser.parse_args()
     configurations = [value.strip() for value in args.configurations.split(",") if value.strip()]
-    if set(configurations) - {"with_skill", "without_skill"}:
+    if set(configurations) - {"with_skill", "baseline_skill", "without_skill"}:
         parser.error("unknown configuration")
-    if "with_skill" in configurations and not args.skill_file:
-        parser.error("--skill-file is required for with_skill runs")
+    if "baseline_skill" in configurations and (
+        not args.baseline_skill_root or not (args.baseline_skill_root / "SKILL.md").is_file()
+    ):
+        parser.error("--baseline-skill-root must identify the untouched skill snapshot")
     evals = json.loads((EVAL_ROOT / "evals.json").read_text())["evals"]
     if args.ids:
         selected = {int(value) for value in args.ids.split(",")}
@@ -281,6 +289,8 @@ def main() -> None:
             "prompt": case["prompt"],
             "assertions": case["assertions"],
         }
+        if "environment_contract" in case:
+            metadata["environment_contract"] = case["environment_contract"]
         (eval_dir / "eval_metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
     jobs = [
         (case, configuration)
@@ -297,7 +307,7 @@ def main() -> None:
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.max_workers) as pool:
         futures = [
-            pool.submit(run_one, case, configuration, args.iteration, args.skill_file)
+            pool.submit(run_one, case, configuration, args.iteration, args.baseline_skill_root)
             for case, configuration in jobs
         ]
         for future in concurrent.futures.as_completed(futures):

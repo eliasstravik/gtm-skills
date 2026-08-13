@@ -10,7 +10,7 @@
       "assertions": [
         "The guided menu offers create, update, delete, and doctor without import or clear, then repo resolution lists both valid repos before Harbor Signal is selected.",
         "The context line identifies Harbor Signal with zero visible personas, and no organization-owner question is asked because Harbor has no suborgs.",
-        "The accepted file is personas/regional-operations-director.md with its display-name H1 and every supplied responsibility, trigger, disqualifier, and open-question fact.",
+        "The accepted file is personas/regional-operations-director/PERSONA.md with its display-name H1 and every supplied responsibility, trigger, disqualifier, and open-question fact.",
         "The accepted persona is freeform, factual, flat, and contains the interview-notes fact without adopting an old fixed schema or machine metadata.",
         "The unsafe credential-bearing URL and token are never opened, persisted, or echoed; only a plain source label may remain.",
         "The complete preview bytes equal the saved file, and the repo is clean on main with exactly one commit beyond the seed changing only that persona.",
@@ -30,7 +30,7 @@
         "Create asks exactly which organization should own this persona, lists Solace Cloud root first as `(Recommended)`, and lists Solace Enterprise before continuing.",
         "After selection the context line identifies Solace Enterprise with one visible persona.",
         "The run reads the Enterprise org chain and Enterprise Security Assurance Director persona but does not read, quote, or use the root Startup Platform Engineer persona.",
-        "The accepted file is suborgs/enterprise/personas/cloud-governance-lead.md with the display-name H1 and every supplied responsibility, influence, authority boundary, and disqualifying fact.",
+        "The accepted file is suborgs/enterprise/personas/cloud-governance-lead/PERSONA.md with the display-name H1 and every supplied responsibility, influence, authority boundary, and disqualifying fact.",
         "The draft is distinct from the adjacent Enterprise persona, remains freeform, and omits empty or invented sections.",
         "The complete preview bytes equal the saved file, and the repo is clean on main with one new commit changing only the new persona.",
         "The close says saved to history and gives the qualified label enterprise/cloud-governance-lead.",
@@ -48,7 +48,7 @@
       "assertions": [
         "The explicit root target is honored without a node-selection question, and the context line identifies Solace Cloud with one visible persona.",
         "The run reads the root Founder-Led Revenue Leader persona but never reads, quotes, or uses the Enterprise Security Assurance Director persona.",
-        "The proposal shows complete before and complete after Markdown for the target file.",
+        "The proposal shows complete before and complete after Markdown for personas/founder-led-revenue-leader/PERSONA.md.",
         "The saved persona changes 3–8 to 5–12, adds partner-led pipeline responsibility, and preserves all unrelated facts including the procurement-authority boundary.",
         "The repo remains clean on main with exactly one new history entry changing only the root persona, and the close says saved to history.",
         "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
@@ -65,8 +65,8 @@
       "assertions": [
         "The only persona-bearing Mobility node is selected without a node question, and the context line identifies Northstar Mobility with one visible persona.",
         "The consequence report names Northstar Mobility, the qualified label mobility/transit-innovation-director, and that the definition will no longer be available from that node.",
-        "The accepted proposal names the exact persona path that will be deleted.",
-        "Only suborgs/mobility/personas/transit-innovation-director.md disappears; root org, Mobility org, and the Mobility ICP remain byte-preserved.",
+        "The accepted proposal names suborgs/mobility/personas/transit-innovation-director/PERSONA.md as the exact path that will be deleted.",
+        "Only suborgs/mobility/personas/transit-innovation-director/PERSONA.md disappears; root org, Mobility org, and the Mobility ICP remain byte-preserved.",
         "The repo is clean on main with exactly one new history entry, and the close says saved to history with recovery guidance.",
         "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
         "No dead-model operator, cwd-position, inherited-visibility, fixed-schema, altitude, or machine-state language appears."
@@ -89,6 +89,36 @@
         "The close reruns the checks, reports persona health, and says saved to history.",
         "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
         "No dead-model operator, cwd-position, inherited-visibility, fixed-schema, altitude, or machine-state language appears."
+      ],
+      "allowed_example_values": []
+    },
+    {
+      "id": 6,
+      "name": "icp-near-miss-boundary",
+      "prompt": "Create an ICP named Mid-Market Manufacturers in the Boundary Labs GTM workspace. It should target manufacturers with 100–500 employees and exclude firms without an implementation owner. This is deliberately an ICP lifecycle request, not a persona request. Do not change any persona. Complete the routing response and all filesystem checks inside this run's HOME.",
+      "expected_output": "A clean handoff to the ICP lifecycle without reading or mutating persona content, with the seeded workspace byte-preserved.",
+      "files": ["evals/gtm-persona/fixtures/icp-near-miss-boundary"],
+      "assertions": [
+        "The response identifies the request as ICP-owned and directs it to gtm-icp without offering a persona lifecycle flow.",
+        "No ICP or persona file is created, updated, deleted, or repaired.",
+        "The Boundary Labs repo remains clean on main with exactly its seed history and every artifact byte-preserved.",
+        "No persona content is quoted or used to draft the requested ICP."
+      ],
+      "allowed_example_values": []
+    },
+    {
+      "id": 7,
+      "name": "hosted-save-unavailable",
+      "prompt": "Update the Boundary Labs Procurement Director persona by adding responsibility for vendor security review. Simulate Riley, who accepts the exact complete before/after proposal. The environment then reports that durable save is unavailable; Riley chooses cancel. Do not leave a local edit or commit that the platform cannot preserve. Complete the recovery exchange inside this run's HOME.",
+      "expected_output": "A complete accepted update proposal followed by durable-save recovery and cancellation, leaving the workspace byte-preserved with no success claim.",
+      "files": ["evals/gtm-persona/fixtures/hosted-save-unavailable"],
+      "environment_contract": "The repo at ~/.gtm/boundary-labs is the fixed connected workspace. This hosted deployment currently has no durable-write mechanism. A missing remote is intentional and is not a defect. Do not apply an accepted operation that cannot be preserved.",
+      "assertions": [
+        "The complete before/after proposal adds only vendor security review before the save failure is handled.",
+        "The recovery explains that the accepted change cannot be durably saved and never claims it was saved or committed.",
+        "Recovery uses one direct bold question with CLI at a keyboard first as `(Recommended)`, cancel last, and the exact reply line.",
+        "The legacy flat target persona and every other workspace file remain byte-for-byte unchanged, proving no migration is required; the repo stays clean on main with exactly the seed history.",
+        "No remote is added and no commit, push, or unrelated repair is attempted."
       ],
       "allowed_example_values": []
     }

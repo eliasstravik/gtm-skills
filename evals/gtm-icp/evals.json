@@ -10,7 +10,7 @@
       "assertions": [
         "The guided menu offers create, update, delete, and doctor without import or clear, then repo resolution lists both valid repos before Beacon Yards is selected.",
         "The context line identifies Beacon Yards with zero visible ICPs, and no organization-owner question is asked because Beacon has no suborgs.",
-        "The accepted file is icps/regional-field-service-operators.md with its display-name H1 and every supplied fit, trigger, disqualifier, and open-question fact.",
+        "The accepted file is icps/regional-field-service-operators/ICP.md with its display-name H1 and every supplied fit, trigger, disqualifier, and open-question fact.",
         "The accepted ICP is freeform, factual, flat, and contains the customer-notes fact without adopting an old fixed schema or machine metadata.",
         "The unsafe credential-bearing URL and token are never opened, persisted, or echoed; only a plain source label may remain.",
         "The complete preview bytes equal the saved file, and the repo is clean on main with exactly one commit beyond the seed changing only that ICP.",
@@ -30,7 +30,7 @@
         "Create asks exactly which organization should own the ICP, lists Nimbus Labs root first as `(Recommended)`, and lists Nimbus Enterprise before continuing.",
         "After selection the context line identifies Nimbus Enterprise with one visible ICP.",
         "The run reads the Enterprise org chain and Enterprise Regulated Platforms ICP but does not read, quote, or use the root Developer Tools Startups ICP.",
-        "The accepted file is suborgs/enterprise/icps/national-insurers.md with the display-name H1 and every supplied fit and disqualifying fact.",
+        "The accepted file is suborgs/enterprise/icps/national-insurers/ICP.md with the display-name H1 and every supplied fit and disqualifying fact.",
         "The draft is distinct from the adjacent Enterprise ICP, remains freeform, and omits empty or invented sections.",
         "The complete preview bytes equal the saved file, and the repo is clean on main with one new commit changing only the new ICP.",
         "The close says saved to history and gives the qualified label enterprise/national-insurers.",
@@ -48,7 +48,7 @@
       "assertions": [
         "The explicit root target is honored without a node-selection question, and the context line identifies Nimbus Labs with one visible ICP.",
         "The run reads the root Developer Tools Startups ICP and never reads, quotes, or uses Enterprise ICP content.",
-        "The proposal shows complete before and after Markdown for icps/developer-tools-startups.md before acceptance.",
+        "The proposal shows complete before and after Markdown for icps/developer-tools-startups/ICP.md before acceptance.",
         "The saved file changes the range to 30–250, adds the product-led preference, and preserves every unrelated supplied fact.",
         "The repo is clean on main with exactly one commit beyond the seed changing only the updated ICP, and the close says saved to history.",
         "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
@@ -65,7 +65,7 @@
       "assertions": [
         "The skill defaults to Arbor Mobility without a node-selection question and states a context line with one visible ICP.",
         "The consequence proposal names Arbor Mobility as owner, the qualified label mobility/public-transit-agencies, and that the definition will no longer be available from that node.",
-        "The exact file path suborgs/mobility/icps/public-transit-agencies.md is previewed for deletion before acceptance.",
+        "The exact file path suborgs/mobility/icps/public-transit-agencies/ICP.md is previewed for deletion before acceptance.",
         "The ICP file is absent afterward while the Mobility org, root org, and persona content remain unchanged.",
         "The repo is clean on main with one deletion commit beyond the seed; the close says saved to history and explains recovery from history.",
         "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
@@ -76,7 +76,7 @@
     {
       "id": 5,
       "name": "doctor-icp-scope",
-      "prompt": "Doctor the ICPs in my Kestrel Works GTM workspace. Simulate Priya, who accepts one complete repair proposal. Seeded ICP defects are intentional: root icps/Bad_Slug.md has no H1 but contains useful account-match facts; root icps/todo.md is only a TODO husk; suborgs/europe/icps/vague.md says nothing an account could match or fail; archive/icps/rogue.md is not beside an ORG.md. Preserve useful facts, repair or remove every ICP defect, and ignore the deliberately malformed persona file because persona content is outside this doctor's scope. Apply accepted repairs as one commit. Complete all work inside this run's HOME.",
+      "prompt": "Doctor the ICPs in my Kestrel Works GTM workspace. Simulate Priya, who accepts one complete repair proposal. Seeded ICP defects are intentional: root icps/Bad_Slug/ICP.md has a non-kebab directory slug and no H1 but contains useful account-match facts; root icps/todo/ICP.md is only a TODO husk; suborgs/europe/icps/vague/ICP.md says nothing an account could match or fail; archive/icps/rogue/ICP.md is not under an organization node. Preserve useful facts, repair or remove every ICP defect, and ignore the deliberately malformed persona file because persona content is outside this doctor's scope. Apply accepted repairs as one commit. Complete all work inside this run's HOME.",
       "expected_output": "A repo-wide ICP-only doctor pass that repairs placement, slug, H1, substance, and husk defects in one accepted history entry while leaving personas untouched.",
       "files": ["evals/gtm-icp/fixtures/doctor-icp-scope"],
       "assertions": [
@@ -89,6 +89,36 @@
         "The close reports a healthy rerun and says the repairs were saved to history.",
         "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
         "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears."
+      ],
+      "allowed_example_values": []
+    },
+    {
+      "id": 6,
+      "name": "persona-near-miss-boundary",
+      "prompt": "Create a buyer persona named Procurement Director in the Boundary Labs GTM workspace. The persona should own vendor selection but not budget approval. This is deliberately a persona lifecycle request, not an ICP request. Do not change any ICP. Complete the routing response and all filesystem checks inside this run's HOME.",
+      "expected_output": "A clean handoff to the persona lifecycle without reading or mutating ICP content, with the seeded workspace byte-preserved.",
+      "files": ["evals/gtm-icp/fixtures/persona-near-miss-boundary"],
+      "assertions": [
+        "The response identifies the request as persona-owned and directs it to gtm-persona without offering an ICP lifecycle flow.",
+        "No persona or ICP file is created, updated, deleted, or repaired.",
+        "The Boundary Labs repo remains clean on main with exactly its seed history and every artifact byte-preserved.",
+        "No ICP content is quoted or used to draft the requested persona."
+      ],
+      "allowed_example_values": []
+    },
+    {
+      "id": 7,
+      "name": "hosted-save-unavailable",
+      "prompt": "Update the Boundary Labs Mid-Market Manufacturers ICP by changing its minimum employee count from 100 to 150. Simulate Riley, who accepts the exact complete before/after proposal. The environment then reports that durable save is unavailable; Riley chooses cancel. Do not leave a local edit or commit that the platform cannot preserve. Complete the recovery exchange inside this run's HOME.",
+      "expected_output": "A complete accepted update proposal followed by durable-save recovery and cancellation, leaving the workspace byte-preserved with no success claim.",
+      "files": ["evals/gtm-icp/fixtures/hosted-save-unavailable"],
+      "environment_contract": "The repo at ~/.gtm/boundary-labs is the fixed connected workspace. This hosted deployment currently has no durable-write mechanism. A missing remote is intentional and is not a defect. Do not apply an accepted operation that cannot be preserved.",
+      "assertions": [
+        "The complete before/after proposal changes only 100 to 150 before the save failure is handled.",
+        "The recovery explains that the accepted change cannot be durably saved and never claims it was saved or committed.",
+        "Recovery uses one direct bold question with CLI at a keyboard first as `(Recommended)`, cancel last, and the exact reply line.",
+        "The legacy flat target ICP and every other workspace file remain byte-for-byte unchanged, proving no migration is required; the repo stays clean on main with exactly the seed history.",
+        "No remote is added and no commit, push, or unrelated repair is attempted."
       ],
       "allowed_example_values": []
     }

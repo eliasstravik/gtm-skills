@@ -1,22 +1,22 @@
-# Skill Issue checklist: gtm-icp
+# Skill Issue compliance: gtm-icp
 
-- [x] Requirements, assertions, preserved failures, and old skill intent were read. The old file was treated as behavioral reference only; the preserved no-skill baseline passes 18/41 and fails every branch.
-- [x] Every required behavior has a checkable assertion in `assertions.md` and `evals.json`; all are contractual.
-- [x] Exactly one core primitive is used: Switch, because the manager retains ownership after choosing create, update, delete, or doctor.
-- [x] The saved bare core is an H1 plus Switch and has 12 physical body lines, 9 nonblank.
-- [x] Fresh controlled paired runs tested the bare-core snapshot. It passed 20/41 versus 19/41 without-skill.
-- [x] A blind forced comparison tested the suborg-create case. The bare core lost 6.7 to 8.0 because it invented adjacent-context claims, weakened a disqualifier, crossed node visibility, and omitted interaction/context/label contracts.
-- [x] Details contains 9 lines, all earned by snapshot failures: direct questions, numbered choices, context line, node-local reads, create destination, fact fidelity, complete previews, label/history close, and scoped persistence.
-- [x] Skill Issue introduced no approval pause; the approved implementation plan governed the uninterrupted build loop.
-- [x] Every question contract forbids `AskUserQuestion` and requires a direct bold question, context below, numbered options with option 1 `(Recommended)`, and the exact reply line.
-- [x] Overflow is externalized one level through `references/context.md`, `references/flows.md`, and the optional draft template; every Call states trigger, outcome, and fallback.
-- [x] The model-invoked description starts `Triggers when`, is third-person, covers create/define/refine/update/delete/doctor, and excludes every sibling workflow plus repo-level management.
-- [x] The full treatment passes 41/41 critical assertions versus 18/41 without-skill; the applied description passes 60/60 GPT classifier runs; eval evidence stays outside the shipping skill.
+## Admission and type
 
-## Form measurements
+- [x] Admission is earned by the private workspace schema, chosen artifact paths and labels, approval authority, factual ceiling, hosting declarations, and deterministic eval tools.
+- [x] The skill owns one ICP through creation, maintenance, diagnosis/repair, and retirement, so it is exactly one Lifecycle SOP.
+- [x] The Lifecycle bare-entity name `gtm-icp` matches the directory and frontmatter.
 
-- Bare core: 12 physical body lines, 9 nonblank.
-- Final SKILL.md: 30 physical body lines, 23 nonblank.
-- Details: 9 nonblank lines, below the 80-line limit.
-- Total body: below the 100-line limit.
-- Shipping resources: one-level references and one draft template only.
+## Form and disclosure
+
+- [x] `SKILL.md` contains exactly Trigger, Scope, Inputs, Roles, Procedure, Outputs, Exceptions, QC, and References in that order.
+- [x] The reduced form is: when an ICP lifecycle outcome is requested, the agent runs the selected flow using accepted facts and workspace state to produce an accepted ICP state or health report under ownership, approval, factual, visibility, and persistence controls.
+- [x] The body is below 500 lines and 5,000 tokens; retained lines are mapped to survivor categories in `evidence/final/line-justifications.json`.
+- [x] The contract and branch-specific flows are one level deep in `references/`; the create-only template remains under `templates/`.
+- [x] No obsolete `Switch`, `Details`, or `Calls` section survives.
+
+## Description and evidence
+
+- [x] The third-person description is below 1,024 characters, contains no XML, and separates ICP lifecycle work from sibling and repository lifecycle work.
+- [x] The maintained trigger set contains ten realistic positives and ten close negatives.
+- [x] The optimizer-selected `best_description` is applied verbatim and recorded in `evidence/final/trigger-optimization.json`.
+- [x] The paired candidate-versus-snapshot benchmark, exact baseline hashes, iteration analysis, and verification commands are recorded in `evidence/final/summary.md`.

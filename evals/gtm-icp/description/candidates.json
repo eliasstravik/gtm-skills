@@ -1,16 +1,20 @@
 {
   "candidates": [
     {
-      "description": "Triggers when a user asks to create, update, delete, or doctor an ideal customer profile in a connected GTM workspace. Not for personas or managing the context repository itself.",
-      "rationale": "Bare-core description with concise lifecycle triggers and neighboring artifact boundaries."
+      "description": "Triggers when a user asks to create, define, refine, update, delete, or doctor an ideal customer profile file in a connected GTM workspace, including choosing which organization owns it. Not for personas or for creating, importing, deleting, or repairing the workspace repository itself.",
+      "rationale": "Incumbent routing rule measured as the non-regression baseline."
     },
     {
-      "description": "Triggers when a user asks to create, define, refine, update, delete, or doctor an ideal customer profile file in a connected GTM workspace, including choosing which organization owns it. Not for personas or for creating, importing, deleting, or repairing the context repository itself.",
-      "rationale": "Adds natural define/refine language, the ownership boundary, and explicit repository-level exclusions."
+      "description": "Triggers when the user asks to create, define, refine, update, delete, doctor, or repair an ideal customer profile Markdown artifact in an existing GTM workspace, including choosing the organization node that owns it and preserving qualifications, disqualifiers, uncertainty, node-local visibility, approval, and scoped persistence. Also triggers when the requested outcome changes the stored ICP artifact rather than merely reading or applying it. Not for buyer or stakeholder personas, teammate records, workspace creation/import/structural repair, account research, account segmentation or scoring, or generic ICP explanation or brainstorming that does not change workspace artifacts.",
+      "rationale": ""
     },
     {
-      "description": "Triggers when the requested outcome is to add, revise, remove, or validate ICP Markdown owned by an organization in an existing GTM workspace. Not for persona files or context-repository setup and repair.",
-      "rationale": "Frames discovery around the durable ICP-file outcome while separating adjacent artifact and repository work."
+      "description": "Triggers when a user wants to create or define a node-owned ICP, refine or update an existing ICP Markdown file, delete it, or doctor and repair its lifecycle state in an existing GTM workspace. Covers selecting the owner organization node and maintaining qualifications, disqualifiers, uncertainty, local visibility, approval, and persistence scope. Not for workflows that only read or use an ICP, persona lifecycle work, teammate records, workspace setup/import/structural repair, account research, segmentation or scoring, or artifact-free ICP advice and brainstorming.",
+      "rationale": ""
+    },
+    {
+      "description": "Triggers when the requested result is a lifecycle change to an ideal customer profile Markdown artifact in an existing GTM workspace—for example, “create an ICP,” “define our ICP,” “refine or update this ICP,” “delete the ICP,” or “doctor this ICP”—including resolving its owner organization node and preserving its decision context, visibility, approval, and scoped persistence. Not for merely reading an ICP, buyer or stakeholder personas, teammates, workspace creation/import/structural repair, account research, account segmentation or scoring, or generic ICP explanation or brainstorming without an artifact change.",
+      "rationale": ""
     }
   ]
 }

@@ -1,0 +1,65 @@
+{
+  "skill": "gtm-icp",
+  "records": [
+    {
+      "line_numbers": [6, 8, 12, 16, 20, 24, 35, 39, 43, 50],
+      "survivor_category": "chosen-among-equals conventions",
+      "justification": "The title and nine ordered section headings encode this library's mandatory SOP form and the selected Lifecycle identity."
+    },
+    {
+      "line_numbers": [10],
+      "survivor_category": "authority or approval structures",
+      "justification": "This line assigns ICP lifecycle ownership only within an existing workspace."
+    },
+    {
+      "line_numbers": [14],
+      "survivor_category": "private or internal facts",
+      "justification": "This line records the canonical nested path, compatible legacy path, lifecycle extent, and sibling boundaries."
+    },
+    {
+      "line_numbers": [18],
+      "survivor_category": "fresh local state",
+      "justification": "These inputs identify the workspace-local facts and environment declarations that control each invocation."
+    },
+    {
+      "line_numbers": [22],
+      "survivor_category": "authority or approval structures",
+      "justification": "This line assigns lifecycle execution, durable-change approval, workspace ownership, and host-mechanism authority."
+    },
+    {
+      "line_numbers": [26, 27, 28, 29, 30, 31, 32, 33],
+      "survivor_category": "chosen-among-equals conventions",
+      "justification": "The table selects the library's exact lifecycle branches, sibling handoff point, and completion outcomes."
+    },
+    {
+      "line_numbers": [37],
+      "survivor_category": "chosen-among-equals conventions",
+      "justification": "This line defines accepted ICP outputs and the mutation-free sibling handoff result."
+    },
+    {
+      "line_numbers": [41],
+      "survivor_category": "authority or approval structures",
+      "justification": "This line fixes refusal and recovery authority when workspace or durable persistence prerequisites fail."
+    },
+    {
+      "line_numbers": [45],
+      "survivor_category": "authority or approval structures",
+      "justification": "This line records the chosen direct-chat question and recommendation protocol."
+    },
+    {
+      "line_numbers": [46],
+      "survivor_category": "taste or quality bars",
+      "justification": "This line sets the project's factual ceiling and required preservation of qualifications, disqualifiers, and uncertainty."
+    },
+    {
+      "line_numbers": [47, 48],
+      "survivor_category": "chosen-among-equals conventions",
+      "justification": "These lines encode canonical placement, legacy compatibility, node-local scope, main-branch persistence, staged-path isolation, and success language."
+    },
+    {
+      "line_numbers": [52, 53, 54],
+      "survivor_category": "private or internal facts",
+      "justification": "These pointers disclose the private contract, selected lifecycle flows, and create-only template at their required branches."
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420" role="img" aria-labelledby="title desc">
-  <title id="title">GTM Skills ICP authoring agent chat</title>
-  <desc id="desc">A user asks the GTM Skills agent to define an Enterprise SaaS ICP. The agent returns a grounded proposal ready for review and saving to shared GTM workspace.</desc>
+  <title id="title">GTM Skills ICP lifecycle agent chat</title>
+  <desc id="desc">A user asks the GTM Skills agent to define an Enterprise SaaS ICP. The agent returns a node-owned factual proposal for explicit review before saving it to the shared GTM workspace.</desc>
 
   <rect width="960" height="420" rx="20" fill="#f6f8fa"/>
   <rect x="72" y="30" width="816" height="360" rx="16" fill="#ffffff" stroke="#d0d7de" stroke-width="2"/>
@@ -17,9 +17,9 @@
   <circle cx="128" cy="231" r="16" fill="#dafbe1"/>
   <text x="128" y="237" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" font-weight="600" fill="#1a7f37">C</text>
   <path d="M174 208h614a14 14 0 0 1 14 14v84a14 14 0 0 1-14 14H174a14 14 0 0 1-14-14v-84a14 14 0 0 1 14-14Z" fill="#f6f8fa"/>
-  <text x="186" y="240" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#1f2328">Here is the complete proposed ICP.</text>
-  <text x="186" y="266" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#1f2328">It captures company scale, multi-market GTM, buying triggers,</text>
-  <text x="186" y="292" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#1f2328">and explicit disqualifiers from your shared context.</text>
+  <text x="186" y="240" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#1f2328">Would you like to save this proposal?</text>
+  <text x="186" y="266" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#1f2328">It preserves your qualifications, buying triggers, disqualifiers,</text>
+  <text x="186" y="292" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#1f2328">uncertainty, and the organization node that owns the ICP.</text>
 
   <rect x="160" y="344" width="642" height="42" rx="21" fill="#f6f8fa"/>
   <text x="186" y="370" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#8c959f">Ask the next GTM question…</text>

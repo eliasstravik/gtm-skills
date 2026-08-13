@@ -1,10 +1,10 @@
 <p align="center"><img src="https://img.shields.io/badge/GTM%20Skills-Open%20source%20skills%20for%20GTM-2ea44f?style=flat-square&labelColor=24292f" alt="GTM Skills — Open source skills for GTM" /></p>
 
-<h3 align="center">Build and maintain shared GTM workspace</h3>
+<h3 align="center">Build and maintain a shared GTM workspace</h3>
 
-<p align="center">GTM Skills gives your team three open source skills for maintaining one Git-backed organization context and the ICPs and personas it owns.</p>
+<p align="center">GTM Skills gives your team three open source Lifecycle SOPs for maintaining one Git-backed GTM workspace and the node-local ICPs and personas it owns.</p>
 
-<p align="center"><img src="assets/gtm-skills-flow.svg" width="88%" alt="GTM Skills turns shared organization context into grounded ICPs and personas" /></p>
+<p align="center"><img src="assets/gtm-skills-flow.svg" width="88%" alt="GTM Skills turns a shared GTM workspace into grounded ICPs and personas" /></p>
 
 <p align="center"><a href="https://github.com/eliasstravik/gtm-skills/blob/main/docs/getting-started.md"><img src="assets/buttons/install-gtm-skills.svg" alt="Install GTM Skills" /></a>&nbsp;&nbsp;<a href="https://cal.com/stravik/demo?projects=GTM%20Skills" target="_blank" rel="noopener noreferrer"><img src="assets/buttons/book-a-demo.svg" alt="Book a demo" /></a></p>
 
@@ -16,7 +16,7 @@
 
 ## Keep organization, market, and buyer knowledge in one place
 
-The organization context records durable facts about the business and its team. ICPs define the companies each organization serves, while personas define the buyers and stakeholders it needs to understand. Every accepted change is previewed and saved to Git history.
+The GTM workspace records durable facts about the business and its team. ICPs define the companies each organization serves, while personas define the buyers and stakeholders it needs to understand. Every durable change is previewed in full, accepted explicitly, and saved to history.
 
 ## Choose between repeated prompts, disconnected templates, custom agents — or one coherent foundation
 
@@ -29,7 +29,7 @@ The organization context records durable facts about the business and its team. 
 | **Node-local organization support** | ✅ | ❌ | ❌ | ❌ |
 | **Review-before-write workflows** | ✅ | ❌ | ❌ | ❌ |
 
-Keep durable GTM knowledge in one repository. Each skill reads only the context owned by the selected organization node and preserves the accepted result in history.
+Keep durable GTM knowledge in one repository. The ICP and persona SOPs read only the artifacts owned by the selected organization node and preserve the accepted result in history.
 
 ## Organize the business. Define the market. Describe the buyer.
 
@@ -39,11 +39,11 @@ Create or import an organization repository, add members and recursively nested 
 
 ### 📈 Define ideal customer profiles
 
-Create, refine, delete, or validate the ICPs that each organization or business unit owns.
+Create, refine, delete, or doctor the ICPs that each organization or business unit owns, without routing into persona or account-workflow changes.
 
 ### 👥 Define buyer and stakeholder personas
 
-Create, refine, delete, or validate personas with clear responsibilities, influence, authority boundaries, disqualifiers, and open questions.
+Create, refine, delete, or doctor personas with clear responsibilities, influence, authority boundaries, disqualifiers, and open questions, without routing into ICP or lead-workflow changes.
 
 ## Build your GTM foundation in three steps
 
@@ -59,7 +59,7 @@ Create, refine, delete, or validate personas with clear responsibilities, influe
 
 <table>
 <tr>
-<td align="center" valign="top" width="50%"><h3>Self-serve</h3><sub>For GTM builders and teams using AI agents</sub><br /><h2>Free</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Three installable GTM skills<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Git-backed organization context<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Persona lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Suborganization-aware ownership<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Guided previews and history</div></td>
+<td align="center" valign="top" width="50%"><h3>Self-serve</h3><sub>For GTM builders and teams using AI agents</sub><br /><h2>Free</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Three installable GTM skills<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Git-backed GTM workspace<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Persona lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Suborganization-aware ownership<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Guided previews and history</div></td>
 <td align="center" valign="top" width="50%"><h3>Done-with-you</h3><sub>Hands-on setup and rollout for your GTM team</sub><br /><h2>Let's talk</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Everything in self-serve<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Full GTM Skills setup<br />&nbsp;&nbsp;&nbsp;✓&nbsp; GTM workspace repository configuration<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP and persona workflow design<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Team rollout, training, and best practices<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Ongoing maintenance and upgrades<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Dedicated Slack channel support</div></td>
 </tr>
 <tr>

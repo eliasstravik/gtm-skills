@@ -1,0 +1,19 @@
+{
+  "skill": "gtm-icp",
+  "model": "gpt-5.6-sol",
+  "eval_set": "evals/gtm-icp/description/trigger-eval.json",
+  "query_count": 20,
+  "runs_per_query": 1,
+  "split": "deterministic index split: 12 train, 8 held_out",
+  "candidates": [
+    {"index": 0, "overall_accuracy": 1.0, "held_out_accuracy": 1.0, "positive_recall": 1.0, "negative_specificity": 1.0, "duration_seconds": 304.541, "total_tokens": 85966},
+    {"index": 1, "overall_accuracy": 0.95, "held_out_accuracy": 0.875, "positive_recall": 0.9, "negative_specificity": 1.0, "duration_seconds": 316.555, "total_tokens": 85314},
+    {"index": 2, "overall_accuracy": 1.0, "held_out_accuracy": 1.0, "positive_recall": 1.0, "negative_specificity": 1.0, "duration_seconds": 316.381, "total_tokens": 87654},
+    {"index": 3, "overall_accuracy": 1.0, "held_out_accuracy": 1.0, "positive_recall": 1.0, "negative_specificity": 1.0, "duration_seconds": 489.639, "total_tokens": 105766}
+  ],
+  "selection": {
+    "candidate_index": 0,
+    "best_description": "Triggers when a user asks to create, define, refine, update, delete, or doctor an ideal customer profile file in a connected GTM workspace, including choosing which organization owns it. Not for personas or for creating, importing, deleting, or repairing the workspace repository itself.",
+    "reason": "Candidates 0, 2, and 3 tied at 20/20 overall and 8/8 held-out; candidate 0 wins the non-regression and lowest-context tie-break. Candidate 1 missed the held-out read-only audit phrasing."
+  }
+}
