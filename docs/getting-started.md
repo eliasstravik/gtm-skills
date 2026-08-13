@@ -15,7 +15,7 @@ You need:
 Install the complete repository of nine skills globally:
 
 ```sh
-npx skills add eliasstravik/gtmskills -g
+npx skills add eliasstravik/gtm-skills -g
 ```
 
 Your agent can now use GTM Context, ICP and persona authoring, account and lead segmentation, account and lead scoring, and account and lead research.
@@ -93,4 +93,4 @@ Continue from the same shared context:
 - Read the [GTM Skills overview](../README.md).
 - Explore the installable skills under [`skills/`](../skills/).
 - Review the [MIT license](../LICENSE).
-- [Open an issue](https://github.com/eliasstravik/gtmskills/issues) if you find a problem or want to suggest an improvement.
+- [Open an issue](https://github.com/eliasstravik/gtm-skills/issues) if you find a problem or want to suggest an improvement.

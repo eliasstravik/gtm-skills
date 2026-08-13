@@ -6,7 +6,7 @@
 
 <p align="center"><img src="assets/gtm-skills-flow.svg" width="88%" alt="GTM Skills turns one GTM context into the next qualified action" /></p>
 
-<p align="center"><a href="https://github.com/eliasstravik/gtmskills/blob/main/docs/getting-started.md"><img src="assets/buttons/install-gtm-skills.svg" alt="Install GTM Skills" /></a>&nbsp;&nbsp;<a href="https://cal.com/stravik/demo?projects=GTM%20Skills" target="_blank" rel="noopener noreferrer"><img src="assets/buttons/book-a-demo.svg" alt="Book a demo" /></a></p>
+<p align="center"><a href="https://github.com/eliasstravik/gtm-skills/blob/main/docs/getting-started.md"><img src="assets/buttons/install-gtm-skills.svg" alt="Install GTM Skills" /></a>&nbsp;&nbsp;<a href="https://cal.com/stravik/demo?projects=GTM%20Skills" target="_blank" rel="noopener noreferrer"><img src="assets/buttons/book-a-demo.svg" alt="Book a demo" /></a></p>
 
 <p align="center"><sub>✓&nbsp;100%&nbsp;free&nbsp;and&nbsp;open&nbsp;source &nbsp; ✓&nbsp;Nine&nbsp;GTM&nbsp;skills,&nbsp;one&nbsp;install &nbsp; ✓&nbsp;Built&nbsp;for&nbsp;the&nbsp;full&nbsp;GTM&nbsp;motion</sub></p>
 
@@ -51,7 +51,7 @@ Inspect safe sources, keep findings separate from hypotheses, and return a brief
 
 <table>
 <tr>
-<td align="center" valign="top" width="33%"><h3>1️⃣</h3><b>Install GTM Skills</b><br /><sub>Run <code>npx skills add eliasstravik/gtmskills -g</code> to install the complete set of nine skills.</sub></td>
+<td align="center" valign="top" width="33%"><h3>1️⃣</h3><b>Install GTM Skills</b><br /><sub>Run <code>npx skills add eliasstravik/gtm-skills -g</code> to install the complete set of nine skills.</sub></td>
 <td align="center" valign="top" width="33%"><h3>2️⃣</h3><b>Build your GTM context</b><br /><sub>Run <code>/gtm-context</code> to create or import the organization repository, then add the ICPs and personas each organization owns.</sub></td>
 <td align="center" valign="top" width="33%"><h3>3️⃣</h3><b>Use the skills</b><br /><sub>Invoke segmentation, scoring, or research for the next account or lead decision.</sub></td>
 </tr>
@@ -65,7 +65,7 @@ Inspect safe sources, keep findings separate from hypotheses, and return a brief
 <td align="center" valign="top" width="50%"><h3>Done-with-you</h3><sub>Hands-on setup and rollout for your GTM team</sub><br /><h2>Let's talk</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Everything in self-serve<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Full GTM Skills setup<br />&nbsp;&nbsp;&nbsp;✓&nbsp; GTM context repository configuration<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP and persona workflow design<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Team rollout, training, and best practices<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Ongoing maintenance and upgrades<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Dedicated Slack channel support</div></td>
 </tr>
 <tr>
-<td align="center"><a href="https://github.com/eliasstravik/gtmskills/blob/main/docs/getting-started.md"><img src="assets/buttons/install-gtm-skills.svg" alt="Install GTM Skills" /></a></td>
+<td align="center"><a href="https://github.com/eliasstravik/gtm-skills/blob/main/docs/getting-started.md"><img src="assets/buttons/install-gtm-skills.svg" alt="Install GTM Skills" /></a></td>
 <td align="center"><a href="https://cal.com/stravik/demo?projects=GTM%20Skills" target="_blank" rel="noopener noreferrer"><img src="assets/buttons/book-a-demo.svg" alt="Book a demo" /></a></td>
 </tr>
 </table>
@@ -100,7 +100,7 @@ GTM Skills is free, open source, and MIT licensed. Your AI or model provider may
 
 <p align="center">One repository holds what your team knows about the market. Nine focused skills turn that context into the next account or lead decision.</p>
 
-<p align="center"><a href="https://github.com/eliasstravik/gtmskills/blob/main/docs/getting-started.md"><img src="assets/buttons/install-gtm-skills.svg" alt="Install GTM Skills" /></a>&nbsp;&nbsp;<a href="https://cal.com/stravik/demo?projects=GTM%20Skills" target="_blank" rel="noopener noreferrer"><img src="assets/buttons/book-a-demo.svg" alt="Book a demo" /></a></p>
+<p align="center"><a href="https://github.com/eliasstravik/gtm-skills/blob/main/docs/getting-started.md"><img src="assets/buttons/install-gtm-skills.svg" alt="Install GTM Skills" /></a>&nbsp;&nbsp;<a href="https://cal.com/stravik/demo?projects=GTM%20Skills" target="_blank" rel="noopener noreferrer"><img src="assets/buttons/book-a-demo.svg" alt="Book a demo" /></a></p>
 
 <p align="center"><sub>✓&nbsp;100%&nbsp;free&nbsp;and&nbsp;open&nbsp;source &nbsp; ✓&nbsp;Nine&nbsp;GTM&nbsp;skills,&nbsp;one&nbsp;install &nbsp; ✓&nbsp;Built&nbsp;for&nbsp;the&nbsp;full&nbsp;GTM&nbsp;motion</sub></p>
 

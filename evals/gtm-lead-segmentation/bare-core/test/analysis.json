@@ -1,7 +1,7 @@
 {
   "comparison_summary": {
     "winner": "A",
-    "winner_skill": "/Users/eliasstravik/dev/gtmskills/evals/gtm-lead-segmentation/bare-core/snapshot/skill.snapshot.md",
+    "winner_skill": "/Users/eliasstravik/dev/gtm-skills/evals/gtm-lead-segmentation/bare-core/snapshot/skill.snapshot.md",
     "loser_skill": "",
     "comparator_reasoning": "Output A won 8.3 to 6.7 because it was substantially more complete and auditable. It stated the Northstar Enterprise context and persona count, grounded every decision in supplied facts and persona prose, named losing alternatives, applied the external-consultant disqualifier, included totals, and used the required no-side-effects closing sentence. Output B reached broadly correct decisions but omitted most of that reporting contract. Both outputs missed exact qualified machine labels, opening quality counts, and visible confidence and review-needed fields."
   },

@@ -1,7 +1,7 @@
 {
   "comparison_summary": {
     "winner": "A",
-    "winner_skill": "/Users/eliasstravik/dev/gtmskills/evals/gtm-account-segmentation/bare-core/snapshot/skill.snapshot.md",
+    "winner_skill": "/Users/eliasstravik/dev/gtm-skills/evals/gtm-account-segmentation/bare-core/snapshot/skill.snapshot.md",
     "loser_skill": "",
     "comparator_reasoning": "Output A won because it fulfilled substantially more of the segmentation contract while preserving correctness. It identified the two visible Enterprise ICPs, assigned every account exactly once, cited matching and disqualifying ICP language, named losing alternatives, reported label totals, and used the exact no-side-effects closing sentence. Output B classified all three accounts correctly but omitted the visible-ICP context line, losing alternatives, bulk counts, confidence and review indicators, and the required closing sentence."
   },

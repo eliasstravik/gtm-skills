@@ -39,7 +39,7 @@ Recommended topics:
 After review and approval, the description and topics can be applied with:
 
 ```sh
-gh repo edit eliasstravik/gtmskills \
+gh repo edit eliasstravik/gtm-skills \
   --description "Nine open source skills for GTM context, ICPs, personas, segmentation, scoring, and research." \
   --add-topic agent-skills \
   --add-topic ai-agents \
