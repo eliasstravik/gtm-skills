@@ -12,7 +12,7 @@
     "should_trigger": true
   },
   {
-    "query": "Delete the SMB agencies ICP from our GTM context and make sure the consequence preview explains what segmentation will stop seeing.",
+    "query": "Delete the SMB agencies ICP from our GTM context and make sure the consequence preview explains that the definition will no longer be available from that organization node.",
     "should_trigger": true
   },
   {

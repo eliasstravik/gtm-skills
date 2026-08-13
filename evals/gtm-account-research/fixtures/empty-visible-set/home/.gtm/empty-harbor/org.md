@@ -1,3 +1,0 @@
-# Empty Harbor
-
-Manufacturing software.

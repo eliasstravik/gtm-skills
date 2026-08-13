@@ -1,6 +1,6 @@
-# Getting started — run your first GTM decision
+# Getting started — build your GTM foundation
 
-GTM Skills gives your AI agent nine focused skills that share one Git-backed source of truth. This guide takes you from installation to a segmented account without requiring you to write code.
+GTM Skills gives your AI agent three focused skills that share one Git-backed source of truth. This guide takes you from installation to an organization context with its first ICP and persona, without requiring you to write code.
 
 ## 1. Check the prerequisites
 
@@ -12,13 +12,13 @@ You need:
 
 ## 2. Install GTM Skills
 
-Install the complete repository of nine skills globally:
+Install all three skills globally:
 
 ```sh
 npx skills add eliasstravik/gtm-skills -g
 ```
 
-Your agent can now use GTM Context, ICP and persona authoring, account and lead segmentation, account and lead scoring, and account and lead research.
+Your agent can now use GTM Context, GTM ICP, and GTM Persona.
 
 ## 3. Build your GTM context
 
@@ -47,7 +47,7 @@ Your repository can hold:
 └── suborgs/
 ```
 
-Organization facts, ICPs, and personas stay versioned in Git so the next skill can use the same definitions.
+Organization facts, ICPs, and personas stay versioned in Git so every skill uses the same accepted definitions.
 
 ## 4. Define your first ICP
 
@@ -59,34 +59,25 @@ Run:
 
 Choose the organization node that owns the market definition, describe the companies it is built to serve, and review the complete ICP preview. Once accepted, the ICP becomes part of the context repository and its history.
 
-## 5. Segment an account
+## 5. Define your first persona
 
 Run:
 
 ```text
-/gtm-account-segmentation
+/gtm-persona
 ```
 
-Select the relevant organization node and supply the account facts you already have. The skill compares only those facts with that node’s visible ICPs and returns:
+Choose the organization node that owns the buyer or stakeholder definition. Capture responsibilities, buying influence, authority boundaries, disqualifiers, and honest open questions, then review the complete persona before saving it.
 
-- Account
-- Label
-- Reasoning
-- Confidence
-- Needs review
-- Open questions
+## 6. Maintain the shared context
 
-The result stays in the response. It does not silently enrich the account or write to your CRM.
+Use the same three skills as the organization evolves:
 
-## 6. Use the result in the next decision
+- Run `/gtm-context` to update organization facts or teammates, add suborganizations, or validate and repair the repository.
+- Run `/gtm-icp` to create, refine, delete, or doctor an ICP.
+- Run `/gtm-persona` to create, refine, delete, or doctor a persona.
 
-Continue from the same shared context:
-
-- Run `/gtm-account-scoring` to turn the preserved segment into a qualitative fit band.
-- Run `/gtm-account-research` to add current evidence, timing, and outreach angles.
-- Run `/gtm-persona` to define a buyer or stakeholder.
-- Run `/gtm-lead-segmentation`, `/gtm-lead-scoring`, or `/gtm-lead-research` for person-level decisions.
-- Run `/gtm-context` whenever you need to inspect, update, validate, or repair the organization context.
+Every accepted change is saved to Git history so it can be reviewed and recovered.
 
 ## Where to go next
 

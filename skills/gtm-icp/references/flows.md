@@ -40,7 +40,7 @@ Retain ownership and continue into the selected branch. There is no import or cl
 
 1. Resolve the repo and target under the artifact-reading node rule. State the context line.
 2. If more than one ICP is visible and none was named, list only visible ICPs and ask which to delete.
-3. Show a consequence proposal naming the owning node, qualified label, exact file path, and that downstream segmentation and scoring will no longer see the label. Explain recovery from history.
+3. Show a consequence proposal naming the owning node, qualified label, exact file path, and that the definition will no longer be available from that node. Explain recovery from history.
 4. Run the accept loop on the exact deletion. On acceptance, delete only that file and remove `icps/` if it becomes empty.
 5. Run persistence. Close with what disappeared, qualified label, “saved to history,” and plain recovery guidance without commands or hashes.
 

@@ -64,7 +64,7 @@
       "files": ["evals/gtm-persona/fixtures/delete-obvious-node"],
       "assertions": [
         "The only persona-bearing Mobility node is selected without a node question, and the context line identifies Northstar Mobility with one visible persona.",
-        "The consequence report names Northstar Mobility, the qualified label mobility/transit-innovation-director, and that downstream lead segmentation and scoring will no longer see it.",
+        "The consequence report names Northstar Mobility, the qualified label mobility/transit-innovation-director, and that the definition will no longer be available from that node.",
         "The accepted proposal names the exact persona path that will be deleted.",
         "Only suborgs/mobility/personas/transit-innovation-director.md disappears; root org, Mobility org, and the Mobility ICP remain byte-preserved.",
         "The repo is clean on main with exactly one new history entry, and the close says saved to history with recovery guidance.",

@@ -1,6 +1,6 @@
 ---
 name: gtm-context
-description: Triggers when the user invokes `/gtm-context` or asks to create, import, update, delete, validate, or repair a GTM context repo or folder, including adding teammates or suborganizations. Not for defining ICPs or personas, segmenting or scoring accounts, or researching accounts or leads.
+description: Triggers when the user invokes `/gtm-context` or asks to create, import, update, delete, validate, or repair a GTM context repo or folder, including adding teammates or suborganizations. Not for defining ICPs or personas, or for tasks that merely use an existing context without changing or validating it.
 ---
 
 # GTM Context

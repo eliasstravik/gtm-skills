@@ -1,3 +1,0 @@
-# Plant Operations Director
-
-BRONZE SUBORG LEAD-RESEARCH PHRASE

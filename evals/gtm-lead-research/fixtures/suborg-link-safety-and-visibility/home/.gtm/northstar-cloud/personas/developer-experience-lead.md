@@ -1,3 +1,0 @@
-# Developer Experience Lead
-
-ORCHID ROOT LEAD-RESEARCH PERSONA PHRASE

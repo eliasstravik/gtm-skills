@@ -59,12 +59,12 @@
     {
       "id": 4,
       "name": "delete-obvious-node",
-      "prompt": "Delete the Public Transit Agencies ICP from the Arbor Systems context. Simulate Mina through completion. Arbor has a Mobility suborganization, but only Mobility contains ICPs, so use that obvious node without asking which organization. Mina accepts after the consequence report explains ownership, downstream segmentation/scoring visibility, the exact file removal, and history recovery. Complete all work inside this run's HOME.",
+      "prompt": "Delete the Public Transit Agencies ICP from the Arbor Systems context. Simulate Mina through completion. Arbor has a Mobility suborganization, but only Mobility contains ICPs, so use that obvious node without asking which organization. Mina accepts after the consequence report explains ownership, that the definition will no longer be available from that node, the exact file removal, and history recovery. Complete all work inside this run's HOME.",
       "expected_output": "The sole visible Mobility ICP is deleted without a node question, after an exact consequence preview, with one history entry and recovery guidance.",
       "files": ["evals/gtm-icp/fixtures/delete-obvious-node"],
       "assertions": [
         "The skill defaults to Arbor Mobility without a node-selection question and states a context line with one visible ICP.",
-        "The consequence proposal names Arbor Mobility as owner, the qualified label mobility/public-transit-agencies, and that downstream segmentation/scoring will no longer see it.",
+        "The consequence proposal names Arbor Mobility as owner, the qualified label mobility/public-transit-agencies, and that the definition will no longer be available from that node.",
         "The exact file path suborgs/mobility/icps/public-transit-agencies.md is previewed for deletion before acceptance.",
         "The ICP file is absent afterward while the Mobility org, root org, and persona content remain unchanged.",
         "The repo is clean on main with one deletion commit beyond the seed; the close says saved to history and explains recovery from history.",

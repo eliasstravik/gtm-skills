@@ -1,6 +1,6 @@
 ---
 name: gtm-icp
-description: Triggers when a user asks to create, define, refine, update, delete, or doctor an ideal customer profile file in a connected GTM context, including choosing which organization owns it. Not for personas, segmentation, scoring, account or lead research, or creating, importing, deleting, or repairing the context repository itself.
+description: Triggers when a user asks to create, define, refine, update, delete, or doctor an ideal customer profile file in a connected GTM context, including choosing which organization owns it. Not for personas or for creating, importing, deleting, or repairing the context repository itself.
 ---
 
 # GTM ICP

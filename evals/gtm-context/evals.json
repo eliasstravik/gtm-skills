@@ -16,7 +16,7 @@
         "Root organization intake has exactly the two canonical bundled questions before its first proposal, with no recovery turn.",
         "Operator intake has exactly the two canonical bundled person questions before its proposal, with no recovery or affiliation wording.",
         "The sharing choice says local, single-player, multiplayer, private, and GitHub.",
-        "Completion recommends the exact bracketed account-research fallback for Acme Lantern and says the saved context will be used.",
+        "Completion recommends the exact ICP fallback for Acme Lantern and says the saved context will be used.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
       ],
       "allowed_example_values": []
@@ -35,14 +35,13 @@
         "The repo contains no empty directories, placeholders, or machine-state files.",
         "Bulk suborganization intake remains one freeform bundled turn before the exact proposed-set marker, with no per-field interview.",
         "Bulk people intake remains one freeform bundled turn before the exact proposed-set marker, with no per-person, source, or affiliation follow-up.",
-        "Completion chooses account research first when all three recognized GTM workflows are available and says the saved context will be used.",
+        "Completion chooses ICP authoring first when both recognized GTM workflows are available and says the saved context will be used.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
       ],
       "allowed_example_values": [],
       "available_gtm_workflows": [
         "gtm-persona",
-        "gtm-icp",
-        "gtm-account-research"
+        "gtm-icp"
       ]
     },
     {
@@ -186,11 +185,11 @@
       "id": 11,
       "name": "create-unrecognized-workflow-fallback",
       "prompt": "Create a minimal local GTM context for Pine Harbor. Simulate Iris through the complete guided flow using only these facts: Pine Harbor provides inventory planning software; website https://pine-harbor.example; no other organization sources; no suborganizations; Iris Wong, iris@pine-harbor.example, with no role, social profiles, affiliations, or other sources; no additional people; local single-player. Supply each entity's known facts in its bundled identity answer, say none to each sources question, accept accurate proposals, and complete all filesystem and git work inside this run's HOME.",
-      "expected_output": "A minimal valid Pine Harbor context whose completion ignores the unrecognized workflow ID and uses the generic account-research fallback.",
+      "expected_output": "A minimal valid Pine Harbor context whose completion ignores the unrecognized workflow ID and uses the generic ICP fallback.",
       "files": [],
       "assertions": [
         "The Pine Harbor repo has the exact root contract, accepted org and operator files, main history, and no remote.",
-        "Completion ignores the unrecognized workflow and renders the exact bracketed account-research fallback for Pine Harbor with a saved-context statement.",
+        "Completion ignores the unrecognized workflow and renders the exact ICP fallback for Pine Harbor with a saved-context statement.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied.",
         "The shipping prompt examples and the grader's canonical fictional-example inventory are exactly synchronized."
       ],

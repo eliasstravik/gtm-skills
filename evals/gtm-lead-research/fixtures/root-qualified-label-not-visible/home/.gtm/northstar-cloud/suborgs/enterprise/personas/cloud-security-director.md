@@ -1,3 +1,0 @@
-# Cloud Security Director
-
-COBALT ENTERPRISE LEAD-RESEARCH PHRASE
