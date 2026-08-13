@@ -22,7 +22,7 @@ All assertions below are contractual unless marked diagnostic. The old `gtm-defi
 - **B03 Create grounding:** read the destination org chain and only destination-local ICPs, avoid near-duplicates, interview one question at a time, preview `icps/<slug>.md`, then write and save.
 - **B04 Update:** list only visible ICPs when selection is needed, gather the change, show complete before/after content, preserve unrelated facts, then save one accepted change.
 - **B05 Delete:** list only visible targets, name the owner and warn that the definition will no longer be available from that node, preview exact removal, save it, and explain history recovery.
-- **B06 Doctor:** inspect only ICP concerns repo-wide: placement next to `org.md`, lowercase-kebab slugs, display-name H1, matchable substance, and placeholder/TODO husks. Ignore persona content. Accepted repairs are one commit.
+- **B06 Doctor:** inspect only ICP concerns repo-wide: placement next to `ORG.md`, lowercase-kebab slugs, display-name H1, matchable substance, and placeholder/TODO husks. Ignore persona content. Accepted repairs are one commit.
 - **B07 Template:** ship `templates/icp.md` only as a draft starting shape; valid ICPs need not follow it.
 - **B08 Description:** third-person model-invoked description starts `Triggers when`, includes create/update/delete/doctor, and excludes personas and repo-level management.
 

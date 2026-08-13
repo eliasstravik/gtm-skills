@@ -1,6 +1,6 @@
 ---
 name: gtm-workspace
-description: Triggers when the user invokes `/gtm-workspace` or asks to create, import, update, delete, validate, or repair a GTM workspace repo or folder, including adding teammates or suborganizations. Not for defining ICPs or personas, or for tasks that merely use an existing workspace without changing or validating it.
+description: Triggers when the user invokes `/gtm-workspace` or asks to create, import, update, delete, validate, migrate, or repair a GTM workspace repo or folder, including adding members or suborganizations. Not for defining ICPs or personas, or for tasks that merely use an existing workspace without changing or validating it.
 ---
 
 # GTM Workspace
@@ -11,7 +11,7 @@ Apply this Lifecycle SOP when the requested outcome creates, imports, maintains,
 
 ## Scope
 
-Own the plain-Markdown workspace at `~/.gtm/<org-slug>/` across creation, import, organization and teammate maintenance, structural or Git repair, and deletion. Preserve node-owned ICP and persona artifacts without authoring or validating their contents.
+Own the plain-Markdown workspace at `~/.gtm/<org-slug>/` across creation, import, organization and member maintenance, legacy-shape migration, structural or Git repair, and deletion. Preserve node-owned ICP and persona artifacts without authoring or validating their contents.
 
 ## Inputs
 
@@ -31,7 +31,7 @@ The agent owns the selected lifecycle flow. The user accepts durable changes and
 | Import is requested | Guide a local copy or GitHub clone through inventory, accepted conversion, history, optional sharing, and summary |
 | Update is requested | Resolve the target, preview accepted before/after changes, save them to history, and summarize |
 | Delete is requested | Resolve the target, preview consequences, obtain the required confirmation, delete, and explain recovery where available |
-| Doctor is requested or the workspace seems wrong | Run every contract and Git check, preview accepted repairs, save one repair set, and report complete health |
+| Doctor or migration is requested, or the workspace seems wrong | Run every contract, legacy-shape, and Git check; preview accepted repairs or migrations; save one change set; and report complete health |
 
 ## Outputs
 
@@ -39,7 +39,7 @@ Produce the requested workspace state and a path-based summary, or a complete he
 
 ## Exceptions
 
-If a required reference is unavailable, use `templates/AGENTS.md` as the minimum contract, keep people root-only, stay on `main`, and write nothing until the user accepts a complete proposal. If the environment cannot durably save an accepted operation, stop and offer the prescribed CLI recovery; never report it as saved.
+If a required reference is unavailable, use `templates/AGENTS.md` as the minimum contract, keep every member under its owning organization node at `members/<member-slug>/MEMBER.md`, stay on `main`, and write nothing until the user accepts a complete proposal. If the environment cannot durably save an accepted operation, stop and offer the prescribed CLI recovery; never report it as saved.
 
 ## QC
 

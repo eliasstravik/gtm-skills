@@ -15,7 +15,7 @@ Date: 2026-08-05
 | 1 create-simple-local | with skill | 10/10 |
 | 2 create-complex-bulk | with skill | 9/9 |
 | 3 import-local-folder | with skill | 6/6 |
-| 4 update-a-person | with skill | 5/5 |
+| 4 legacy member-update scenario | with skill | 5/5 |
 | 5 delete-a-suborg | with skill | 5/5 |
 | 6 doctor-broken-repo | with skill | 6/6 |
 | 7 hosted-create-refusal | with skill | 6/6 |

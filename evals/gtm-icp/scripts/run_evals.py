@@ -35,7 +35,7 @@ def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> None:
     fixture = EVAL_ROOT / "fixtures" / eval_case["name"] / "home"
     shutil.copytree(fixture, home, dirs_exist_ok=True)
     context_root = home / ".gtm"
-    for repo in sorted(path for path in context_root.iterdir() if (path / "org.md").is_file()):
+    for repo in sorted(path for path in context_root.iterdir() if (path / "ORG.md").is_file()):
         shutil.copy2(CONTEXT_TEMPLATES / "AGENTS.md", repo / "AGENTS.md")
         shutil.copy2(CONTEXT_TEMPLATES / "CLAUDE.md", repo / "CLAUDE.md")
         shutil.copy2(CONTEXT_TEMPLATES / "gitignore", repo / ".gitignore")

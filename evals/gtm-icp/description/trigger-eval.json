@@ -72,7 +72,7 @@
     "should_trigger": false
   },
   {
-    "query": "Doctor the whole GTM workspace repo: restore AGENTS.md, move nested people to root, remove state.json, and check Git health.",
+    "query": "Doctor the whole GTM workspace repo: restore AGENTS.md, migrate legacy people paths to node-owned members, remove state.json, and check Git health.",
     "should_trigger": false
   },
   {

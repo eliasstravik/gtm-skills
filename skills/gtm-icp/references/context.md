@@ -1,6 +1,6 @@
 # ICP context contract
 
-Use this contract for every branch. A context repo follows gtm-workspace: `~/.gtm/<org-slug>/org.md`, nested `suborgs/<slug>/org.md`, root-only `people/`, and optional node-owned `icps/` and `personas/`.
+Use this contract for every branch. A context repo follows gtm-workspace: `~/.gtm/<org-slug>/ORG.md`, recursively nested `suborgs/<suborg-slug>/ORG.md`, node-owned `members/<member-slug>/MEMBER.md`, and optional node-owned `icps/` and `personas/`.
 
 ## Repo resolution
 
@@ -8,7 +8,7 @@ Resolve the repo in this order for this invocation only:
 
 1. A repo explicitly named in the request.
 2. The repo the environment declares connected.
-3. Valid repos under `~/.gtm/`, where a valid repo has a root `org.md`.
+3. Valid repos under `~/.gtm/`, where a valid repo has a root `ORG.md`.
 
 If the third step finds several repos, ask `**Which GTM workspace should I use?**`; list display name and path as numbered choices, mark the first `(Recommended)`, and use the required reply line. Never save a preference. If none exists, explain that gtm-workspace must create or connect one and stop without writing.
 
@@ -18,7 +18,7 @@ If the third step finds several repos, ask `**Which GTM workspace should I use?*
 - For update, delete, and ordinary artifact reading, ask which node only when more than one node has its own ICPs. If exactly one node has ICPs, use it as the obvious target. If none has ICPs, keep root.
 - Create destination is different: when any suborg exists, ask `**Which organization should own this ICP?**` unless the request names one. List root first as `(Recommended)`, then every nested suborg by display name. With no suborg, use root without asking.
 - ICP visibility is node-local. Read exactly `<target-node>/icps/*.md`; no ICP outside the target node is visible for that invocation.
-- Organization facts may be read along the root-to-target `org.md` chain. Persona files are not ICP inputs.
+- Organization facts may be read along the root-to-target `ORG.md` chain. Persona files are not ICP inputs.
 - State the context before acting or judging: `Using GTM workspace: <target display name> — <N> ICPs visible` (use `ICP visible` for one).
 - A root ICP label is its bare slug. A suborg label is `<org-path>/<slug>`, with nested suborg slugs joined by `/` and physical `suborgs/` segments omitted.
 

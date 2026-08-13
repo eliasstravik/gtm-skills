@@ -35,7 +35,7 @@ Keep durable GTM knowledge in one repository. Each skill reads only the context 
 
 ### 🏗️ Build the shared GTM workspace
 
-Create or import an organization repository, add teammates and suborganizations, update stored facts, and repair structural or Git problems.
+Create or import an organization repository, add members and recursively nested suborganizations, update stored facts, and repair structural or Git problems.
 
 ### 📈 Define ideal customer profiles
 
@@ -50,7 +50,7 @@ Create, refine, delete, or validate personas with clear responsibilities, influe
 <table>
 <tr>
 <td align="center" valign="top" width="33%"><h3>1️⃣</h3><b>Install GTM Skills</b><br /><sub>Run <code>npx skills add eliasstravik/gtm-skills -g</code> to install all three skills.</sub></td>
-<td align="center" valign="top" width="33%"><h3>2️⃣</h3><b>Build your GTM workspace</b><br /><sub>Run <code>/gtm-workspace</code> to create or import the organization repository and add the people and business units it owns.</sub></td>
+<td align="center" valign="top" width="33%"><h3>2️⃣</h3><b>Build your GTM workspace</b><br /><sub>Run <code>/gtm-workspace</code> to create or import the organization repository and add the members and business units it owns.</sub></td>
 <td align="center" valign="top" width="33%"><h3>3️⃣</h3><b>Define the market and buyer</b><br /><sub>Run <code>/gtm-icp</code> and <code>/gtm-persona</code> to create the definitions each organization needs.</sub></td>
 </tr>
 </table>
@@ -80,7 +80,7 @@ The install command adds GTM Workspace, GTM ICP, and GTM Persona. Run `/gtm-work
 
 ### What does GTM Workspace store?
 
-It stores your organization’s durable self-knowledge: organization facts, teammates, suborganizations, ICPs, and personas.
+It stores your organization’s durable self-knowledge: organization facts, members, suborganizations, ICPs, and personas. The canonical root is `~/.gtm/<org-slug>/`; suborganizations use `suborgs/<suborg-slug>/`, and member records use `members/<member-slug>/MEMBER.md` at any organization node.
 
 ### Can different teams keep different ICPs and personas?
 

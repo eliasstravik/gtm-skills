@@ -31,23 +31,27 @@ Start the guided setup:
 The skill helps you create a new organization context or import one that already exists. Review the complete preview before accepting any write. A new context is saved as a Git repository under:
 
 ```text
-~/.gtm/<organization-slug>/
+~/.gtm/<org-slug>/
 ```
 
 Your repository can hold:
 
 ```text
-<organization-slug>/
+<org-slug>/
 ├── AGENTS.md
 ├── CLAUDE.md
-├── org.md
-├── icps/
-├── personas/
-├── people/
-└── suborgs/
+├── ORG.md
+├── suborgs/
+│   └── <suborg-slug>/
+│       ├── ORG.md
+│       ├── suborgs/<suborg-slug>/...
+│       └── members/<member-slug>/MEMBER.md
+└── members/
+    └── <member-slug>/
+        └── MEMBER.md
 ```
 
-Organization facts, ICPs, and personas stay versioned in Git so every skill uses the same accepted definitions.
+Every recursively nested suborganization has the same `ORG.md`, optional `suborgs/`, and optional `members/` shape. Organization facts, member records, ICPs, and personas stay versioned in Git so every skill uses the same accepted definitions.
 
 ## 4. Define your first ICP
 
@@ -73,7 +77,7 @@ Choose the organization node that owns the buyer or stakeholder definition. Capt
 
 Use the same three skills as the organization evolves:
 
-- Run `/gtm-workspace` to update organization facts or teammates, add suborganizations, or validate and repair the repository.
+- Run `/gtm-workspace` to update organization facts or members, add suborganizations, migrate legacy layouts, or validate and repair the repository.
 - Run `/gtm-icp` to create, refine, delete, or doctor an ICP.
 - Run `/gtm-persona` to create, refine, delete, or doctor a persona.
 

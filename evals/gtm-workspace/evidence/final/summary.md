@@ -2,10 +2,12 @@
 
 Date: 2026-08-13
 
+> Archived evidence: every benchmark and description claim below predates the ELI-276 `ORG.md`/`members/<member-slug>/MEMBER.md` migration. Retained for historical comparison only; use the active skill, eval corpus, and current task verification for the canonical contract.
+
 ## Scope and compatibility
 
 - `skills/gtm-workspace/` is the sole base lifecycle skill and `evals/gtm-workspace/` is its maintained evaluation root.
-- The persisted contract remains `~/.gtm/<org-slug>/` with nested organization nodes, root-owned people, and node-owned `icps/` and `personas/`; existing workspaces require no migration.
+- This archived benchmark predates the canonical-layout migration and is not current filesystem-contract or compatibility evidence.
 - README, getting-started material, diagrams, ICP/persona contracts, and ICP/persona template-loading harnesses resolve the new canonical identity.
 - ICP and persona behavior was not redesigned; only canonical terminology and dependency paths changed.
 

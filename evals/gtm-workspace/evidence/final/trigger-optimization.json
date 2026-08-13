@@ -1,4 +1,6 @@
 {
+  "status": "archived_pre_eli_276",
+  "note": "Historical trigger measurements retained for comparison; descriptions predate the canonical member-layout migration.",
   "model": "gpt-5.6-sol",
   "eval_count": 20,
   "runs_per_query": 3,

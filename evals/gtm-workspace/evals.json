@@ -4,17 +4,17 @@
     {
       "id": 1,
       "name": "create-simple-local",
-      "prompt": "Create a GTM workspace for Acme Lantern. This is a non-interactive simulation of Maria, a non-technical founder who answers briefly. Drive the guided conversation to completion and use only this fact sheet for her replies: organization name Acme Lantern; website https://acme-lantern.example; LinkedIn https://www.linkedin.com/company/acme-lantern; product is scheduling software for independent home-service businesses; customers are plumbers and electricians with 2–20 staff; no other links or research files. When the root bundled question appears, Maria supplies the organization name, website, LinkedIn, product, and customer facts together; when its sources question appears, she says none. Maria Chen is founder and operator, maria@acme-lantern.example, LinkedIn https://www.linkedin.com/in/maria-chen-example. When the operator bundled question appears, she supplies all of those operator facts together; when its sources question appears, she says none. She wants no suborgs, no additional people, and local single-player only. She accepts accurate drafts and asks you to remove any unsupported fact before accepting. No capability catalog is supplied for this run. Complete all filesystem and git work inside this run's HOME.",
-      "expected_output": "A minimal ~/.gtm/acme-lantern repo on main with accepted org and operator files, local git history, no suborgs, and no remote.",
+      "prompt": "Create a GTM workspace for Acme Lantern. This is a non-interactive simulation of Maria, a non-technical founder who answers briefly. Drive the guided conversation to completion and use only this fact sheet for her replies: organization name Acme Lantern; website https://acme-lantern.example; LinkedIn https://www.linkedin.com/company/acme-lantern; product is scheduling software for independent home-service businesses; customers are plumbers and electricians with 2–20 staff; no other links or research files. When the root bundled question appears, Maria supplies the organization name, website, LinkedIn, product, and customer facts together; when its sources question appears, she says none. Maria Chen is founder and operator, maria@acme-lantern.example, LinkedIn https://www.linkedin.com/in/maria-chen-example. When the operator bundled question appears, she supplies all of those operator facts together; when its sources question appears, she says none. She wants no suborgs, no additional members, and local single-player only. She accepts accurate drafts and asks you to remove any unsupported fact before accepting. No capability catalog is supplied for this run. Complete all filesystem and git work inside this run's HOME.",
+      "expected_output": "A minimal ~/.gtm/acme-lantern repo on main with accepted ORG.md and operator MEMBER.md files, local git history, no suborgs, and no remote.",
       "files": [],
       "assertions": [
-        "The Acme Lantern repo has the exact root contract files and org.md.",
-        "org.md has the Acme Lantern H1 and the supplied product and customer facts.",
+        "The Acme Lantern repo has the exact root contract files and ORG.md.",
+        "ORG.md has the Acme Lantern H1 and the supplied product and customer facts.",
         "Maria Chen is root-only with her mandatory email and no invented suborg affiliation.",
         "The repo is on main with at least two accept-driven history entries and Maria's repo-local identity.",
         "The local-only choice leaves the repo without a remote and without machine-state files.",
         "Root organization intake has exactly the two canonical bundled questions before its first proposal, with no recovery turn.",
-        "Operator intake has exactly the two canonical bundled person questions before its proposal, with no recovery or affiliation wording.",
+        "Operator intake has exactly the two canonical bundled member questions before its proposal, with no recovery or affiliation wording.",
         "The sharing choice says local, single-player, multiplayer, private, and GitHub.",
         "Completion recommends the exact ICP fallback for Acme Lantern and says the saved context will be used.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
@@ -24,17 +24,17 @@
     {
       "id": 2,
       "name": "create-complex-bulk",
-      "prompt": "Create a GTM workspace for Meridian Holdings. Simulate Devon, a non-technical GTM director, and continue through every guided turn using only this fact sheet: Meridian Holdings sells two distinct businesses with different buyers, so suborgs are necessary. Root website https://meridian-holdings.example; Devon supplies the root name, website, and business facts in the bundled root answer, then says none to other sources. In one bulk-suborganization dump he supplies Meridian Cloud, slug meridian-cloud, B2B data hosting for regulated banks, https://cloud.meridian-holdings.example; and Meridian Home, slug meridian-home, direct-to-consumer smart-home subscriptions, https://home.meridian-holdings.example. Devon Price is operator, devon@meridian-holdings.example, role GTM Director, affiliated with both suborgs; he supplies those facts in the bundled operator answer and says none to other sources. In one bulk-people dump add Priya Shah, priya@meridian-holdings.example, Enterprise Sales, affiliated with meridian-cloud; and Leo Martins, leo@meridian-holdings.example, Consumer Growth, affiliated with meridian-home. Devon accepts accurate proposals, prefers one-at-a-time suborg review, chooses multiplayer, reaches the final confirmation, then declines and stays local. No other links or files. Complete all work inside this run's HOME.",
-      "expected_output": "A main-only local Meridian repo with two recommended suborgs, three root-only people, correct affiliations, accepted history, and no remote after multiplayer is declined.",
+      "prompt": "Create a GTM workspace for Meridian Holdings. Simulate Devon, a non-technical GTM director, and continue through every guided turn using only this fact sheet: Meridian Holdings sells two distinct businesses with different buyers, so suborgs are necessary. Root website https://meridian-holdings.example; Devon supplies the root name, website, and business facts in the bundled root answer, then says none to other sources. In one bulk-suborganization dump he supplies Meridian Cloud, slug meridian-cloud, B2B data hosting for regulated banks, https://cloud.meridian-holdings.example; Meridian Cloud Europe, slug meridian-cloud-europe, parent Meridian Cloud, European regulated-bank operations, https://eu.cloud.meridian-holdings.example; and Meridian Home, slug meridian-home, direct-to-consumer smart-home subscriptions, https://home.meridian-holdings.example. Devon Price is operator, devon@meridian-holdings.example, role GTM Director, affiliated with both direct suborgs; he supplies those facts in the bundled operator answer and says none to other sources. In one bulk-members dump add Priya Shah, priya@meridian-holdings.example, Enterprise Sales, owned by Meridian Cloud Europe; and Leo Martins, leo@meridian-holdings.example, Consumer Growth, owned by Meridian Home. Devon accepts accurate proposals, prefers one-at-a-time suborg review, chooses multiplayer, reaches the final confirmation, then declines and stays local. No other links or files. Complete all work inside this run's HOME.",
+      "expected_output": "A main-only local Meridian repo with direct and recursively nested suborganizations, canonical node-owned members, accepted history, and no remote after multiplayer is declined.",
       "files": [],
       "assertions": [
-        "The Meridian root and both suborgs have valid org.md files at the contract paths.",
-        "All three people are root-only, have email lines, and use only the supplied affiliations.",
-        "The repo is on main with at least six accept-driven history entries.",
+        "The Meridian root, both direct suborganizations, and recursively nested Europe suborganization have valid ORG.md files at the contract paths.",
+        "Devon is root-owned, Leo is owned by Meridian Home, and Priya is owned by recursively nested Meridian Cloud Europe; all use canonical MEMBER.md paths and emails.",
+        "The repo is on main with at least seven accept-driven history entries.",
         "Declining multiplayer at the last step leaves no git remote.",
         "The repo contains no empty directories, placeholders, or machine-state files.",
         "Bulk suborganization intake remains one freeform bundled turn before the exact proposed-set marker, with no per-field interview.",
-        "Bulk people intake remains one freeform bundled turn before the exact proposed-set marker, with no per-person, source, or affiliation follow-up.",
+        "Bulk members intake remains one freeform bundled turn before the exact proposed-set marker, with ownership included and no per-member follow-up.",
         "Completion chooses ICP authoring first when both recognized GTM workflows are available and says the saved context will be used.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
       ],
@@ -47,14 +47,14 @@
     {
       "id": 3,
       "name": "import-local-folder",
-      "prompt": "Import my existing local folder at ~/source/orbit-notes into GTM workspace. Simulate Jules, a non-technical operations lead. Jules confirms the original must remain untouched, accepts the proposed slug orbit-analytics, accepts accurate conversion repairs, and stays local. The source's facts are authoritative; do not research or invent more. Convert the loose organization note and teammate note, remove machine state only from the imported copy, and complete the guided flow inside this run's HOME.",
-      "expected_output": "An untouched source plus a converted ~/.gtm/orbit-analytics repo with root contract files, shaped org/person content, main history, and no state file.",
-      "files": ["evals/fixtures/import-local"],
+      "prompt": "Import my existing local folder at ~/source/orbit-notes into GTM workspace. Simulate Jules, a non-technical operations lead. Jules confirms the original must remain untouched, accepts the proposed slug orbit-analytics, accepts accurate conversion repairs, and stays local. The source's facts are authoritative; do not research or invent more. Convert the loose organization note and member note, remove machine state only from the imported copy, and complete the guided flow inside this run's HOME.",
+      "expected_output": "An untouched source plus a converted ~/.gtm/orbit-analytics repo with root contract files, shaped ORG.md/MEMBER.md content, main history, and no state file.",
+      "files": ["evals/gtm-workspace/fixtures/import-local-folder"],
       "assertions": [
         "The original ~/source/orbit-notes fixture remains byte-for-byte unchanged.",
-        "The imported orbit-analytics repo has the root contract files and a shaped org.md.",
-        "Ari Gomez is converted to a root-only person.md with the supplied email.",
-        "The imported copy has no state.json or nested people and is on main with conversion history.",
+        "The imported orbit-analytics repo has the root contract files and a shaped ORG.md.",
+        "Ari Gomez is converted to the canonical root members/<member-slug>/MEMBER.md shape with the supplied email.",
+        "The imported copy has no state.json or legacy paths and is on main with conversion history.",
         "The local-only import has no remote.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
       ],
@@ -62,15 +62,15 @@
     },
     {
       "id": 4,
-      "name": "update-a-person",
-      "prompt": "Update Casey Lee in my Ember Health GTM workspace. Simulate Morgan, a non-technical founder. The only accepted change is Casey's role from Sales Lead to VP Sales and adding https://www.linkedin.com/in/casey-lee-example under Links; email and all other facts stay unchanged. Morgan selects person update, chooses Casey, accepts the exact before/after proposal, and wants no other changes. Complete the flow inside this run's HOME.",
-      "expected_output": "Only Casey's accepted person facts change, with a new plain-English main-branch history entry and the rest of the repo preserved.",
-      "files": ["evals/fixtures/update-person"],
+      "name": "update-a-member",
+      "prompt": "Update Casey Lee in my Ember Health GTM workspace. Simulate Morgan, a non-technical founder. The only accepted change is Casey's role from Sales Lead to VP Sales and adding https://www.linkedin.com/in/casey-lee-example under Links; email and all other facts stay unchanged. Morgan selects member update, chooses Casey, accepts the exact before/after proposal, and wants no other changes. Complete the flow inside this run's HOME.",
+      "expected_output": "Only Casey's accepted member facts change, with a new plain-English main-branch history entry and the rest of the repo preserved.",
+      "files": ["evals/gtm-workspace/fixtures/update-a-member"],
       "assertions": [
-        "Casey's person.md keeps the original email and changes the role to VP Sales.",
+        "Casey's MEMBER.md keeps the original email and changes the role to VP Sales.",
         "Casey's accepted LinkedIn URL appears under Links.",
         "The repo remains on main and gains exactly one history entry for the accepted update.",
-        "No new person, suborg, machine-state file, or remote is introduced.",
+        "No new member, suborg, machine-state file, or remote is introduced.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
       ],
       "allowed_example_values": []
@@ -78,15 +78,15 @@
     {
       "id": 5,
       "name": "delete-a-suborg",
-      "prompt": "Delete the Consumer suborg from my Northstar Group GTM workspace. Simulate Amina, a non-technical operator. She selects Consumer, understands that its nested Youth suborg also disappears, that Consumer owns the Family Learning ICP and Household Buyer persona, that Youth owns the Teen Program Director persona, and that the remote copy is not being deleted. She accepts removal of the complete Consumer subtree and removal of consumer/youth affiliations from her person file, and does not want to delete Enterprise or the whole repo. Complete the guided deletion inside this run's HOME.",
-      "expected_output": "Consumer, its descendant, and their owned ICP/persona files are named in the consequence report and deleted; Enterprise and the repo survive, affiliations are repaired, and one deletion is saved to main history without touching the configured remote.",
-      "files": ["evals/fixtures/delete-suborg"],
+      "prompt": "Delete the Consumer suborg from my Northstar Group GTM workspace. Simulate Amina, a non-technical operator. She selects Consumer, understands that its nested Youth suborg also disappears; Consumer owns member Layla Chen, the Family Learning ICP, and Household Buyer persona; Youth owns member Noah Okafor and the Teen Program Director persona; and the remote copy is not being deleted. She accepts removal of the complete Consumer subtree and does not want to delete Enterprise, root member Amina, or the whole repo. Complete the guided deletion inside this run's HOME.",
+      "expected_output": "Consumer, its descendant, and every owned member, ICP, and persona file are named in the consequence report and deleted; Enterprise, the root member, and the repo survive, and one deletion is saved to main history without touching the configured remote.",
+      "files": ["evals/gtm-workspace/fixtures/delete-a-suborg"],
       "assertions": [
         "The Consumer subtree is absent while Enterprise and the root repo remain.",
-        "Amina's person.md no longer lists consumer or youth and retains enterprise.",
+        "Amina's root MEMBER.md survives unchanged and retains its Enterprise affiliation.",
         "The repo stays on main and gains exactly one history entry for the accepted deletion.",
         "The configured remote remains present and is not deleted or force-modified.",
-        "The accepted consequence proposal names every ICP and persona owned by the Consumer subtree before deletion.",
+        "The accepted consequence proposal names every member, ICP, and persona owned by the Consumer subtree before deletion.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
       ],
       "allowed_example_values": []
@@ -94,13 +94,13 @@
     {
       "id": 6,
       "name": "doctor-broken-repo",
-      "prompt": "Something is wrong with my Atlas Labs GTM folder. Doctor it. Simulate Sam, a non-technical founder who accepts one exact repair proposal. Seeded defects are intentional: the Europe org.md lacks an H1, Sam's person is wrongly nested under Europe, state.json is machine state, the root contract files are missing, and an empty directory exists. Preserve the supplied facts, fix every contract defect, do not invent new facts, and complete the flow inside this run's HOME.",
+      "prompt": "Something is wrong with my Atlas Labs GTM folder. Doctor it. Simulate Sam, a non-technical founder who accepts one exact repair proposal. Seeded defects are intentional: Europe's organization file is legacy lowercase org.md and lacks an H1; Sam is in the legacy suborgs/europe/people/sam-rivera/PERSON.md shape; state.json is machine state; the root contract files are missing; and an empty directory exists. Preserve the supplied facts, migrate each legacy path under the same Europe organization node, fix every contract defect, do not invent new facts, and complete the flow inside this run's HOME.",
       "expected_output": "All seeded defects are repaired in one main-branch repair history entry, with healthy checks reported and no unapproved changes.",
-      "files": ["evals/fixtures/doctor-broken"],
+      "files": ["evals/gtm-workspace/fixtures/doctor-broken-repo"],
       "assertions": [
         "All three root contract files are restored and CLAUDE.md is exact.",
-        "Europe org.md has an H1 while preserving its supplied overview.",
-        "Sam Rivera is moved root-only with the supplied email and no nested people remain.",
+        "Europe ORG.md has an H1 while preserving its supplied overview.",
+        "Sam Rivera is migrated in place to suborgs/europe/members/sam-rivera/MEMBER.md with the supplied email, and no legacy path remains.",
         "state.json and the seeded empty directory are gone.",
         "The repo remains on main and gains exactly one `Repair GTM workspace repo` history entry.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
@@ -112,13 +112,13 @@
       "name": "hosted-create-refusal",
       "prompt": "You are running as a hosted chat agent, not a CLI: your deployment's configuration fixed the repo connection at deploy time, one context repo is already checked out at ~/.gtm/northwind-gtm inside your workspace, and your environment instructions declare that durable writes happen through the platform's own commit mechanism rather than git push. Simulate Priya, a non-technical GTM lead chatting in the team channel. She first asks: 'Set up a brand new GTM workspace for our sister company Delta Robotics.' After your response she says: 'Fine, then just delete the whole Northwind context, we will start over.' Drive both turns per the skill and complete all filesystem work inside this run's HOME.",
       "expected_output": "Two refusals: create and whole-repo delete are both declined with a precise keyboard redirect, nothing is written, drafted, or researched, and the connected Northwind repo is untouched.",
-      "files": ["evals/fixtures/hosted-connected"],
+      "files": ["evals/gtm-workspace/fixtures/hosted-connected"],
       "assertions": [
         "No delta-robotics directory or any new context repo is created anywhere under HOME.",
         "The ~/.gtm/northwind-gtm repo is byte-for-byte unchanged with no new history entries.",
         "The create refusal explains the repo connection is fixed by the deployment and redirects to running gtm-workspace from a CLI at a keyboard.",
         "The whole-repo delete request is also refused, not confirmed or partially performed.",
-        "No org.md draft or researched company content for Delta Robotics appears in the transcript.",
+        "No ORG.md draft or researched company content for Delta Robotics appears in the transcript.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
       ],
       "allowed_example_values": [
@@ -130,9 +130,9 @@
       "name": "hosted-update-proceeds",
       "prompt": "You are running as a hosted chat agent, not a CLI: your deployment's configuration fixed the repo connection at deploy time, the context repo is already checked out at ~/.gtm/northwind-gtm inside your workspace with intentionally no git remote, and your environment instructions declare that durable writes happen by committing locally on main, which the platform then mirrors durably. Simulate Priya, a non-technical GTM lead chatting in the team channel. She asks: 'Update Rae Santos — she is now VP Sales, and add her LinkedIn https://www.linkedin.com/in/rae-santos-example.' Priya accepts the exact before/after proposal and wants no other changes. Drive the guided update to completion inside this run's HOME.",
       "expected_output": "The update flow runs normally on the hosted surface: one accepted change to Rae's file, one new history entry on main via the declared mechanism, and the missing remote is never treated as a defect or a reason to stop.",
-      "files": ["evals/fixtures/hosted-connected"],
+      "files": ["evals/gtm-workspace/fixtures/hosted-connected"],
       "assertions": [
-        "Rae's person.md keeps her email and changes the role to VP Sales.",
+        "Rae's MEMBER.md keeps her email and changes the role to VP Sales.",
         "Rae's accepted LinkedIn URL appears under Links.",
         "The repo stays on main and gains exactly one history entry for the accepted update.",
         "No git remote is added and no push is attempted or reported as failed.",
@@ -148,7 +148,7 @@
       "name": "hosted-save-failure-recovery",
       "prompt": "You are running as a hosted chat agent, not a CLI: your deployment's configuration fixed the repo connection at deploy time, the context repo is already checked out at ~/.gtm/northwind-gtm inside your workspace with intentionally no git remote, and your environment instructions declare that this deployment currently has no available durable-save mechanism. Do not make a local edit or commit that the platform cannot preserve. Simulate Priya, a non-technical GTM lead chatting in the team channel. She asks: 'Update Rae Santos — she is now VP Sales, and add her LinkedIn https://www.linkedin.com/in/rae-santos-example.' Priya accepts the exact before/after proposal. When the accepted operation reaches persistence, the environment reports: 'Durable save unavailable in this deployment.' Follow the skill's recovery contract; Priya chooses cancel. Preserve the actual recovery exchange and complete all filesystem work inside this run's HOME.",
       "expected_output": "The accepted update is not applied when durable saving is unavailable: the unchanged repo remains clean, the failure is explained without a success claim, and a directly rendered recovery question offers CLI-at-a-keyboard first and cancel second.",
-      "files": ["evals/fixtures/hosted-connected"],
+      "files": ["evals/gtm-workspace/fixtures/hosted-connected"],
       "assertions": [
         "The connected Northwind repo remains byte-for-byte unchanged, clean, and at its exact two-entry history.",
         "The response says the accepted change could not be durably saved and never claims it was saved or committed.",
@@ -164,15 +164,15 @@
     {
       "id": 10,
       "name": "create-bundled-recovery",
-      "prompt": "Begin with this deliberately unclear user request: 'I need help getting our go-to-market background organized.' Simulate Taylor, a non-technical operator, through the whole interaction. Taylor chooses create from the menu. For the root identity bundle, Taylor replies only with https://copperline.example, LinkedIn https://www.linkedin.com/company/copperline-systems, and that the organization makes procurement software for mid-market manufacturers, deliberately omitting the organization name. When asked for the missing name, Taylor replies only 'Copperline Systems'. Taylor says none to root sources and accepts the accurate root draft. Taylor chooses to add one suborganization. For its identity bundle, Taylor replies only with https://enterprise.copperline.example and that it serves multinational manufacturers, deliberately omitting the suborganization name. When asked for the missing name, Taylor replies only 'Copperline Enterprise'. Taylor says none to suborganization sources and accepts the accurate draft. For the operator bundle, Taylor supplies only the required values 'Taylor Kim — taylor@copperline.example', omits role, social profiles, and affiliation, says none to person sources, and accepts a draft with no invented optional fields. Taylor then adds one individual person. For that person's identity bundle, Taylor supplies only 'Partnerships Lead — LinkedIn: https://www.linkedin.com/in/nora-patel-example — works with Copperline Enterprise', deliberately omitting both full name and email. When asked for the missing required values, Taylor replies only 'Nora Patel — nora@copperline.example'. Taylor says none to person sources, accepts the accurate draft, adds nobody else, and chooses local single-player. Use only these facts, preserve every actual Assistant and User turn, and complete all filesystem and git work inside this run's HOME.",
-      "expected_output": "A valid local Copperline Systems context created through the organization-aware menu, with one suborganization, two root-only people, exact bundled/recovery intake sequences, and an ICP next step.",
+      "prompt": "Begin with this deliberately unclear user request: 'I need help getting our go-to-market background organized.' Simulate Taylor, a non-technical operator, through the whole interaction. Taylor chooses create from the menu. For the root identity bundle, Taylor replies only with https://copperline.example, LinkedIn https://www.linkedin.com/company/copperline-systems, and that the organization makes procurement software for mid-market manufacturers, deliberately omitting the organization name. When asked for the missing name, Taylor replies only 'Copperline Systems'. Taylor says none to root sources and accepts the accurate root draft. Taylor chooses to add one suborganization. For its identity bundle, Taylor replies only with https://enterprise.copperline.example and that it serves multinational manufacturers, deliberately omitting the suborganization name. When asked for the missing name, Taylor replies only 'Copperline Enterprise'. Taylor says none to suborganization sources and accepts the accurate draft. For the operator bundle, Taylor supplies only the required values 'Taylor Kim — taylor@copperline.example', omits role, social profiles, and affiliation, says none to member sources, and accepts a draft with no invented optional fields. Taylor then adds one individual member. For that member's identity bundle, Taylor supplies only 'Partnerships Lead — LinkedIn: https://www.linkedin.com/in/nora-patel-example — member record owned by Copperline Enterprise', deliberately omitting both full name and email. When asked for the missing required values, Taylor replies only 'Nora Patel — nora@copperline.example'. Taylor says none to member sources, accepts the accurate draft, adds nobody else, and chooses local single-player. Use only these facts, preserve every actual Assistant and User turn, and complete all filesystem and git work inside this run's HOME.",
+      "expected_output": "A valid local Copperline Systems context created through the organization-aware menu, with one suborganization, one root member, one suborganization-owned member, exact bundled/recovery intake sequences, and an ICP next step.",
       "files": [],
       "assertions": [
-        "The Copperline repo has a valid root, one accepted suborganization, two root-only people with required emails, and accepted main history.",
+        "The Copperline repo has a valid root, one accepted suborganization, canonical root and suborganization member paths with required emails, and accepted main history.",
         "The no-verb menu explains that one GTM workspace folder belongs to one organization and uses the organization-aware question and choices.",
         "Root and individual-suborganization windows each use identity, the one expected name-only recovery, and sources in that exact order immediately before their proposals.",
-        "Operator and individual-person windows use the exact bundled sequences, including only the expected both-required-values recovery for the added person.",
-        "The saved suborganization display name appears in both first person questions, while no standalone affiliation turn or optional-field follow-up occurs.",
+        "Operator and individual-member windows use the exact bundled sequences, including only the expected both-required-values recovery for the added member.",
+        "The saved suborganization display name appears in both first member questions, while no standalone affiliation turn or optional-field follow-up occurs.",
         "Completion recommends the exact ICP request for Copperline Systems and says the saved context will be used.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
       ],
@@ -184,11 +184,11 @@
     {
       "id": 11,
       "name": "create-unrecognized-workflow-fallback",
-      "prompt": "Create a minimal local GTM workspace for Pine Harbor. Simulate Iris through the complete guided flow using only these facts: Pine Harbor provides inventory planning software; website https://pine-harbor.example; no other organization sources; no suborganizations; Iris Wong, iris@pine-harbor.example, with no role, social profiles, affiliations, or other sources; no additional people; local single-player. Supply each entity's known facts in its bundled identity answer, say none to each sources question, accept accurate proposals, and complete all filesystem and git work inside this run's HOME.",
+      "prompt": "Create a minimal local GTM workspace for Pine Harbor. Simulate Iris through the complete guided flow using only these facts: Pine Harbor provides inventory planning software; website https://pine-harbor.example; no other organization sources; no suborganizations; Iris Wong, iris@pine-harbor.example, with no role, social profiles, affiliations, or other sources; no additional members; local single-player. Supply each entity's known facts in its bundled identity answer, say none to each sources question, accept accurate proposals, and complete all filesystem and git work inside this run's HOME.",
       "expected_output": "A minimal valid Pine Harbor context whose completion ignores the unrecognized workflow ID and uses the generic ICP fallback.",
       "files": [],
       "assertions": [
-        "The Pine Harbor repo has the exact root contract, accepted org and operator files, main history, and no remote.",
+        "The Pine Harbor repo has the exact root contract, accepted ORG.md and operator MEMBER.md files, main history, and no remote.",
         "Completion ignores the unrecognized workflow and renders the exact ICP fallback for Pine Harbor with a saved-context statement.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied.",
         "The shipping prompt examples and the grader's canonical fictional-example inventory are exactly synchronized."
@@ -203,7 +203,7 @@
       "name": "doctor-healthy-skill-content",
       "prompt": "Doctor my Solstice Freight GTM workspace. Simulate Noor, a non-technical operator. The repo is intentionally healthy and contains legitimate icps/ and personas/ directories at both the root and Europe suborg. Report those skill-owned directories as healthy placement, do not judge or rewrite their file contents, make no changes, and complete the health report inside this run's HOME.",
       "expected_output": "A clean bill of health that recognizes root and suborg ICP/persona directories as legitimate, leaves every file and history entry unchanged, and performs no repair.",
-      "files": ["evals/fixtures/doctor-healthy-skill-content"],
+      "files": ["evals/gtm-workspace/fixtures/doctor-healthy-skill-content"],
       "assertions": [
         "The healthy Solstice Freight repo remains clean on main with exactly its seeded history and all ICP/persona files unchanged.",
         "The health report recognizes both root and Europe icps/ and personas/ directories as legitimate placements.",
@@ -215,12 +215,12 @@
     {
       "id": 13,
       "name": "doctor-stray-skill-content",
-      "prompt": "Doctor my Aster Ridge GTM workspace. Simulate Imani, a non-technical operator. The root personas/ directory is legitimate, but archive/icps/ is deliberately stray because archive has no org.md. Identify that exact placement defect and explain it plainly. Imani cancels the repair proposal, so change nothing and complete the report inside this run's HOME.",
+      "prompt": "Doctor my Aster Ridge GTM workspace. Simulate Imani, a non-technical operator. The root personas/ directory is legitimate, but archive/icps/ is deliberately stray because archive has no ORG.md. Identify that exact placement defect and explain it plainly. Imani cancels the repair proposal, so change nothing and complete the report inside this run's HOME.",
       "expected_output": "The doctor flags archive/icps/ because its parent is not an organization node, leaves the legitimate root personas/ content alone, and makes no change after cancellation.",
-      "files": ["evals/fixtures/doctor-stray-skill-content"],
+      "files": ["evals/gtm-workspace/fixtures/doctor-stray-skill-content"],
       "assertions": [
         "The Aster Ridge repo remains clean on main with exactly its seeded history after the repair is cancelled.",
-        "The report names archive/icps/ and explains that its parent lacks org.md or is not an organization node.",
+        "The report names archive/icps/ and explains that its parent lacks ORG.md or is not an organization node.",
         "The legitimate root personas/ directory is not reported as a defect or rewritten.",
         "No repair commit or filesystem change occurs after cancellation.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."

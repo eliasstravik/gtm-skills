@@ -3,7 +3,7 @@
 ## Identity
 - Email: {{email}}
 - Role: {{role}}
-- Suborgs: {{suborg-slugs}}
+- Suborganizations: {{suborg-paths}}
 
 ## Links
 {{links}}

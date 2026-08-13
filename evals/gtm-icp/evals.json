@@ -76,7 +76,7 @@
     {
       "id": 5,
       "name": "doctor-icp-scope",
-      "prompt": "Doctor the ICPs in my Kestrel Works GTM workspace. Simulate Priya, who accepts one complete repair proposal. Seeded ICP defects are intentional: root icps/Bad_Slug.md has no H1 but contains useful account-match facts; root icps/todo.md is only a TODO husk; suborgs/europe/icps/vague.md says nothing an account could match or fail; archive/icps/rogue.md is not beside an org.md. Preserve useful facts, repair or remove every ICP defect, and ignore the deliberately malformed persona file because persona content is outside this doctor's scope. Apply accepted repairs as one commit. Complete all work inside this run's HOME.",
+      "prompt": "Doctor the ICPs in my Kestrel Works GTM workspace. Simulate Priya, who accepts one complete repair proposal. Seeded ICP defects are intentional: root icps/Bad_Slug.md has no H1 but contains useful account-match facts; root icps/todo.md is only a TODO husk; suborgs/europe/icps/vague.md says nothing an account could match or fail; archive/icps/rogue.md is not beside an ORG.md. Preserve useful facts, repair or remove every ICP defect, and ignore the deliberately malformed persona file because persona content is outside this doctor's scope. Apply accepted repairs as one commit. Complete all work inside this run's HOME.",
       "expected_output": "A repo-wide ICP-only doctor pass that repairs placement, slug, H1, substance, and husk defects in one accepted history entry while leaving personas untouched.",
       "files": ["evals/gtm-icp/fixtures/doctor-icp-scope"],
       "assertions": [

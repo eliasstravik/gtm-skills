@@ -15,8 +15,8 @@
   {"query": "Research Dana Ruiz at Beacon Systems and prepare an evidence-backed outreach brief using our visible persona context.", "should_trigger": false},
   {"query": "Research Northstar Transit as an account and explain its fit, timing signals, risks, and recommended next step.", "should_trigger": false},
   {"query": "Create a new GTM workspace repository for Copper Finch, add our operator, and connect it to a private GitHub repo.", "should_trigger": false},
-  {"query": "Repair the GTM workspace repo: restore AGENTS.md, move nested people to root, and remove state files. The persona files themselves are fine.", "should_trigger": false},
+  {"query": "Repair the GTM workspace repo: restore AGENTS.md, migrate legacy people paths to node-owned members, and remove state files. The persona files themselves are fine.", "should_trigger": false},
   {"query": "Explain what a buyer persona is and give me five workshop questions. Do not create or save anything in our GTM repo.", "should_trigger": false},
   {"query": "Write a fictional customer avatar for a landing-page brainstorm; this is just copywriting and is not connected to any GTM workspace.", "should_trigger": false},
-  {"query": "Update teammate Priya Shah's people/priya-shah/person.md record with her new role and LinkedIn URL.", "should_trigger": false}
+  {"query": "Update member Priya Shah's members/priya-shah/MEMBER.md record with her new role and LinkedIn URL.", "should_trigger": false}
 ]

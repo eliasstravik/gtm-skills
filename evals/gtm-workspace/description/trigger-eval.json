@@ -1,10 +1,10 @@
 [
   {
-    "query": "/gtm-workspace — set up a fresh context for Fjord Robotics. We are a five-person team, our site is https://fjord-robotics.example, and I want to keep it only on this Mac for now. I do not know Git, so guide me through it.",
+    "query": "/gtm-workspace — set up a fresh context for Fjord Robotics. We are a five-member team, our site is https://fjord-robotics.example, and I want to keep it only on this Mac for now. I do not know Git, so guide me through it.",
     "should_trigger": true
   },
   {
-    "query": "I have a messy folder at ~/Desktop/northwind-company-notes with an about-us doc and bios for four teammates. Please turn it into the GTM workspace folder you use under ~/.gtm, but leave my original alone.",
+    "query": "I have a messy folder at ~/Desktop/northwind-company-notes with an about-us doc and bios for four members. Please turn it into the GTM workspace folder you use under ~/.gtm, but leave my original alone.",
     "should_trigger": true
   },
   {
@@ -12,11 +12,11 @@
     "should_trigger": true
   },
   {
-    "query": "Add our new teammate Omar Nasser (omar@solace.example, Partner Marketing) to the Solace GTM folder. He works with the alliances suborg. I'm not technical, so show me the draft before saving it.",
+    "query": "Add our new member Omar Nasser (omar@solace.example, Partner Marketing) to the Solace GTM folder. His record belongs to the alliances suborg. I'm not technical, so show me the draft before saving it.",
     "should_trigger": true
   },
   {
-    "query": "We shut down the consumer division. Remove that suborg and its nested youth unit from our Northstar GTM workspace, clean up people's affiliations, and explain what can be recovered afterward.",
+    "query": "We shut down the consumer division. Remove that suborg, its nested youth unit, and the members they own from our Northstar GTM workspace, and explain what can be recovered afterward.",
     "should_trigger": true
   },
   {
@@ -24,11 +24,11 @@
     "should_trigger": true
   },
   {
-    "query": "Something is wrong with ~/.gtm/atlas-labs: a teammate is nested under suborgs/europe, Europe's org file has no title, and I found state.json. Can you doctor the folder and propose repairs first?",
+    "query": "Something is wrong with ~/.gtm/atlas-labs: a member is still in a legacy people directory under suborgs/europe, Europe's lowercase org.md has no title, and I found state.json. Can you doctor and migrate the folder after showing the repairs?",
     "should_trigger": true
   },
   {
-    "query": "Refresh the facts in our Ember Health org.md from the public links already in the file. Show me exactly what changed and let me correct the draft before it becomes part of the context.",
+    "query": "Refresh the facts in our Ember Health ORG.md from the public links already in the file. Show me exactly what changed and let me correct the draft before it becomes part of the context.",
     "should_trigger": true
   },
   {
@@ -36,7 +36,7 @@
     "should_trigger": true
   },
   {
-    "query": "Import git@github.com:our-company/meridian-notes.git as a private shared GTM workspace, convert any loose markdown to the minimal structure, move nested people to root, and walk me through any GitHub login issue.",
+    "query": "Import git@github.com:our-company/meridian-notes.git as a private shared GTM workspace, convert loose markdown and legacy people paths to the canonical member structure, and walk me through any GitHub login issue.",
     "should_trigger": true
   },
   {
