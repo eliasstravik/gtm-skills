@@ -5,10 +5,10 @@ This repository is the durable GTM workspace for one organization.
 ## Shape
 
 - The root and every `suborgs/<suborg-slug>/` organization node has `ORG.md`; suborganizations may recursively contain the same shape.
-- Any organization node may carry canonical `icps/<slug>/ICP.md` and `personas/<slug>/PERSONA.md` artifacts; compatible legacy flat files need no migration. Their file lifecycles are owned by `gtm-icp` and `gtm-persona`.
+- Any organization node may carry canonical `icps/<slug>/ICP.md`, `personas/<slug>/PERSONA.md`, and `workflows/` artifacts; compatible legacy ICP and persona flat files need no migration. Their file lifecycles are owned by `gtm-icp`, `gtm-persona`, and `gtm-workflow`.
 - Members live under their owning organization node at `members/<member-slug>/MEMBER.md`. Their optional `Suborganizations:` line lists additional affiliations.
 - Slugs are lowercase kebab-case. Each `ORG.md` and `MEMBER.md` H1 is the display name; every member has an `Email:` line.
-- Do not keep machine state, registries, pins, empty directories, or placeholder files.
+- Do not track hidden coordination state, pins, caches, generated indexes, run outputs, logs, empty directories, or placeholder files. Skill-authored Markdown registries are ordinary content; skill-owned working state inside `workflows/` is allowed only when gitignored and untracked.
 
 ## Changes
 

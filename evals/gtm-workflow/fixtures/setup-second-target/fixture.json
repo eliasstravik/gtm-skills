@@ -1,0 +1,9 @@
+{
+  "files": {
+    ".gtm/northstar-labs/ORG.md": "# Northstar Labs\n",
+    ".gtm/northstar-labs/workflows/WORKFLOWS.md": "# Workflows\n\nDefault target: Local\n\n## Targets\n\n### Local\n\nAuthor tracked TypeScript and validate with npm test. Run once with npm run workflow. No separate publish step. Inspect source and ignored run files. Definitions are tracked; SQLite and outputs are ignored. Credentials use environment variable pointers. Estimate provider cost before calls.\n\n## Connections\n\n### HubSpot\n\nUses HUBSPOT_TOKEN from the operator keychain. HubSpot API billing applies.\n\n## Limits\n\nMaximum 250 rows per run.\n",
+    ".gtm/northstar-labs/.gitignore": "**/workflows/*/state.sqlite\n**/workflows/*/state.sqlite-*\n**/workflows/*/outputs/\n**/workflows/*/runs/\n**/workflows/*/.cache/\n",
+    "projects/northstar-automation/AGENTS.md": "# Automation repo\n\nAuthor workflows in src/workflows, test with npm test, deploy with npm run deploy, inspect through the configured Vercel dashboard. Runtime data is managed by Vercel. Secrets are environment variables.\n",
+    "projects/northstar-automation/node_modules/workflow/docs/index.md": "Workflow DevKit supports authoring, test invocation, deployment, and run inspection.\n"
+  }
+}

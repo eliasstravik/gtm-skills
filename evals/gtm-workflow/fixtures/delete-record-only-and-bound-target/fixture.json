@@ -1,0 +1,11 @@
+{
+  "files": {
+    ".gtm/hotel/ORG.md": "# Hotel\n",
+    ".gtm/hotel/workflows/WORKFLOWS.md": "# Workflows\n\nDefault target: Clay\n\n## Targets\n\n### Clay\n\nAuthor, run, publish, and inspect through target-sandbox/clay/state.json. Data and runs live in Clay. Connections live in-app and credits are estimated.\n\n### Local\n\nAuthor tracked TypeScript, run once, and inspect locally. No separate publish. SQLite and outputs are ignored. Credentials use pointers and provider costs are estimated.\n",
+    ".gtm/hotel/workflows/legacy-enrichment/WORKFLOW.md": "# Legacy Enrichment\n\nTarget: Clay\nKind: scheduled\nWorkflow ID: clay-900\n\n## Purpose\n\nLegacy scheduled enrichment.\n\n## Inputs and outputs\n\nClay rows in and enriched rows out.\n\n## Operation\n\nRuns in Clay.\n",
+    ".gtm/hotel/workflows/normalize-accounts/WORKFLOW.md": "# Normalize Accounts\n\nTarget: Local\nKind: on-demand\nRepo path: workflows/normalize-accounts/index.ts\n\n## Purpose\n\nNormalize accounts.\n\n## Inputs and outputs\n\nLocal rows in and out.\n\n## Operation\n\nRun locally.\n",
+    ".gtm/hotel/workflows/normalize-accounts/index.ts": "console.log('normalize');\n",
+    ".gtm/hotel/.gitignore": "**/workflows/*/state.sqlite\n**/workflows/*/state.sqlite-*\n**/workflows/*/outputs/\n**/workflows/*/runs/\n**/workflows/*/.cache/\n",
+    "target-sandbox/clay/state.json": "{\"workflows\": {\"clay-900\": {\"status\": \"live\"}}}\n"
+  }
+}

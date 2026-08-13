@@ -1,0 +1,22 @@
+[
+  {"query": "Set up Clay and our local TypeScript runner as workflow targets in the Acme GTM workspace; keep HubSpot as a connection and cap runs at 500 rows.", "should_trigger": true},
+  {"query": "Create a triggered demo-request router in our Vercel workflow repo and save its record under the Enterprise suborg.", "should_trigger": true},
+  {"query": "publish the latest draft of our Renewals Enrichment workflow in Clay", "should_trigger": true},
+  {"query": "Run CRM Account Refresh for the 1,200 queued rows, but show me the Clay credit estimate and let me pilot ten first.", "should_trigger": true},
+  {"query": "Inspect workflow health in ~/.gtm/northstar: I think a sqlite file got committed and one record points at a deleted target.", "should_trigger": true},
+  {"query": "Delete the Legacy Enrichment workflow record but leave the actual Clay workflow running.", "should_trigger": true},
+  {"query": "Add n8n as another target to the workflow registry for our EMEA suborganization.", "should_trigger": true},
+  {"query": "Update Account Scoring from threshold 70 to 80 and tell me exactly what is draft versus live.", "should_trigger": true},
+  {"query": "I need help organizing our inbound automations; they're saved in a GTM workspace but I'm not sure whether to create, run, or inspect one.", "should_trigger": true},
+  {"query": "Create a local on-demand CSV normalization workflow in our GTM workspace; there isn't a WORKFLOWS.md yet.", "should_trigger": true},
+  {"query": "Create a new GTM workspace repo for Northstar Labs and add our sales team members.", "should_trigger": false},
+  {"query": "Doctor the overall GTM workspace; ORG.md is missing in two suborgs and CLAUDE.md is wrong.", "should_trigger": false},
+  {"query": "Define an ICP for European insurers with more than 1,000 employees.", "should_trigger": false},
+  {"query": "Create a buyer persona for the VP of RevOps who owns enrichment tooling.", "should_trigger": false},
+  {"query": "Research 50 accounts matching our saved ICP and return the strongest fits in a CSV.", "should_trigger": false},
+  {"query": "Use the Clay plugin to enrich this one company domain right now; don't save a reusable workflow.", "should_trigger": false},
+  {"query": "Score these leads against the persona and route them into strong-fit and weak-fit buckets.", "should_trigger": false},
+  {"query": "Repair the failing GitHub Actions workflow in .github/workflows/test.yml.", "should_trigger": false},
+  {"query": "Use Zapier MCP to send this single Slack message through an already configured action.", "should_trigger": false},
+  {"query": "Import ~/Downloads/acme-context into ~/.gtm and migrate its legacy people files to members.", "should_trigger": false}
+]

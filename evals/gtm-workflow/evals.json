@@ -1,0 +1,148 @@
+{
+  "skill_name": "gtm-workflow",
+  "evals": [
+    {
+      "id": 1,
+      "name": "fresh-setup-invoke-only-connection",
+      "prompt": "Set up workflows for Northstar Labs. The available Clay surface can author, run, and inspect workflows. Zapier MCP can invoke app actions but cannot create, edit, enable, or inspect Zaps. Simulate Maya choosing Clay as the default target, Zapier as a connection, a 500-row limit, and accepting the complete proposal. Explain the Zapier classification plainly and complete all work inside this run's HOME.",
+      "expected_output": "A fresh node-local registry with Clay as a viable default target, Zapier as a connection rather than a target, limits, ignore lines, and one accepted history entry.",
+      "files": ["evals/gtm-workflow/fixtures/fresh-setup-invoke-only-connection"],
+      "assertions": [
+        "Setup verifies author, run, and inspect viability and plainly classifies invoke-only Zapier as a connection rather than a target.",
+        "The accepted WORKFLOWS.md has Clay as its sole default target, a Zapier connection, the 500-row limit, and every required target-operation topic.",
+        "The accepted write includes workflow-owned gitignore lines, exactly matches the preview, and is saved as one clean main-branch history entry.",
+        "Questions follow the direct bold one-question format, and no secret, target-kind field, deploy verb, or doctor verb is introduced."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "setup-second-target",
+      "prompt": "Add Vercel Workflows as a second target to the existing Northstar Labs workflow registry. Use the repo ~/projects/northstar-automation, whose files and installed Workflow DevKit docs allow authoring, test runs, deploy, and inspection. Keep Local as the default and preserve its existing prose and limits. Simulate Maya accepting the complete registry revision.",
+      "expected_output": "The existing registry is extended with one viable Vercel Workflows target while preserving Local as default and all unrelated prose.",
+      "files": ["evals/gtm-workflow/fixtures/setup-second-target"],
+      "assertions": [
+        "Setup treats the named repo as a viable author/run/inspect target and adds a complete Vercel Workflows operating section.",
+        "The revised registry preserves Local as default plus all prior connection and limit prose.",
+        "Complete before/after registry bytes are accepted and saved as one scoped clean history entry.",
+        "No target-kind field, in-skill backend adapter, or unrelated workspace artifact is created."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "create-local-materializes-registry",
+      "prompt": "Create an on-demand local workflow called Normalize CRM Accounts in the Acme GTM workspace, whose root has no WORKFLOWS.md. It reads input CSV rows, normalizes domains, and writes results under outputs/. Simulate Sam choosing the quick local TypeScript + SQLite default, reviewing the actual registry, record, index.ts, schema.ts, and test bytes together, accepting them, and completing the flow.",
+      "expected_output": "Quick local setup and workflow creation occur in one accepted write, with registry, ignore lines, record, and tracked implementation bytes saved together.",
+      "files": ["evals/gtm-workflow/fixtures/create-local-materializes-registry"],
+      "assertions": [
+        "The missing-registry branch offers full setup or quick local and materializes WORKFLOWS.md from the local target in the same accepted write.",
+        "The accepted proposal previews complete registry, record, TypeScript, schema, test, and gitignore bytes before any tracked write.",
+        "The record dereferences Local, is on-demand, has a real repo pointer, and the implementation writes working data only under ignored paths.",
+        "All accepted paths are saved in one clean main-branch history entry and the close reports local as live with no separate publish step."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "create-triggered-infrastructure",
+      "prompt": "Create a triggered workflow named Demo Request Router for Atlas Cloud. It should receive a form webhook and write qualified requests to the CRM. The registry has Local and Vercel Workflows. Simulate Noor first asking whether Local can host it, then selecting Vercel after the skill refuses Local for triggered workflows. Build and validate the draft in the seeded implementation repo, accept the real WORKFLOW.md bytes, deploy through the repo's declared mechanism, and finish.",
+      "expected_output": "Local is refused for a triggered kind and the workflow is built, recorded, and made live through the infrastructure target.",
+      "files": ["evals/gtm-workflow/fixtures/create-triggered-infrastructure"],
+      "assertions": [
+        "Create explicitly refuses the local target for a triggered workflow and recommends an infrastructure target.",
+        "The Vercel draft is built and validated before a record with Target Vercel Workflows, Kind triggered, and a real repo path is previewed.",
+        "The accepted record is saved before the separately gated deployment and no record-less target artifact remains.",
+        "The close reports the workflow live, validated, saved to history, and bound to its target without a deploy lifecycle verb."
+      ]
+    },
+    {
+      "id": 5,
+      "name": "clay-on-demand-publish-and-cancel",
+      "prompt": "In the Clay-backed Pinecone GTM workspace, create an on-demand workflow named Renewals Enrichment, accept its real Clay-ID record, and publish it. Then start creating Churn Rescue, let the agent create and validate a Clay draft, but cancel at the record proposal and choose to clean up the abandoned draft. Simulate every choice and complete both exchanges.",
+      "expected_output": "The accepted on-demand Clay workflow receives a go-live gate and is published; the cancelled draft is cleaned up and leaves no record.",
+      "files": ["evals/gtm-workflow/fixtures/clay-on-demand-publish-and-cancel"],
+      "assertions": [
+        "The on-demand Clay workflow still receives a separate publish/go-live gate after its real-ID record is accepted.",
+        "Renewals Enrichment has a saved record and a verified live target artifact, with draft/live status stated clearly.",
+        "Cancellation after Churn Rescue draft creation offers target cleanup, removes the abandoned draft, and leaves no Churn Rescue record.",
+        "No agent-created target artifact is left record-less and the workspace has one clean scoped history entry."
+      ]
+    },
+    {
+      "id": 6,
+      "name": "run-external-cost-gate",
+      "prompt": "Run the saved Clay workflow CRM Account Refresh for all 1,200 queued accounts. It will write normalized domains to HubSpot and costs an estimated 2 credits per row; the registry limit is 3,000 credits. Simulate Inez choosing the recommended 10-record pilot after the scope preview, reviewing its result, then accepting the full run. Record results only in chat and the seeded Clay run surface.",
+      "expected_output": "The external CRM run is gated with target-native cost and limits, offers a pilot, then executes only accepted scopes without tracked run state.",
+      "files": ["evals/gtm-workflow/fixtures/run-external-cost-gate"],
+      "assertions": [
+        "Before external writes, the run preview states 1,200 records, HubSpot writes, the 2,400-credit estimate, the 3,000-credit limit, and a recommended pilot.",
+        "A 10-record pilot runs first and the full scope runs only after a second acceptance based on pilot results.",
+        "Results, failures, target run pointers, and observed cost are reported in chat while the workspace remains byte-preserved and clean.",
+        "The workflow is dereferenced through its Clay target and no publish, record update, or tracked run log occurs."
+      ]
+    },
+    {
+      "id": 7,
+      "name": "run-local-ungated",
+      "prompt": "Run the local Normalize Domains workflow in the Delta GTM workspace against the seeded five-row input. It is read/local-only and writes output under its ignored outputs/ directory. Complete the run without asking for approval and report results in chat.",
+      "expected_output": "The local on-demand workflow runs without a scope gate, writes only ignored working output, and reports results in chat.",
+      "files": ["evals/gtm-workflow/fixtures/run-local-ungated"],
+      "assertions": [
+        "The record dereferences Local and executes its saved entry point without an acceptance or cost gate.",
+        "All five rows are processed and the result is reported in chat.",
+        "Output is written only beneath the ignored workflow outputs directory and no tracked run log or record edit occurs.",
+        "The repo remains clean on main with unchanged history."
+      ]
+    },
+    {
+      "id": 8,
+      "name": "inspect-single-workflow",
+      "prompt": "Inspect the saved Clay workflow Inbound Lead Router in the Echo GTM workspace. Use its saved target pointer and the seeded read-only Clay state. Report draft/live status, validation, recent runs, connections, limits, and observed cost. Do not mutate anything.",
+      "expected_output": "A mutation-free, target-native inspection of one workflow with record, live state, runs, limits, connections, and cost.",
+      "files": ["evals/gtm-workflow/fixtures/inspect-single-workflow"],
+      "assertions": [
+        "Inspect resolves the record through its Clay target and uses the saved target-native workflow ID.",
+        "The report covers draft/live state, validation, recent runs, connections, limits, and observed cost, distinguishing unavailable facts.",
+        "No repair proposal, lifecycle menu, or mutation occurs during the named-workflow inspection.",
+        "The workspace and target sandbox remain byte-preserved and the repo stays clean with unchanged history."
+      ]
+    },
+    {
+      "id": 9,
+      "name": "inspect-node-health-repair",
+      "prompt": "Inspect workflow health for the Foxtrot GTM workspace with no workflow name. Seeded defects are deliberate: an orphaned record points to a missing target, state.sqlite is tracked, and workflow gitignore lines are absent. Simulate Priya accepting one scoped repair that rebinds the obvious record to Local, untracks but preserves the SQLite working file, and adds the ignore lines. Rerun every check.",
+      "expected_output": "No-argument inspect reports complete node health, previews one repair set, applies only on acceptance, and verifies the repaired node.",
+      "files": ["evals/gtm-workflow/fixtures/inspect-node-health-repair"],
+      "assertions": [
+        "The mutation-free first report names the orphaned record, tracked SQLite state, and missing workflow ignore lines, plus healthy checks.",
+        "One complete proposal previews revised record and gitignore bytes plus the untrack-without-delete operation, then waits for acceptance.",
+        "The accepted repair preserves state.sqlite locally but untracked, binds the record to Local, and adds every workflow-owned ignore line.",
+        "A full rerun reports healthy and one Repair GTM workflow artifacts history entry leaves the main worktree clean."
+      ]
+    },
+    {
+      "id": 10,
+      "name": "update-draft-registry-and-bare-publish",
+      "prompt": "Update the Clay workflow Account Scoring in the Gamma GTM workspace: raise the fit threshold from 70 to 80 and update the Clay target billing note from 1 to 2 credits per row. Validate the target draft, accept the complete workflow-record and registry revisions, but defer publish. Then say only 'publish it' and accept the go-live gate. Complete the whole simulated exchange.",
+      "expected_output": "One update changes workflow and registry bytes, reports stale live logic on deferral, then routes bare publish to a no-content update and publishes without another byte preview.",
+      "files": ["evals/gtm-workflow/fixtures/update-draft-registry-and-bare-publish"],
+      "assertions": [
+        "The target draft is changed and validated before complete before/after record and registry bytes are accepted together.",
+        "Deferring go-live states that threshold 80 is draft, live still runs threshold 70, and explains how to finish.",
+        "The bare publish request routes to update with no content changes and goes directly to a separate go-live gate without a new byte preview.",
+        "The final state is verified live at threshold 80, the accepted files are saved in one scoped clean history entry, and no deploy verb appears."
+      ]
+    },
+    {
+      "id": 11,
+      "name": "delete-record-only-and-bound-target",
+      "prompt": "Delete the Clay workflow Legacy Enrichment from the Hotel GTM workspace. Simulate Morgan choosing record-only after the skill explains the Clay workflow keeps running but becomes unmanaged. Then ask to delete the Local target, which is still bound by Normalize Accounts; do not remove it. Complete both exchanges.",
+      "expected_output": "Record-only deletion explicitly unmanages a still-live Clay workflow, while a bound target deletion is refused until its record is rebound or removed.",
+      "files": ["evals/gtm-workflow/fixtures/delete-record-only-and-bound-target"],
+      "assertions": [
+        "Delete separately offers target artifact plus record, record-only, and cancel; record-only warns that Clay keeps running but is no longer tracked.",
+        "Only the accepted Legacy Enrichment record is deleted and saved to history; the seeded Clay target artifact remains live.",
+        "Local target deletion scans bindings, names Normalize Accounts, and refuses removal until that workflow is rebound or deleted/unmanaged.",
+        "WORKFLOWS.md and Normalize Accounts remain byte-preserved, with one clean scoped deletion history entry and recovery guidance."
+      ]
+    }
+  ]
+}
