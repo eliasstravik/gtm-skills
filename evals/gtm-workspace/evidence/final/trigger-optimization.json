@@ -1,0 +1,32 @@
+{
+  "model": "gpt-5.6-sol",
+  "eval_count": 20,
+  "runs_per_query": 3,
+  "incumbent": {
+    "description": "Triggers when the user invokes `/gtm-workspace` or asks to create, import, update, delete, validate, or repair a GTM workspace repo or folder, including adding teammates or suborganizations. Not for defining ICPs or personas, or for tasks that merely use an existing workspace without changing or validating it.",
+    "overall": {"correct": 58, "runs": 60, "accuracy": 0.9667},
+    "held_out": {"correct": 24, "runs": 24, "accuracy": 1.0},
+    "positive_recall": 1.0,
+    "negative_specificity": 0.9333
+  },
+  "measured_candidates": [
+    {
+      "candidate_index": 0,
+      "overall": {"correct": 54, "runs": 60, "accuracy": 0.9},
+      "held_out": {"correct": 24, "runs": 24, "accuracy": 1.0},
+      "positive_recall": 1.0,
+      "negative_specificity": 0.8
+    },
+    {
+      "candidate_index": 1,
+      "overall": {"correct": 54, "runs": 60, "accuracy": 0.9},
+      "held_out": {"correct": 24, "runs": 24, "accuracy": 1.0},
+      "positive_recall": 1.0,
+      "negative_specificity": 0.8
+    }
+  ],
+  "selection": {
+    "best_description": "Triggers when the user invokes `/gtm-workspace` or asks to create, import, update, delete, validate, or repair a GTM workspace repo or folder, including adding teammates or suborganizations. Not for defining ICPs or personas, or for tasks that merely use an existing workspace without changing or validating it.",
+    "reason": "All measured descriptions tied at 100% held-out accuracy; the incumbent retained the highest overall accuracy and negative specificity, so replacing it would be a regression."
+  }
+}

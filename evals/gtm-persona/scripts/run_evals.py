@@ -16,7 +16,7 @@ import time
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 EVAL_ROOT = Path(__file__).resolve().parents[1]
-CONTEXT_TEMPLATES = REPO_ROOT / "skills" / "gtm-context" / "templates"
+CONTEXT_TEMPLATES = REPO_ROOT / "skills" / "gtm-workspace" / "templates"
 MODEL = "gpt-5.6-sol"
 AUTH_FILES = ("auth.json", ".credentials.json", "installation_id")
 

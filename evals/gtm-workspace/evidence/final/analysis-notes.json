@@ -1,0 +1,7 @@
+[
+  "The final candidate passed all 80 assertions across all 13 scenarios; no candidate failure is hidden by the aggregate mean.",
+  "The pre-migration baseline passed 70/80 assertions. Its ten misses are concentrated in simple and complex creation, local import, broken-repo doctoring, bundled recovery, and the unrecognized-workflow fallback.",
+  "Candidate and baseline both passed update, suborganization deletion, both content-placement doctor safety cases, and all three hosted-surface cases, showing lifecycle parity on existing behavior while the candidate improves the migration-sensitive paths.",
+  "The candidate averaged 93.6 seconds and 216,110 tokens per scenario versus 95.6 seconds and 215,077 tokens for baseline: approximately two seconds faster with a negligible 1,033-token increase.",
+  "Each configuration ran once per scenario, so the reported standard deviations describe differences among scenarios rather than repeated-run variance. Trigger behavior was measured separately with three repetitions per query."
+]

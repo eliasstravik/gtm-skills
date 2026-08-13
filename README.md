@@ -1,6 +1,6 @@
 <p align="center"><img src="https://img.shields.io/badge/GTM%20Skills-Open%20source%20skills%20for%20GTM-2ea44f?style=flat-square&labelColor=24292f" alt="GTM Skills — Open source skills for GTM" /></p>
 
-<h3 align="center">Build and maintain shared GTM context</h3>
+<h3 align="center">Build and maintain shared GTM workspace</h3>
 
 <p align="center">GTM Skills gives your team three open source skills for maintaining one Git-backed organization context and the ICPs and personas it owns.</p>
 
@@ -23,7 +23,7 @@ The organization context records durable facts about the business and its team. 
 | | **GTM Skills** | Repeated prompts | Standalone templates | Custom agents |
 |---|:---:|:---:|:---:|:---:|
 | **Three ready-made GTM skills** | ✅ | ❌ | ❌ | ❌ |
-| **Shared Git-backed GTM context** | ✅ | ❌ | ❌ | ❌ |
+| **Shared Git-backed GTM workspace** | ✅ | ❌ | ❌ | ❌ |
 | **Organization lifecycle management** | ✅ | ❌ | ❌ | ❌ |
 | **ICP and persona lifecycle management** | ✅ | ❌ | ❌ | ❌ |
 | **Node-local organization support** | ✅ | ❌ | ❌ | ❌ |
@@ -33,7 +33,7 @@ Keep durable GTM knowledge in one repository. Each skill reads only the context 
 
 ## Organize the business. Define the market. Describe the buyer.
 
-### 🏗️ Build the shared GTM context
+### 🏗️ Build the shared GTM workspace
 
 Create or import an organization repository, add teammates and suborganizations, update stored facts, and repair structural or Git problems.
 
@@ -50,7 +50,7 @@ Create, refine, delete, or validate personas with clear responsibilities, influe
 <table>
 <tr>
 <td align="center" valign="top" width="33%"><h3>1️⃣</h3><b>Install GTM Skills</b><br /><sub>Run <code>npx skills add eliasstravik/gtm-skills -g</code> to install all three skills.</sub></td>
-<td align="center" valign="top" width="33%"><h3>2️⃣</h3><b>Build your GTM context</b><br /><sub>Run <code>/gtm-context</code> to create or import the organization repository and add the people and business units it owns.</sub></td>
+<td align="center" valign="top" width="33%"><h3>2️⃣</h3><b>Build your GTM workspace</b><br /><sub>Run <code>/gtm-workspace</code> to create or import the organization repository and add the people and business units it owns.</sub></td>
 <td align="center" valign="top" width="33%"><h3>3️⃣</h3><b>Define the market and buyer</b><br /><sub>Run <code>/gtm-icp</code> and <code>/gtm-persona</code> to create the definitions each organization needs.</sub></td>
 </tr>
 </table>
@@ -60,7 +60,7 @@ Create, refine, delete, or validate personas with clear responsibilities, influe
 <table>
 <tr>
 <td align="center" valign="top" width="50%"><h3>Self-serve</h3><sub>For GTM builders and teams using AI agents</sub><br /><h2>Free</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Three installable GTM skills<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Git-backed organization context<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Persona lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Suborganization-aware ownership<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Guided previews and history</div></td>
-<td align="center" valign="top" width="50%"><h3>Done-with-you</h3><sub>Hands-on setup and rollout for your GTM team</sub><br /><h2>Let's talk</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Everything in self-serve<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Full GTM Skills setup<br />&nbsp;&nbsp;&nbsp;✓&nbsp; GTM context repository configuration<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP and persona workflow design<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Team rollout, training, and best practices<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Ongoing maintenance and upgrades<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Dedicated Slack channel support</div></td>
+<td align="center" valign="top" width="50%"><h3>Done-with-you</h3><sub>Hands-on setup and rollout for your GTM team</sub><br /><h2>Let's talk</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Everything in self-serve<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Full GTM Skills setup<br />&nbsp;&nbsp;&nbsp;✓&nbsp; GTM workspace repository configuration<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP and persona workflow design<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Team rollout, training, and best practices<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Ongoing maintenance and upgrades<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Dedicated Slack channel support</div></td>
 </tr>
 <tr>
 <td align="center"><a href="https://github.com/eliasstravik/gtm-skills/blob/main/docs/getting-started.md"><img src="assets/buttons/install-gtm-skills.svg" alt="Install GTM Skills" /></a></td>
@@ -72,13 +72,13 @@ Create, refine, delete, or validate personas with clear responsibilities, influe
 
 ### Do I need to know how to code?
 
-No code is required to run the guided skills. You need `npx`, an AI agent that loads installed skills, and Git for the GTM context repository.
+No code is required to run the guided skills. You need `npx`, an AI agent that loads installed skills, and Git for the GTM workspace repository.
 
 ### What gets installed?
 
-The install command adds GTM Context, GTM ICP, and GTM Persona. Run `/gtm-context` first, then use `/gtm-icp` and `/gtm-persona` for the definitions your organization owns.
+The install command adds GTM Workspace, GTM ICP, and GTM Persona. Run `/gtm-workspace` first, then use `/gtm-icp` and `/gtm-persona` for the definitions your organization owns.
 
-### What does GTM Context store?
+### What does GTM Workspace store?
 
 It stores your organization’s durable self-knowledge: organization facts, teammates, suborganizations, ICPs, and personas.
 

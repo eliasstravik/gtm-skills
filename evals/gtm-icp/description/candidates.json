@@ -1,15 +1,15 @@
 {
   "candidates": [
     {
-      "description": "Triggers when a user asks to create, update, delete, or doctor an ideal customer profile in a connected GTM context. Not for personas or managing the context repository itself.",
+      "description": "Triggers when a user asks to create, update, delete, or doctor an ideal customer profile in a connected GTM workspace. Not for personas or managing the context repository itself.",
       "rationale": "Bare-core description with concise lifecycle triggers and neighboring artifact boundaries."
     },
     {
-      "description": "Triggers when a user asks to create, define, refine, update, delete, or doctor an ideal customer profile file in a connected GTM context, including choosing which organization owns it. Not for personas or for creating, importing, deleting, or repairing the context repository itself.",
+      "description": "Triggers when a user asks to create, define, refine, update, delete, or doctor an ideal customer profile file in a connected GTM workspace, including choosing which organization owns it. Not for personas or for creating, importing, deleting, or repairing the context repository itself.",
       "rationale": "Adds natural define/refine language, the ownership boundary, and explicit repository-level exclusions."
     },
     {
-      "description": "Triggers when the requested outcome is to add, revise, remove, or validate ICP Markdown owned by an organization in an existing GTM context. Not for persona files or context-repository setup and repair.",
+      "description": "Triggers when the requested outcome is to add, revise, remove, or validate ICP Markdown owned by an organization in an existing GTM workspace. Not for persona files or context-repository setup and repair.",
       "rationale": "Frames discovery around the durable ICP-file outcome while separating adjacent artifact and repository work."
     }
   ]
