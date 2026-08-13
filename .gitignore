@@ -4,6 +4,9 @@ evals/*/runs/
 # Local Superpowers planning artifacts do not belong in this repository.
 docs/superpowers/
 
+# Local Paperclip execution worktrees and runtime state.
+.paperclip/
+
 # Per-run description transcripts.
 evals/*/description/**/transcripts/
 
