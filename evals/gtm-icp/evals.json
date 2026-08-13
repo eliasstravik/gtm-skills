@@ -23,7 +23,7 @@
     {
       "id": 2,
       "name": "suborg-create-destination",
-      "prompt": "Create a new ICP in my Nimbus Labs GTM context. Simulate Jules through completion. Nimbus has an Enterprise suborganization and artifacts at both nodes. Because the request does not name an owner, Jules answers the required ownership question by selecting Nimbus Enterprise even though root is recommended first. The new ICP is National Insurers: national insurance carriers with 1,000+ employees, regulated data workloads, and active modernization programs; disqualify firms that prohibit cloud deployment. The existing Enterprise ICP Regulated Platforms is adjacent but not a duplicate. Accept the accurate complete draft and save it. Complete all work inside this run's HOME.",
+      "prompt": "Create a new ICP in my Nimbus Labs GTM workspace. Simulate Jules through completion. Nimbus has an Enterprise suborganization and artifacts at both nodes. Because the request does not name an owner, Jules answers the required ownership question by selecting Nimbus Enterprise even though root is recommended first. The new ICP is National Insurers: national insurance carriers with 1,000+ employees, regulated data workloads, and active modernization programs; disqualify firms that prohibit cloud deployment. The existing Enterprise ICP Regulated Platforms is adjacent but not a duplicate. Accept the accurate complete draft and save it. Complete all work inside this run's HOME.",
       "expected_output": "A node-local Enterprise ICP created after the mandatory destination choice, grounded only in Enterprise context and carrying the qualified label enterprise/national-insurers.",
       "files": ["evals/gtm-icp/fixtures/suborg-create-destination"],
       "assertions": [
@@ -76,7 +76,7 @@
     {
       "id": 5,
       "name": "doctor-icp-scope",
-      "prompt": "Doctor the ICPs in my Kestrel Works GTM context. Simulate Priya, who accepts one complete repair proposal. Seeded ICP defects are intentional: root icps/Bad_Slug.md has no H1 but contains useful account-match facts; root icps/todo.md is only a TODO husk; suborgs/europe/icps/vague.md says nothing an account could match or fail; archive/icps/rogue.md is not beside an org.md. Preserve useful facts, repair or remove every ICP defect, and ignore the deliberately malformed persona file because persona content is outside this doctor's scope. Apply accepted repairs as one commit. Complete all work inside this run's HOME.",
+      "prompt": "Doctor the ICPs in my Kestrel Works GTM workspace. Simulate Priya, who accepts one complete repair proposal. Seeded ICP defects are intentional: root icps/Bad_Slug.md has no H1 but contains useful account-match facts; root icps/todo.md is only a TODO husk; suborgs/europe/icps/vague.md says nothing an account could match or fail; archive/icps/rogue.md is not beside an org.md. Preserve useful facts, repair or remove every ICP defect, and ignore the deliberately malformed persona file because persona content is outside this doctor's scope. Apply accepted repairs as one commit. Complete all work inside this run's HOME.",
       "expected_output": "A repo-wide ICP-only doctor pass that repairs placement, slug, H1, substance, and husk defects in one accepted history entry while leaving personas untouched.",
       "files": ["evals/gtm-icp/fixtures/doctor-icp-scope"],
       "assertions": [

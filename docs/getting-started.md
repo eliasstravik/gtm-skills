@@ -18,14 +18,14 @@ Install all three skills globally:
 npx skills add eliasstravik/gtm-skills -g
 ```
 
-Your agent can now use GTM Context, GTM ICP, and GTM Persona.
+Your agent can now use GTM Workspace, GTM ICP, and GTM Persona.
 
-## 3. Build your GTM context
+## 3. Build your GTM workspace
 
 Start the guided setup:
 
 ```text
-/gtm-context
+/gtm-workspace
 ```
 
 The skill helps you create a new organization context or import one that already exists. Review the complete preview before accepting any write. A new context is saved as a Git repository under:
@@ -73,7 +73,7 @@ Choose the organization node that owns the buyer or stakeholder definition. Capt
 
 Use the same three skills as the organization evolves:
 
-- Run `/gtm-context` to update organization facts or teammates, add suborganizations, or validate and repair the repository.
+- Run `/gtm-workspace` to update organization facts or teammates, add suborganizations, or validate and repair the repository.
 - Run `/gtm-icp` to create, refine, delete, or doctor an ICP.
 - Run `/gtm-persona` to create, refine, delete, or doctor a persona.
 

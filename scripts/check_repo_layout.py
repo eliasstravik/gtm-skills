@@ -27,7 +27,7 @@ def main() -> int:
         fail(errors, "skills/ contains no skill directories")
 
     for skill_dir in skill_dirs:
-        if skill_dir.name.endswith("-workspace"):
+        if skill_dir.name.endswith("-workspace") and skill_dir.name != "gtm-workspace":
             fail(errors, f"development workspace is inside skills/: {skill_dir.relative_to(REPO_ROOT)}")
         skill_md = skill_dir / "SKILL.md"
         if not skill_md.is_file():

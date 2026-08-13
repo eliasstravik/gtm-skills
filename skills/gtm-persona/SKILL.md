@@ -1,6 +1,6 @@
 ---
 name: gtm-persona
-description: Triggers when a user asks to create, define, refine, update, delete, or doctor a buyer or stakeholder persona file in a connected GTM context, including choosing which organization owns it. Not for ICPs, teammate records, general persona advice, or creating, importing, deleting, or repairing the context repository itself.
+description: Triggers when a user asks to create, define, refine, update, delete, or doctor a buyer or stakeholder persona file in a connected GTM workspace, including choosing which organization owns it. Not for ICPs, teammate records, general persona advice, or creating, importing, deleting, or repairing the context repository itself.
 ---
 
 # GTM Persona
@@ -19,7 +19,7 @@ description: Triggers when a user asks to create, define, refine, update, delete
 
 - Ask one question per message. Render it as the first line in bold; never use `AskUserQuestion`.
 - Render discrete choices as numbered options with option 1 marked `(Recommended)`, followed exactly by `Reply with a number, or type your answer.`
-- After resolving the target, state `Using GTM context: <display name> — <N> personas visible` before acting or judging.
+- After resolving the target, state `Using GTM workspace: <display name> — <N> personas visible` before acting or judging.
 - Read only the target node's own `personas/`; root, ancestor, sibling, and descendant personas are not visible there.
 - On create with any suborg, ask which organization owns the persona unless the request names it; list root first as `(Recommended)`.
 - Treat grounding as a factual ceiling: preserve supplied responsibilities, authority boundaries, disqualifiers, and uncertainties; do not invent plausible persona claims. Keep adjacent-persona comparisons in chat unless requested in the file.

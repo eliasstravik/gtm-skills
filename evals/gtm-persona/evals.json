@@ -23,7 +23,7 @@
     {
       "id": 2,
       "name": "suborg-create-destination",
-      "prompt": "Create a new buyer persona in my Solace Cloud GTM context. Simulate Theo through completion. Solace has an Enterprise suborganization and persona artifacts at both nodes. Because the request does not name an owner, Theo answers the required ownership question by selecting Solace Enterprise even though root is recommended first. The new persona is Cloud Governance Lead: manages cross-functional cloud policy for regulated workloads, influences security review, and does not hold final budget approval; disqualify advisory architects without policy ownership. The existing Enterprise persona Security Assurance Director is adjacent but not a duplicate. Accept the accurate complete draft and save it. Complete all work inside this run's HOME.",
+      "prompt": "Create a new buyer persona in my Solace Cloud GTM workspace. Simulate Theo through completion. Solace has an Enterprise suborganization and persona artifacts at both nodes. Because the request does not name an owner, Theo answers the required ownership question by selecting Solace Enterprise even though root is recommended first. The new persona is Cloud Governance Lead: manages cross-functional cloud policy for regulated workloads, influences security review, and does not hold final budget approval; disqualify advisory architects without policy ownership. The existing Enterprise persona Security Assurance Director is adjacent but not a duplicate. Accept the accurate complete draft and save it. Complete all work inside this run's HOME.",
       "expected_output": "A node-local Enterprise persona created after the mandatory destination choice, grounded only in Enterprise context and carrying the qualified label enterprise/cloud-governance-lead.",
       "files": ["evals/gtm-persona/fixtures/suborg-create-destination"],
       "assertions": [
@@ -59,7 +59,7 @@
     {
       "id": 4,
       "name": "delete-obvious-node",
-      "prompt": "Delete the Transit Innovation Director persona from my Northstar Transit GTM context. Simulate Leon through completion. Only the Mobility node has any persona, so use that obvious node without asking which organization. Show the full consequence and recovery guidance, accept the deletion, and save it. Complete all work inside this run's HOME.",
+      "prompt": "Delete the Transit Innovation Director persona from my Northstar Transit GTM workspace. Simulate Leon through completion. Only the Mobility node has any persona, so use that obvious node without asking which organization. Show the full consequence and recovery guidance, accept the deletion, and save it. Complete all work inside this run's HOME.",
       "expected_output": "The sole Mobility persona is removed after a complete consequence preview while the org and ICP remain intact, with one history entry and recovery guidance.",
       "files": ["evals/gtm-persona/fixtures/delete-obvious-node"],
       "assertions": [
@@ -76,7 +76,7 @@
     {
       "id": 5,
       "name": "doctor-persona-scope",
-      "prompt": "Doctor the persona artifacts in my Copper Finch GTM context. Simulate Sam through completion. Report every healthy check and defect, keep the work strictly scoped to personas even though an ICP is malformed, preserve useful persona facts while repairing what can be repaired, remove unrecoverable husks, accept the complete repair set, save it once, and rerun the health checks. Complete all work inside this run's HOME.",
+      "prompt": "Doctor the persona artifacts in my Copper Finch GTM workspace. Simulate Sam through completion. Report every healthy check and defect, keep the work strictly scoped to personas even though an ICP is malformed, preserve useful persona facts while repairing what can be repaired, remove unrecoverable husks, accept the complete repair set, save it once, and rerun the health checks. Complete all work inside this run's HOME.",
       "expected_output": "A repo-wide persona-only repair that fixes placement, slug, H1, substance, and husk defects in one exact Repair Persona artifacts history entry while leaving the malformed ICP untouched.",
       "files": ["evals/gtm-persona/fixtures/doctor-persona-scope"],
       "assertions": [

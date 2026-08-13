@@ -1,6 +1,6 @@
 [
   {
-    "query": "Use /gtm-icp to create a new ideal customer profile for Harbor Cloud in our connected GTM context. It should target regional banks with 500+ staff and exclude institutions that cannot use SaaS.",
+    "query": "Use /gtm-icp to create a new ideal customer profile for Harbor Cloud in our connected GTM workspace. It should target regional banks with 500+ staff and exclude institutions that cannot use SaaS.",
     "should_trigger": true
   },
   {
@@ -12,7 +12,7 @@
     "should_trigger": true
   },
   {
-    "query": "Delete the SMB agencies ICP from our GTM context and make sure the consequence preview explains that the definition will no longer be available from that organization node.",
+    "query": "Delete the SMB agencies ICP from our GTM workspace and make sure the consequence preview explains that the definition will no longer be available from that organization node.",
     "should_trigger": true
   },
   {
@@ -36,15 +36,15 @@
     "should_trigger": true
   },
   {
-    "query": "I have two GTM context repos under ~/.gtm and want to create an ideal customer profile in one of them. List the contexts, let me choose, then save the accepted ICP.",
+    "query": "I have two GTM workspace repos under ~/.gtm and want to create an ideal customer profile in one of them. List the contexts, let me choose, then save the accepted ICP.",
     "should_trigger": true
   },
   {
-    "query": "Create a buyer persona for VP Operations in our connected GTM context, including responsibilities, pains, and what would disqualify a lead.",
+    "query": "Create a buyer persona for VP Operations in our connected GTM workspace, including responsibilities, pains, and what would disqualify a lead.",
     "should_trigger": false
   },
   {
-    "query": "Segment these 80 companies against the ICPs already saved in our GTM context and give each company one qualified label or no-match.",
+    "query": "Segment these 80 companies against the ICPs already saved in our GTM workspace and give each company one qualified label or no-match.",
     "should_trigger": false
   },
   {
@@ -68,15 +68,15 @@
     "should_trigger": false
   },
   {
-    "query": "Set up a brand-new GTM context repository for Cedar Labs, add our operator, and configure it for local single-player use.",
+    "query": "Set up a brand-new GTM workspace repository for Cedar Labs, add our operator, and configure it for local single-player use.",
     "should_trigger": false
   },
   {
-    "query": "Doctor the whole GTM context repo: restore AGENTS.md, move nested people to root, remove state.json, and check Git health.",
+    "query": "Doctor the whole GTM workspace repo: restore AGENTS.md, move nested people to root, remove state.json, and check Git health.",
     "should_trigger": false
   },
   {
-    "query": "I'm preparing a board workshop. Explain what an ideal customer profile is and give me five brainstorming questions, but don't access or change any GTM context files.",
+    "query": "I'm preparing a board workshop. Explain what an ideal customer profile is and give me five brainstorming questions, but don't access or change any GTM workspace files.",
     "should_trigger": false
   }
 ]

@@ -45,4 +45,4 @@ Accept and save it.
 
 ## Assistant
 
-Saved Cloud Governance Lead under Solace Enterprise and committed the accepted persona to the GTM context.
+Saved Cloud Governance Lead under Solace Enterprise and committed the accepted persona to the GTM workspace.

@@ -5,7 +5,7 @@ All assertions below are contractual unless marked diagnostic. The old `gtm-defi
 ## Shared contract
 
 - **C01** Resolve a repo in this order: request-named, environment-connected, otherwise enumerate valid `~/.gtm/` repos and ask.
-- **C02** State `Using GTM context: <display name> — <N> personas visible` before acting or judging.
+- **C02** State `Using GTM workspace: <display name> — <N> personas visible` before acting or judging.
 - **C03** Visibility is node-local: root never sees suborg personas, and a targeted suborg never sees root or sibling personas.
 - **C04** Ask one question per message, directly rendered in bold; discrete choices are numbered, have at most one first-position `(Recommended)`, and end exactly `Reply with a number, or type your answer.` Never use `AskUserQuestion`.
 - **C05** Apply link safety before opening or echoing a source. Unsafe URLs are represented only by a plain source label.

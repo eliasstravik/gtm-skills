@@ -1,8 +1,8 @@
 [
-  {"query": "Define our Regional Operations Director buyer persona in the connected Harbor Signal GTM context. Save the persona file after I approve the draft.", "should_trigger": true},
+  {"query": "Define our Regional Operations Director buyer persona in the connected Harbor Signal GTM workspace. Save the persona file after I approve the draft.", "should_trigger": true},
   {"query": "Use the Solace Cloud context and refine the Founder-Led Revenue Leader persona so it includes partner-led pipeline responsibility but preserves the authority boundary.", "should_trigger": true},
   {"query": "Create a Cloud Governance Lead stakeholder persona for the Enterprise suborganization; ask me which org owns it if that is not clear from the repo.", "should_trigger": true},
-  {"query": "Update personas/procurement-director.md in our GTM context: they influence the shortlist but cannot sign the contract. Show me the full before and after.", "should_trigger": true},
+  {"query": "Update personas/procurement-director.md in our GTM workspace: they influence the shortlist but cannot sign the contract. Show me the full before and after.", "should_trigger": true},
   {"query": "Delete the obsolete Channel Marketing Manager persona from the Europe node and explain that the definition will no longer be available there.", "should_trigger": true},
   {"query": "Doctor the buyer persona files in ~/.gtm/copper-finch. Fix bad slugs and missing H1s, but leave ICP content alone.", "should_trigger": true},
   {"query": "I need help getting our buyer and stakeholder thinking organized in the connected GTM repo; walk me through the available persona actions.", "should_trigger": true},
@@ -14,9 +14,9 @@
   {"query": "Score the already-segmented leads as strong-fit, good-fit, weak-fit, or no-fit against our persona prose.", "should_trigger": false},
   {"query": "Research Dana Ruiz at Beacon Systems and prepare an evidence-backed outreach brief using our visible persona context.", "should_trigger": false},
   {"query": "Research Northstar Transit as an account and explain its fit, timing signals, risks, and recommended next step.", "should_trigger": false},
-  {"query": "Create a new GTM context repository for Copper Finch, add our operator, and connect it to a private GitHub repo.", "should_trigger": false},
-  {"query": "Repair the GTM context repo: restore AGENTS.md, move nested people to root, and remove state files. The persona files themselves are fine.", "should_trigger": false},
+  {"query": "Create a new GTM workspace repository for Copper Finch, add our operator, and connect it to a private GitHub repo.", "should_trigger": false},
+  {"query": "Repair the GTM workspace repo: restore AGENTS.md, move nested people to root, and remove state files. The persona files themselves are fine.", "should_trigger": false},
   {"query": "Explain what a buyer persona is and give me five workshop questions. Do not create or save anything in our GTM repo.", "should_trigger": false},
-  {"query": "Write a fictional customer avatar for a landing-page brainstorm; this is just copywriting and is not connected to any GTM context.", "should_trigger": false},
+  {"query": "Write a fictional customer avatar for a landing-page brainstorm; this is just copywriting and is not connected to any GTM workspace.", "should_trigger": false},
   {"query": "Update teammate Priya Shah's people/priya-shah/person.md record with her new role and LinkedIn URL.", "should_trigger": false}
 ]

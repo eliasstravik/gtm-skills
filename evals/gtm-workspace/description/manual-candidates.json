@@ -1,0 +1,16 @@
+{
+  "candidates": [
+    {
+      "description": "Triggers when the user invokes `/gtm-workspace` or directly asks to create, import, update, delete, validate, or repair a Markdown GTM workspace at `~/.gtm/<org-slug>/`, including adding teammates or suborganizations, refreshing repository facts, enforcing its minimal contract, or fixing its Git health. Merely reading, inspecting, or depending on an existing workspace does not trigger it. Not for defining ICPs or personas, segmenting or researching accounts or leads, CRM administration, ordinary Git repositories, or non-GTM knowledge bases.",
+      "rationale": "Best balance of recall and precision proposed by the optimizer; direct applicability and the explicit read-only exclusion target the measured false positive."
+    },
+    {
+      "description": "Triggers when the requested outcome changes, creates, imports, deletes, validates, or repairs a plain Markdown GTM workspace repository at `~/.gtm/<org-slug>/`, including teammate or suborganization additions, fact refreshes, contract validation, and Git-health repair; it also triggers for `/gtm-workspace`. Reading or relying on workspace content without changing or validating the repository is insufficient. Not for ICP or persona definition, account or lead segmentation, CRM administration, ordinary Git work, or non-GTM knowledge bases.",
+      "rationale": "Frames routing around the requested repository outcome to separate lifecycle ownership from downstream work that consumes context."
+    },
+    {
+      "description": "Triggers when the user asks to manage the GTM workspace repository itself at `~/.gtm/<org-slug>/`: create or import it, update facts or membership, add suborganizations, delete it, validate its Markdown contract or Git health, or repair either; also triggers for `/gtm-workspace`. Tasks that only read or depend on the workspace belong elsewhere. Not for defining ICPs or personas, segmenting or researching accounts or leads, administering a CRM, managing ordinary repositories, or maintaining non-GTM knowledge bases.",
+      "rationale": "Uses repository ownership as the routing boundary, though the verb manage is less observable than the first two candidates."
+    }
+  ]
+}

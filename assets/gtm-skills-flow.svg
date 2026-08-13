@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420" role="img" aria-labelledby="title desc">
   <title id="title">GTM Skills ICP authoring agent chat</title>
-  <desc id="desc">A user asks the GTM Skills agent to define an Enterprise SaaS ICP. The agent returns a grounded proposal ready for review and saving to shared GTM context.</desc>
+  <desc id="desc">A user asks the GTM Skills agent to define an Enterprise SaaS ICP. The agent returns a grounded proposal ready for review and saving to shared GTM workspace.</desc>
 
   <rect width="960" height="420" rx="20" fill="#f6f8fa"/>
   <rect x="72" y="30" width="816" height="360" rx="16" fill="#ffffff" stroke="#d0d7de" stroke-width="2"/>
@@ -9,7 +9,7 @@
   <circle cx="112" cy="61" r="16" fill="#1f2328"/>
   <text x="112" y="67" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" font-weight="600" fill="#ffffff">C</text>
   <circle cx="728" cy="61" r="5" fill="#2da44e"/>
-  <text x="744" y="67" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#656d76">Shared GTM context</text>
+  <text x="744" y="67" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="14" fill="#656d76">Shared GTM workspace</text>
 
   <path d="M321 122h505a14 14 0 0 1 14 14v37a5 5 0 0 1-5 5H321a14 14 0 0 1-14-14v-28a14 14 0 0 1 14-14Z" fill="#1f2328"/>
   <text x="335" y="156" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif" font-size="16" fill="#ffffff">/gtm-icp Create our Enterprise SaaS ICP</text>
