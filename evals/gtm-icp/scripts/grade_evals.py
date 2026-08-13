@@ -215,7 +215,7 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
         persona = repo / "suborgs/mobility/personas/transit-planning-director.md"
         return [
             result("Using GTM context: Arbor Mobility — 1 ICP visible" in output and "which organization" not in output.lower(), "Checked obvious-node default and context line without a node question."),
-            result(all(phrase in output.lower() for phrase in ("arbor mobility", "mobility/public-transit-agencies", "segmentation", "scoring", "no longer")), "Checked owner, qualified label, and downstream consequence language."),
+            result(all(phrase in output.lower() for phrase in ("arbor mobility", "mobility/public-transit-agencies", "definition", "no longer", "available")), "Checked owner, qualified label, and definition-availability consequence language."),
             result("suborgs/mobility/icps/public-transit-agencies.md" in output, "Checked exact deletion path in user-facing proposal."),
             result(not target.exists() and (repo / "org.md").is_file() and (repo / "suborgs/mobility/org.md").is_file() and persona.is_file() and "Owns network planning" in persona.read_text(), "Checked exact ICP deletion and preservation of org/persona artifacts."),
             result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2 and not git(repo, "status", "--porcelain") and changed_paths(repo) == ["suborgs/mobility/icps/public-transit-agencies.md"] and "saved to history" in output.lower() and "recover" in output.lower() and "history" in output.lower(), "Checked one clean deletion commit plus saved-history and recovery close."),

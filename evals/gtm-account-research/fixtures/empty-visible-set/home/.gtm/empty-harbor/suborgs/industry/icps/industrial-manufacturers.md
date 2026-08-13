@@ -1,3 +1,0 @@
-# Industrial Manufacturers
-
-BRONZE SUBORG ACCOUNT-RESEARCH PHRASE

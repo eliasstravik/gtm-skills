@@ -1,8 +1,0 @@
-[
-  "The full skill passes all 41 assertions across five branches, while the paired no-skill runs pass 18/41 (43.9%); 23 assertions discriminate in favor of the skill and none favor the baseline.",
-  "Creation is the strongest separator: both create evals pass 9/9 with-skill and 2/9 without-skill. The baseline misses destination/context rules, node-local source scope, exact acceptance, qualified labels, and direct interaction.",
-  "The root update baseline passes 5/7 because the requested content edit is straightforward, but it still misses the exact context/interaction contract. Delete is more discriminating at 7/7 versus 3/7 because the full skill supplies the obvious-node context and complete downstream/history consequences.",
-  "Doctor passes 9/9 with-skill versus 6/9 without-skill. Both can repair obvious files, but the full skill uniquely pins the ICP-only scope, exact one-commit ritual, and saved-history close.",
-  "The full skill averages more runtime and tokens because it loads two one-level references and executes the complete interaction protocol; the increase accompanies a 56.1 percentage-point pass-rate improvement.",
-  "Only one run per configuration per eval was used for the artifact benchmark, so cross-eval differences are evidenced but within-eval variance is not measured. Description selection separately used three runs per query and achieved 60/60."
-]

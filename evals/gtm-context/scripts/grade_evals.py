@@ -408,7 +408,7 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             result(alternating and root_window[0], root_window[1] + f" Transcript alternates: {alternating}."),
             result(operator_window[0] and "affiliat" not in operator_turns and "which suborganization" not in operator_turns, operator_window[1] + " Checked the flat person intake text for no affiliation language."),
             result(all(term in sharing.lower() for term in ("local", "single-player", "multiplayer", "private", "github")), "Checked all five required sharing terms in the exact sharing-question turn."),
-            result(completion_request_check(output, "Research [target account] as a potential customer for Acme Lantern."), "Checked the exact fallback request, bracketed target placeholder, saved organization name, and saved-context statement."),
+            result(completion_request_check(output, "Define the ideal customer profile for Acme Lantern."), "Checked the exact ICP fallback request, saved organization name, and saved-context statement."),
         ]
     if name == "create-complex-bulk":
         repo = root / "meridian-holdings"
@@ -437,7 +437,7 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             result(no_machine_state(repo), "Scanned for empty directories, placeholder markers, logs, temp content, and state.json."),
             result(alternating and suborg_bulk[0] and "one message" in suborg_turn.lower(), suborg_bulk[1] + " Checked the prompt explicitly requests one freeform message."),
             result(people_bulk[0] and "one message" in people_turn.lower() and "affiliation" in people_turn.lower(), people_bulk[1] + " Checked one-message collection with affiliations embedded in the initial bulk turn."),
-            result(completion_request_check(output, "Research [target account] as a potential customer for Meridian Holdings."), "Checked fixed-priority account research despite all three catalog IDs, plus the saved-context statement."),
+            result(completion_request_check(output, "Define the ideal customer profile for Meridian Holdings."), "Checked fixed-priority ICP authoring despite both catalog IDs, plus the saved-context statement."),
         ]
     if name == "import-local-folder":
         repo = root / "orbit-analytics"; source = snapshot / "source/orbit-notes"; before = (run_dir / "source_digest_before.txt").read_text().strip()
@@ -766,7 +766,7 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
         return [
             result(artifact_ok, "Checked exact contract, accepted organization/operator artifacts, root-only person email, main history, and no remote."),
             result(
-                completion_request_check(output, "Research [target account] as a potential customer for Pine Harbor.")
+                completion_request_check(output, "Define the ideal customer profile for Pine Harbor.")
                 and "gtm-market-orbit" not in output,
                 "Checked the exact generic fallback and saved-context statement, with no rendering of the unrecognized ID.",
             ),

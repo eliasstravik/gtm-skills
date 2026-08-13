@@ -135,11 +135,10 @@ Write nothing, draft nothing, and research nothing for the refused request; do n
    Keep the required reply line. For multiplayer, check `gh` is installed and authenticated. Guide install or login in single-question steps when needed. Ask the owning GitHub account/organization, propose the repo name, confirm it, create a private repo, and push `main`. At every step include `Cancel and stay local for now` as an option. Never imply local mode lacks history or GitHub sharing is public.
 15. Close with a tree-style list of files created, explain they are saved to history, and state whether sharing is local single-player or multiplayer. Then add a short `Recommended next step` paragraph using only the explicit capability/skill catalog supplied by the hosting environment. Normalize only these exact workflow IDs and choose the first listed below that is available, regardless of conversational hints:
 
-   1. `gtm-account-research` → `Research [target account] as a potential customer for <saved organization display name>.`
-   2. `gtm-icp` → `Define the ideal customer profile for <saved organization display name>.`
-   3. `gtm-persona` → `Define the buyer personas for <saved organization display name>.`
+   1. `gtm-icp` → `Define the ideal customer profile for <saved organization display name>.`
+   2. `gtm-persona` → `Define the buyer personas for <saved organization display name>.`
 
-   Ignore every unrecognized ID. If the catalog is absent, empty, or contains only unrecognized IDs, use the account-research request above as a generic natural-language fallback without claiming that a workflow is installed. Keep `[target account]` visibly bracketed and never invent an account. Follow the request with one sentence saying the agent will use the saved GTM context.
+   Ignore every unrecognized ID. If the catalog is absent, empty, or contains only unrecognized IDs, use the ICP request above as a generic natural-language fallback without claiming that a workflow is installed. Follow the request with one sentence saying the agent will use the saved GTM context.
 
 ## Import (keyboard surfaces only)
 

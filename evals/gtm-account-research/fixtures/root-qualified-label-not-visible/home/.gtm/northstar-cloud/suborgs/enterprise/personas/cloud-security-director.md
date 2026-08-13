@@ -1,3 +1,0 @@
-# Cloud Security Director
-
-COBALT ENTERPRISE PERSONA RESEARCH PHRASE

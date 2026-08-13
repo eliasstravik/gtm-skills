@@ -1,3 +1,0 @@
-# Developer Tools Startups
-
-ORCHID ROOT LEAD-RESEARCH ICP PHRASE

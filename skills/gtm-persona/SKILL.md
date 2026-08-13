@@ -1,6 +1,6 @@
 ---
 name: gtm-persona
-description: Triggers when a user asks to create, define, refine, update, delete, or doctor a buyer or stakeholder persona file in a connected GTM context, including choosing which organization owns it. Not for ICPs, lead segmentation or scoring, account or lead research, teammate records, general persona advice, or creating, importing, deleting, or repairing the context repository itself.
+description: Triggers when a user asks to create, define, refine, update, delete, or doctor a buyer or stakeholder persona file in a connected GTM context, including choosing which organization owns it. Not for ICPs, teammate records, general persona advice, or creating, importing, deleting, or repairing the context repository itself.
 ---
 
 # GTM Persona

@@ -2,11 +2,11 @@ You are optimizing a Codex skill frontmatter description. Return three candidate
 
 The skill is named `gtm-context`. It guides non-technical users through creating, importing, updating, deleting, validating, or repairing a plain Markdown GTM context repository at `~/.gtm/<org-slug>/`. Updating includes adding teammates or suborganizations and refreshing facts in the repo. It owns changes to the context repository itself, including its minimal contract and Git health.
 
-It must not trigger for downstream work that merely reads existing GTM context: defining ICPs or personas, segmenting or scoring accounts/leads, or account/lead research. It also must not trigger for CRM administration, ordinary Git repositories/folders, or a non-GTM knowledge base.
+It must not trigger for defining ICPs or personas, or for other work that merely reads an existing GTM context without changing or validating it. It also must not trigger for CRM administration, ordinary Git repositories/folders, or a non-GTM knowledge base.
 
 Current description:
 
-> Triggers when the user invokes `/gtm-context` or asks to create, import, update, delete, validate, or repair a GTM context repo or folder, including adding teammates or suborganizations. Not for defining ICPs or personas, segmenting or scoring accounts, or researching accounts or leads.
+> Triggers when the user invokes `/gtm-context` or asks to create, import, update, delete, validate, or repair a GTM context repo or folder, including adding teammates or suborganizations. Not for defining ICPs or personas, or for tasks that merely use an existing context without changing or validating it.
 
 Observed Codex/GPT trigger result: 19/20 correct. All ten positive requests triggered and nine of ten near-misses did not. The sole false positive was:
 
