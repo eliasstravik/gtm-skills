@@ -63,7 +63,7 @@ def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> str | None:
         source_digest = digest_tree(home / "source" / "orbit-notes")
 
     existing = {
-        "update-a-person": ("ember-health", "Morgan Vale", "morgan@ember-health.example"),
+        "update-a-member": ("ember-health", "Morgan Vale", "morgan@ember-health.example"),
         "delete-a-suborg": ("northstar-group", "Amina Yusuf", "amina@northstar-group.example"),
         "doctor-broken-repo": ("atlas-labs", "Sam Rivera", "sam@atlas-labs.example"),
         "doctor-healthy-skill-content": ("solstice-freight", "Noor Haddad", "noor@solstice-freight.example"),
@@ -92,10 +92,10 @@ def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> str | None:
         run_git(repo, "init", "-b", "main", env=env)
         run_git(repo, "config", "--local", "user.name", "GTM Workspace", env=env)
         run_git(repo, "config", "--local", "user.email", "gtm@local", env=env)
-        run_git(repo, "add", "AGENTS.md", "CLAUDE.md", ".gitignore", "org.md", env=env)
+        run_git(repo, "add", "AGENTS.md", "CLAUDE.md", ".gitignore", "ORG.md", env=env)
         run_git(repo, "commit", "-m", "Create GTM workspace scaffold", env=env)
-        run_git(repo, "add", "people/rae-santos/person.md", env=env)
-        run_git(repo, "commit", "-m", "Add person: Rae Santos", env=env)
+        run_git(repo, "add", "members/rae-santos/MEMBER.md", env=env)
+        run_git(repo, "commit", "-m", "Add member: Rae Santos", env=env)
     return source_digest
 
 
