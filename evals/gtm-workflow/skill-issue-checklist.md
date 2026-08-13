@@ -19,4 +19,4 @@
 - [x] The description routes publish to workflow update without claiming a deploy verb or direct ownership of provider-specific one-offs.
 - [x] The optimizer-selected candidate is applied verbatim after scoring 20/20 overall and 8/8 held-out with perfect positive recall and negative specificity.
 - [x] The eleven scenario fixtures cover every approved branch and final-review note.
-- [x] Additive local-target prose preserves on-demand workflow semantics while naming external scheduling, due-row SQLite state, tracked typed connection wrappers, and script-owned iteration.
+- [x] Additive local-target prose preserves on-demand workflow semantics while naming external scheduling, due-row SQLite state, tracked typed connection wrappers, script-owned iteration, existing SQLite viewers, Mermaid diagrams, and lightweight SQLite observability with an infrastructure-grade boundary.
