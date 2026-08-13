@@ -1,54 +1,59 @@
-# Persona manager flows
+# Persona lifecycle flows
 
-Apply the matched branch after loading `context.md`.
+Apply the selected flow after loading `contract.md`.
 
 ## Guided menu
 
-> **What would you like to do with your buyer and stakeholder personas?**
+When no lifecycle verb is clear, explain that a persona is a saved definition of people who fit or do not fit an organization's buying context, then render this exact block and continue into the selected flow. There is no import or clear branch.
 
-A persona is a saved description of the people who match or do not match an organization's buying context.
+```text
+**What would you like to do with your buyer and stakeholder personas?**
 
 1. Create a persona (Recommended)
 2. Update a persona
 3. Delete a persona
 4. Doctor the persona library
 
-`Reply with a number, or type your answer.`
-
-Retain ownership and continue into the selected branch. There is no import or clear branch.
+Reply with a number, or type your answer.
+```
 
 ## Create
 
-1. Resolve the repo and create destination using `context.md`; the destination question happens before reading any persona.
-2. Read the root-to-destination `ORG.md` chain and only the destination node's existing personas. State the context line.
-3. Extract all facts already supplied. Ask one bold freeform question at a time only for missing information needed to say what a lead could match or fail: display name, responsibilities and scope, buying context or influence, authority boundaries, disqualifiers, and honest open questions.
-4. If the user supplied sources, apply link safety and inspect safe sources. Do not require research.
-5. Check destination-local personas for a near-duplicate. When overlap is material, explain it in chat and ask whether to update the existing persona `(Recommended)` or continue with a distinct new one.
-6. Draft `personas/<slug>.md` from supplied and safely sourced facts. Preserve authority boundaries and disqualifiers semantically, keep uncertainty explicit, and do not persist the adjacent-persona comparison by default. Use the template only as a starting shape.
-7. Show the target path and complete Markdown, then run the accept/change/cancel loop.
-8. On acceptance, create only the needed `personas/` directory and accepted file. Run persistence, then close with path, owner, qualified label, factual summary, and “saved to history.”
+1. Resolve the workspace and create owner. Make the owner choice before reading any persona.
+2. Read the root-to-owner `ORG.md` chain and only owner-local personas, then state the context line.
+3. Extract supplied facts before asking anything. Ask one freeform question at a time only for facts needed to make the persona matchable: display name, responsibilities and scope, buying context or influence, authority boundaries, disqualifiers, and material unknowns.
+4. Apply link safety to supplied sources. Research is optional.
+5. Compare only owner-local personas for material overlap. If a near-duplicate exists, explain it and ask whether to update the existing persona `(Recommended)` or continue with a distinct definition.
+6. Draft `personas/<slug>/PERSONA.md` from accepted or safely sourced facts. Preserve uncertainty, authority limits, and disqualifiers; omit unsupported and empty sections.
+7. Begin the proposal turn with `**Would you like to save this proposal?**`; place the required context line and any overlap explanation below that question when they share the turn, then show the exact target and complete Markdown through the accept/change/cancel loop.
+8. After acceptance, create only the needed `personas/<slug>/` directory and `PERSONA.md`, persist the accepted change, and close with path, owner, qualified label, factual summary, and “saved to history.”
 
 ## Update
 
-1. Resolve the repo and target under the artifact-reading node rule. State the context line.
-2. If more than one persona is visible and none was named, list only those visible personas and ask which to update.
-3. Read the target persona and root-to-target org chain. Gather the requested change one question at a time; do not broaden it.
-4. Preserve unrelated facts and freeform headings. Show the path plus complete before and after Markdown, then run the accept loop.
-5. On acceptance, write exactly the after bytes and run persistence. Close with the qualified label, exact change summary, and “saved to history.”
+1. Resolve the workspace and target under the artifact-reading node rule, then state the context line with the owning node's display name, never the repo root's name for a suborganization target.
+2. If several personas are visible and none was named, list only those visible personas and ask which one to update.
+3. Read the target and `ORG.md` chain. Gather only the requested change and preserve unrelated facts and freeform headings.
+4. Begin the proposal turn with `**Would you like to save this proposal?**`, then preview the path plus complete before and after Markdown through the accept loop.
+5. After acceptance, write exactly the after bytes, persist only that persona, and close with the qualified label, exact change summary, and “saved to history.”
 
 ## Delete
 
-1. Resolve the repo and target under the artifact-reading node rule. State the context line.
-2. If more than one persona is visible and none was named, list only visible personas and ask which to delete.
-3. Show a consequence proposal naming the owning node, qualified label, exact file path, and that the definition will no longer be available from that node. Explain recovery from history.
-4. Run the accept loop on the exact deletion. On acceptance, delete only that file and remove `personas/` if it becomes empty.
-5. Run persistence. Close with what disappeared, qualified label, “saved to history,” and plain recovery guidance without commands or hashes.
+1. Resolve the workspace and target under the artifact-reading node rule, then state the context line with the owning node's display name, never the repo root's name for a suborganization target.
+2. If several personas are visible and none was named, list only those visible personas and ask which one to delete.
+3. Begin the proposal turn with `**Would you like to save this proposal?**`, then preview the owning node, qualified label, exact file path, and that the definition will no longer be available from that node. Explain recovery from history.
+4. Run the accept loop on the exact deletion. After acceptance, delete only that file, remove its artifact directory if empty, and remove `personas/` if the accepted deletion makes it empty.
+5. Persist the deletion and close with what disappeared, its qualified label, “saved to history,” and plain recovery guidance without commands or hashes.
 
 ## Doctor
 
-1. Scan every `personas/` directory in the repo, including stray ones; this integrity pass is intentionally repo-wide. Do not inspect or repair ICP content.
-2. Report healthy checks and every persona defect: a `personas/` directory whose parent lacks `ORG.md`, a non-lowercase-kebab filename, a missing display-name H1, a file that says nothing a lead could match or fail, or a placeholder/TODO husk.
-3. A freeform file is healthy without matching the template. Preserve useful facts when renaming or restoring an H1; never invent substance to rescue a husk.
-4. If healthy, change nothing and close with the complete persona health report.
-5. If defective, show all exact path operations and complete replacement bytes as one proposal, state that non-persona files stay untouched, and run the accept loop.
-6. On acceptance, apply only the proposal and save the entire repair set once as `Repair Persona artifacts`. Rerun the persona checks and close with the resulting health plus “saved to history.”
+1. Scan every `personas/` directory in the repo, including stray placements. Do not inspect or repair ICP content.
+2. Report healthy checks and every persona defect: canonical `personas/<slug>/PERSONA.md` whose `personas/` owner lacks `ORG.md`, a canonical directory slug that is not lowercase kebab-case, a canonical filename other than `PERSONA.md`, a missing display-name H1, content with no lead-matchable fact, a placeholder/TODO husk, or a canonical/legacy slug collision. Treat a legacy `personas/<slug>.md` as compatible when its owner, slug, H1, and substance are healthy.
+3. Treat freeform files as healthy without template conformity. Preserve useful facts while renaming or restoring an H1; never invent substance to rescue a husk.
+4. If healthy, change nothing and close with the complete health report.
+5. If defective, begin the proposal turn with `**Would you like to save this proposal?**`, then preview all exact persona path operations and complete replacement bytes as one proposal, state that non-persona files remain untouched, and run the accept loop.
+6. After acceptance, apply only the proposal, save the set once as `Repair Persona artifacts`, rerun every check, and close with resulting health and “saved to history.”
+
+## Sibling and runtime boundaries
+
+- An ICP lifecycle request belongs to `gtm-icp`; a member or workspace-structure lifecycle request belongs to `gtm-workspace`. Make that handoff before resolving a workspace or reading artifacts. Lead research, segmentation, or scoring may read personas but must not route here unless the requested outcome also changes a persona.
+- If the environment declares that it cannot durably save, preserve the exact repo state and use `contract.md` recovery. If it declares another durable mechanism, use it without adding a remote or treating the missing remote as a defect.

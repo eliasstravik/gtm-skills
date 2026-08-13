@@ -1,6 +1,6 @@
 # Getting started — build your GTM foundation
 
-GTM Skills gives your AI agent three focused skills that share one Git-backed source of truth. This guide takes you from installation to an organization context with its first ICP and persona, without requiring you to write code.
+GTM Skills gives your AI agent three focused Lifecycle SOPs that share one Git-backed source of truth. This guide takes you from installation to a GTM workspace with its first ICP and persona, without requiring you to write code.
 
 ## 1. Check the prerequisites
 
@@ -28,7 +28,7 @@ Start the guided setup:
 /gtm-workspace
 ```
 
-The skill helps you create a new organization context or import one that already exists. Review the complete preview before accepting any write. A new context is saved as a Git repository under:
+The skill helps you create a new GTM workspace or import one that already exists. Review the complete preview before accepting any write. A new workspace is saved as a Git repository under:
 
 ```text
 ~/.gtm/<org-slug>/
@@ -41,9 +41,13 @@ Your repository can hold:
 ├── AGENTS.md
 ├── CLAUDE.md
 ├── ORG.md
+├── icps/<icp-slug>/ICP.md
+├── personas/<persona-slug>/PERSONA.md
 ├── suborgs/
 │   └── <suborg-slug>/
 │       ├── ORG.md
+│       ├── icps/<icp-slug>/ICP.md
+│       ├── personas/<persona-slug>/PERSONA.md
 │       ├── suborgs/<suborg-slug>/...
 │       └── members/<member-slug>/MEMBER.md
 └── members/
@@ -61,7 +65,7 @@ Run:
 /gtm-icp
 ```
 
-Choose the organization node that owns the market definition, describe the companies it is built to serve, and review the complete ICP preview. Once accepted, the ICP becomes part of the context repository and its history.
+Choose the organization node that owns the market definition, describe the companies it is built to serve, and review the complete ICP preview. Once accepted, the ICP becomes part of the workspace and its history. Persona authoring and account research, segmentation, or scoring remain separate workflows.
 
 ## 5. Define your first persona
 
@@ -71,9 +75,9 @@ Run:
 /gtm-persona
 ```
 
-Choose the organization node that owns the buyer or stakeholder definition. Capture responsibilities, buying influence, authority boundaries, disqualifiers, and honest open questions, then review the complete persona before saving it.
+Choose the organization node that owns the buyer or stakeholder definition. Capture responsibilities, buying influence, authority boundaries, disqualifiers, and honest open questions, then review the complete persona before saving it. ICP authoring and lead research, segmentation, or scoring remain separate workflows.
 
-## 6. Maintain the shared context
+## 6. Maintain the shared workspace
 
 Use the same three skills as the organization evolves:
 

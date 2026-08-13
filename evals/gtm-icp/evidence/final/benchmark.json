@@ -1,0 +1,827 @@
+{
+  "metadata": {
+    "skill_name": "gtm-icp",
+    "skill_path": "skills/gtm-icp",
+    "executor_model": "gpt-5.6-sol",
+    "analyzer_model": "gpt-5.6-sol",
+    "timestamp": "2026-08-13T12:23:30Z",
+    "evals_run": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "time_seconds": 749.036,
+        "tokens": 254033,
+        "tool_calls": 12,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The guided menu offers create, update, delete, and doctor without import or clear, then repo resolution lists both valid repos before Beacon Yards is selected.",
+          "passed": true,
+          "evidence": "Checked guided menu ownership and two-repo selection turn."
+        },
+        {
+          "text": "The context line identifies Beacon Yards with zero visible ICPs, and no organization-owner question is asked because Beacon has no suborgs.",
+          "passed": true,
+          "evidence": "Checked root context line and absence of an owner question."
+        },
+        {
+          "text": "The accepted file is icps/regional-field-service-operators/ICP.md with its display-name H1 and every supplied fit, trigger, disqualifier, and open-question fact.",
+          "passed": true,
+          "evidence": "Checked target path, H1, and every supplied matching/disqualifying/open fact."
+        },
+        {
+          "text": "The accepted ICP is freeform, factual, flat, and contains the customer-notes fact without adopting an old fixed schema or machine metadata.",
+          "passed": true,
+          "evidence": "Checked freeform flat content, no placeholders, and absence of the complete old fixed schema."
+        },
+        {
+          "text": "The unsafe credential-bearing URL and token are never opened, persisted, or echoed; only a plain source label may remain.",
+          "passed": true,
+          "evidence": "Checked assistant output, artifact, and commands for suppression of the unsafe token."
+        },
+        {
+          "text": "The complete preview bytes equal the saved file, and the repo is clean on main with exactly one commit beyond the seed changing only that ICP.",
+          "passed": true,
+          "evidence": "Compared complete preview with saved bytes and checked one clean, scoped main commit."
+        },
+        {
+          "text": "The close says the ICP was saved to history and gives the bare root label regional-field-service-operators.",
+          "passed": true,
+          "evidence": "Checked saved-history close and bare root label."
+        },
+        {
+          "text": "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+          "passed": true,
+          "evidence": "alternating=True; problems=[]"
+        },
+        {
+          "text": "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "time_seconds": 120.627,
+        "tokens": 249375,
+        "tool_calls": 16,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Create asks exactly which organization should own the ICP, lists Nimbus Labs root first as `(Recommended)`, and lists Nimbus Enterprise before continuing.",
+          "passed": true,
+          "evidence": "Checked exact owner question with root recommended first and Enterprise second."
+        },
+        {
+          "text": "After selection the context line identifies Nimbus Enterprise with one visible ICP.",
+          "passed": true,
+          "evidence": "Checked Enterprise context line after selection."
+        },
+        {
+          "text": "The run reads the Enterprise org chain and Enterprise Regulated Platforms ICP but does not read, quote, or use the root Developer Tools Startups ICP.",
+          "passed": true,
+          "evidence": "Checked Enterprise-local source content was read and root ICP content was absent from the raw execution."
+        },
+        {
+          "text": "The accepted file is suborgs/enterprise/icps/national-insurers/ICP.md with the display-name H1 and every supplied fit and disqualifying fact.",
+          "passed": true,
+          "evidence": "Checked Enterprise target path, H1, and all supplied facts."
+        },
+        {
+          "text": "The draft is distinct from the adjacent Enterprise ICP, remains freeform, and omits empty or invented sections.",
+          "passed": true,
+          "evidence": "Checked distinct freeform draft without copied adjacent-ICP or placeholder content."
+        },
+        {
+          "text": "The complete preview bytes equal the saved file, and the repo is clean on main with one new commit changing only the new ICP.",
+          "passed": true,
+          "evidence": "Compared preview bytes and checked a clean scoped commit."
+        },
+        {
+          "text": "The close says saved to history and gives the qualified label enterprise/national-insurers.",
+          "passed": true,
+          "evidence": "Checked saved-history close and qualified label."
+        },
+        {
+          "text": "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+          "passed": true,
+          "evidence": "alternating=True; problems=[]"
+        },
+        {
+          "text": "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 103.088,
+        "tokens": 227561,
+        "tool_calls": 12,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The explicit root target is honored without a node-selection question, and the context line identifies Nimbus Labs with one visible ICP.",
+          "passed": true,
+          "evidence": "Checked explicit root target, root context line, and no node question."
+        },
+        {
+          "text": "The run reads the root Developer Tools Startups ICP and never reads, quotes, or uses Enterprise ICP content.",
+          "passed": true,
+          "evidence": "Checked root ICP use and absence of Enterprise-only content."
+        },
+        {
+          "text": "The proposal shows complete before and after Markdown for icps/developer-tools-startups/ICP.md before acceptance.",
+          "passed": true,
+          "evidence": "Checked complete before and after Markdown fences."
+        },
+        {
+          "text": "The saved file changes the range to 30\u2013250, adds the product-led preference, and preserves every unrelated supplied fact.",
+          "passed": true,
+          "evidence": "Checked requested changes and preservation of unrelated facts."
+        },
+        {
+          "text": "The repo is clean on main with exactly one commit beyond the seed changing only the updated ICP, and the close says saved to history.",
+          "passed": true,
+          "evidence": "Checked one clean scoped main commit and saved-history close."
+        },
+        {
+          "text": "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+          "passed": true,
+          "evidence": "alternating=True; problems=[]"
+        },
+        {
+          "text": "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 106.343,
+        "tokens": 192642,
+        "tool_calls": 10,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The skill defaults to Arbor Mobility without a node-selection question and states a context line with one visible ICP.",
+          "passed": true,
+          "evidence": "Checked obvious-node default and context line without a node question."
+        },
+        {
+          "text": "The consequence proposal names Arbor Mobility as owner, the qualified label mobility/public-transit-agencies, and that the definition will no longer be available from that node.",
+          "passed": true,
+          "evidence": "Checked owner, qualified label, and definition-availability consequence language."
+        },
+        {
+          "text": "The exact file path suborgs/mobility/icps/public-transit-agencies/ICP.md is previewed for deletion before acceptance.",
+          "passed": true,
+          "evidence": "Checked exact deletion path in user-facing proposal."
+        },
+        {
+          "text": "The ICP file is absent afterward while the Mobility org, root org, and persona content remain unchanged.",
+          "passed": true,
+          "evidence": "Checked exact ICP deletion and preservation of org/persona artifacts."
+        },
+        {
+          "text": "The repo is clean on main with one deletion commit beyond the seed; the close says saved to history and explains recovery from history.",
+          "passed": true,
+          "evidence": "Checked one clean deletion commit plus saved-history and recovery close."
+        },
+        {
+          "text": "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+          "passed": true,
+          "evidence": "alternating=True; problems=[]"
+        },
+        {
+          "text": "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "time_seconds": 102.186,
+        "tokens": 174150,
+        "tool_calls": 9,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The doctor reports every seeded ICP defect: stray placement, non-kebab filename, missing display-name H1, TODO husk, and non-matchable substance.",
+          "passed": true,
+          "evidence": "Checked report for all five seeded ICP defect classes."
+        },
+        {
+          "text": "The accepted proposal is repo-wide but scoped strictly to ICP paths and explicitly leaves persona content outside scope.",
+          "passed": true,
+          "evidence": "Checked explicit ICP-only scope and persona exclusion."
+        },
+        {
+          "text": "Useful Bad_Slug facts survive in a repaired lowercase-kebab ICP with a display-name H1.",
+          "passed": true,
+          "evidence": "Checked preservation of useful facts in one repaired kebab-case H1 ICP."
+        },
+        {
+          "text": "The TODO husk, vague non-matchable ICP, and stray archive ICP are absent after the accepted repair.",
+          "passed": true,
+          "evidence": "Checked removal of husk, non-matchable, and stray ICP artifacts."
+        },
+        {
+          "text": "The deliberately malformed persona file remains byte-for-byte unchanged.",
+          "passed": true,
+          "evidence": "Compared malformed persona bytes with the fixture."
+        },
+        {
+          "text": "The repo is clean on main with exactly one `Repair ICP artifacts` commit beyond the seed and no unrelated path changes.",
+          "passed": true,
+          "evidence": "Checked exact one-commit repair on main with ICP-only changed paths."
+        },
+        {
+          "text": "The close reports a healthy rerun and says the repairs were saved to history.",
+          "passed": true,
+          "evidence": "Checked verified healthy rerun and saved-history close."
+        },
+        {
+          "text": "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+          "passed": true,
+          "evidence": "alternating=True; problems=[]"
+        },
+        {
+          "text": "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 70.9,
+        "tokens": 124090,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The response identifies the request as persona-owned and directs it to gtm-persona without offering an ICP lifecycle flow.",
+          "passed": true,
+          "evidence": "Checked explicit persona ownership and sibling handoff without the ICP menu."
+        },
+        {
+          "text": "No persona or ICP file is created, updated, deleted, or repaired.",
+          "passed": true,
+          "evidence": "Inventoried both artifact directories and found no lifecycle mutation."
+        },
+        {
+          "text": "The Boundary Labs repo remains clean on main with exactly its seed history and every artifact byte-preserved.",
+          "passed": true,
+          "evidence": "Checked clean main and the unchanged seed history."
+        },
+        {
+          "text": "No ICP content is quoted or used to draft the requested persona.",
+          "passed": true,
+          "evidence": "Checked that seeded ICP content was not read, quoted, or used in the handoff."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 69.976,
+        "tokens": 124681,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The complete before/after proposal changes only 100 to 150 before the save failure is handled.",
+          "passed": true,
+          "evidence": "Checked complete before/after proposal for the one requested threshold change."
+        },
+        {
+          "text": "The recovery explains that the accepted change cannot be durably saved and never claims it was saved or committed.",
+          "passed": true,
+          "evidence": "Checked plain save-failure explanation and absence of a success claim."
+        },
+        {
+          "text": "Recovery uses one direct bold question with CLI at a keyboard first as `(Recommended)`, cancel last, and the exact reply line.",
+          "passed": true,
+          "evidence": "alternating=True; problems=[]"
+        },
+        {
+          "text": "The legacy flat target ICP and every other workspace file remain byte-for-byte unchanged, proving no migration is required; the repo stays clean on main with exactly the seed history.",
+          "passed": true,
+          "evidence": "Compared target content and checked clean one-entry seed history."
+        },
+        {
+          "text": "No remote is added and no commit, push, or unrelated repair is attempted.",
+          "passed": true,
+          "evidence": "Checked no remote addition, commit, push, or repair."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "baseline_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 6,
+        "failed": 3,
+        "total": 9,
+        "time_seconds": 126.987,
+        "tokens": 247652,
+        "tool_calls": 11,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The guided menu offers create, update, delete, and doctor without import or clear, then repo resolution lists both valid repos before Beacon Yards is selected.",
+          "passed": true,
+          "evidence": "Checked guided menu ownership and two-repo selection turn."
+        },
+        {
+          "text": "The context line identifies Beacon Yards with zero visible ICPs, and no organization-owner question is asked because Beacon has no suborgs.",
+          "passed": true,
+          "evidence": "Checked root context line and absence of an owner question."
+        },
+        {
+          "text": "The accepted file is icps/regional-field-service-operators/ICP.md with its display-name H1 and every supplied fit, trigger, disqualifier, and open-question fact.",
+          "passed": false,
+          "evidence": "Checked target path, H1, and every supplied matching/disqualifying/open fact."
+        },
+        {
+          "text": "The accepted ICP is freeform, factual, flat, and contains the customer-notes fact without adopting an old fixed schema or machine metadata.",
+          "passed": false,
+          "evidence": "Checked freeform flat content, no placeholders, and absence of the complete old fixed schema."
+        },
+        {
+          "text": "The unsafe credential-bearing URL and token are never opened, persisted, or echoed; only a plain source label may remain.",
+          "passed": true,
+          "evidence": "Checked assistant output, artifact, and commands for suppression of the unsafe token."
+        },
+        {
+          "text": "The complete preview bytes equal the saved file, and the repo is clean on main with exactly one commit beyond the seed changing only that ICP.",
+          "passed": false,
+          "evidence": "Compared complete preview with saved bytes and checked one clean, scoped main commit."
+        },
+        {
+          "text": "The close says the ICP was saved to history and gives the bare root label regional-field-service-operators.",
+          "passed": true,
+          "evidence": "Checked saved-history close and bare root label."
+        },
+        {
+          "text": "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+          "passed": true,
+          "evidence": "alternating=True; problems=[]"
+        },
+        {
+          "text": "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "baseline_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 6,
+        "failed": 3,
+        "total": 9,
+        "time_seconds": 118.983,
+        "tokens": 157064,
+        "tool_calls": 9,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Create asks exactly which organization should own the ICP, lists Nimbus Labs root first as `(Recommended)`, and lists Nimbus Enterprise before continuing.",
+          "passed": true,
+          "evidence": "Checked exact owner question with root recommended first and Enterprise second."
+        },
+        {
+          "text": "After selection the context line identifies Nimbus Enterprise with one visible ICP.",
+          "passed": true,
+          "evidence": "Checked Enterprise context line after selection."
+        },
+        {
+          "text": "The run reads the Enterprise org chain and Enterprise Regulated Platforms ICP but does not read, quote, or use the root Developer Tools Startups ICP.",
+          "passed": false,
+          "evidence": "Checked Enterprise-local source content was read and root ICP content was absent from the raw execution."
+        },
+        {
+          "text": "The accepted file is suborgs/enterprise/icps/national-insurers/ICP.md with the display-name H1 and every supplied fit and disqualifying fact.",
+          "passed": false,
+          "evidence": "Checked Enterprise target path, H1, and all supplied facts."
+        },
+        {
+          "text": "The draft is distinct from the adjacent Enterprise ICP, remains freeform, and omits empty or invented sections.",
+          "passed": true,
+          "evidence": "Checked distinct freeform draft without copied adjacent-ICP or placeholder content."
+        },
+        {
+          "text": "The complete preview bytes equal the saved file, and the repo is clean on main with one new commit changing only the new ICP.",
+          "passed": false,
+          "evidence": "Compared preview bytes and checked a clean scoped commit."
+        },
+        {
+          "text": "The close says saved to history and gives the qualified label enterprise/national-insurers.",
+          "passed": true,
+          "evidence": "Checked saved-history close and qualified label."
+        },
+        {
+          "text": "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+          "passed": true,
+          "evidence": "alternating=True; problems=[]"
+        },
+        {
+          "text": "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "baseline_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 113.73,
+        "tokens": 229727,
+        "tool_calls": 13,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The explicit root target is honored without a node-selection question, and the context line identifies Nimbus Labs with one visible ICP.",
+          "passed": true,
+          "evidence": "Checked explicit root target, root context line, and no node question."
+        },
+        {
+          "text": "The run reads the root Developer Tools Startups ICP and never reads, quotes, or uses Enterprise ICP content.",
+          "passed": true,
+          "evidence": "Checked root ICP use and absence of Enterprise-only content."
+        },
+        {
+          "text": "The proposal shows complete before and after Markdown for icps/developer-tools-startups/ICP.md before acceptance.",
+          "passed": true,
+          "evidence": "Checked complete before and after Markdown fences."
+        },
+        {
+          "text": "The saved file changes the range to 30\u2013250, adds the product-led preference, and preserves every unrelated supplied fact.",
+          "passed": true,
+          "evidence": "Checked requested changes and preservation of unrelated facts."
+        },
+        {
+          "text": "The repo is clean on main with exactly one commit beyond the seed changing only the updated ICP, and the close says saved to history.",
+          "passed": true,
+          "evidence": "Checked one clean scoped main commit and saved-history close."
+        },
+        {
+          "text": "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+          "passed": true,
+          "evidence": "alternating=True; problems=[]"
+        },
+        {
+          "text": "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "baseline_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 104.998,
+        "tokens": 171988,
+        "tool_calls": 8,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The skill defaults to Arbor Mobility without a node-selection question and states a context line with one visible ICP.",
+          "passed": true,
+          "evidence": "Checked obvious-node default and context line without a node question."
+        },
+        {
+          "text": "The consequence proposal names Arbor Mobility as owner, the qualified label mobility/public-transit-agencies, and that the definition will no longer be available from that node.",
+          "passed": true,
+          "evidence": "Checked owner, qualified label, and definition-availability consequence language."
+        },
+        {
+          "text": "The exact file path suborgs/mobility/icps/public-transit-agencies/ICP.md is previewed for deletion before acceptance.",
+          "passed": true,
+          "evidence": "Checked exact deletion path in user-facing proposal."
+        },
+        {
+          "text": "The ICP file is absent afterward while the Mobility org, root org, and persona content remain unchanged.",
+          "passed": true,
+          "evidence": "Checked exact ICP deletion and preservation of org/persona artifacts."
+        },
+        {
+          "text": "The repo is clean on main with one deletion commit beyond the seed; the close says saved to history and explains recovery from history.",
+          "passed": true,
+          "evidence": "Checked one clean deletion commit plus saved-history and recovery close."
+        },
+        {
+          "text": "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+          "passed": true,
+          "evidence": "alternating=True; problems=[]"
+        },
+        {
+          "text": "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "configuration": "baseline_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 9,
+        "failed": 0,
+        "total": 9,
+        "time_seconds": 127.418,
+        "tokens": 259672,
+        "tool_calls": 11,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The doctor reports every seeded ICP defect: stray placement, non-kebab filename, missing display-name H1, TODO husk, and non-matchable substance.",
+          "passed": true,
+          "evidence": "Checked report for all five seeded ICP defect classes."
+        },
+        {
+          "text": "The accepted proposal is repo-wide but scoped strictly to ICP paths and explicitly leaves persona content outside scope.",
+          "passed": true,
+          "evidence": "Checked explicit ICP-only scope and persona exclusion."
+        },
+        {
+          "text": "Useful Bad_Slug facts survive in a repaired lowercase-kebab ICP with a display-name H1.",
+          "passed": true,
+          "evidence": "Checked preservation of useful facts in one repaired kebab-case H1 ICP."
+        },
+        {
+          "text": "The TODO husk, vague non-matchable ICP, and stray archive ICP are absent after the accepted repair.",
+          "passed": true,
+          "evidence": "Checked removal of husk, non-matchable, and stray ICP artifacts."
+        },
+        {
+          "text": "The deliberately malformed persona file remains byte-for-byte unchanged.",
+          "passed": true,
+          "evidence": "Compared malformed persona bytes with the fixture."
+        },
+        {
+          "text": "The repo is clean on main with exactly one `Repair ICP artifacts` commit beyond the seed and no unrelated path changes.",
+          "passed": true,
+          "evidence": "Checked exact one-commit repair on main with ICP-only changed paths."
+        },
+        {
+          "text": "The close reports a healthy rerun and says the repairs were saved to history.",
+          "passed": true,
+          "evidence": "Checked verified healthy rerun and saved-history close."
+        },
+        {
+          "text": "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
+          "passed": true,
+          "evidence": "alternating=True; problems=[]"
+        },
+        {
+          "text": "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears.",
+          "passed": true,
+          "evidence": "dead-model pattern hits=[]"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "configuration": "baseline_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": 695.807,
+        "tokens": 179026,
+        "tool_calls": 8,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The response identifies the request as persona-owned and directs it to gtm-persona without offering an ICP lifecycle flow.",
+          "passed": false,
+          "evidence": "Checked explicit persona ownership and sibling handoff without the ICP menu."
+        },
+        {
+          "text": "No persona or ICP file is created, updated, deleted, or repaired.",
+          "passed": false,
+          "evidence": "Inventoried both artifact directories and found no lifecycle mutation."
+        },
+        {
+          "text": "The Boundary Labs repo remains clean on main with exactly its seed history and every artifact byte-preserved.",
+          "passed": false,
+          "evidence": "Checked clean main and the unchanged seed history."
+        },
+        {
+          "text": "No ICP content is quoted or used to draft the requested persona.",
+          "passed": true,
+          "evidence": "Checked that seeded ICP content was not read, quoted, or used in the handoff."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "configuration": "baseline_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": 66.734,
+        "tokens": 105909,
+        "tool_calls": 5,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The complete before/after proposal changes only 100 to 150 before the save failure is handled.",
+          "passed": true,
+          "evidence": "Checked complete before/after proposal for the one requested threshold change."
+        },
+        {
+          "text": "The recovery explains that the accepted change cannot be durably saved and never claims it was saved or committed.",
+          "passed": true,
+          "evidence": "Checked plain save-failure explanation and absence of a success claim."
+        },
+        {
+          "text": "Recovery uses one direct bold question with CLI at a keyboard first as `(Recommended)`, cancel last, and the exact reply line.",
+          "passed": false,
+          "evidence": "alternating=True; problems=[]"
+        },
+        {
+          "text": "The legacy flat target ICP and every other workspace file remain byte-for-byte unchanged, proving no migration is required; the repo stays clean on main with exactly the seed history.",
+          "passed": true,
+          "evidence": "Compared target content and checked clean one-entry seed history."
+        },
+        {
+          "text": "No remote is added and no commit, push, or unrelated repair is attempted.",
+          "passed": true,
+          "evidence": "Checked no remote addition, commit, push, or repair."
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 188.8794,
+        "stddev": 247.7159,
+        "min": 69.976,
+        "max": 749.036
+      },
+      "tokens": {
+        "mean": 192361.7143,
+        "stddev": 54568.4633,
+        "min": 124090,
+        "max": 254033
+      }
+    },
+    "baseline_skill": {
+      "pass_rate": {
+        "mean": 0.7691,
+        "stddev": 0.2743,
+        "min": 0.25,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 193.5224,
+        "stddev": 222.4565,
+        "min": 66.734,
+        "max": 695.807
+      },
+      "tokens": {
+        "mean": 193005.4286,
+        "stddev": 55217.576,
+        "min": 105909,
+        "max": 259672
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.23",
+      "time_seconds": "-4.6",
+      "tokens": "-644"
+    }
+  },
+  "notes": [
+    "The final candidate passed all 63 assertions across create, update, delete, doctor, persona near-miss, and unavailable-save scenarios; the untouched snapshot passed 40 of 63.",
+    "Canonical nested-path creation is discriminating: the snapshot continued to create flat files in both create scenarios, while the candidate wrote ICP.md under the slug directory.",
+    "The candidate and snapshot both preserved the legacy flat artifact in the unavailable-save scenario, proving backward-compatible reads without migration.",
+    "The snapshot near-miss score varied because it sometimes entered ICP workspace work before handing off; the candidate consistently handed persona work off before workspace resolution or ICP reads.",
+    "Timing variance was dominated by service latency: candidate runs ranged from 70.0 to 749.0 seconds and snapshot runs from 66.7 to 695.8 seconds; functional grades had zero candidate variance."
+  ]
+}

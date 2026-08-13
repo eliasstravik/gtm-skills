@@ -1,0 +1,19 @@
+{
+  "skill": "gtm-persona",
+  "model": "gpt-5.6-sol",
+  "eval_set": "evals/gtm-persona/description/trigger-eval.json",
+  "query_count": 20,
+  "runs_per_query": 1,
+  "split": "deterministic index split: 12 train, 8 held_out",
+  "candidates": [
+    {"index": 0, "overall_accuracy": 1.0, "held_out_accuracy": 1.0, "positive_recall": 1.0, "negative_specificity": 1.0, "duration_seconds": 306.977, "total_tokens": 95991},
+    {"index": 1, "overall_accuracy": 1.0, "held_out_accuracy": 1.0, "positive_recall": 1.0, "negative_specificity": 1.0, "duration_seconds": 285.699, "total_tokens": 73681},
+    {"index": 2, "overall_accuracy": 1.0, "held_out_accuracy": 1.0, "positive_recall": 1.0, "negative_specificity": 1.0, "duration_seconds": 304.298, "total_tokens": 134278},
+    {"index": 3, "overall_accuracy": 0.9, "held_out_accuracy": 0.75, "positive_recall": 0.8, "negative_specificity": 1.0, "duration_seconds": 479.97, "total_tokens": 127578}
+  ],
+  "selection": {
+    "candidate_index": 0,
+    "best_description": "Triggers when a user asks to create, define, refine, update, delete, or doctor a buyer or stakeholder persona file in a connected GTM workspace, including choosing which organization owns it. Not for ICPs, teammate records, general persona advice, or creating, importing, deleting, or repairing the workspace repository itself.",
+    "reason": "Candidates 0, 1, and 2 tied at 20/20 overall and 8/8 held-out; candidate 0 wins the non-regression and lowest-context tie-break. Candidate 3 missed the guided-menu and library-repair positives."
+  }
+}

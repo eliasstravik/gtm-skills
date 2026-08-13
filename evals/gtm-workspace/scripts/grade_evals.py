@@ -582,10 +582,10 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
         output = user_output(run_dir)
         lower = output.lower()
         expected_paths = (
-            "icps/logistics-operators.md",
-            "personas/vp-operations.md",
-            "suborgs/europe/icps/regional-carriers.md",
-            "suborgs/europe/personas/compliance-director.md",
+            "icps/logistics-operators/ICP.md",
+            "personas/vp-operations/PERSONA.md",
+            "suborgs/europe/icps/regional-carriers/ICP.md",
+            "suborgs/europe/personas/compliance-director/PERSONA.md",
         )
         unchanged = (
             git(repo, "branch", "--show-current") == "main"
@@ -615,7 +615,7 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             git(repo, "branch", "--show-current") == "main"
             and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 1
             and not git(repo, "status", "--porcelain")
-            and (repo / "archive/icps/legacy-targets.md").is_file()
+            and (repo / "archive/icps/legacy-targets/ICP.md").is_file()
             and (repo / "personas/revenue-leader.md").is_file()
         )
         stray_explained = "archive/icps" in lower and (

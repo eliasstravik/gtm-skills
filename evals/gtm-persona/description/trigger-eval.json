@@ -2,7 +2,7 @@
   {"query": "Define our Regional Operations Director buyer persona in the connected Harbor Signal GTM workspace. Save the persona file after I approve the draft.", "should_trigger": true},
   {"query": "Use the Solace Cloud context and refine the Founder-Led Revenue Leader persona so it includes partner-led pipeline responsibility but preserves the authority boundary.", "should_trigger": true},
   {"query": "Create a Cloud Governance Lead stakeholder persona for the Enterprise suborganization; ask me which org owns it if that is not clear from the repo.", "should_trigger": true},
-  {"query": "Update personas/procurement-director.md in our GTM workspace: they influence the shortlist but cannot sign the contract. Show me the full before and after.", "should_trigger": true},
+  {"query": "Update personas/procurement-director/PERSONA.md in our GTM workspace: they influence the shortlist but cannot sign the contract. Show me the full before and after.", "should_trigger": true},
   {"query": "Delete the obsolete Channel Marketing Manager persona from the Europe node and explain that the definition will no longer be available there.", "should_trigger": true},
   {"query": "Doctor the buyer persona files in ~/.gtm/copper-finch. Fix bad slugs and missing H1s, but leave ICP content alone.", "should_trigger": true},
   {"query": "I need help getting our buyer and stakeholder thinking organized in the connected GTM repo; walk me through the available persona actions.", "should_trigger": true},

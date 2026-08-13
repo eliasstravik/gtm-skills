@@ -10,13 +10,13 @@ Use this contract when creating, importing, updating, deleting, or doctoring a G
 ├── CLAUDE.md
 ├── .gitignore
 ├── ORG.md
-├── icps/<icp-slug>.md
-├── personas/<persona-slug>.md
+├── icps/<icp-slug>/ICP.md
+├── personas/<persona-slug>/PERSONA.md
 ├── suborgs/
 │   └── <suborg-slug>/
 │       ├── ORG.md
-│       ├── icps/<icp-slug>.md
-│       ├── personas/<persona-slug>.md
+│       ├── icps/<icp-slug>/ICP.md
+│       ├── personas/<persona-slug>/PERSONA.md
 │       ├── suborgs/<suborg-slug>/...
 │       └── members/<member-slug>/MEMBER.md
 └── members/<member-slug>/MEMBER.md
@@ -24,7 +24,7 @@ Use this contract when creating, importing, updating, deleting, or doctoring a G
 
 - A repo represents one organization. Its directory slug is lowercase kebab-case.
 - Every organization node has `ORG.md`. A suborganization is an organization node under `suborgs/<suborg-slug>/` and may recursively contain the same `ORG.md`, `suborgs/`, and `members/` shape without a depth limit.
-- An organization node may carry `icps/` and `personas/` directories. Their files are owned and validated by the skills that manage ICPs and personas, not by gtm-workspace.
+- An organization node may carry `icps/` and `personas/` directories. New artifacts use `icps/<slug>/ICP.md` and `personas/<slug>/PERSONA.md`; legacy flat `<slug>.md` artifacts remain compatible without migration. Their lifecycles are owned by `gtm-icp` and `gtm-persona`; `gtm-workspace` validates placement but not artifact content.
 - A member belongs to one owning organization node and lives directly below it at `members/<member-slug>/MEMBER.md`. Move the directory to change ownership; never duplicate a record implicitly.
 - The H1 of every `ORG.md` and `MEMBER.md` is its display name.
 - `MEMBER.md` contains a non-empty `- Email:` line. Role and `Suborganizations:` are optional facts, not required guesses. A `Suborganizations:` value records additional affiliations; the file path remains the ownership source of truth.
@@ -45,6 +45,8 @@ Keep content factual, flat, and small. Research may use model knowledge, public 
 
 Canonical discovery accepts a workspace only when its root contains `ORG.md`. Lowercase `org.md`, `people/<person-slug>/person.md`, and `people/<person-slug>/PERSON.md` are legacy inputs, not valid canonical output.
 
+Legacy flat `icps/<slug>.md` and `personas/<slug>.md` artifacts remain valid skill-owned inputs. `gtm-workspace` does not migrate them; `gtm-icp` and `gtm-persona` read, update, and delete them in place while writing all new artifacts in canonical nested form.
+
 - Create writes only the canonical names and paths.
 - Import and doctor inventory legacy paths recursively at every organization node. Before writing, preview each exact rename or move.
 - Rename each legacy `org.md` to `ORG.md` in place.
@@ -62,7 +64,7 @@ Report healthy checks as well as defects.
 
 1. Root contract files exist: `AGENTS.md`, `CLAUDE.md`, `.gitignore`; `CLAUDE.md` is exactly `@AGENTS.md` plus a final newline.
 2. Every organization node, including every recursively nested suborganization, has `ORG.md`; every `ORG.md` and `MEMBER.md` has a display-name H1.
-3. Every `suborgs/`, `members/`, `icps/`, or `personas/` directory is a direct child of an organization node whose `ORG.md` exists. Do not inspect or flag healthy files inside the skill-owned `icps/` and `personas/` directories.
+3. Every `suborgs/`, `members/`, `icps/`, or `personas/` directory is a direct child of an organization node whose `ORG.md` exists. Canonical slug directories and compatible legacy files beneath `icps/` and `personas/` are skill-owned; do not inspect or flag their content.
 4. Repo, suborganization, and member slugs are lowercase kebab-case.
 5. Every member is directly under an organization node at `members/<member-slug>/MEMBER.md` and has a non-empty `- Email:` line; listed `Suborganizations:` resolve to existing qualified suborganization paths.
 6. No canonical workspace contains lowercase `org.md`, a `people/` directory, or a member file named `person.md` or `PERSON.md`; report them as migratable legacy defects rather than silently accepting or deleting them.

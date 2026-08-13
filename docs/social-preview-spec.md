@@ -22,7 +22,7 @@ Use this specification for the GitHub repository social preview so the shared ca
 
 Recommended alt text:
 
-> GTM Skills: three open source skills for shared organization context, ideal customer profiles, and buyer personas.
+> GTM Skills: three open source skills for a shared GTM workspace, ideal customer profiles, and buyer personas.
 
 Check the final image at both full size and approximately `400 px` wide. The headline and product name should remain readable without zooming.
 

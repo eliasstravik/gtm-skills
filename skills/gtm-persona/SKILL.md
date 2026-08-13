@@ -1,34 +1,54 @@
 ---
 name: gtm-persona
-description: Triggers when a user asks to create, define, refine, update, delete, or doctor a buyer or stakeholder persona file in a connected GTM workspace, including choosing which organization owns it. Not for ICPs, teammate records, general persona advice, or creating, importing, deleting, or repairing the context repository itself.
+description: Triggers when a user asks to create, define, refine, update, delete, or doctor a buyer or stakeholder persona file in a connected GTM workspace, including choosing which organization owns it. Not for ICPs, teammate records, general persona advice, or creating, importing, deleting, or repairing the workspace repository itself.
 ---
 
 # GTM Persona
 
-## Switch
+## Trigger
 
-| Condition | Action |
+Apply this Lifecycle SOP when the requested outcome creates, updates, repairs, or retires a buyer or stakeholder persona owned by an organization node in an existing GTM workspace.
+
+## Scope
+
+Own node-local, freeform Markdown personas at `personas/<persona-slug>/PERSONA.md` across creation, refinement, deletion, and repo-wide persona integrity repair. Read legacy `personas/<persona-slug>.md` artifacts without requiring migration. Do not author ICP or member files, manage the workspace lifecycle, or classify/research leads against saved personas.
+
+## Inputs
+
+Use the user's accepted persona facts and uncertainty, the hosting environment's connected-repo and durable-write declarations, the root-to-owner `ORG.md` chain, owner-local personas, and safe supplied sources.
+
+## Roles
+
+The agent owns the selected persona lifecycle flow. The user accepts durable changes. `gtm-workspace` owns repository structure and connections; the hosting environment declares fixed connections and any replacement persistence mechanism.
+
+## Procedure
+
+| Condition | Owned flow |
 | --- | --- |
-| No clear verb is present | Guide the user to choose create, update, delete, or doctor; retain ownership of the selected flow |
-| Create is requested | Resolve the context repo and owner node, ground a freeform persona draft in that node's organization facts and local personas, preview it, then save the accepted file to history |
-| Update is requested | Resolve the node and visible persona, gather the change, preview complete before/after content, then save the accepted update to history |
-| Delete is requested | Resolve the node and visible persona, preview ownership and downstream consequences, then delete the accepted target with history recovery guidance |
-| Doctor is requested | Inspect persona placement, slugs, H1s, substance, and husks repo-wide; preview repairs, then save accepted repairs as one history entry |
+| The requested outcome belongs to a sibling workflow | Hand off before workspace resolution or artifact reads; mutate nothing |
+| No lifecycle verb is clear | Guide the persona lifecycle menu and retain ownership of the selected flow |
+| Create or define is requested | Resolve the workspace and owner node, ground a factual draft, check owner-local overlap, preview it, and save the accepted persona |
+| Update or refine is requested | Resolve one visible persona, preserve unrelated facts, preview complete before/after bytes, and save the accepted revision |
+| Delete is requested | Resolve one visible persona, preview ownership and consequences, remove only the accepted target, and explain history recovery |
+| Doctor is requested or persona artifacts seem malformed | Inspect persona placement and content repo-wide, preview one scoped repair set, save it once, and report resulting health |
 
-## Details
+## Outputs
 
-- Ask one question per message. Render it as the first line in bold; never use `AskUserQuestion`.
-- Render discrete choices as numbered options with option 1 marked `(Recommended)`, followed exactly by `Reply with a number, or type your answer.`
-- After resolving the target, state `Using GTM workspace: <display name> — <N> personas visible` before acting or judging.
-- Read only the target node's own `personas/`; root, ancestor, sibling, and descendant personas are not visible there.
-- On create with any suborg, ask which organization owns the persona unless the request names it; list root first as `(Recommended)`.
-- Treat grounding as a factual ceiling: preserve supplied responsibilities, authority boundaries, disqualifiers, and uncertainties; do not invent plausible persona claims. Keep adjacent-persona comparisons in chat unless requested in the file.
-- Preview complete bytes before writing; update previews include complete before and after files.
-- Close accepted work with “saved to history” and the qualified label: bare slug at root, otherwise `<org-path>/<slug>`.
-- Keep accepted work on `main`, stage only accepted persona paths, never force-push, and save doctor repairs once as `Repair Persona artifacts`.
+Produce the accepted node-owned persona state and its qualified label, or a complete persona health report. A request owned by a sibling workflow produces only a scoped handoff and no artifact mutation.
 
-## Calls
+## Exceptions
 
-- Read [references/context.md](references/context.md) for every branch to resolve repos and nodes, count visibility, protect links, run the accept loop, and persist safely. If unavailable, do not write; explain that the context contract could not be loaded.
-- Read [references/flows.md](references/flows.md) after the Switch match for the selected branch's exact sequence and close. If unavailable, keep the interaction read-only and explain which flow could not be loaded.
-- Read [templates/persona.md](templates/persona.md) only when drafting a new persona; use it as a starting shape, omit empty sections, and freely replace headings. If unavailable, draft a factual H1 with only useful flat H2s.
+If no valid workspace is connected or discoverable, stop without writing and direct workspace creation or connection to `gtm-workspace`. If a required reference is unavailable or the environment cannot durably save the accepted operation, keep the repo unchanged and use the prescribed recovery.
+
+## QC
+
+- Begin every question-bearing message with its single bold question without `AskUserQuestion`; put context and numbered choices below it, mark at most option 1 `(Recommended)`, and end choices exactly `Reply with a number, or type your answer.`
+- Preserve every supplied responsibility, influence fact, authority boundary, disqualifier, and uncertainty; organization facts and adjacent personas are a factual ceiling, never evidence for invented persona claims.
+- Preview complete accepted bytes and exact path operations before writing, create new personas only at the canonical nested path, preserve legacy reads and node-local visibility, and mutate only persona paths.
+- Keep accepted changes on `main`, stage only accepted persona paths, inspect the staged diff, and describe a verified durable result as “saved to history.”
+
+## References
+
+- Read [the persona contract](references/contract.md) for every flow; it defines workspace resolution, ownership, visibility, content, acceptance, safety, and persistence.
+- Read [the persona lifecycle flows](references/flows.md) after selecting the Procedure row; they define menu, create, update, delete, doctor, recovery, and closure.
+- Render [the persona draft template](templates/persona.md) only for create; it is a starting shape, not a schema or validity test.

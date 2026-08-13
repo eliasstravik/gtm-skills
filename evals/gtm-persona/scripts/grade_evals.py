@@ -143,12 +143,12 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
 
     if name == "guided-root-create":
         repo = root / "harbor-signal"
-        target = repo / "personas/regional-operations-director.md"
+        target = repo / "personas/regional-operations-director/PERSONA.md"
         text = target.read_text() if target.is_file() else ""
         turns, _ = conversation_turns(run_dir)
         menu = next((value for role, value in turns if role == "Assistant" and "create" in value.lower() and "doctor" in value.lower()), "")
         repo_choice = next((value for role, value in turns if role == "Assistant" and "Harbor Signal" in value and "Stonebridge Data" in value), "")
-        fences = proposal_fences(run_dir, "personas/regional-operations-director.md")
+        fences = proposal_fences(run_dir, "personas/regional-operations-director/PERSONA.md")
         substantive = all(
             phrase in text.lower()
             for phrase in ("five", "dispatch", "technician", "standard", "service-level", "acquisition", "advisory", "operational authority", "budget", "coo")
@@ -164,7 +164,7 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             result(target.is_file() and substantive, "Checked target path, H1, and every supplied matching/disqualifying/open fact."),
             result(freeform, "Checked freeform flat content, no placeholders, and absence of the complete old fixed schema."),
             result(token_safe, "Checked assistant output, artifact, and commands for suppression of the unsafe token."),
-            result(bool(fences) and fences[-1] == text and git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2 and not git(repo, "status", "--porcelain") and changed_paths(repo) == ["personas/regional-operations-director.md"], "Compared complete preview with saved bytes and checked one clean, scoped main commit."),
+            result(bool(fences) and fences[-1] == text and git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2 and not git(repo, "status", "--porcelain") and changed_paths(repo) == ["personas/regional-operations-director/PERSONA.md"], "Compared complete preview with saved bytes and checked one clean, scoped main commit."),
             result("saved to history" in output.lower() and re.search(r"\bregional-operations-director\b", output), "Checked saved-history close and bare root label."),
             result(*interaction),
             result(*no_dead_model(run_dir, repo)),
@@ -172,7 +172,7 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
 
     if name == "suborg-create-destination":
         repo = root / "solace-cloud"
-        target = repo / "suborgs/enterprise/personas/cloud-governance-lead.md"
+        target = repo / "suborgs/enterprise/personas/cloud-governance-lead/PERSONA.md"
         text = target.read_text() if target.is_file() else ""
         turns, _ = conversation_turns(run_dir)
         owner = next((value for role, value in turns if role == "Assistant" and "Which organization should own this persona?" in value), "")
@@ -181,14 +181,14 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
         forbidden_root = "self-service adoption" in raw.lower() or "developer velocity" in raw.lower()
         enterprise_grounding = "final security-control sign-off" in raw.lower() or "does not write cross-functional cloud policy" in raw.lower()
         substantive = all(phrase in text.lower() for phrase in ("cross-functional", "cloud policy", "regulated", "security review", "budget", "advisory architect", "policy ownership"))
-        fences = proposal_fences(run_dir, "suborgs/enterprise/personas/cloud-governance-lead.md")
+        fences = proposal_fences(run_dir, "suborgs/enterprise/personas/cloud-governance-lead/PERSONA.md")
         return [
             result(bool(owner) and root_first and enterprise_listed, "Checked exact owner question with root recommended first and Enterprise second."),
             result("Using GTM workspace: Solace Enterprise — 1 persona visible" in output, "Checked Enterprise context line after selection."),
             result(enterprise_grounding and not forbidden_root, "Checked Enterprise-local source content was read and root persona content was absent from the raw execution."),
             result(target.is_file() and text.startswith("# Cloud Governance Lead") and substantive, "Checked Enterprise target path, H1, and all supplied facts."),
             result("Security Assurance Director" not in text and "{{" not in text, "Checked distinct freeform draft without copied adjacent-persona or placeholder content."),
-            result(bool(fences) and fences[-1] == text and git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2 and not git(repo, "status", "--porcelain") and changed_paths(repo) == ["suborgs/enterprise/personas/cloud-governance-lead.md"], "Compared preview bytes and checked a clean scoped commit."),
+            result(bool(fences) and fences[-1] == text and git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2 and not git(repo, "status", "--porcelain") and changed_paths(repo) == ["suborgs/enterprise/personas/cloud-governance-lead/PERSONA.md"], "Compared preview bytes and checked a clean scoped commit."),
             result("saved to history" in output.lower() and "enterprise/cloud-governance-lead" in output, "Checked saved-history close and qualified label."),
             result(*interaction),
             result(*no_dead_model(run_dir, repo)),
@@ -196,9 +196,9 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
 
     if name == "root-update-node-local":
         repo = root / "solace-cloud"
-        target = repo / "personas/founder-led-revenue-leader.md"
+        target = repo / "personas/founder-led-revenue-leader/PERSONA.md"
         text = target.read_text() if target.is_file() else ""
-        fences = proposal_fences(run_dir, "personas/founder-led-revenue-leader.md")
+        fences = proposal_fences(run_dir, "personas/founder-led-revenue-leader/PERSONA.md")
         forbidden_suborg = "one million dollars" in raw.lower() or "formal evidence review" in raw.lower()
         preserved = "does not own procurement approval" in text.lower()
         return [
@@ -206,31 +206,31 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             result("Founder-Led Revenue Leader" in raw and not forbidden_suborg, "Checked root persona use and absence of Enterprise-only content."),
             result(len(fences) >= 2 and "3–8" in fences[0] and "5–12" in fences[-1], "Checked complete before and after Markdown fences."),
             result("5–12" in text and "partner-led pipeline" in text.lower() and "3–8" not in text and preserved, "Checked requested changes and preservation of unrelated facts."),
-            result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2 and not git(repo, "status", "--porcelain") and changed_paths(repo) == ["personas/founder-led-revenue-leader.md"] and "saved to history" in output.lower(), "Checked one clean scoped main commit and saved-history close."),
+            result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2 and not git(repo, "status", "--porcelain") and changed_paths(repo) == ["personas/founder-led-revenue-leader/PERSONA.md"] and "saved to history" in output.lower(), "Checked one clean scoped main commit and saved-history close."),
             result(*interaction),
             result(*no_dead_model(run_dir, repo)),
         ]
 
     if name == "delete-obvious-node":
         repo = root / "northstar-transit"
-        target = repo / "suborgs/mobility/personas/transit-innovation-director.md"
-        icp = repo / "suborgs/mobility/icps/public-transit-networks.md"
+        target = repo / "suborgs/mobility/personas/transit-innovation-director/PERSONA.md"
+        icp = repo / "suborgs/mobility/icps/public-transit-networks/ICP.md"
         return [
             result("Using GTM workspace: Northstar Mobility — 1 persona visible" in output and "which organization" not in output.lower(), "Checked obvious-node default and context line without a node question."),
             result(all(phrase in output.lower() for phrase in ("northstar mobility", "mobility/transit-innovation-director", "definition", "no longer", "available")), "Checked owner, qualified label, and definition-availability consequence language."),
-            result("suborgs/mobility/personas/transit-innovation-director.md" in output, "Checked exact deletion path in user-facing proposal."),
+            result("suborgs/mobility/personas/transit-innovation-director/PERSONA.md" in output, "Checked exact deletion path in user-facing proposal."),
             result(not target.exists() and (repo / "ORG.md").is_file() and (repo / "suborgs/mobility/ORG.md").is_file() and icp.is_file() and "scheduled urban networks" in icp.read_text(), "Checked exact persona deletion and preservation of org/ICP artifacts."),
-            result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2 and not git(repo, "status", "--porcelain") and changed_paths(repo) == ["suborgs/mobility/personas/transit-innovation-director.md"] and "saved to history" in output.lower() and "recover" in output.lower() and "history" in output.lower(), "Checked one clean deletion commit plus saved-history and recovery close."),
+            result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2 and not git(repo, "status", "--porcelain") and changed_paths(repo) == ["suborgs/mobility/personas/transit-innovation-director/PERSONA.md"] and "saved to history" in output.lower() and "recover" in output.lower() and "history" in output.lower(), "Checked one clean deletion commit plus saved-history and recovery close."),
             result(*interaction),
             result(*no_dead_model(run_dir, repo)),
         ]
 
     if name == "doctor-persona-scope":
         repo = root / "copper-finch"
-        icp = repo / "icps/Broken_ICP.md"
-        root_personas = sorted((repo / "personas").glob("*.md")) if (repo / "personas").is_dir() else []
+        icp = repo / "icps/Broken_ICP/ICP.md"
+        root_personas = sorted((repo / "personas").glob("*/PERSONA.md")) if (repo / "personas").is_dir() else []
         useful = [path for path in root_personas if "500–5,000" in path.read_text(errors="replace")]
-        useful_ok = len(useful) == 1 and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*\.md", useful[0].name) and useful[0].read_text().startswith("# Revenue Operations Leader") and "spreadsheet-based forecasting" in useful[0].read_text()
+        useful_ok = len(useful) == 1 and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", useful[0].parent.name) and useful[0].read_text().startswith("# Revenue Operations Leader") and "spreadsheet-based forecasting" in useful[0].read_text()
         report_terms = all(term in output.lower() for term in ("archive/personas", "revenue_operations_leader", "h1", "todo", "vague"))
         persona_changes_only = all("icps/" not in path for path in changed_paths(repo))
         return [
@@ -239,13 +239,40 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
                 "persona" in output.lower() and "icp" in output.lower() and ("owning skill" in output.lower() or "untouched" in output.lower()),
                 "Checked explicit persona-only scope and ICP exclusion.",
             ),
-            result(useful_ok and not (repo / "personas/Revenue_Operations_Leader.md").exists(), "Checked preservation of useful facts in one repaired kebab-case H1 persona."),
-            result(not (repo / "personas/todo.md").exists() and not (repo / "suborgs/europe/personas/vague.md").exists() and not (repo / "archive/personas/rogue.md").exists(), "Checked removal of husk, non-matchable, and stray persona artifacts."),
+            result(useful_ok and not (repo / "personas/Revenue_Operations_Leader/PERSONA.md").exists(), "Checked preservation of useful facts in one repaired kebab-case H1 persona."),
+            result(not (repo / "personas/todo/PERSONA.md").exists() and not (repo / "suborgs/europe/personas/vague/PERSONA.md").exists() and not (repo / "archive/personas/rogue/PERSONA.md").exists(), "Checked removal of husk, non-matchable, and stray persona artifacts."),
             result(icp.is_file() and icp.read_text() == "TODO ICP details\n", "Compared malformed ICP bytes with the fixture."),
             result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2 and git(repo, "log", "-1", "--pretty=%s") == "Repair Persona artifacts" and not git(repo, "status", "--porcelain") and persona_changes_only, "Checked exact one-commit repair on main with persona-only changed paths."),
             result("healthy" in output.lower() and "saved to history" in output.lower(), "Checked healthy rerun and saved-history close."),
             result(*interaction),
             result(*no_dead_model(run_dir, repo)),
+        ]
+
+    if name == "icp-near-miss-boundary":
+        repo = root / "boundary-labs"
+        icps = sorted(path.relative_to(repo).as_posix() for path in repo.glob("icps/*/ICP.md"))
+        personas = sorted(path.relative_to(repo).as_posix() for path in repo.glob("personas/*/PERSONA.md"))
+        return [
+            result("ICP" in output and "gtm-icp" in output.lower() and "buyer and stakeholder personas?" not in output.lower(), "Checked explicit ICP ownership and sibling handoff without the persona menu."),
+            result(icps == ["icps/regional-distributors/ICP.md"] and personas == ["personas/procurement-director/PERSONA.md"], "Inventoried both artifact directories and found no lifecycle mutation."),
+            result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 1 and not git(repo, "status", "--porcelain"), "Checked clean main and the unchanged seed history."),
+            result("owns vendor selection" not in raw.lower() and "budget approval" not in assistant.lower(), "Checked that seeded persona content was not read, quoted, or used in the handoff."),
+        ]
+
+    if name == "hosted-save-unavailable":
+        repo = root / "boundary-labs"
+        target = repo / "personas/procurement-director.md"
+        text = target.read_text() if target.is_file() else ""
+        fences = proposal_fences(run_dir, "personas/procurement-director.md")
+        recovery_ok, recovery_evidence = direct_interaction_ok(run_dir)
+        turns, _ = conversation_turns(run_dir)
+        recovery = next((value for role, value in turns if role == "Assistant" and "CLI" in value and "durable" in value.lower()), "")
+        return [
+            result(len(fences) >= 2 and "vendor security review" not in fences[0].lower() and "vendor security review" in fences[-1].lower(), "Checked complete before/after proposal for the one requested responsibility."),
+            result(("durable" in output.lower() and any(term in output.lower() for term in ("unavailable", "cannot", "could not"))) and not re.search(r"(?<!cannot be )(?<!not )\bsaved to history\b", output, re.I) and not re.search(r"\b(?:was|is|has been|successfully)\s+(?:saved|committed)\b", output, re.I), "Checked plain save-failure explanation and absence of a success claim."),
+            result(recovery_ok and "(Recommended)" in recovery and recovery.rstrip().endswith("Reply with a number, or type your answer."), recovery_evidence),
+            result("vendor security review" not in text.lower() and git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 1 and not git(repo, "status", "--porcelain"), "Compared target content and checked clean one-entry seed history."),
+            result(not git(repo, "remote") and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 1 and "push" not in assistant.lower(), "Checked no remote addition, commit, push, or repair."),
         ]
     raise ValueError(name)
 
@@ -256,7 +283,7 @@ def main() -> None:
     args = parser.parse_args()
     for eval_dir in sorted(args.iteration.glob("eval-*")):
         metadata = json.loads((eval_dir / "eval_metadata.json").read_text())
-        for configuration in ("with_skill", "without_skill"):
+        for configuration in ("with_skill", "baseline_skill", "without_skill"):
             run_dir = eval_dir / configuration / "run-1"
             if not (run_dir / "executor_status.json").is_file():
                 continue
