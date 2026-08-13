@@ -12,11 +12,14 @@ Use this contract when creating, importing, updating, deleting, or doctoring a G
 ├── ORG.md
 ├── icps/<icp-slug>/ICP.md
 ├── personas/<persona-slug>/PERSONA.md
+├── workflows/WORKFLOWS.md
+├── workflows/<workflow-slug>/WORKFLOW.md
 ├── suborgs/
 │   └── <suborg-slug>/
 │       ├── ORG.md
 │       ├── icps/<icp-slug>/ICP.md
 │       ├── personas/<persona-slug>/PERSONA.md
+│       ├── workflows/...
 │       ├── suborgs/<suborg-slug>/...
 │       └── members/<member-slug>/MEMBER.md
 └── members/<member-slug>/MEMBER.md
@@ -24,11 +27,11 @@ Use this contract when creating, importing, updating, deleting, or doctoring a G
 
 - A repo represents one organization. Its directory slug is lowercase kebab-case.
 - Every organization node has `ORG.md`. A suborganization is an organization node under `suborgs/<suborg-slug>/` and may recursively contain the same `ORG.md`, `suborgs/`, and `members/` shape without a depth limit.
-- An organization node may carry `icps/` and `personas/` directories. New artifacts use `icps/<slug>/ICP.md` and `personas/<slug>/PERSONA.md`; legacy flat `<slug>.md` artifacts remain compatible without migration. Their lifecycles are owned by `gtm-icp` and `gtm-persona`; `gtm-workspace` validates placement but not artifact content.
+- An organization node may carry `icps/`, `personas/`, and `workflows/` directories. New ICP and persona artifacts use `icps/<slug>/ICP.md` and `personas/<slug>/PERSONA.md`; legacy flat `<slug>.md` artifacts remain compatible without migration. Workflow registries, records, and local implementations live under `workflows/`. Their lifecycles are owned by `gtm-icp`, `gtm-persona`, and `gtm-workflow`; `gtm-workspace` validates placement but not artifact content.
 - A member belongs to one owning organization node and lives directly below it at `members/<member-slug>/MEMBER.md`. Move the directory to change ownership; never duplicate a record implicitly.
 - The H1 of every `ORG.md` and `MEMBER.md` is its display name.
 - `MEMBER.md` contains a non-empty `- Email:` line. Role and `Suborganizations:` are optional facts, not required guesses. A `Suborganizations:` value records additional affiliations; the file path remains the ownership source of truth.
-- Repos contain no machine state: no state files, registries, pins, caches, generated indexes, or hidden coordination metadata.
+- Tracked content contains no machine state: no hidden coordination state, pins, caches, generated indexes, run outputs, or logs. Skill-authored Markdown registries such as `WORKFLOWS.md` are ordinary authored content, not machine state. A skill may keep working state inside its own `workflows/` folders only when that state is gitignored and untracked.
 - Repos contain no empty directories or placeholder files. Omit unknown sections or leave a short factual note; never write TODO/TBD-only artifacts.
 - Everything stays on `main`. Accepted changes are committed; history is the undo mechanism.
 - Preview every durable change in chat before writing it. Accepting the first `ORG.md` during create also accepts the three boilerplate files.
@@ -64,11 +67,11 @@ Report healthy checks as well as defects.
 
 1. Root contract files exist: `AGENTS.md`, `CLAUDE.md`, `.gitignore`; `CLAUDE.md` is exactly `@AGENTS.md` plus a final newline.
 2. Every organization node, including every recursively nested suborganization, has `ORG.md`; every `ORG.md` and `MEMBER.md` has a display-name H1.
-3. Every `suborgs/`, `members/`, `icps/`, or `personas/` directory is a direct child of an organization node whose `ORG.md` exists. Canonical slug directories and compatible legacy files beneath `icps/` and `personas/` are skill-owned; do not inspect or flag their content.
+3. Every `suborgs/`, `members/`, `icps/`, `personas/`, or `workflows/` directory is a direct child of an organization node whose `ORG.md` exists. Canonical slug directories and compatible legacy files beneath `icps/` and `personas/`, plus all content beneath `workflows/`, are skill-owned; do not inspect or flag their content. Tolerate workflow-owned `.gitignore` lines wherever a `workflows/` folder exists; `gtm-workflow` checks and repairs those lines.
 4. Repo, suborganization, and member slugs are lowercase kebab-case.
 5. Every member is directly under an organization node at `members/<member-slug>/MEMBER.md` and has a non-empty `- Email:` line; listed `Suborganizations:` resolve to existing qualified suborganization paths.
 6. No canonical workspace contains lowercase `org.md`, a `people/` directory, or a member file named `person.md` or `PERSON.md`; report them as migratable legacy defects rather than silently accepting or deleting them.
-7. No machine-state files, empty directories, placeholder files, logs, or `.tmp` content are tracked.
+7. No machine-state files, empty directories, placeholder files, logs, or `.tmp` content are tracked. Gitignored working state inside skill-owned `workflows/` folders is permitted and is not a defect.
 8. Git is initialized, the checked-out branch is `main`, and the tree is either clean or has changes that can be previewed and committed.
 9. Repo-local `user.name` and `user.email` are set. The temporary identity `GTM Workspace <gtm@local>` is valid and is not a defect.
 10. When a remote exists, report upstream, ahead/behind/diverged state, and authentication or reachability problems without changing anything first.

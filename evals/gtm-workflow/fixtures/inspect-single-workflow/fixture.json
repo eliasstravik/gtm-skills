@@ -1,0 +1,9 @@
+{
+  "files": {
+    ".gtm/echo/ORG.md": "# Echo\n",
+    ".gtm/echo/workflows/WORKFLOWS.md": "# Workflows\n\nDefault target: Clay\n\n## Targets\n\n### Clay\n\nAuthor and validate drafts through Clay. Test and publish separately. Inspect by workflow ID in target-sandbox/clay/state.json. Data and runs live in Clay. Connections live in-app. Estimate Clay credits.\n\n## Connections\n\n### Salesforce\n\nConnection lives in Clay as Production Salesforce.\n\n## Limits\n\nMaximum 1,000 records and 2,500 credits per run.\n",
+    ".gtm/echo/workflows/inbound-lead-router/WORKFLOW.md": "# Inbound Lead Router\n\nTarget: Clay\nKind: triggered\nWorkflow ID: clay-808\n\n## Purpose\n\nRoute inbound leads.\n\n## Inputs and outputs\n\nWebhook leads to Salesforce queues.\n\n## Operation\n\nInspect and run through Clay.\n",
+    ".gtm/echo/.gitignore": "**/workflows/*/state.sqlite\n**/workflows/*/state.sqlite-*\n**/workflows/*/outputs/\n**/workflows/*/runs/\n**/workflows/*/.cache/\n",
+    "target-sandbox/clay/state.json": "{\"workflows\": {\"clay-808\": {\"draftVersion\": 4, \"liveVersion\": 3, \"validation\": \"healthy\", \"runs\": [{\"id\": \"run-9\", \"status\": \"success\", \"credits\": 12}, {\"id\": \"run-8\", \"status\": \"failed\", \"credits\": 3}]}}}\n"
+  }
+}
