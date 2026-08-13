@@ -86,8 +86,9 @@ If the user cancels after target draft creation, ask `**Should I remove the aban
 ### One workflow
 
 1. Resolve the node and record, dereference its target, and use only target-native read operations.
-2. Report the saved record pointer, draft/live state, validation state, recent run state available from the target, connections, limits, and observed cost without mutation.
-3. Distinguish unavailable information from healthy state; never repair during a named-workflow inspect.
+2. Report the saved record pointer, draft/live state, validation state, recent run state available from the target, connections, limits, and observed cost without mutation. For Local, read the `runs` table and per-row `status`, `error`, and `provider` fields, then summarize outcomes and failures by cause and provider; per-row faceting remains available through the registry's SQLite-viewing prose.
+3. For “show me the workflow,” regenerate a Mermaid stage flowchart from the saved script and show it without mutation. If the user asks to retain it in `WORKFLOW.md`, route that tracked-byte change through Update.
+4. Distinguish unavailable information from healthy state; never repair during a named-workflow inspect.
 
 ### Node health
 

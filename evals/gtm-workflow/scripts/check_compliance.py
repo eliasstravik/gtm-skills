@@ -55,10 +55,29 @@ def main() -> None:
     require("## Deploy" not in flows and "## Doctor" not in flows, "forbidden lifecycle flow found", failures)
     require("bare publish" in flows.lower(), "bare publish routing is absent", failures)
     local_template = (SKILL / "templates/target-local.md").read_text().lower()
-    for term in ("infrastructure or app target", "agent-harness scheduler", "kind: on-demand", "next_action_date", "workflows/lib/<connection>.ts", "never iterate workflow rows through agent context"):
+    for term in (
+        "infrastructure or app target",
+        "agent-harness scheduler",
+        "kind: on-demand",
+        "next_action_date",
+        "workflows/lib/<connection>.ts",
+        "never iterate workflow rows through agent context",
+        "uvx datasette <path>/state.sqlite",
+        "sqlite-web",
+        "never build a custom viewer",
+        "mermaid flowchart",
+        "run_id",
+        "status",
+        "error",
+        "provider",
+        "npx workflow web",
+        "inngest's local dev server ui",
+    ):
         require(term in local_template, f"local template lacks additive guidance: {term}", failures)
     require("agent-harness scheduler" in flows.lower() and "scheduling stays outside" in flows.lower(), "create flow lacks external-scheduler alternative", failures)
     require("rows, provider calls, retries, and intermediate data" in flows.lower(), "create flow lacks code-owned iteration principle", failures)
+    require("runs` table" in flows.lower() and "summarize outcomes and failures by cause and provider" in flows.lower(), "inspect flow lacks local observability summary", failures)
+    require("mermaid stage flowchart" in flows.lower() and "route that tracked-byte change through update" in flows.lower(), "inspect flow lacks mutation-safe Mermaid visualization", failures)
 
     workspace_contract = (ROOT / "skills/gtm-workspace/references/contract.md").read_text()
     workspace_agents = (ROOT / "skills/gtm-workspace/templates/AGENTS.md").read_text()

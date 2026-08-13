@@ -13,6 +13,7 @@
 - **C09** Accepted tracked changes stay on `main`, match complete previews, touch only accepted paths, and close as “saved to history.”
 - **C10** Create and update state exact draft/live status; deferral on draft/publish targets warns that live still runs old logic.
 - **C11** Local guidance keeps workflow kind on-demand under external scheduling, recommends SQLite due-row state for sweeps, graduates repeated provider calls into tracked typed wrappers, and keeps row loops and intermediate data out of agent context.
+- **C12** Local guidance uses existing SQLite viewers instead of custom UI, renders workflow structure as on-demand Mermaid, and keeps lightweight run/per-row observability in SQLite while deferring step timelines and live dashboards to infrastructure targets.
 
 ## Scenario coverage
 
