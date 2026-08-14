@@ -1,0 +1,9 @@
+{
+  "files": {
+    ".gtm/foxtrot/ORG.md": "# Foxtrot\n",
+    ".gtm/foxtrot/workflows/WORKFLOWS.md": "# Workflows\n\nDefault target: Local\n\n## Targets\n\n### Local\n\nAuthor and validate tracked TypeScript. Run once only. No publish step. Inspect source and ignored output. State is local and ignored. Credentials use environment pointers and cost is estimated before provider calls.\n",
+    ".gtm/foxtrot/workflows/account-cleanup/WORKFLOW.md": "# Account Cleanup\n\nTarget: Missing Target\nKind: on-demand\nRepo path: workflows/account-cleanup/index.ts\n\n## Purpose\n\nClean account data.\n\n## Inputs and outputs\n\nLocal rows to local output.\n\n## Operation\n\nRun locally.\n",
+    ".gtm/foxtrot/workflows/account-cleanup/index.ts": "console.log('clean');\n",
+    ".gtm/foxtrot/workflows/account-cleanup/state.sqlite": "seeded-working-state\n"
+  }
+}

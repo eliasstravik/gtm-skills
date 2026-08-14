@@ -1,0 +1,50 @@
+{
+  "skill": "gtm-workflow",
+  "records": [
+    {
+      "line_numbers": [6, 8, 12, 16, 20, 24, 39, 43, 47, 55],
+      "survivor_category": "chosen-among-equals conventions",
+      "justification": "The title and nine ordered headings encode this library's mandatory Lifecycle SOP form."
+    },
+    {
+      "line_numbers": [10, 14],
+      "survivor_category": "private or internal facts",
+      "justification": "These lines define the saved workflow lifecycle, node-local workspace paths, tracked local implementation boundary, and sibling exclusions."
+    },
+    {
+      "line_numbers": [18],
+      "survivor_category": "fresh local state",
+      "justification": "The invocation depends on local node records, declared persistence, available target tooling, and supplied safe sources."
+    },
+    {
+      "line_numbers": [22],
+      "survivor_category": "authority or approval structures",
+      "justification": "This line assigns lifecycle, validation, durable acceptance, go-live, workspace, backend, and user-action authority."
+    },
+    {
+      "line_numbers": [26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37],
+      "survivor_category": "chosen-among-equals conventions",
+      "justification": "The table selects the exact six lifecycle verbs, setup materialization, sibling handoff, target dereference, pilot gate, and publish/health routing."
+    },
+    {
+      "line_numbers": [41],
+      "survivor_category": "chosen-among-equals conventions",
+      "justification": "This line fixes the durable artifact and chat-only run output boundary."
+    },
+    {
+      "line_numbers": [45],
+      "survivor_category": "authority or approval structures",
+      "justification": "This line fixes missing-prose, abandoned-draft cleanup, record completeness, and unavailable-persistence recovery authority."
+    },
+    {
+      "line_numbers": [49, 50, 51, 52, 53],
+      "survivor_category": "authority or approval structures",
+      "justification": "These lines encode the house question protocol, exact verb vocabulary, design/draft/accept/go-live order, tracked-byte acceptance, secret/run-state boundary, history language, and stale-live warning."
+    },
+    {
+      "line_numbers": [57, 58, 59],
+      "survivor_category": "private or internal facts",
+      "justification": "These pointers disclose the private workflow contract, six selected flows, and approved prose templates at their required branches."
+    }
+  ]
+}

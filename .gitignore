@@ -7,6 +7,12 @@ docs/superpowers/
 # Local Paperclip execution worktrees and runtime state.
 .paperclip/
 
+# Local agent skill symlinks (.agents/skills -> ../skills, .claude/skills ->
+# ../.agents/skills) created per-worktree by the execution-workspace
+# provision command so agents load the checkout's skills project-level.
+.agents/
+.claude/
+
 # Per-run description transcripts.
 evals/*/description/**/transcripts/
 
