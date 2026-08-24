@@ -2,7 +2,7 @@
   "skill": "gtm-workflow",
   "records": [
     {
-      "line_numbers": [6, 8, 12, 16, 20, 24, 39, 43, 47, 55],
+      "line_numbers": [6, 8, 12, 16, 20, 24, 39, 43, 47, 56],
       "survivor_category": "chosen-among-equals conventions",
       "justification": "The title and nine ordered headings encode this library's mandatory Lifecycle SOP form."
     },
@@ -37,14 +37,19 @@
       "justification": "This line fixes missing-prose, abandoned-draft cleanup, record completeness, and unavailable-persistence recovery authority."
     },
     {
-      "line_numbers": [49, 50, 51, 52, 53],
+      "line_numbers": [49, 50, 51, 52, 53, 54],
       "survivor_category": "authority or approval structures",
-      "justification": "These lines encode the house question protocol, exact verb vocabulary, design/draft/accept/go-live order, tracked-byte acceptance, secret/run-state boundary, history language, and stale-live warning."
+      "justification": "These lines encode the house question protocol, exact verb vocabulary, design/draft/accept/go-live order, internal byte review, user-facing approval boundary, combined missing-registry creation, secret/run-state boundary, history language, and stale-live warning."
     },
     {
-      "line_numbers": [57, 58, 59],
+      "line_numbers": [58, 60, 61],
       "survivor_category": "private or internal facts",
       "justification": "These pointers disclose the private workflow contract, six selected flows, and approved prose templates at their required branches."
+    },
+    {
+      "line_numbers": [59],
+      "survivor_category": "taste or quality bars",
+      "justification": "This pointer applies the chosen operating-language, concise-approval, business-diagram, outcome-reporting, and expert-disclosure standard to every flow."
     }
   ]
 }

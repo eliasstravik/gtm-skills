@@ -74,7 +74,7 @@ Report healthy checks as well as defects.
 7. No machine-state files, empty directories, placeholder files, logs, or `.tmp` content are tracked. Gitignored working state inside skill-owned `workflows/` folders is permitted and is not a defect.
 8. Git is initialized, the checked-out branch is `main`, and the tree is either clean or has changes that can be previewed and committed.
 9. Repo-local `user.name` and `user.email` are set. The temporary identity `GTM Workspace <gtm@local>` is valid and is not a defect.
-10. When a remote exists, report upstream, ahead/behind/diverged state, and authentication or reachability problems without changing anything first.
+10. When a shared copy exists, inspect its upstream, ahead/behind/diverged state, and authentication or reachability internally without changing anything first. Report whether local and shared history agree in plain language. Reveal the Git terms only when the user asks or needs them to resolve a problem.
 
 For defects, preview the exact repair operations and replacement content, then use the accept loop. Apply approved repairs as one `Repair GTM workspace repo` commit. A healthy repo changes nothing.
 
@@ -82,7 +82,7 @@ For defects, preview the exact repair operations and replacement content, then u
 
 Every accepted durable change ends saved to history on `main`: previewed before writing, written exactly as accepted, recorded as one plain-English history entry per accepted artifact or operation set, and undoable through history. Describe the result as “saved to history.”
 
-The background git ritual below is the default mechanism. A hosting environment may declare a different durable-write mechanism for its connected repo; that declaration replaces only the mechanism — every guarantee above still applies, and any approval step the environment adds comes after the accept loop, never instead of it. Never name, assume, or work around a specific hosted mechanism; follow the environment's own instructions for how a durable write happens. If the environment's mechanism cannot durably perform an accepted operation, stop, explain in plain English what could not be saved, and offer completing it from a CLI at a keyboard; never report an unsaved change as saved.
+The background git ritual below is the default mechanism. A hosting environment may declare a different durable-write mechanism for its connected repo; that declaration replaces only the mechanism. Every guarantee above still applies, and any approval step the environment adds comes after the accept loop, never instead of it. Never name, assume, or work around a specific hosted mechanism; follow the environment's own instructions for how a durable write happens. If the environment's mechanism cannot durably perform an accepted operation, stop, explain in plain English what could not be saved, and offer completing it from a keyboard; never report an unsaved change as saved.
 
 ## Background git ritual (default mechanism)
 
@@ -94,4 +94,4 @@ Run this after each accepted write or in-repo deletion when no environment-decla
 4. If a remote exists, pull with rebase, then push. Set the upstream on the first push when needed. Never force-push.
 5. Describe success as “saved to history,” not with commit hashes.
 
-If any git step fails, explain what happened without jargon. Offer numbered recovery options with exactly one `(Recommended)` and the required reply line. Never change global git configuration. Create/import check that git is installed before touching the target; create starts with the temporary repo-local identity and replaces it with the operator's accepted name/email.
+If any git step fails, explain the effect on saved history or private sharing without jargon. Keep branch, remote, upstream, and command details under optional technical details unless one is needed to fix the problem. Offer numbered recovery options with exactly one `(Recommended)` and the required reply line. Never change global git configuration. Create/import check that git is installed before touching the target; create starts with the temporary repo-local identity and replaces it with the operator's accepted name/email.

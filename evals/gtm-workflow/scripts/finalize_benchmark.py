@@ -36,7 +36,8 @@ def main() -> None:
     for configuration, values in totals.items():
         benchmark["run_summary"][configuration]["tokens"] = calculate_stats(values)
     candidate = benchmark["run_summary"]["with_skill"]
-    baseline = benchmark["run_summary"]["without_skill"]
+    baseline_name = "old_skill" if "old_skill" in benchmark["run_summary"] else "without_skill"
+    baseline = benchmark["run_summary"][baseline_name]
     benchmark["run_summary"]["delta"] = {
         "pass_rate": f"{candidate['pass_rate']['mean'] - baseline['pass_rate']['mean']:+.2f}",
         "time_seconds": f"{candidate['time_seconds']['mean'] - baseline['time_seconds']['mean']:+.1f}",

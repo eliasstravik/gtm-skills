@@ -1,0 +1,12 @@
+{
+  "files": {
+    ".gtm/lima/ORG.md": "# Lima\n",
+    ".gtm/lima/workflows/WORKFLOWS.md": "# Workflows\n\nDefault target: Local\n\n## Targets\n\n### Local\n\nRuns on this computer and saves results locally. Read the existing viewer state from target-sandbox/local-viewer.json when the user asks to open or share results.\n",
+    ".gtm/lima/workflows/company-offer-research/WORKFLOW.md": "# Company Offer Research\n\nTarget: Local\nKind: on-demand\nRepo path: workflows/company-offer-research/index.ts\n\n## Purpose\n\nResearch company offers.\n\n## Inputs and outputs\n\nSaves a local report.\n\n## Operation\n\nOpen saved results through the configured local viewer.\n",
+    ".gtm/lima/.gitignore": "**/workflows/*/state.sqlite\n**/workflows/*/state.sqlite-*\n**/workflows/*/outputs/\n**/workflows/*/runs/\n**/workflows/*/.cache/\n",
+    "target-sandbox/local-viewer.json": "{\"product\":\"Datasette\",\"mode\":\"immutable\",\"port\":8765,\"path\":\"/private/tmp/lima/workflows/company-offer-research/state.sqlite\",\"pid\":43210,\"localUrl\":\"http://127.0.0.1:8765/report\",\"privateUrl\":\"https://results.example.test/company-offer-research\",\"access\":\"Lima team only\",\"stopCommand\":\"kill 43210\"}\n"
+  },
+  "ignored_files": {
+    ".gtm/lima/workflows/company-offer-research/state.sqlite": "seeded local workflow data\n"
+  }
+}

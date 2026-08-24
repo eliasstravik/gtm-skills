@@ -1,22 +1,22 @@
 # Skill Benchmark: gtm-workflow
 
 **Model**: gpt-5.6-sol
-**Date**: 2026-08-13T23:01:15Z
-**Evals**: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 (1 run per configuration)
+**Date**: 2026-08-24T13:19:59Z
+**Evals**: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 (1 run per configuration)
 
 ## Summary
 
-| Metric | With Skill | Without Skill | Delta |
+| Metric | Old Skill | With Skill | Delta |
 |--------|------------|---------------|-------|
-| Pass Rate | 100% ± 0% | 55% ± 31% | +0.45 |
-| Time | 106.6s ± 50.7s | 90.2s ± 35.5s | +16.5s |
-| Tokens | 266942 ± 85700 | 198198 ± 84972 | +68743 |
+| Pass Rate | 68% ± 23% | 100% ± 0% | +0.32 |
+| Time | 106.9s ± 50.0s | 105.7s ± 50.7s | -1.2s |
+| Tokens | 246625 ± 85972 | 294471 ± 118927 | +47846 |
 
 ## Notes
 
-- The candidate passed all 44 assertions (100%) versus 24 of 44 (54.5%) without the skill, a 45.5 percentage-point lift across the eleven approved scenarios.
-- Iteration 2 fixed the only prior candidate defect: the triggered-create transcript excludes Local before target selection and recommends Vercel Workflows immediately.
-- The largest baseline gaps remain quick-local materialization, triggered infrastructure creation, node-health repair, workflow-plus-registry update with bare publish, and record-only/bound-target deletion; each baseline scored at most 2 of 4 assertions.
-- Second-target setup, ungated local execution, and mutation-free single-workflow inspection passed in both configurations. They are useful regression checks but do not discriminate the skill from general model competence in this fixture set.
-- The skill increased mean execution time from 90.2s to 106.6s (+16.5s, about 18%) and mean total tokens from 198,198 to 266,942 (+68,743, about 35%); the added contract and acceptance work bought the 45.5-point pass-rate gain.
-- Each scenario has one run per configuration, so cross-scenario standard deviations describe workload diversity rather than repeat-run flakiness. Iteration 1 remains available as the before-fix comparison.
+- The final candidate passed all 56 assertions across fourteen scenarios. The PR #27 baseline passed 38 of 56, or 67.9%, for a 32.1 percentage-point difference.
+- The candidate passed every communication scenario: nontechnical Local selection and one-message creation, concise implementation approval, outcome-first external and local runs, pointer-free inspection, an eight-node business diagram, private saved-result sharing, and explicit expert technical detail.
+- PR #27 passed all assertions in triggered infrastructure creation, Clay publish and cancellation cleanup, and bound-target deletion. These remain lifecycle regression guards rather than communication discriminators.
+- The largest difference is detailed local creation, where the candidate scored 4 of 4 and PR #27 scored 1 of 4. The candidate used one location reply, one concise approval, one scoped history entry, and no implementation-stack choice.
+- Candidate transcripts passed the separate negative checker for fenced implementation code, complete workflow file bodies, raw paths, telemetry, Git and scheduler mechanics, target or run identifiers, credential pointers, unsolicited local stack products, and diagnostic metadata. The expert scenario is exempt only for the technical details explicitly requested.
+- The candidate averaged 105.7 seconds and 294,471 tokens per scenario versus 106.9 seconds and 246,625 tokens for PR #27. With one run per configuration, the small timing difference is not evidence of a speed gain; the 47,846-token increase reflects the added communication reference and should be treated as a cost of the stronger behavior.

@@ -23,7 +23,7 @@ Use the matched flow from `SKILL.md`. Keep ownership through completion; these u
 - Discover organization nodes recursively from the root through repeated `suborgs/<suborg-slug>/` segments. Display each node with its full repository-relative path, and resolve every member relative to its owning node; never collapse same-named nodes or members from different branches.
 - Never repeat or open an unsafe link. Follow `contract.md` link safety and continue using a plain-language source label.
 - Research may combine model knowledge, fetched public sources, and supplied files/folders. Separate known facts from uncertain inferences in the draft; do not invent a member's email.
-- Before any durable change, show the complete proposed file content and/or exact file operations in chat. Ask:
+- Before any durable change, show the complete proposed user-authored workspace content when its substance needs review and list exact folder or file actions in plain language. Implementation files under `workflows/` belong to `gtm-workflow`; hand them off instead of printing code, schemas, tests, config bodies, diffs, or ignore-file contents here. Ask:
 
   1. Accept and save (Recommended)
   2. Change it
@@ -32,7 +32,7 @@ Use the matched flow from `SKILL.md`. Keep ownership through completion; these u
   `Reply with a number, or type your answer.`
 
 - If the user chooses change, ask `What would you like me to change?`, revise, and show the complete proposal with the same choice. Repeat until accepted or cancelled. Cancellation writes nothing from that proposal.
-- After acceptance, write exactly the accepted proposal and run the background git ritual in `contract.md`. Close every completed flow with paths and a tree-like breakdown or clean bill of health.
+- After acceptance, write exactly the accepted proposal and run the background git ritual in `contract.md`. Close every completed flow with a plain-language account of folders or files changed, saved history, private sharing, or a clean bill of health. Keep branch, remote, upstream, commit, and command details optional.
 - Surface every git problem as a plain-English explanation followed by numbered options, with exactly one `(Recommended)` and the required reply line. Never force, branch, use a worktree, change global git config, or discard work.
 
 ## Guided menu
@@ -146,7 +146,7 @@ Write nothing, draft nothing, and research nothing for the refused request; do n
    2. Make it multiplayer through a private GitHub repository.
 
    Keep the required reply line. For multiplayer, check `gh` is installed and authenticated. Guide install or login in single-question steps when needed. Ask the owning GitHub account/organization, propose the repo name, confirm it, create a private repo, and push `main`. At every step include `Cancel and stay local for now` as an option. Never imply local mode lacks history or GitHub sharing is public.
-15. Close with a tree-style list of files created, explain they are saved to history, and state whether sharing is local single-player or multiplayer. Then add a short `Recommended next step` paragraph using only the explicit capability/skill catalog supplied by the hosting environment. Normalize only these exact workflow IDs and choose the first listed below that is available, regardless of conversational hints:
+15. Close with a tree-style list of files created, explain they are saved to history, and state whether the workspace stays on this computer or is shared privately with the team. Do not lead with branch, remote, or push details. Then add a short `Recommended next step` paragraph using only the explicit capability/skill catalog supplied by the hosting environment. Normalize only these exact workflow IDs and choose the first listed below that is available, regardless of conversational hints:
 
    1. `gtm-icp` → `Define the ideal customer profile for <saved organization display name>.`
    2. `gtm-persona` → `Define the buyer personas for <saved organization display name>.`
@@ -165,7 +165,7 @@ Write nothing, draft nothing, and research nothing for the refused request; do n
 8. Present exact moves, renames, deletions, boilerplate additions, and complete replacement file contents. Legacy members move to `members/<member-slug>/MEMBER.md` under the same organization node. Run the accept loop on this one conversion proposal.
 9. On acceptance, apply only the proposal, initialize git on `main` when needed, set a temporary repo-local identity only when no local identity exists, and save the conversion as one plain-English history entry.
 10. Offer the same optional guided multiplayer setup as create. Do not replace a valid existing remote without explicit confirmation.
-11. Close with the source left untouched, target path, resulting tree, repairs made, history status, and sharing status.
+11. Close with the source left untouched, destination folder, resulting tree, repairs made, history status, and whether the workspace stays local or is shared privately. Keep Git mechanics optional.
 
 ## Update
 
@@ -187,7 +187,7 @@ Write nothing, draft nothing, and research nothing for the refused request; do n
 ## Doctor
 
 1. Resolve the repo and inspect every item in `contract.md`'s doctor checklist without changing anything. Traverse organization nodes recursively and inventory canonical and legacy member paths at every depth.
-2. Report all healthy checks and every defect in plain English. Include exact paths, git status, and remote sync status when a remote exists; never expose credential-bearing URLs.
+2. Report all healthy checks and every defect in plain English. Include exact affected paths, whether changes are safely saved to history, and whether the local and private shared copies agree. Keep branch, remote, upstream, and service details internal unless a problem requires them; never expose credential-bearing URLs.
 3. If healthy, say so, change nothing, and close with a clean bill of health.
 4. If defective, propose exact path operations and complete replacement contents. Explain any destructive consequence and run the accept loop on the whole repair set.
 5. On acceptance, apply only approved fixes. Keep each canonical member at its owning node, migrate legacy paths under the same node, preserve facts, remove machine state/placeholders, restore contract files, and normalize safe slugs. Do not treat the temporary local identity as a defect.

@@ -38,18 +38,23 @@ def main() -> None:
     optimization = json.loads((EVALS / "evidence/final/trigger-optimization.json").read_text())
     require(description == optimization["selection"]["best_description"], "frontmatter description differs from optimizer selection", failures)
 
-    expected_files = {"SKILL.md", "references/contract.md", "references/flows.md", "templates/WORKFLOW.md", "templates/WORKFLOWS.md", "templates/target-clay.md", "templates/target-vercel-workflows.md", "templates/target-local.md"}
+    expected_files = {"SKILL.md", "references/contract.md", "references/conversation.md", "references/flows.md", "templates/WORKFLOW.md", "templates/WORKFLOWS.md", "templates/target-clay.md", "templates/target-vercel-workflows.md", "templates/target-local.md"}
     actual_files = {path.relative_to(SKILL).as_posix() for path in SKILL.rglob("*") if path.is_file()}
     require(actual_files == expected_files, f"unexpected skill file set: {sorted(actual_files ^ expected_files)}", failures)
     require(not any(re.search(r"(?:runtime|persistence|adapter)-", path.name) for path in SKILL.rglob("*")), "backend adapter file found", failures)
 
     contract = (SKILL / "references/contract.md").read_text()
+    conversation = (SKILL / "references/conversation.md").read_text()
     flows = (SKILL / "references/flows.md").read_text()
-    for reference_name, reference in (("contract", contract), ("flows", flows)):
+    for reference_name, reference in (("contract", contract), ("conversation", conversation), ("flows", flows)):
         require(len(reference.splitlines()) <= 100 or "## Contents" in reference, f"{reference_name} exceeds 100 lines without a table of contents", failures)
     for term in ("node-local", "author, run, and inspect", "Target:", "Kind:", "no target-kind field", "saved to history", "state.sqlite", "pilot"):
         require(term.lower() in contract.lower(), f"contract lacks {term}", failures)
-    require("script" in contract.lower() and "complete" in contract.lower() and "preview" in contract.lower(), "local script-byte preview is absent", failures)
+    require("script" in contract.lower() and "internally" in contract.lower() and "reviewed draft" in contract.lower(), "internal implementation review is absent", failures)
+    for term in ("runs on this computer", "purpose", "systems that may change", "failure behavior", "four to eight", "open saved results", "technical details"):
+        require(term in conversation.lower(), f"conversation standard lacks {term}", failures)
+    for term in ("source code", "schemas", "fixtures", "tests", "configuration bodies", "diffs", "ignore-file contents", "complete file bodies"):
+        require(term in conversation.lower(), f"proposal negative check lacks {term}", failures)
     for heading in ("Setup", "Create", "Update", "Inspect", "Delete", "Run"):
         require(f"## {heading}" in flows, f"flows lacks {heading}", failures)
     require("## Deploy" not in flows and "## Doctor" not in flows, "forbidden lifecycle flow found", failures)
@@ -57,15 +62,16 @@ def main() -> None:
     local_template = (SKILL / "templates/target-local.md").read_text().lower()
     for term in (
         "infrastructure or app target",
-        "agent-harness scheduler",
         "kind: on-demand",
         "next_action_date",
         "workflows/lib/<connection>.ts",
         "never iterate workflow rows through agent context",
-        "uvx datasette <path>/state.sqlite",
+        "open saved results",
+        "datasette",
         "sqlite-web",
         "never build a custom viewer",
-        "mermaid flowchart",
+        "four to eight primary nodes",
+        "technical control-flow diagram",
         "run_id",
         "status",
         "error",
@@ -74,34 +80,37 @@ def main() -> None:
         "inngest's local dev server ui",
     ):
         require(term in local_template, f"local template lacks additive guidance: {term}", failures)
-    require("agent-harness scheduler" in flows.lower() and "scheduling stays outside" in flows.lower(), "create flow lacks external-scheduler alternative", failures)
+    require("user's scheduler" in flows.lower() and "scheduling stays outside" in flows.lower(), "create flow lacks external-scheduler alternative", failures)
     require("rows, provider calls, retries, and intermediate data" in flows.lower(), "create flow lacks code-owned iteration principle", failures)
-    require("runs` table" in flows.lower() and "summarize outcomes and failures by cause and provider" in flows.lower(), "inspect flow lacks local observability summary", failures)
-    require("mermaid stage flowchart" in flows.lower() and "route that tracked-byte change through update" in flows.lower(), "inspect flow lacks mutation-safe Mermaid visualization", failures)
+    require("saved run and item state" in flows.lower() and "outcomes and failures by cause and provider" in flows.lower(), "inspect flow lacks local observability summary", failures)
+    require("business-process mermaid diagram" in flows.lower() and "route that tracked change through update" in flows.lower(), "inspect flow lacks mutation-safe business visualization", failures)
+    require("open saved results" in flows.lower() and "private share" in flows.lower(), "inspect flow lacks plain saved-result handoff", failures)
 
     workspace_contract = (ROOT / "skills/gtm-workspace/references/contract.md").read_text()
     workspace_agents = (ROOT / "skills/gtm-workspace/templates/AGENTS.md").read_text()
     for value in (workspace_contract, workspace_agents):
         require("workflows/" in value and "gitignore" in value.lower() and "untracked" in value.lower(), "Part B workflows/untracked contract missing", failures)
     require("gtm-workflow` checks and repairs" in workspace_contract, "Part B doctor ownership statement missing", failures)
+    require("local and shared history agree" in workspace_contract and "private sharing" in workspace_agents, "workspace plain-language history/sharing wording missing", failures)
 
     data = json.loads((EVALS / "evals.json").read_text())
     require(data.get("skill_name") == "gtm-workflow", "eval skill_name mismatch", failures)
-    require(len(data.get("evals", [])) == 11, "eval suite must contain exactly eleven scenarios", failures)
-    require([item["id"] for item in data["evals"]] == list(range(1, 12)), "eval ids must be 1..11", failures)
+    require(len(data.get("evals", [])) == 14, "eval suite must contain exactly fourteen scenarios", failures)
+    require([item["id"] for item in data["evals"]] == list(range(1, 15)), "eval ids must be 1..14", failures)
     for item in data["evals"]:
         fixture = EVALS / "fixtures" / item["name"] / "fixture.json"
         require(fixture.is_file(), f"missing fixture for {item['name']}", failures)
         if fixture.is_file():
             json.loads(fixture.read_text())
         require(len(item.get("assertions", [])) == 4, f"{item['name']} must have four merged assertions", failures)
+    require((EVALS / "scripts/check_transcripts.py").is_file(), "transcript negative-check script is missing", failures)
 
     if failures:
         print("FAIL")
         for failure in failures:
             print(f"- {failure}")
         sys.exit(1)
-    print("PASS: gtm-workflow skill, Part B edits, and all eleven eval fixtures satisfy static QC")
+    print("PASS: gtm-workflow skill, workspace wording, and all fourteen eval fixtures satisfy static QC")
 
 
 if __name__ == "__main__":
