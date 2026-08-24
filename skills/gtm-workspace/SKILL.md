@@ -44,7 +44,7 @@ If a required reference is unavailable, use `templates/AGENTS.md` as the minimum
 ## QC
 
 - Begin each question-bearing message with its single bold question without `AskUserQuestion`; place status, context, guidance, examples, and numbered choices below it, mark at most one choice `(Recommended)`, and end discrete choices exactly `Reply with a number, or type your answer.`
-- Preview every durable byte or path operation before writing, apply exactly the accepted proposal, and preserve compatibility with the workspace contract.
+- Preview every durable workspace action before writing, apply exactly the accepted proposal, and preserve compatibility with the workspace contract. Use folder, history, and private-sharing language by default; keep branch, remote, upstream, and command details internal unless a problem requires them or the user asks.
 - Keep accepted changes on `main`, stage only accepted paths, inspect the staged diff, and describe a verified durable result as “saved to history.”
 - Close only after every selected-flow completion criterion in `references/flows.md` is satisfied.
 

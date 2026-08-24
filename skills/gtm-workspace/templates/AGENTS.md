@@ -16,3 +16,4 @@ This repository is the durable GTM workspace for one organization.
 - Preview durable changes in chat and write them only after acceptance.
 - Commit each accepted artifact. Git history is the undo mechanism.
 - Persist accepted changes with the durable-write mechanism your environment declares; otherwise, if a remote exists, pull with rebase and push. Never force-push, and never report an unsaved change as saved.
+- Explain folder changes, saved history, and private sharing in plain language. Keep branch, remote, upstream, and command details internal unless a problem requires them or the user asks.

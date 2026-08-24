@@ -4,46 +4,46 @@
     {
       "id": 1,
       "name": "fresh-setup-invoke-only-connection",
-      "prompt": "Set up workflows for Northstar Labs. The available Clay surface can author, run, and inspect workflows. Zapier MCP can invoke app actions but cannot create, edit, enable, or inspect Zaps. Simulate Maya choosing Clay as the default target, Zapier as a connection, a 500-row limit, and accepting the complete proposal. Explain the Zapier classification plainly and complete all work inside this run's HOME.",
+      "prompt": "Set up workflows for Northstar Labs. The available Clay surface can author, run, and inspect workflows. Zapier MCP can invoke app actions but cannot create, edit, enable, or inspect Zaps. Simulate Maya choosing Clay as the default target, Zapier as a connection, a 500-row limit, and accepting the concise setup proposal. Explain the Zapier classification plainly and complete all work inside this run's HOME.",
       "expected_output": "A fresh node-local registry with Clay as a viable default target, Zapier as a connection rather than a target, limits, ignore lines, and one accepted history entry.",
       "files": ["evals/gtm-workflow/fixtures/fresh-setup-invoke-only-connection"],
       "assertions": [
         "Setup verifies author, run, and inspect viability and plainly classifies invoke-only Zapier as a connection rather than a target.",
         "The accepted WORKFLOWS.md has Clay as its sole default target, a Zapier connection, the 500-row limit, and every required target-operation topic.",
-        "The accepted write includes workflow-owned gitignore lines, exactly matches the preview, and is saved as one clean main-branch history entry.",
+        "The accepted write includes workflow-owned gitignore lines, matches the internally reviewed draft, and is saved as one clean main-branch history entry without printing config or ignore-file bodies.",
         "Questions follow the direct bold one-question format, and no secret, target-kind field, deploy verb, or doctor verb is introduced."
       ]
     },
     {
       "id": 2,
       "name": "setup-second-target",
-      "prompt": "Add Vercel Workflows as a second target to the existing Northstar Labs workflow registry. Use the repo ~/projects/northstar-automation, whose files and installed Workflow DevKit docs allow authoring, test runs, deploy, and inspection. Keep Local as the default and preserve its existing prose and limits. Simulate Maya accepting the complete registry revision.",
+      "prompt": "Add Vercel Workflows as a second target to the existing Northstar Labs workflow registry. Use the repo ~/projects/northstar-automation, whose files and installed Workflow DevKit docs allow authoring, test runs, deploy, and inspection. Keep Local as the default and preserve its existing prose and limits. Simulate Maya accepting the concise behavior and affected-path proposal.",
       "expected_output": "The existing registry is extended with one viable Vercel Workflows target while preserving Local as default and all unrelated prose.",
       "files": ["evals/gtm-workflow/fixtures/setup-second-target"],
       "assertions": [
         "Setup treats the named repo as a viable author/run/inspect target and adds a complete Vercel Workflows operating section.",
         "The revised registry preserves Local as default plus all prior connection and limit prose.",
-        "Complete before/after registry bytes are accepted and saved as one scoped clean history entry.",
+        "The proposal accurately summarizes the target behavior and registry path without printing before/after config bodies, and the internally reviewed revision is saved as one scoped clean history entry.",
         "No target-kind field, in-skill backend adapter, or unrelated workspace artifact is created."
       ]
     },
     {
       "id": 3,
       "name": "create-local-materializes-registry",
-      "prompt": "Create an on-demand local workflow called Normalize CRM Accounts in the Acme GTM workspace, whose root has no WORKFLOWS.md. It reads input CSV rows, normalizes domains, and writes results under outputs/. Simulate Sam choosing the quick local TypeScript + SQLite default, reviewing the actual registry, record, index.ts, schema.ts, and test bytes together, accepting them, and completing the flow.",
-      "expected_output": "Quick local setup and workflow creation occur in one accepted write, with registry, ignore lines, record, and tracked implementation bytes saved together.",
+      "prompt": "I am not technical. Create Normalize CRM Accounts in the Acme GTM workspace, whose root has no workflow setup yet. It should run on this computer whenever I ask, read the supplied CSV, normalize each account domain, save a CSV report locally, process at most 500 rows per run, and continue past bad rows while listing them in the report. This message contains the complete design. Simulate Sam choosing the recommended local option, accepting the concise proposal, and completing the flow. Do not ask Sam to choose programming or database products.",
+      "expected_output": "The detailed one-message request becomes a validated local workflow after one operating-location choice and a concise approval summary, with correct registry, record, ignore rules, and tracked implementation saved together.",
       "files": ["evals/gtm-workflow/fixtures/create-local-materializes-registry"],
       "assertions": [
-        "The missing-registry branch offers full setup or quick local and materializes WORKFLOWS.md from the local target in the same accepted write.",
-        "The accepted proposal previews complete registry, record, TypeScript, schema, test, and gitignore bytes before any tracked write.",
-        "The record dereferences Local, is on-demand, has a real repo pointer, and the implementation writes working data only under ignored paths.",
-        "All accepted paths are saved in one clean main-branch history entry and the close reports local as live with no separate publish step."
+        "The missing-registry choice says the workflow runs on this computer and never asks Sam to choose TypeScript, SQLite, or another implementation product.",
+        "The proposal covers behavior, inputs, output, affected systems, local timing, 500-row limit, failure handling, validation, affected paths, and local state without printing code, schemas, tests, config bodies, diffs, or ignore-file contents.",
+        "The saved record dereferences Local, is on-demand, has a real repo pointer, and the internally chosen implementation writes working data only under ignored paths.",
+        "The complete supplied design causes no implementation interview, and all accepted paths are saved in one clean history entry with local reported as live."
       ]
     },
     {
       "id": 4,
       "name": "create-triggered-infrastructure",
-      "prompt": "Create a triggered workflow named Demo Request Router for Atlas Cloud. It should receive a form webhook and write qualified requests to the CRM. The registry has Local and Vercel Workflows. Simulate Noor first asking whether Local can host it, then selecting Vercel after the skill refuses Local for triggered workflows. Build and validate the draft in the seeded implementation repo, accept the real WORKFLOW.md bytes, deploy through the repo's declared mechanism, and finish.",
+      "prompt": "Create a triggered workflow named Demo Request Router for Atlas Cloud. It should receive a form webhook and write qualified requests to the CRM. The registry has Local and Vercel Workflows. Simulate Noor first asking whether Local can host it, then selecting Vercel after the skill refuses Local for triggered workflows. Build and validate the draft in the seeded implementation repo, accept the concise workflow proposal, deploy through the repo's declared mechanism, and finish.",
       "expected_output": "Local is refused for a triggered kind and the workflow is built, recorded, and made live through the infrastructure target.",
       "files": ["evals/gtm-workflow/fixtures/create-triggered-infrastructure"],
       "assertions": [
@@ -56,7 +56,7 @@
     {
       "id": 5,
       "name": "clay-on-demand-publish-and-cancel",
-      "prompt": "In the Clay-backed Pinecone GTM workspace, create an on-demand workflow named Renewals Enrichment, accept its real Clay-ID record, and publish it. Then start creating Churn Rescue, let the agent create and validate a Clay draft, but cancel at the record proposal and choose to clean up the abandoned draft. Simulate every choice and complete both exchanges.",
+      "prompt": "In the Clay-backed Pinecone GTM workspace, create an on-demand workflow named Renewals Enrichment, accept its concise proposal after the agent obtains the real Clay ID, and publish it. Then start creating Churn Rescue, let the agent create and validate a Clay draft, but cancel at the concise proposal and choose to clean up the abandoned draft. Simulate every choice and complete both exchanges.",
       "expected_output": "The accepted on-demand Clay workflow receives a go-live gate and is published; the cancelled draft is cleaned up and leaves no record.",
       "files": ["evals/gtm-workflow/fixtures/clay-on-demand-publish-and-cancel"],
       "assertions": [
@@ -75,7 +75,7 @@
       "assertions": [
         "Before external writes, the run preview states 1,200 records, HubSpot writes, the 2,400-credit estimate, the 3,000-credit limit, and a recommended pilot.",
         "A 10-record pilot runs first and the full scope runs only after a second acceptance based on pilot results.",
-        "Results, failures, target run pointers, and observed cost are reported in chat while the workspace remains byte-preserved and clean.",
+        "Results, failures, external HubSpot changes, and observed cost are reported in business language while diagnostic run pointers stay hidden by default and the workspace remains byte-preserved and clean.",
         "The workflow is dereferenced through its Clay target and no publish, record update, or tracked run log occurs."
       ]
     },
@@ -87,9 +87,9 @@
       "files": ["evals/gtm-workflow/fixtures/run-local-ungated"],
       "assertions": [
         "The record dereferences Local and executes its saved entry point without an acceptance or cost gate.",
-        "All five rows are processed and the result is reported in chat.",
+        "All five rows are processed and the report leads with the business result, completed and failed counts, and where the results were saved.",
         "Output is written only beneath the ignored workflow outputs directory and no tracked run log or record edit occurs.",
-        "The repo remains clean on main with unchanged history."
+        "The repo remains clean on main with unchanged history, and internal run IDs, token counts, database names, and raw filesystem paths stay hidden."
       ]
     },
     {
@@ -99,8 +99,8 @@
       "expected_output": "A mutation-free, target-native inspection of one workflow with record, live state, runs, limits, connections, and cost.",
       "files": ["evals/gtm-workflow/fixtures/inspect-single-workflow"],
       "assertions": [
-        "Inspect resolves the record through its Clay target and uses the saved target-native workflow ID.",
-        "The report covers draft/live state, validation, recent runs, connections, limits, and observed cost, distinguishing unavailable facts.",
+        "Inspect resolves the record through its Clay target and saved pointer internally while hiding that diagnostic identifier by default.",
+        "The report covers draft/live state, validation, recent business outcomes, connections, limits, and observed cost without leading with run IDs.",
         "No repair proposal, lifecycle menu, or mutation occurs during the named-workflow inspection.",
         "The workspace and target sandbox remain byte-preserved and the repo stays clean with unchanged history."
       ]
@@ -113,7 +113,7 @@
       "files": ["evals/gtm-workflow/fixtures/inspect-node-health-repair"],
       "assertions": [
         "The mutation-free first report names the orphaned record, tracked SQLite state, and missing workflow ignore lines, plus healthy checks.",
-        "One complete proposal previews revised record and gitignore bytes plus the untrack-without-delete operation, then waits for acceptance.",
+        "One concise proposal names the revised record and ignore-file paths plus the untrack-without-delete operation without printing file bodies, then waits for acceptance.",
         "The accepted repair preserves state.sqlite locally but untracked, binds the record to Local, and adds every workflow-owned ignore line.",
         "A full rerun reports healthy and one Repair GTM workflow artifacts history entry leaves the main worktree clean."
       ]
@@ -121,13 +121,13 @@
     {
       "id": 10,
       "name": "update-draft-registry-and-bare-publish",
-      "prompt": "Update the Clay workflow Account Scoring in the Gamma GTM workspace: raise the fit threshold from 70 to 80 and update the Clay target billing note from 1 to 2 credits per row. Validate the target draft, accept the complete workflow-record and registry revisions, but defer publish. Then say only 'publish it' and accept the go-live gate. Complete the whole simulated exchange.",
-      "expected_output": "One update changes workflow and registry bytes, reports stale live logic on deferral, then routes bare publish to a no-content update and publishes without another byte preview.",
+      "prompt": "Update the Clay workflow Account Scoring in the Gamma GTM workspace: raise the fit threshold from 70 to 80 and update the Clay target billing note from 1 to 2 credits per row. Validate the target draft, accept the concise workflow and registry summary, but defer publish. Then say only 'publish it' and accept the go-live gate. Complete the whole simulated exchange.",
+      "expected_output": "One update changes the workflow and registry after a concise approval, reports stale live logic on deferral, then routes bare publish to a no-content update and publishes without another save proposal.",
       "files": ["evals/gtm-workflow/fixtures/update-draft-registry-and-bare-publish"],
       "assertions": [
-        "The target draft is changed and validated before complete before/after record and registry bytes are accepted together.",
+        "The target draft is changed and validated before one concise proposal accurately summarizes the record and registry changes without printing complete before/after bodies.",
         "Deferring go-live states that threshold 80 is draft, live still runs threshold 70, and explains how to finish.",
-        "The bare publish request routes to update with no content changes and goes directly to a separate go-live gate without a new byte preview.",
+        "The bare publish request routes to update with no content changes and goes directly to a separate go-live gate without a new save proposal.",
         "The final state is verified live at threshold 80, the accepted files are saved in one scoped clean history entry, and no deploy verb appears."
       ]
     },
@@ -142,6 +142,45 @@
         "Only the accepted Legacy Enrichment record is deleted and saved to history; the seeded Clay target artifact remains live.",
         "Local target deletion scans bindings, names Normalize Accounts, and refuses removal until that workflow is rebound or deleted/unmanaged.",
         "WORKFLOWS.md and Normalize Accounts remain byte-preserved, with one clean scoped deletion history entry and recovery guidance."
+      ]
+    },
+    {
+      "id": 12,
+      "name": "show-business-workflow",
+      "prompt": "Show me the saved Company Offer Research workflow in the Kestrel GTM workspace. I am a sales operator and want the business process, not the implementation. Use the saved record and script, do not mutate anything, and explain what starts it, what it reads or changes, what it saves, and how partial website failures appear.",
+      "expected_output": "A readable four-to-eight-node business-process diagram with an operating caption and one failure note, without implementation control flow or mutation.",
+      "files": ["evals/gtm-workflow/fixtures/show-business-workflow"],
+      "assertions": [
+        "The response contains a Mermaid business-process diagram with four to eight primary nodes and operator-language labels.",
+        "The diagram hides retries, schemas, database operations, model settings, process state, telemetry, and implementation loops.",
+        "A short caption says what starts the workflow, what it reads or changes, and what it saves, with one note that failed websites continue and appear in the report.",
+        "The workspace remains byte-preserved on main with unchanged history, and no technical diagram appears without an explicit implementation-detail request."
+      ]
+    },
+    {
+      "id": 13,
+      "name": "open-and-share-saved-results",
+      "prompt": "Open the saved results for Company Offer Research in the Lima GTM workspace and share the existing viewer privately with my team. The seeded viewer state is authoritative and already running. Do not mutate the workspace. I am not technical, so hand me the useful link and tell me what was shared.",
+      "expected_output": "A human-readable Open saved results link, clear private-access statement, and an offer to stop sharing, without local database or service jargon.",
+      "files": ["evals/gtm-workflow/fixtures/open-and-share-saved-results"],
+      "assertions": [
+        "The response leads with an Open saved results or Open workflow data link using the seeded private URL.",
+        "The response says the report is shared privately with the team and offers to stop sharing later.",
+        "The default response hides database and viewer product names, immutable mode, port, raw filesystem path, process identifiers, and shell commands.",
+        "The workspace and viewer state remain byte-preserved on main with unchanged history."
+      ]
+    },
+    {
+      "id": 14,
+      "name": "expert-technical-details",
+      "prompt": "Inspect the local Normalize Accounts workflow in the Mike GTM workspace. I am the developer responsible for it. Show me the implementation language, storage engine, schema fields, entry point, latest internal run ID, and how the local results viewer is started. Do not mutate anything.",
+      "expected_output": "Accurate requested developer details from the saved target, implementation, and run state, with no mutation.",
+      "files": ["evals/gtm-workflow/fixtures/expert-technical-details"],
+      "assertions": [
+        "The explicit expert request receives accurate TypeScript, SQLite, entry-point, schema-field, run-ID, and viewer-start details from the fixture.",
+        "The response distinguishes tracked implementation from ignored local run state and does not invent model or deployment details.",
+        "The response still states the business outcome and failure state before or alongside the requested diagnostics.",
+        "The workspace remains byte-preserved on main with unchanged history."
       ]
     }
   ]

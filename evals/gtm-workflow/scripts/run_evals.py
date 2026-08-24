@@ -28,7 +28,7 @@ def run_git(repo: Path, *args: str, env: dict[str, str]) -> subprocess.Completed
     )
 
 
-def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> None:
+def seed_home(eval_case: dict, home: Path, env: dict[str, str], workspace_templates: Path) -> None:
     manifest_path = EVAL_ROOT / "fixtures" / eval_case["name"] / "fixture.json"
     manifest = json.loads(manifest_path.read_text())
     for relative, body in manifest["files"].items():
@@ -45,17 +45,22 @@ def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> None:
         ):
             target = repo / target_name
             if not target.exists():
-                shutil.copy2(WORKSPACE_TEMPLATES / source_name, target)
+                shutil.copy2(workspace_templates / source_name, target)
         run_git(repo, "init", "-b", "main", env=env)
         run_git(repo, "config", "--local", "user.name", "GTM Eval Operator", env=env)
         run_git(repo, "config", "--local", "user.email", "operator@example.test", env=env)
         run_git(repo, "add", "-A", "-f", env=env)
         run_git(repo, "commit", "-m", "Seed fixture", env=env)
 
+    for relative, body in manifest.get("ignored_files", {}).items():
+        target = home / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(body)
 
-def copy_skill(home: Path) -> Path:
+
+def copy_skill(home: Path, source: Path) -> Path:
     target = home / "skill"
-    shutil.copytree(SKILL_ROOT, target)
+    shutil.copytree(source, target)
     return target
 
 
@@ -114,7 +119,7 @@ User task:
 """
 
 
-def run_one(eval_case: dict, configuration: str, iteration: Path) -> dict:
+def run_one(eval_case: dict, configuration: str, iteration: Path, baseline_skill_root: Path | None) -> dict:
     eval_dir = iteration / f"eval-{eval_case['id']}-{eval_case['name']}"
     run_dir = eval_dir / configuration / "run-1"
     outputs = run_dir / "outputs"
@@ -131,8 +136,10 @@ def run_one(eval_case: dict, configuration: str, iteration: Path) -> dict:
                 shutil.copy2(source, codex_home / name)
         env = os.environ.copy()
         env.update({"HOME": str(home), "CODEX_HOME": str(codex_home), "GIT_CONFIG_GLOBAL": str(home / ".gitconfig"), "XDG_CONFIG_HOME": str(home / ".config")})
-        seed_home(eval_case, home, env)
-        skill_path = copy_skill(home) if configuration == "with_skill" else None
+        skill_source = SKILL_ROOT if configuration == "with_skill" else baseline_skill_root if configuration == "old_skill" else None
+        workspace_templates = skill_source.parent / "gtm-workspace/templates" if skill_source else WORKSPACE_TEMPLATES
+        seed_home(eval_case, home, env, workspace_templates)
+        skill_path = copy_skill(home, skill_source) if skill_source else None
         (home / "eval-output").mkdir()
 
         command = [
@@ -182,12 +189,17 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("iteration", type=Path)
     parser.add_argument("--ids")
-    parser.add_argument("--configurations", default="with_skill,without_skill")
+    parser.add_argument("--configurations", default="with_skill,old_skill")
+    parser.add_argument("--baseline-skill-root", type=Path)
     parser.add_argument("--max-workers", type=int, default=6)
     args = parser.parse_args()
     configurations = [item.strip() for item in args.configurations.split(",") if item.strip()]
-    if set(configurations) - {"with_skill", "without_skill"}:
-        parser.error("configurations must be with_skill and/or without_skill")
+    if set(configurations) - {"with_skill", "old_skill", "without_skill"}:
+        parser.error("configurations must be with_skill, old_skill, and/or without_skill")
+    if "old_skill" in configurations and not args.baseline_skill_root:
+        parser.error("--baseline-skill-root is required for old_skill")
+    if args.baseline_skill_root and not (args.baseline_skill_root / "SKILL.md").is_file():
+        parser.error("--baseline-skill-root must contain SKILL.md")
     evals = json.loads((EVAL_ROOT / "evals.json").read_text())["evals"]
     if args.ids:
         selected = {int(item) for item in args.ids.split(",")}
@@ -200,7 +212,7 @@ def main() -> None:
     jobs = [(case, configuration) for case in evals for configuration in configurations if not (args.iteration / f"eval-{case['id']}-{case['name']}" / configuration / "run-1" / "executor_status.json").exists()]
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.max_workers) as pool:
-        futures = [pool.submit(run_one, case, configuration, args.iteration) for case, configuration in jobs]
+        futures = [pool.submit(run_one, case, configuration, args.iteration, args.baseline_skill_root) for case, configuration in jobs]
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
             results.append(result)

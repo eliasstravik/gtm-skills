@@ -40,7 +40,7 @@ Every node with workflow artifacts has one registry. Every workflow, regardless 
 
 `WORKFLOWS.md` begins with `# Workflows`, names exactly one default target when targets exist, and contains `## Targets`, `## Connections`, and `## Limits` as applicable. It is authored prose, not hidden machine state or a rigid data schema.
 
-Each named target section answers:
+Each named target section answers the following internal operating questions. User-facing target choices follow `conversation.md` and do not expose this implementation detail by default.
 
 - how the agent authors and updates there, including target-native validation;
 - how it runs once, tests, or pilots;
@@ -94,28 +94,22 @@ Use this order for each mutation:
 
 1. Agree the design in ordinary conversation.
 2. Build or edit in target-native draft space and validate there.
-3. Obtain target identifiers, then preview the complete actual registry or record bytes and every tracked local script, schema, test, or fixture byte. On acceptance, write exactly those bytes and save them to history.
+3. Obtain target identifiers, inspect the complete actual registry or record bytes and every tracked local script, schema, test, or fixture byte internally, and validate the actual diff. Show the accurate behavior and affected-path proposal from `conversation.md`. On acceptance, write exactly the reviewed draft and save it to history.
 4. Gate and perform go-live when the target has a draft/live divide or deployment is consequential.
 
 Never leave a target-side artifact the agent created without its accepted record. If the user rejects or cancels after draft construction, offer to delete the abandoned draft. Record-only deletion is the explicit user-chosen exception for an existing workflow and must say that the target workflow remains active but is no longer tracked here.
 
-For the acceptance turn, begin `**Would you like to save this proposal?**`, show every exact path operation and complete file bytes, then end:
+For the acceptance turn, use the proposal fields and exact block in `conversation.md`. Do not print complete file bodies or diffs unless the user asks for technical detail. The concise summary must still expose every external write, permission, material limit, destructive effect, and durable path operation.
 
-1. Accept and save (Recommended)
-2. Change it
-3. Cancel
-
-`Reply with a number, or type your answer.`
-
-A change response asks only `**What would you like me to change?**` before repeating a complete proposal. Cancellation writes no tracked byte and invokes draft cleanup handling when applicable.
+A change response asks only `**What would you like me to change?**`, updates and revalidates the internal draft, then repeats the concise proposal. Cancellation writes no tracked byte and invokes draft cleanup handling when applicable.
 
 ## Go-live and run gating
 
 Create and update finish by following the target's go-live prose. Ask the user to perform and then verify any target action unavailable to the agent, such as clicking Publish. If deferred, state exactly what is draft and live, how to finish, and—on draft/publish targets—that the live version still runs the old logic. A bare publish, activate, or make-it-live request is update with no content changes; it may skip byte preview and go directly to the go-live gate.
 
-Local targets support only on-demand workflows. Refuse scheduled or triggered creation there and name both alternatives: add an infrastructure or app target, or keep the workflow on-demand and have the user's agent-harness scheduler invoke it on a cadence. Scheduling remains outside the local workflow. On local and push-deploy targets, go-live may be a no-op or part of the accepted build/deploy convention.
+Local targets support only on-demand workflows. Refuse scheduled or triggered creation there and name both alternatives: add an infrastructure or app target, or keep the workflow on-demand and have the user's scheduler invoke it on a cadence. Scheduling remains outside the local workflow. On local and push-deploy targets, go-live may be a no-op or part of the accepted build/deploy convention.
 
-A direct request authorizes ordinary work. Before a run that writes externally or incurs material provider cost, preview records touched, writes and destination, estimated credits or cost, saved limits, and an optional target-native pilot on a few records. Use target-native estimation or free count/preview surfaces when available and proceed only after acceptance. Local and read-only runs are ungated. Report results, failures, and observed cost in chat; keep run data target-side or gitignored.
+A direct request authorizes ordinary work. Before a run that writes externally or incurs material provider cost, preview records touched, writes and destination, estimated credits or cost, saved limits, and an optional target-native pilot on a few records. Use target-native estimation or free count/preview surfaces when available and proceed only after acceptance. Local and read-only runs are ungated. Report the business outcome first, followed by failures, external changes, saved results, and relevant cost; keep run data target-side or gitignored.
 
 ## Safety and persistence
 
@@ -123,4 +117,4 @@ Treat URLs containing credentials, tokens, keys, signatures, invitation codes, o
 
 Every accepted tracked change ends saved to history on `main`, limited to accepted paths and recoverable through history. An environment-declared durable-write mechanism replaces only the Git mechanism; it preserves preview, exact-write, scoped-change, and success-language guarantees.
 
-Without a replacement mechanism: confirm `main`; stage only accepted paths; inspect the staged diff; commit one plain-English history entry; and, when a remote exists, pull with rebase then push without force. Determine that persistence is available before applying accepted bytes. If it is unavailable, leave the workspace and any agent-created target draft unchanged or cleaned up, explain what could not be saved, and offer CLI-at-a-keyboard recovery before cancellation. A verified close says “saved to history” without exposing a commit hash.
+Without a replacement mechanism: confirm `main`; stage only accepted paths; inspect the staged diff; commit one plain-English history entry; and, when a remote exists, pull with rebase then push without force. Determine that persistence is available before applying accepted bytes. If it is unavailable, leave the workspace and any agent-created target draft unchanged or cleaned up, explain in plain language what could not be saved, and offer keyboard recovery before cancellation. A verified close says “saved to history” without exposing branch, remote, upstream, command, or commit details unless the user requests developer details or a problem requires them.
