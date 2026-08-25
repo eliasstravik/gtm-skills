@@ -116,7 +116,7 @@ The run route maps `/api/run/<path>/<kebab-name>` to `workflow//./flows/<path>/<
 
 `Runs: on this computer` uses local `nitro dev`. Scheduled and triggered work runs only when invoked. `Runs: on Vercel` requires a recorded deployment. Vercel cron is best effort and may double-fire. Hobby schedules run at most daily and may fire anywhere within the specified hour.
 
-Use `./node_modules/.bin/workflow` for validate, inspect, and cancel. Nitro compiles workflows during `npm run dev` and `npm run build`. Pilots and full runs start through HTTP. Local UI: see [open](open.md).
+Use `./node_modules/.bin/workflow` for validate, inspect, and cancel. Nitro compiles workflows during `npm run dev` and `npm run build`. The managed dev command sets both local queue response timeouts to six minutes, longer than the default five-minute agent timeout, so the local queue does not redeliver a live research step. Keep both queue timeouts above the longest `timeoutMs` when changing that limit. Pilots and full runs start through HTTP. Local UI: see [open](open.md).
 
 ## House rules
 

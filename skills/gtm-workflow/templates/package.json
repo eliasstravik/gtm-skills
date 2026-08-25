@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "WORKFLOW_EMBEDDED_DATA_DIR=node_modules/.nitro/workflow nitro dev",
+    "dev": "WORKFLOW_EMBEDDED_DATA_DIR=node_modules/.nitro/workflow WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS=360000 WORKFLOW_LOCAL_BODY_TIMEOUT_MS=360000 nitro dev",
     "build": "nitro build"
   },
   "dependencies": {
