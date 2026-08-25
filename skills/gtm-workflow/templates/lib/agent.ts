@@ -135,9 +135,9 @@ const CLI: Record<string, CliBackend> = {
 const CLI_ORDER = ["claude", "codex", "cursor", "gemini", "opencode"];
 
 /**
- * The api backend uses AI_GATEWAY_API_KEY with Vercel AI Gateway. It defaults
- * to anthropic/claude-opus-5 and accepts a provider/model override through
- * GTM_AGENT_MODEL. Gateway web search is bounded to eight model steps.
+ * GTM_AGENT_MODEL configures the Claude CLI or API model. The api backend uses
+ * AI_GATEWAY_API_KEY with Vercel AI Gateway and defaults to
+ * anthropic/claude-opus-5. Gateway web search is bounded to eight model steps.
  */
 const API_BACKEND = "api";
 
@@ -217,12 +217,15 @@ async function viaCli(name: string, input: RuntimeInput) {
     };
     await writeFile(context.schemaFile, schemaJson);
 
-    const env = {
+    const env: Record<string, string> = {
       HOME: process.env.HOME ?? "",
       PATH: process.env.PATH ?? "",
       NO_COLOR: "1",
       TERM: "dumb",
     };
+    if (name === "claude" && process.env.GTM_AGENT_MODEL) {
+      env.ANTHROPIC_MODEL = process.env.GTM_AGENT_MODEL;
+    }
     const stdout = await run(backend.bin, backend.args(context), {
       cwd,
       env,

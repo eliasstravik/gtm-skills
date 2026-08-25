@@ -150,6 +150,8 @@ Before a run, state the backend, model, row count, maximum turns, timeout, proje
 
 For CLI backends, `MAX_SPEND_USD` and `COST_PER_ROW_USD` are projections. For `api`, they represent billed use. Pass `maxUsd: COST_PER_ROW_USD` to `agent()`; only `claude` consumes that argument.
 
+Set `GTM_AGENT_MODEL` in ignored `.env` when a workflow pins a Claude CLI or API model, mirror the non-secret value in `.env.example`, and name the model in the workflow header.
+
 ## Results and connections
 
 Return `{ completed, failed }`, fetch it through `GET /api/runs/<runId>`, and save `data/<slug>/<UTC-date>-<runId>.json`. Report `<n> completed, <m> failed` and `saved locally`. Convert it only when requested.
