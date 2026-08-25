@@ -26,7 +26,7 @@ The agent owns authoring, validation, pilots, scoped file changes, local runs, i
 | Condition | Owned flow |
 | --- | --- |
 | The request belongs to workspace, ICP, persona, account-research, or lead-research lifecycle work | Hand off before workflow reads or mutations |
-| No valid workspace resolves | Stop without writing and direct workspace creation or connection to `gtm-workspace` |
+| No valid workspace resolves | Stop without writing, name `gtm-workspace` as the owner, and direct workspace creation or connection there |
 | No lifecycle verb is clear | Guide the five-option lifecycle menu in [the flows](references/flows.md) |
 | Create is requested | Silently bootstrap the project when absent; always ask where it should run with the required local and Vercel notes; resolve kind, owner, inputs, caps, and results destination; author and validate the workflow; pilot it; propose the exact durable change; save it; deploy only through the separate gate |
 | Update is requested | Resolve the workflow, preserve the file contract, validate and pilot the requested change, update schedule state when needed, propose and save exact bytes, then deploy when its `Runs:` choice requires it |

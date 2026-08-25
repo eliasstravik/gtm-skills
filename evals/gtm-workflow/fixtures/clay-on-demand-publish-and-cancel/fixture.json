@@ -1,8 +1,0 @@
-{
-  "files": {
-    ".gtm/pinecone/ORG.md": "# Pinecone\n",
-    ".gtm/pinecone/workflows/WORKFLOWS.md": "# Workflows\n\nDefault target: Clay\n\n## Targets\n\n### Clay\n\nAuthor and validate through the seeded Clay surface. Test drafts, estimate credits, and publish after a separate gate. The agent can publish. Live keeps old logic until publish. Inspect state and runs by workflow ID. Definitions and runs live in Clay. Connections live in-app and credits are usage based.\n",
-    ".gtm/pinecone/.gitignore": "**/workflows/*/state.sqlite\n**/workflows/*/state.sqlite-*\n**/workflows/*/outputs/\n**/workflows/*/runs/\n**/workflows/*/.cache/\n",
-    "target-sandbox/clay/state.json": "{\"nextId\": 41, \"workflows\": {}}\n"
-  }
-}

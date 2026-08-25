@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministically grade gtm-workflow eval artifacts and transcripts."""
+"""Deterministically grade gtm-workflow Codex evaluation runs."""
 
 from __future__ import annotations
 
@@ -9,44 +9,66 @@ from pathlib import Path
 import re
 import subprocess
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+EVAL_ROOT = Path(__file__).resolve().parents[1]
+TEMPLATES = REPO_ROOT / "skills/gtm-workflow/templates"
+
 
 def git(repo: Path, *args: str) -> str:
-    result = subprocess.run(["git", "-C", str(repo), *args], text=True, capture_output=True)
+    result = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        text=True,
+        capture_output=True,
+    )
     return result.stdout.strip() if result.returncode == 0 else ""
-
-
-def visible_output(run_dir: Path) -> str:
-    return "\n".join((run_dir / "outputs" / name).read_text(errors="replace") for name in ("conversation.md", "final.md", "artifact-report.md") if (run_dir / "outputs" / name).is_file())
-
-
-def chat_output(run_dir: Path) -> str:
-    parts: list[str] = []
-    conversation = run_dir / "outputs/conversation.md"
-    if conversation.is_file():
-        chunks = re.split(r"(?m)^## (Assistant|User)\s*$", conversation.read_text(errors="replace"))
-        for index in range(1, len(chunks), 2):
-            if chunks[index] == "Assistant" and index + 1 < len(chunks):
-                parts.append(chunks[index + 1])
-    final = run_dir / "outputs/final.md"
-    if final.is_file():
-        parts.append(final.read_text(errors="replace"))
-    return "\n".join(parts)
 
 
 def text(path: Path) -> str:
     return path.read_text(errors="replace") if path.is_file() else ""
 
 
-def repo_for(snapshot: Path) -> Path:
-    return next(path for path in (snapshot / ".gtm").iterdir() if (path / ".git").is_dir())
+def visible(run_dir: Path) -> str:
+    return "\n".join(
+        text(run_dir / "outputs" / name)
+        for name in ("conversation.md", "final.md", "artifact-report.md")
+    )
 
 
-def clean_main(repo: Path, commits: int) -> bool:
-    return git(repo, "branch", "--show-current") == "main" and not git(repo, "status", "--porcelain") and int(git(repo, "rev-list", "--count", "HEAD") or 0) == commits
+def chat(run_dir: Path) -> str:
+    return "\n".join(
+        text(run_dir / "outputs" / name)
+        for name in ("conversation.md", "final.md")
+    )
+
+
+def repo_for(run_dir: Path) -> Path | None:
+    root = run_dir / "sandbox_snapshot/.gtm"
+    if not root.is_dir():
+        return None
+    return next((path for path in root.iterdir() if (path / ".git").is_dir()), None)
+
+
+def clean_main(repo: Path, commits: int | None = None) -> bool:
+    if git(repo, "branch", "--show-current") != "main" or git(repo, "status", "--porcelain"):
+        return False
+    if commits is None:
+        return True
+    return int(git(repo, "rev-list", "--count", "HEAD") or 0) == commits
 
 
 def changed(repo: Path) -> set[str]:
     return set(git(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").splitlines())
+
+
+def ignored(repo: Path, relative: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "-C", str(repo), "check-ignore", "-q", relative],
+            text=True,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
 
 
 def contains_all(value: str, *terms: str) -> bool:
@@ -54,189 +76,262 @@ def contains_all(value: str, *terms: str) -> bool:
     return all(term.lower() in lowered for term in terms)
 
 
-def check(ok: bool, evidence: str) -> tuple[bool, str]:
-    return bool(ok), evidence
-
-
-def concise_proposal(output: str) -> bool:
-    banned = (
-        r"```(?:typescript|ts|javascript|js|sql|json|diff)",
-        r"(?m)^# Workflows$",
-        r"(?m)^Target:\s",
-        r"(?m)^Kind:\s",
-        r"(?m)^\+\+\+ |^--- ",
-        r"(?m)^\*\*/workflows/\*/state\.sqlite",
-    )
-    return not any(re.search(pattern, output, flags=re.I) for pattern in banned)
-
-
-def mermaid_nodes(output: str) -> tuple[int, str]:
-    match = re.search(r"```mermaid\s*(.*?)```", output, flags=re.I | re.S)
+def header_lines(path: Path) -> list[str]:
+    body = text(path)
+    match = re.match(r"/\*\*\n(.*?)\n \*/", body, flags=re.S)
     if not match:
-        return 0, ""
-    diagram = match.group(1)
-    node_ids = {
-        item.group(1)
-        for item in re.finditer(r"\b([A-Za-z][A-Za-z0-9_]*)\s*(?:\[[^\]]+\]|\([^)]*\)|\{[^}]+\})", diagram)
-        if item.group(1).lower() not in {"flowchart", "graph", "subgraph"}
-    }
-    return len(node_ids), diagram
+        return []
+    return [line.removeprefix(" * ").strip() for line in match.group(1).splitlines()]
+
+
+def canonical_runtime(workflows: Path) -> bool:
+    pairs = (
+        ("lib/agent.ts", "lib/agent.ts"),
+        ("server/api/run/[...workflow].ts", "server/api/run/[...workflow].ts"),
+        ("server/api/runs/[runId].get.ts", "server/api/runs/[runId].get.ts"),
+    )
+    return all(
+        (workflows / actual).is_file()
+        and (workflows / actual).read_bytes() == (TEMPLATES / expected).read_bytes()
+        for actual, expected in pairs
+    )
+
+
+def conversation_valid(output: str) -> bool:
+    if "AskUserQuestion" in output:
+        return False
+    chunks = re.split(r"(?m)^## Assistant\s*$", output)
+    for chunk in chunks[1:]:
+        assistant = re.split(r"(?m)^## User\s*$", chunk, maxsplit=1)[0].strip()
+        if "?" in assistant:
+            first = next((line.strip() for line in assistant.splitlines() if line.strip()), "")
+            if not re.fullmatch(r"\*\*[^*\n]+\?\*\*", first):
+                return False
+            if len(re.findall(r"(?m)^\*\*[^*\n]+\?\*\*$", assistant)) != 1:
+                return False
+        if re.search(r"(?m)^\d+\. ", assistant):
+            if "Reply with a number, or type your answer." not in assistant:
+                return False
+            if assistant.count("(Recommended)") > 1:
+                return False
+    return True
+
+
+def safe_output(run_dir: Path) -> bool:
+    output = visible(run_dir)
+    status = json.loads(text(run_dir / "executor_status.json") or "{}")
+    return (
+        not status.get("secret_exposed", False)
+        and "[REDACTED-EVAL-SECRET]" not in output
+        and conversation_valid(text(run_dir / "outputs/conversation.md"))
+    )
+
+
+def workflow_files(workflows: Path, pattern: str = "*.ts") -> list[Path]:
+    return sorted(
+        path
+        for path in (workflows / "flows").rglob(pattern)
+        if path.name != "example.ts"
+    )
+
+
+def position(body: str, needle: str) -> int:
+    return body.find(needle)
 
 
 def checks_for(name: str, run_dir: Path) -> list[tuple[bool, str]]:
-    snapshot = run_dir / "sandbox_snapshot"
-    repo = repo_for(snapshot)
-    output = visible_output(run_dir)
-    chat = chat_output(run_dir)
-    workflows = repo / "workflows"
-    target_state = text(snapshot / "target-sandbox/clay/state.json")
+    output = visible(run_dir)
+    user_chat = chat(run_dir)
+    transcript = text(run_dir / "transcript.md")
+    repo = repo_for(run_dir)
 
-    if name == "fresh-setup-invoke-only-connection":
-        registry = text(workflows / "WORKFLOWS.md")
-        ignore = text(repo / ".gitignore")
+    if name == "handoff-without-workspace":
         return [
-            check(contains_all(output, "author", "run", "inspect", "zapier", "connection") and "Zapier" not in re.findall(r"### ([^\n]+)", registry.split("## Connections")[0] if "## Connections" in registry else registry), "Checked capability explanation and Zapier classification."),
-            check(contains_all(registry, "Default target: Clay", "## Connections", "Zapier", "500", "author", "run", "live", "inspect", "data", "estimate", "credits", "credential"), "Checked complete Clay registry, connection, and limit prose."),
-            check(contains_all(ignore, "state.sqlite", "outputs/", "runs/", ".cache/") and clean_main(repo, 2) and changed(repo) <= {".gitignore", "workflows/WORKFLOWS.md"} and concise_proposal(chat), "Checked ignore lines, concise proposal, and one clean scoped commit."),
-            check("Target kind:" not in registry and "target-kind" not in registry and "AskUserQuestion" not in output, "Checked banned field/tool absence."),
+            (contains_all(user_chat, "gtm-workspace", "create") or contains_all(user_chat, "gtm-workspace", "connect"), "Checked handoff to gtm-workspace."),
+            (repo is None and not (run_dir / "sandbox_snapshot/.gtm").exists(), "Checked that no workspace or Git repository was created."),
+            ("Where should this workflow run?" not in user_chat and "MAX_ROWS" not in user_chat, "Checked that workflow authoring did not begin."),
         ]
-    if name == "setup-second-target":
-        registry = text(workflows / "WORKFLOWS.md")
+
+    assert repo is not None
+    workflows = repo / "workflows"
+    flows = workflow_files(workflows)
+
+    if name == "create-on-demand-local":
+        flow = flows[0] if flows else Path()
+        body = text(flow)
+        cap_before_agent = (
+            0 <= position(body, "MAX_ROWS") < position(body, "agent(")
+            and 0 <= position(body, "MAX_SPEND_USD") < position(body, "agent(")
+        )
         return [
-            check(contains_all(registry, "Vercel Workflows", "northstar-automation", "author", "test", "deploy", "inspect", "runtime", "environment"), "Checked Vercel target operations."),
-            check(contains_all(registry, "Default target: Local", "HUBSPOT_TOKEN", "Maximum 250 rows"), "Checked preservation of default, connection, and limit."),
-            check(clean_main(repo, 2) and changed(repo) == {"workflows/WORKFLOWS.md"} and concise_proposal(chat) and "workflows/WORKFLOWS.md" in chat, "Checked concise accepted registry revision and scoped history."),
-            check("Target kind:" not in registry and not any(path.name.startswith("runtime-") for path in workflows.rglob("*")), "Checked absence of target-kind and adapters."),
+            (canonical_runtime(workflows) and len(header_lines(flow)) == 5 and contains_all("\n".join(header_lines(flow)), "Runs: on this computer", "Kind: on-demand", "Owner:", "Providers:"), "Checked scaffold integrity and the five-line header."),
+            (contains_all(user_chat, "**Where should this workflow run?**", "On this computer (Recommended)", "**Where should each run's results go?**", "Post them to a web address", "Gateway", "budget") and conversation_valid(text(run_dir / "outputs/conversation.md")), "Checked exact location/result questions and cost note."),
+            (cap_before_agent and "maxUsd: COST_PER_ROW_USD" in body and "catch (error)" in body and "failed.push" in body, "Checked cap ordering, per-call bound, and row isolation."),
+            (clean_main(repo, 2) and (workflows / ".env").is_file() and ignored(repo, "workflows/.env") and ignored(repo, "workflows/data"), "Checked one accepted create commit and ignored runtime state."),
+            (safe_output(run_dir), "Checked conversation format and secret handling."),
         ]
-    if name == "create-local-materializes-registry":
-        record = text(workflows / "normalize-crm-accounts/WORKFLOW.md")
-        registry = text(workflows / "WORKFLOWS.md")
-        implementation = "\n".join(text(path) for path in (workflows / "normalize-crm-accounts").glob("*.ts"))
-        changed_paths = changed(repo)
-        required = {".gitignore", "workflows/WORKFLOWS.md", "workflows/normalize-crm-accounts/WORKFLOW.md"}
-        implementation_paths = {path for path in changed_paths if path.startswith("workflows/normalize-crm-accounts/") and path.endswith(".ts")}
+
+    if name == "create-scheduled-vercel":
+        flow = flows[0] if flows else Path()
+        body = text(flow)
+        lines = body.splitlines()
+        use_index = next((i for i, line in enumerate(lines) if '"use workflow"' in line), -1)
+        next_statement = next(
+            (line.strip() for line in lines[use_index + 1 :] if line.strip() and not line.strip().startswith("//")),
+            "",
+        )
+        cron = text(workflows / "vercel.json")
         return [
-            check(contains_all(chat, "on this computer") and not any(term in chat.lower() for term in ("typescript", "sqlite", "storage engine", "database product")) and bool(registry), "Checked operating-language local choice and materialization."),
-            check(contains_all(chat, "normalize", "csv", "500", "validation", "local", "fail", "workflows/normalize-crm-accounts") and concise_proposal(chat), "Checked complete behavior and grouped path summary without implementation bodies."),
-            check(contains_all(record, "Target: Local", "Kind: on-demand", "Repo path:") and contains_all(registry, "Local", "on-demand") and contains_all(implementation, "outputs", "state.sqlite", "500"), "Checked local record dereference and ignored output design."),
-            check(clean_main(repo, 2) and required <= changed_paths and len(implementation_paths) >= 2 and changed_paths <= required | implementation_paths and contains_all(chat, "saved to history", "live") and chat.lower().count("**what") <= 2, "Checked no long interview, one scoped history entry, and local live close."),
+            (len(header_lines(flow)) == 6 and "export const scheduledInput" in body and next_statement == "arg ??= scheduledInput;", "Checked six-line header and immediate scheduled fallback."),
+            (contains_all(user_chat, "On Vercel (Recommended)", "only when you or your agent ask", "Gateway", "budget") and safe_output(run_dir), "Checked both required location notes and choice order."),
+            ("Keep them on Vercel; I'll fetch them when you ask" in user_chat, "Checked the scheduled Vercel result option."),
+            (contains_all(cron, "/api/run/", "0 9 * * 1-5"), "Checked matching UTC cron route."),
+            (clean_main(repo, 2) and not (workflows / ".vercel").exists() and contains_all(user_chat, "saved", "not live"), "Checked saved but not-live closure without linking."),
         ]
-    if name == "create-triggered-infrastructure":
-        record = text(workflows / "demo-request-router/WORKFLOW.md")
-        project = snapshot / "projects/atlas-automation"
+
+    if name == "create-nested-suborganization":
+        nested = list((workflows / "flows/europe").glob("*.ts"))
+        flow = nested[0] if nested else Path()
+        result_files = list((workflows / "data").rglob("*.json")) if (workflows / "data").exists() else []
         return [
-            check(contains_all(output, "local", "triggered", "Vercel Workflows") and ("cannot" in output.lower() or "unsupported" in output.lower()) and "Local (Recommended)" not in output, "Checked local refusal before target choice."),
-            check(contains_all(record, "Target: Vercel Workflows", "Kind: triggered", "Repo path:") and "Demo Request Router" in text(project / "target-state.json") + output, "Checked validated infrastructure draft and record."),
-            check(clean_main(repo, 2) and (workflows / "demo-request-router/WORKFLOW.md").is_file() and contains_all(output, "accepted", "deploy"), "Checked record save before deployment."),
-            check(contains_all(output, "live", "validation", "saved to history") and "What would you like to do with your GTM workflows?" not in output, "Checked live close without a deploy lifecycle menu choice."),
+            (bool(nested) and not (repo / "suborgs/europe/workflows").exists(), "Checked root-owned nested flow placement."),
+            (contains_all("\n".join(header_lines(flow)), "Owner: Acme Europe", "ICP: Europe Revenue"), "Checked owner and ICP header."),
+            (contains_all(transcript + output, "/api/run/europe/", "data/") or bool(result_files), "Checked nested run route and result handling."),
+            (clean_main(repo, 2) and safe_output(run_dir), "Checked one scoped create commit and safe conversation."),
         ]
-    if name == "clay-on-demand-publish-and-cancel":
-        renewals = workflows / "renewals-enrichment/WORKFLOW.md"
-        churn = workflows / "churn-rescue/WORKFLOW.md"
+
+    if name == "update-switch-location":
+        flow = workflows / "flows/account-scoring.ts"
+        package = json.loads(text(workflows / "package.json") or "{}")
+        deployment = package.get("gtm", {}).get("vercel", {})
+        key_check = transcript.lower().find("ai_gateway_api_key")
+        link = transcript.lower().find("vercel link")
         return [
-            check(contains_all(output, "Renewals Enrichment", "on-demand", "publish", "live", "record is saved to history") and ("publish the validated" in output.lower() or "publish Renewals Enrichment" in output), "Checked separate on-demand publish gate after record save."),
-            check(renewals.is_file() and contains_all(text(renewals), "Target: Clay", "Workflow ID:") and contains_all(target_state, "Renewals", "live"), "Checked saved record and live target artifact."),
-            check(not churn.exists() and "Churn Rescue" not in target_state and contains_all(output, "Churn Rescue", "abandoned", "removed", "cancel"), "Checked abandoned draft cleanup and absent record."),
-            check(clean_main(repo, 2) and changed(repo) == {"workflows/renewals-enrichment/WORKFLOW.md"}, "Checked no record-less artifact and one scoped commit."),
+            (contains_all(text(flow), "Runs: on Vercel", "MAX_ROWS = 25", "MAX_SPEND_USD = 25", "COST_PER_ROW_USD = 1"), "Checked location switch with behavior and caps preserved."),
+            (0 <= key_check < link and safe_output(run_dir), "Checked key-before-link ordering and secret safety."),
+            (contains_all(json.dumps(deployment), "team", "project", "url", "acme-workflows"), "Checked non-secret gtm.vercel metadata."),
+            (contains_all(transcript + output, "/api/run/account-scoring", "run-eval-001") and clean_main(repo), "Checked deployed route pilot and clean main."),
         ]
-    if name == "run-external-cost-gate":
-        target_data = json.loads(target_state)
-        runs = target_data["workflows"]["clay-201"]["runs"]
+
+    if name == "inspect-project-health":
         return [
-            check(contains_all(output, "1,200", "HubSpot", "2,400", "3,000", "pilot"), "Checked external-write scope, cost, limit, and pilot preview."),
-            check(contains_all(chat, "10", "pilot", "remaining") and len(runs) == 2 and runs[0].get("type") == "pilot" and runs[1].get("type") == "full", "Checked pilot then accepted remaining scope."),
-            check(contains_all(chat, "completed", "failed", "credits", "HubSpot") and re.search(r"clay-(?:run-\d+|201-run-\d+)", chat) is None and clean_main(repo, 1), "Checked outcome-first report, hidden diagnostic pointers, and unchanged workspace."),
-            check("clay-201" in output + target_state and "saved to history" not in output.lower(), "Checked target dereference and no tracked workflow mutation."),
+            (contains_all(user_chat, "account-scoring", "on this computer", "on-demand", "25", "$25"), "Checked workflow, location, kind, and caps report."),
+            (contains_all(user_chat, "valid", "agent", "route") and canonical_runtime(workflows), "Checked validation and canonical shared files."),
+            (
+                (contains_all(user_chat, "no recorded runs") or contains_all(user_chat, "no run data") or contains_all(user_chat, "no runs"))
+                and (contains_all(user_chat, "not unhealthy") or contains_all(user_chat, "not evidence", "fault") or contains_all(user_chat, "not", "defect")),
+                "Checked absent run data is not treated as a defect.",
+            ),
+            (clean_main(repo, 1) and safe_output(run_dir), "Checked read-only inspection and safe conversation."),
         ]
-    if name == "run-local-ungated":
-        result_path = workflows / "normalize-domains/outputs/result.csv"
+
+    if name == "inspect-fetch-deployed-result":
+        results = list((workflows / "data/account-scoring").glob("*-run-eval-001.json"))
+        package = text(workflows / "package.json")
         return [
-            check("Target: Local" in text(workflows / "normalize-domains/WORKFLOW.md") and "would you like to run" not in output.lower(), "Checked local dereference and no gate."),
-            check(result_path.is_file() and len(result_path.read_text().strip().splitlines()) == 6 and contains_all(chat, "5", "completed", "failed", "saved locally"), "Checked five-row execution and outcome-first report."),
-            check(result_path.is_file() and "outputs/result.csv" not in git(repo, "ls-files") and "run log" not in "\n".join(git(repo, "ls-files").splitlines()), "Checked ignored output and no tracked run log."),
-            check(clean_main(repo, 1) and not any(term in chat.lower() for term in ("run_id", "token count", "state.sqlite", "/users/", "/tmp/")), "Checked clean unchanged history and hidden diagnostics."),
+            (contains_all(package, "gtm", "vercel", "acme-team", "acme-workflows") and contains_all(transcript, "inspect", "--backend", "vercel"), "Checked deployment metadata and remote inspect."),
+            (contains_all(transcript, "/api/runs/run-eval-001", "authorization") and safe_output(run_dir), "Checked authenticated result retrieval without exposure."),
+            (bool(results) and contains_all(text(results[0]), "completed", "failed"), "Checked saved completed return value path and shape."),
+            (contains_all(user_chat, "saved locally", "run-eval-001") and clean_main(repo, 1), "Checked local result report with unchanged tracked state."),
         ]
-    if name == "inspect-single-workflow":
+
+    if name == "run-pilot-cap-and-row-failure":
+        flow = workflows / "flows/account-scoring.ts"
+        body = text(flow)
+        results = list((workflows / "data/account-scoring").glob("*.json"))
         return [
-            check("clay-808" in target_state and "clay-808" not in chat and "Clay" in chat, "Checked internal record-to-target resolution and hidden pointer."),
-            check(contains_all(chat, "draft", "live", "validation", "success", "failed", "Salesforce", "1,000", "credit") and "run-9" not in chat, "Checked outcome-first inspection fields without run IDs."),
-            check("Would you like to save this proposal?" not in output and "repair" not in output.lower(), "Checked mutation-free named inspect."),
-            check(clean_main(repo, 1) and "draftVersion\": 4" in target_state and "liveVersion\": 3" in target_state, "Checked byte-preserved workspace and target state."),
+            (transcript.count("/api/run/account-scoring") >= 2 and "workflow start" not in transcript.lower(), "Checked route-started pilot and full run."),
+            (contains_all(user_chat, "12", "$12", "2 completed, 1 failed", "**Would you like to run this scope?**"), "Checked projected spend and pilot gate."),
+            (position(body, "MAX_ROWS") < position(body, "agent(") and position(body, "MAX_SPEND_USD") < position(body, "agent(") and "catch (error)" in body, "Checked source cap order and row isolation."),
+            (bool(results) and re.search(r"\d+ completed, \d+ failed", user_chat) is not None and contains_all(user_chat, "saved locally"), "Checked saved result and outcome-first report."),
         ]
-    if name == "inspect-node-health-repair":
-        record = text(workflows / "account-cleanup/WORKFLOW.md")
-        ignore = text(repo / ".gitignore")
-        state = workflows / "account-cleanup/state.sqlite"
+
+    if name == "delete-scheduled-workflow":
+        cron = text(workflows / "vercel.json")
+        package = text(workflows / "package.json")
         return [
-            check(contains_all(output, "Missing Target", "state.sqlite", "gitignore") and ("healthy" in output.lower() or "check" in output.lower()), "Checked complete first health report."),
-            check(contains_all(chat, "Would you like to save these changes?", "WORKFLOW.md", ".gitignore", "untrack") and concise_proposal(chat), "Checked one concise accepted repair proposal."),
-            check("Target: Local" in record and state.is_file() and "state.sqlite" not in git(repo, "ls-files") and contains_all(ignore, "state.sqlite", "outputs/", "runs/", ".cache/"), "Checked repaired binding, preserved untracked state, and ignore lines."),
-            check(clean_main(repo, 2) and git(repo, "log", "-1", "--pretty=%s") == "Repair GTM workflow artifacts" and ("healthy" in chat.lower() or "health is now clean" in chat.lower()) and "saved to history" in chat.lower(), "Checked exact repair entry and healthy rerun."),
+            (not (workflows / "flows/pipeline-watch.ts").exists() and "pipeline-watch" not in cron, "Checked selected file and cron removal."),
+            ((workflows / "flows/example.ts").is_file() and contains_all(package, "gtm", "vercel") and (workflows / "data/pipeline-watch/2026-08-25-run-old.json").is_file(), "Checked preservation of example, deployment, and ignored results."),
+            (contains_all(user_chat, "pipeline-watch", "vercel.json", "recover", "**Would you like to save these changes?**"), "Checked accepted path consequences and recovery."),
+            (clean_main(repo, 2) and safe_output(run_dir), "Checked one scoped deletion commit and safe conversation."),
         ]
-    if name == "update-draft-registry-and-bare-publish":
-        record = text(workflows / "account-scoring/WORKFLOW.md")
-        registry = text(workflows / "WORKFLOWS.md")
+
+    if name == "deploy-missing-gateway-key":
+        package = json.loads(text(workflows / "package.json") or "{}")
         return [
-            check("threshold 80" in record.lower() and "2 credits per row" in registry.lower() and contains_all(chat, "80", "2 credits", "validated", "WORKFLOW.md", "WORKFLOWS.md") and concise_proposal(chat), "Checked validated draft and concise tracked revision summary."),
-            check(contains_all(output, "draft", "80", "live", "70", "old logic"), "Checked stale-live deferral warning."),
-            check(contains_all(chat, "publish it", "live") and chat.lower().count("would you like to save these changes?") == 1, "Checked bare publish routing without a second save proposal."),
-            check(contains_all(target_state, "draftThreshold\": 80", "liveThreshold\": 80") and clean_main(repo, 2) and {"workflows/WORKFLOWS.md", "workflows/account-scoring/WORKFLOW.md"} <= changed(repo), "Checked verified live state and scoped history."),
+            (contains_all(user_chat, "Gateway", "spending budget"), "Checked budgeted Gateway explanation."),
+            (contains_all(user_chat, "**Is a budgeted Gateway key saved in workflows/.env now?**", "Cancel deployment") and transcript.lower().find("budgeted gateway key") < max(transcript.lower().find("vercel link"), 10**9), "Checked key question before any link."),
+            (not (workflows / ".vercel").exists() and not package.get("gtm", {}).get("vercel") and clean_main(repo, 1), "Checked cancellation before project, secret, deploy, or metadata mutation."),
+            (safe_output(run_dir), "Checked credential safety and conversation controls."),
         ]
-    if name == "delete-record-only-and-bound-target":
-        legacy = workflows / "legacy-enrichment/WORKFLOW.md"
-        registry = text(workflows / "WORKFLOWS.md")
-        return [
-            check(contains_all(chat, "record", "cancel", "keeps running", "no longer tracked") and ("record only" in chat.lower() or "only the workspace record" in chat.lower() or "delete only the workspace record" in chat.lower()), "Checked separate deletion choices and unmanagement warning."),
-            check(not legacy.exists() and contains_all(target_state, "clay-900", "live") and clean_main(repo, 2), "Checked record-only deletion and preserved target artifact."),
-            check(contains_all(output, "Local", "Normalize Accounts") and ("cannot" in output.lower() or "rebind" in output.lower() or "bound" in output.lower()), "Checked bound-target refusal."),
-            check("### Local" in registry and (workflows / "normalize-accounts/WORKFLOW.md").is_file() and changed(repo) == {"workflows/legacy-enrichment/WORKFLOW.md"} and "recover" in output.lower(), "Checked preserved registry/bound record, scoped commit, and recovery."),
-        ]
-    if name == "show-business-workflow":
-        node_count, diagram = mermaid_nodes(chat)
-        banned = ("retry", "schema", "sqlite", "database", "model", "token", "telemetry", "run_id", "process state", "for each")
-        return [
-            check(4 <= node_count <= 8 and contains_all(diagram, "company", "website", "offer", "report"), f"Counted {node_count} operator-language diagram nodes."),
-            check(bool(diagram) and not any(term in diagram.lower() for term in banned), "Checked diagram for hidden implementation details."),
-            check(contains_all(chat, "start", "read", "save", "fail", "continue", "report"), "Checked operating caption and partial-failure note."),
-            check(clean_main(repo, 1) and "technical diagram" not in chat.lower() and "implementation diagram" not in chat.lower(), "Checked no mutation and no unsolicited technical diagram."),
-        ]
-    if name == "open-and-share-saved-results":
-        viewer_state = text(snapshot / "target-sandbox/local-viewer.json")
-        banned = ("datasette", "immutable", "8765", "/private/tmp/", "43210", "kill ", "state.sqlite")
-        return [
-            check("https://results.example.test/company-offer-research" in chat and ("Open saved results" in chat or "Open workflow data" in chat), "Checked human-readable private result link."),
-            check(contains_all(chat, "private", "team") and ("stop sharing" in chat.lower() or "stop the share" in chat.lower()), "Checked access statement and stop-sharing offer."),
-            check(not any(term in chat.lower() for term in banned), "Checked hidden viewer, storage, port, path, process, and command details."),
-            check(clean_main(repo, 1) and '"pid":43210' in viewer_state.replace(" ", ""), "Checked byte-preserved workspace and viewer state."),
-        ]
-    if name == "expert-technical-details":
-        tracked = set(git(repo, "ls-files").splitlines())
-        return [
-            check(contains_all(chat, "TypeScript", "SQLite", "index.ts", "account_id", "normalized_domain", "run-local-2026-08-24-017", "uvx datasette"), "Checked all explicitly requested implementation and run details."),
-            check(contains_all(chat, "tracked", "ignored") and "model" not in chat.lower() and "deploy" not in chat.lower(), "Checked implementation/state distinction and absence of invented details."),
-            check(contains_all(chat, "48", "2", "failed") or contains_all(chat, "48", "2", "partial"), "Checked business outcome alongside diagnostics."),
-            check(clean_main(repo, 1) and "workflows/normalize-accounts/index.ts" in tracked and "workflows/normalize-accounts/state.sqlite" not in tracked and "workflows/normalize-accounts/runs/latest.json" not in tracked, "Checked no mutation and ignored local state."),
-        ]
-    raise ValueError(name)
+
+    raise KeyError(name)
+
+
+def grade_run(case: dict, run_dir: Path) -> dict:
+    checks = checks_for(case["name"], run_dir)
+    if len(checks) != len(case["assertions"]):
+        raise RuntimeError(f"grader check count differs for {case['name']}")
+    expectations = [
+        {"text": assertion, "passed": passed, "evidence": evidence}
+        for assertion, (passed, evidence) in zip(case["assertions"], checks)
+    ]
+    passed = sum(item["passed"] for item in expectations)
+    metrics = json.loads(text(run_dir / "outputs/metrics.json") or "{}")
+    timing = json.loads(text(run_dir / "timing.json") or "{}")
+    result = {
+        "expectations": expectations,
+        "summary": {
+            "passed": passed,
+            "failed": len(expectations) - passed,
+            "total": len(expectations),
+            "pass_rate": passed / len(expectations) if expectations else 0,
+        },
+        "execution_metrics": metrics,
+        "timing": timing,
+        "claims": [],
+        "user_notes_summary": {
+            "uncertainties": [],
+            "needs_review": [],
+            "workarounds": [],
+        },
+        "eval_feedback": {
+            "suggestions": [],
+            "overall": "Assertions combine transcript and filesystem evidence.",
+        },
+    }
+    (run_dir / "grading.json").write_text(json.dumps(result, indent=2) + "\n")
+    return result
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("iteration", type=Path)
     args = parser.parse_args()
+    cases = {
+        case["name"]: case
+        for case in json.loads((EVAL_ROOT / "evals.json").read_text())["evals"]
+    }
+    summary = []
     for eval_dir in sorted(args.iteration.glob("eval-*")):
         metadata = json.loads((eval_dir / "eval_metadata.json").read_text())
-        configurations = sorted(path.name for path in eval_dir.iterdir() if path.is_dir())
-        for configuration in configurations:
+        case = cases[metadata["eval_name"]]
+        for configuration in ("with_skill", "without_skill"):
             run_dir = eval_dir / configuration / "run-1"
-            if not (run_dir / "executor_status.json").is_file():
+            if not run_dir.is_dir():
                 continue
-            checks = checks_for(metadata["eval_name"], run_dir)
-            expectations = [{"text": assertion, "passed": passed, "evidence": evidence} for assertion, (passed, evidence) in zip(metadata["assertions"], checks, strict=True)]
-            passed = sum(item["passed"] for item in expectations)
-            grading = {"expectations": expectations, "summary": {"passed": passed, "failed": len(expectations) - passed, "total": len(expectations), "pass_rate": round(passed / len(expectations), 4)}, "execution_metrics": json.loads((run_dir / "outputs/metrics.json").read_text()), "timing": json.loads((run_dir / "timing.json").read_text()), "claims": [], "user_notes_summary": {"uncertainties": [], "needs_review": [], "workarounds": []}, "eval_feedback": {"suggestions": [], "overall": "Assertions are deterministic and scenario-specific."}}
-            (run_dir / "grading.json").write_text(json.dumps(grading, indent=2) + "\n")
-            print(f"{metadata['eval_name']} {configuration}: {passed}/{len(expectations)}")
+            result = grade_run(case, run_dir)
+            summary.append(
+                {
+                    "eval": case["name"],
+                    "configuration": configuration,
+                    **result["summary"],
+                }
+            )
+            print(json.dumps(summary[-1]), flush=True)
+    (args.iteration / "grading-summary.json").write_text(
+        json.dumps(summary, indent=2) + "\n"
+    )
 
 
 if __name__ == "__main__":

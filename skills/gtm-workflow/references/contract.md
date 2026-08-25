@@ -21,7 +21,7 @@ A request-named organization node wins. Otherwise root is the default unless the
 
 The workflow project belongs to the workspace root even when a workflow belongs to a suborganization. A root workflow is `flows/<slug>.ts`. A suborganization workflow is `flows/<suborg-path>/<slug>.ts`, with physical `suborgs/` segments omitted. Its header names the owning node and ICP.
 
-Before acting or judging, state `Using GTM workspace: <display name> | <N> workflows visible`, using `workflow visible` for one.
+Before acting or judging, state `Using GTM workspace: <display name> | <N> workflows visible`, using `workflow visible` for one. In a question-bearing message, put this status immediately below the opening bold question so the question remains the first non-empty line.
 
 ## Project shape
 

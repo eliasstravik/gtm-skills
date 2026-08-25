@@ -1,9 +1,0 @@
-{
-  "files": {
-    ".gtm/gamma/ORG.md": "# Gamma\n",
-    ".gtm/gamma/workflows/WORKFLOWS.md": "# Workflows\n\nDefault target: Clay\n\n## Targets\n\n### Clay\n\nAuthor and validate through target-sandbox/clay/state.json. Test drafts and publish through the same surface after a separate gate. The agent can publish. Live keeps old logic until publish. Inspect by workflow ID. Definitions and runs live in Clay. Connections live in-app. Billing is 1 credit per row.\n",
-    ".gtm/gamma/workflows/account-scoring/WORKFLOW.md": "# Account Scoring\n\nTarget: Clay\nKind: on-demand\nWorkflow ID: clay-510\n\n## Purpose\n\nScore accounts with fit threshold 70.\n\n## Inputs and outputs\n\nAccounts in, fit decisions out.\n\n## Operation\n\nTest drafts, publish, and inspect in Clay.\n",
-    ".gtm/gamma/.gitignore": "**/workflows/*/state.sqlite\n**/workflows/*/state.sqlite-*\n**/workflows/*/outputs/\n**/workflows/*/runs/\n**/workflows/*/.cache/\n",
-    "target-sandbox/clay/state.json": "{\"workflows\": {\"clay-510\": {\"draftThreshold\": 70, \"liveThreshold\": 70, \"validation\": \"healthy\"}}}\n"
-  }
-}

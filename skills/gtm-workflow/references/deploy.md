@@ -39,14 +39,12 @@ Do not link a project before both checks pass.
 
 ## Gateway key check
 
-Before linking, scan managed flow files for `agent()` calls. If any flow calls it and ignored `.env` lacks a non-empty `AI_GATEWAY_API_KEY`, say:
-
-`Research on Vercel runs through a Vercel AI Gateway key with a spending budget.`
-
-Then ask:
+Before linking, scan managed flow files for `agent()` calls. If any flow calls it and ignored `.env` lacks a non-empty `AI_GATEWAY_API_KEY`, use this exact order:
 
 ```text
 **Is a budgeted Gateway key saved in workflows/.env now?**
+
+Research on Vercel runs through a Vercel AI Gateway key with a spending budget. Create the key with a spending budget in the [Vercel AI Gateway dashboard](https://vercel.com/ai-gateway) and paste it directly into `workflows/.env` without sharing it in conversation.
 
 1. Yes, continue (Recommended)
 2. Cancel deployment
@@ -54,7 +52,7 @@ Then ask:
 Reply with a number, or type your answer.
 ```
 
-Tell the user to create the key with a spending budget in the [Vercel AI Gateway dashboard](https://vercel.com/ai-gateway) and paste it directly into `workflows/.env`. Wait for confirmation and verify only that the variable has a non-empty value. Never read the value into conversation, a prompt, a tracked file, or captured command output.
+Wait for confirmation and verify only that the variable has a non-empty value. Never read the value into conversation, a prompt, a tracked file, or captured command output.
 
 ## Link and sync
 

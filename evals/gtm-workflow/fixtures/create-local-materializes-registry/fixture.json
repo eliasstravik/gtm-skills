@@ -1,6 +1,0 @@
-{
-  "files": {
-    ".gtm/acme/ORG.md": "# Acme\n\n## Overview\n\nRevenue operations team.\n",
-    "source/input.csv": "account,domain\nOne, HTTPS://ONE.EXAMPLE/ \nTwo,two.example\n"
-  }
-}

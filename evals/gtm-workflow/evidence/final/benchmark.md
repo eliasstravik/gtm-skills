@@ -1,22 +1,18 @@
-# Skill Benchmark: gtm-workflow
+# Skill benchmark: gtm-workflow
 
-**Model**: gpt-5.6-sol
-**Date**: 2026-08-24T13:19:59Z
-**Evals**: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 (1 run per configuration)
+Model: `gpt-5.6-sol`
 
-## Summary
+Date: 2026-08-25
 
-| Metric | Old Skill | With Skill | Delta |
-|--------|------------|---------------|-------|
-| Pass Rate | 68% ± 23% | 100% ± 0% | +0.32 |
-| Time | 106.9s ± 50.0s | 105.7s ± 50.7s | -1.2s |
-| Tokens | 246625 ± 85972 | 294471 ± 118927 | +47846 |
+Scenarios: 10
 
-## Notes
+Runs: one per scenario and configuration
 
-- The final candidate passed all 56 assertions across fourteen scenarios. The PR #27 baseline passed 38 of 56, or 67.9%, for a 32.1 percentage-point difference.
-- The candidate passed every communication scenario: nontechnical Local selection and one-message creation, concise implementation approval, outcome-first external and local runs, pointer-free inspection, an eight-node business diagram, private saved-result sharing, and explicit expert technical detail.
-- PR #27 passed all assertions in triggered infrastructure creation, Clay publish and cancellation cleanup, and bound-target deletion. These remain lifecycle regression guards rather than communication discriminators.
-- The largest difference is detailed local creation, where the candidate scored 4 of 4 and PR #27 scored 1 of 4. The candidate used one location reply, one concise approval, one scoped history entry, and no implementation-stack choice.
-- Candidate transcripts passed the separate negative checker for fenced implementation code, complete workflow file bodies, raw paths, telemetry, Git and scheduler mechanics, target or run identifiers, credential pointers, unsolicited local stack products, and diagnostic metadata. The expert scenario is exempt only for the technical details explicitly requested.
-- The candidate averaged 105.7 seconds and 294,471 tokens per scenario versus 106.9 seconds and 246,625 tokens for PR #27. With one run per configuration, the small timing difference is not evidence of a speed gain; the 47,846-token increase reflects the added communication reference and should be treated as a cost of the stronger behavior.
+| Metric | With skill | Without skill | Difference |
+| --- | ---: | ---: | ---: |
+| Deterministic assertions | 41/41 | 14/41 | +27 |
+| Mean scenario pass rate | 100.0% | 35.7% | +64.3 points |
+| Mean time | 124.0 s | 108.9 s | +15.1 s |
+| Mean normalized tokens | 23,271 | 16,812 | +6,459 |
+
+Timing and token figures are descriptive because each scenario and configuration has one recorded run.

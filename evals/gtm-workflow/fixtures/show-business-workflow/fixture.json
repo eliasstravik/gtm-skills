@@ -1,9 +1,0 @@
-{
-  "files": {
-    ".gtm/kestrel/ORG.md": "# Kestrel\n",
-    ".gtm/kestrel/workflows/WORKFLOWS.md": "# Workflows\n\nDefault target: Local\n\n## Targets\n\n### Local\n\nRuns on this computer when requested and saves results locally. The tracked TypeScript implementation uses SQLite for working state. Inspect source, tests, and ignored run state.\n",
-    ".gtm/kestrel/workflows/company-offer-research/WORKFLOW.md": "# Company Offer Research\n\nTarget: Local\nKind: on-demand\nRepo path: workflows/company-offer-research/index.ts\n\n## Purpose\n\nResearch the main offers of companies in an input list.\n\n## Inputs and outputs\n\nReads a company CSV and saves a local report with one result or failure per company.\n\n## Operation\n\nFor each company, find its website, visit it, summarize the top offers, continue after unreachable websites, save all results locally, and show the report.\n",
-    ".gtm/kestrel/workflows/company-offer-research/index.ts": "async function researchCompany(company: Company) { const website = await findWebsite(company); const page = await retry(() => fetchWebsite(website), 3); return summarizeOffers(page, { model: 'saved-default' }); }\nasync function run(rows: Company[]) { const results = []; for (const row of rows) { try { results.push(await researchCompany(row)); } catch (error) { results.push({ company: row.name, status: 'failed', error: String(error) }); } } await stateDb.save(results); await writeReport(results); }\n",
-    ".gtm/kestrel/.gitignore": "**/workflows/*/state.sqlite\n**/workflows/*/state.sqlite-*\n**/workflows/*/outputs/\n**/workflows/*/runs/\n**/workflows/*/.cache/\n"
-  }
-}

@@ -1,6 +1,0 @@
-{
-  "files": {
-    ".gtm/northstar-labs/ORG.md": "# Northstar Labs\n\n## Overview\n\nB2B software company.\n",
-    "available-tools.md": "# Available surfaces\n\nClay CLI: authors workflows, runs drafts and live workflows, inspects state and runs, validates, publishes, and estimates credits.\n\nZapier MCP: invokes configured app actions only. It cannot create, edit, enable, or inspect Zaps.\n"
-  }
-}

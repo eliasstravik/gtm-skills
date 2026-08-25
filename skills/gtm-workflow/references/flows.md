@@ -44,7 +44,7 @@ Run bootstrap as part of the first create. Do not expose it as a lifecycle verb 
 
 1. Resolve the workspace, owner node, and kind: `on-demand`, `scheduled`, or `triggered`. Read the owner node's relevant ICP and persona files at authoring time. These files inform generated code but are not runtime dependencies.
 2. Run silent bootstrap in draft space if the project is absent.
-3. Always ask the run-location question. For on-demand work, put `On this computer (Recommended)` first. For scheduled or triggered work, put `On Vercel (Recommended)` first. Show both applicable notes once:
+3. Always ask the run-location question. For on-demand work, put `On this computer (Recommended)` first. For scheduled or triggered work, put `On Vercel (Recommended)` first. Put applicable notes below the bold question and above the options so the bold question remains the message's first line:
    - For scheduled or triggered workflows, on this computer means it runs only when the user or their agent asks.
    - When the workflow calls `agent()`, on Vercel means research uses the user's budgeted Vercel AI Gateway credits rather than their CLI-agent subscription.
 
@@ -52,6 +52,8 @@ Use one of these exact choice orders:
 
 ```text
 **Where should this workflow run?**
+
+When this workflow uses research, on Vercel that research uses your budgeted Vercel AI Gateway credits rather than your CLI-agent subscription.
 
 1. On this computer (Recommended)
 2. On Vercel
@@ -61,6 +63,8 @@ Reply with a number, or type your answer.
 
 ```text
 **Where should this workflow run?**
+
+On this computer, a scheduled or triggered workflow runs only when you or your agent asks. When this workflow uses research, on Vercel that research uses your budgeted Vercel AI Gateway credits rather than your CLI-agent subscription.
 
 1. On Vercel (Recommended)
 2. On this computer
@@ -103,7 +107,7 @@ Say once that Vercel cron is best effort and may double-fire. On Hobby, it runs 
 
 8. For `Kind: triggered`, explain that the caller sends an authenticated GET or POST to the run route. Tell the user to open `workflows/.env` themselves to obtain the secret. Never display it.
 9. Run `./node_modules/.bin/workflow validate`, restart or start `nitro dev`, and run a three-row pilot through the HTTP route when three safe rows exist. Inspect the result through the result route.
-10. Review the full draft and actual diff. Show the proposal from `conversation.md`, including scaffold files on first create, workflow behavior, caps, result destination, schedule, validation, and resulting local or deployment state. Run the acceptance block.
+10. Review the full draft and actual diff. Begin the proposal turn with the bold acceptance question, put the proposal fields from `conversation.md` below it, then render the numbered acceptance options and exact reply line. Include scaffold files on first create, workflow behavior, caps, result destination, schedule, validation, and resulting local or deployment state.
 11. Save accepted bytes to history on `main`.
 12. If `Runs: on Vercel`, continue through [deploy](deploy.md). Otherwise close with what runs, how it is invoked, result location, limits, validation, affected paths, and `saved to history`.
 
@@ -114,7 +118,7 @@ Say once that Vercel cron is best effort and may double-fire. On Hobby, it runs 
 3. Edit only the workflow, `.env.example` names, ignored `.env` values, schedule entry, or allowed `package.json` deployment metadata needed by the change. Never edit `lib/agent.ts` or the routes.
 4. When adding a schedule, apply the scheduled file and cron rules from Create. When removing it, remove both `Schedule:` and `scheduledInput`, remove `arg ??= scheduledInput`, and remove the matching cron entry. Remove empty `vercel.json`.
 5. Validate, restart `nitro dev` if `lib/` changed during an explicit template upgrade, and rerun a three-row pilot when behavior changed.
-6. Inspect the complete draft and diff, show the proposal, accept it, and save exact bytes to history.
+6. Inspect the complete draft and diff. Begin the proposal turn with the bold acceptance question, put the concise proposal below it, then render the numbered options and exact reply line. Save only the accepted exact bytes to history.
 7. Use [deploy](deploy.md) when the result says `Runs: on Vercel`. If switching to this computer, do not delete the existing Vercel project unless the user separately accepts that destructive action.
 8. Close with the operating change, validation, paths, result location, and exact local or live state.
 
@@ -138,7 +142,7 @@ Say once that Vercel cron is best effort and may double-fire. On Hobby, it runs 
 
 1. Resolve the managed workflow and inspect its schedule, result directory, run location, and history recovery.
 2. Preview deletion of the workflow file and its matching cron entry. Ignored results remain unless the user separately asks to remove them. A deployed project remains unless separately accepted.
-3. Show affected paths and recovery in the proposal, run the acceptance block, and apply only the accepted deletion.
+3. Begin the proposal turn with the bold acceptance question, put affected paths and recovery below it, then render the numbered options and exact reply line. Apply only the accepted deletion.
 4. Remove an empty nested flow directory and an empty `vercel.json`; preserve all unrelated workflows and cron entries.
 5. Run validation, save the deletion to history, and close with what remains and how history restores it.
 
@@ -148,10 +152,12 @@ Say once that Vercel cron is best effort and may double-fire. On Hobby, it runs 
 2. For a local run, confirm `nitro dev` is healthy and start it in the background when needed. For a Vercel run, read the production URL from `package.json` `gtm.vercel`.
 3. Count rows before spending. Reject scopes above `MAX_ROWS` or projected spend above `MAX_SPEND_USD`. Calculate projected spend as `rows × COST_PER_ROW_USD`.
 4. Run a three-row pilot first when three safe rows are available. Start it by POSTing the explicit body to the authenticated run route and inspect the result through the GET result route.
-5. Before a full run with material cost or external writes, use:
+5. Before a full run with material cost or external writes, begin the gate with:
 
 ```text
 **Would you like to run this scope?**
+
+<row count, projected spend, accepted caps, external writes, destination, and pilot outcome>
 
 1. Run the three-row pilot first (Recommended)
 2. Run the full accepted scope
@@ -160,7 +166,7 @@ Say once that Vercel cron is best effort and may double-fire. On Hobby, it runs 
 Reply with a number, or type your answer.
 ```
 
-State row count, projected spend, accepted caps, external writes, destination, and pilot outcome before this question. Omit option 1 when that exact pilot has already succeeded.
+Replace the placeholder with the actual scope summary. Omit option 1 when that exact pilot has already succeeded.
 
 6. POST every accepted run through `/api/run/<path>` with an explicit body. Substitute the bearer from `.env` in the shell so it never enters conversation, command output, or a tracked file.
 7. Poll `/api/runs/<runId>` for at most ten minutes. If still running, say so and explain that inspect can fetch it later. A local run progresses only while the workflow server is up; if interrupted, restart `nitro dev` and the run resumes.

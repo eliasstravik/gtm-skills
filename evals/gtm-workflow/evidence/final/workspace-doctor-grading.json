@@ -1,0 +1,106 @@
+{
+  "skill": "gtm-workspace",
+  "scenarios": [
+    {
+      "expectations": [
+        {
+          "text": "The healthy Solstice Freight repo remains clean on main with exactly its seeded history and all workflow-owned files unchanged.",
+          "passed": true,
+          "evidence": "Checked main, one seeded commit, a clean tree, tracked workflow files, and ignored runtime files."
+        },
+        {
+          "text": "The health report recognizes the root workflows/ Node project and permitted ignored runtime paths as healthy.",
+          "passed": true,
+          "evidence": "Checked the report for healthy root placement and permitted ignored state."
+        },
+        {
+          "text": "No workflow-content inspection, defect, repair proposal, or durable change is reported.",
+          "passed": true,
+          "evidence": "Checked that no workflow-content review, defect, repair proposal, or commit was reported."
+        },
+        {
+          "text": "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied.",
+          "passed": true,
+          "evidence": "Allowed exceptions: []; unknown exceptions: []; leakage by surface: {}."
+        }
+      ],
+      "summary": {
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "pass_rate": 1.0
+      },
+      "execution_metrics": {
+        "tool_calls": {
+          "codex_items": 6
+        },
+        "total_tool_calls": 6,
+        "total_steps": 6,
+        "files_created": [
+          "artifact-report.md",
+          "conversation.md",
+          "final.md"
+        ],
+        "errors_encountered": 0,
+        "output_chars": 4051,
+        "transcript_chars": 49864
+      },
+      "timing": {
+        "executor_duration_seconds": 75.756
+      }
+    },
+    {
+      "expectations": [
+        {
+          "text": "The Aster Ridge repo remains clean on main with exactly its seeded history after the repair is cancelled.",
+          "passed": true,
+          "evidence": "Checked main, one seeded commit, a clean tree, and preservation of the misplaced project."
+        },
+        {
+          "text": "The report names suborgs/europe/workflows/ and explains that workflows/ is root-only.",
+          "passed": true,
+          "evidence": "Checked the report for the exact suborganization path and root-only explanation."
+        },
+        {
+          "text": "The report identifies the misplaced project as a gtm-workflow concern without inspecting its content.",
+          "passed": true,
+          "evidence": "Checked gtm-workflow ownership without workflow-content inspection."
+        },
+        {
+          "text": "No repair commit or filesystem change occurs after cancellation.",
+          "passed": true,
+          "evidence": "Checked cancellation language and confirmed no repair commit or filesystem change."
+        },
+        {
+          "text": "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied.",
+          "passed": true,
+          "evidence": "Allowed exceptions: []; unknown exceptions: []; leakage by surface: {}."
+        }
+      ],
+      "summary": {
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "pass_rate": 1.0
+      },
+      "execution_metrics": {
+        "tool_calls": {
+          "codex_items": 7
+        },
+        "total_tool_calls": 7,
+        "total_steps": 7,
+        "files_created": [
+          "artifact-report.md",
+          "conversation.md",
+          "final.md"
+        ],
+        "errors_encountered": 0,
+        "output_chars": 4789,
+        "transcript_chars": 59856
+      },
+      "timing": {
+        "executor_duration_seconds": 83.195
+      }
+    }
+  ]
+}
