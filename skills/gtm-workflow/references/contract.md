@@ -48,7 +48,7 @@ Before acting or judging, state `Using GTM workspace: <display name> | <N> workf
     └── data/                        # ignored
 ```
 
-Tracked state is the project scaffold, workflow files, schedule configuration, `.env.example`, lockfile, and deployment metadata in `package.json`. Ignored state is `node_modules/`, `.env*` except `.env.example`, `.vercel/`, `.workflow-data/`, `.nitro/`, `.output/`, `.swc/`, and `data/`.
+Tracked state is the project scaffold, workflow files, schedule configuration, `.env.example`, lockfile, and deployment metadata in `package.json`. Ignored state is `node_modules/`, `.env*` except `.env.example`, `.vercel/`, `.well-known/`, `.workflow-data/`, `.nitro/`, `.output/`, `.swc/`, and `data/`.
 
 Only the root node may contain the `workflows/` project. Never create `suborgs/<slug>/workflows/`.
 
@@ -100,7 +100,7 @@ POST starts a run with the explicit request body. GET starts a run with no argum
 
 `Runs: on this computer` means the file runs under local `nitro dev`. Scheduled and triggered workflows still run only when the user or agent invokes them. `Runs: on Vercel` means the project is deployed and its production URL is recorded. Scheduled workflows then use Vercel cron; cron is best effort and may double-fire. On Hobby, schedules run at most once per day and may fire at any point within the specified hour.
 
-Use `./node_modules/.bin/workflow` for validate, inspect, and cancel only. Pilots and full runs always start through the HTTP route.
+Use `./node_modules/.bin/workflow` for build, validate, inspect, and cancel only. `npm run workflow:build` refreshes the ignored graph manifest at `.well-known/workflow/v1/manifest.json`; the local Workflows UI needs that generated manifest to list workflow definitions. Pilots and full runs always start through the HTTP route.
 
 ## House rules
 
@@ -120,6 +120,7 @@ These are chosen project rules. Apply each wrong/right pair when authoring or re
 | Scheduled delivery is deduplicable | Treat cron as exactly-once or key delivery by wall-clock time alone | Include `runId` and a UTC date key in every delivery payload |
 | Delivery is unconditional | Call the result webhook only for one workflow kind | Always call the delivery step; it posts to `GTM_RESULTS_URL` when set and otherwise returns without delivery |
 | Template upgrades refresh local code | Keep `nitro dev` running after `lib/` changes | Restart `nitro dev` after any template upgrade that touches `lib/` |
+| Local observability has a current graph | Assume run history makes source workflows discoverable | Run `npm run workflow:build` after workflow changes and before launching the local Workflows UI |
 
 The pre-step spend check is a projection. The Claude backend also enforces `maxUsd` per row. The API backend relies on the spending budget attached to `AI_GATEWAY_API_KEY`; it makes one attempt and surfaces the budget error.
 

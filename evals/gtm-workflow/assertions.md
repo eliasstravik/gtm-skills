@@ -10,6 +10,7 @@ The deterministic grader maps each sentence in `evals.json` to repository state,
 - Shared `lib/agent.ts` and both API routes match the shipped templates after any create or update.
 - Durable changes stay scoped, clean, and on `main`; inspection and handoff cases make no commit.
 - Runtime state and `data/` remain ignored.
+- The local UI script refreshes the ignored graph manifest before `workflow web`, and UI verification checks definitions as well as runs.
 
 ## Authoring controls
 

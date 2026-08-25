@@ -106,7 +106,7 @@ When the user supplies a webhook, put only its safe value in ignored `.env` as `
 Say once that Vercel cron is best effort and may double-fire. On Hobby, it runs at most once per day and may fire within the specified hour.
 
 8. For `Kind: triggered`, explain that the caller sends an authenticated GET or POST to the run route. Tell the user to open `workflows/.env` themselves to obtain the secret. Never display it.
-9. Run `./node_modules/.bin/workflow validate`, restart or start `nitro dev`, and run a three-row pilot through the HTTP route when three safe rows exist. Inspect the result through the result route.
+9. Run `./node_modules/.bin/workflow validate` and `npm run workflow:build`, restart or start `nitro dev`, and run a three-row pilot through the HTTP route when three safe rows exist. Inspect the result through the result route.
 10. Review the full draft and actual diff. Begin the proposal turn with the bold acceptance question, put the proposal fields from `conversation.md` below it, then render the numbered acceptance options and exact reply line. Include scaffold files on first create, workflow behavior, caps, result destination, schedule, validation, and resulting local or deployment state.
 11. Save accepted bytes to history on `main`.
 12. If `Runs: on Vercel`, continue through [deploy](deploy.md). Otherwise close with what runs, how it is invoked, result location, limits, validation, affected paths, and `saved to history`.
@@ -117,7 +117,7 @@ Say once that Vercel cron is best effort and may double-fire. On Hobby, it runs 
 2. Agree the business change. Switching between `Runs: on this computer` and `Runs: on Vercel` is an update and must preserve the same committed workflow file.
 3. Edit only the workflow, `.env.example` names, ignored `.env` values, schedule entry, or allowed `package.json` deployment metadata needed by the change. Never edit `lib/agent.ts` or the routes.
 4. When adding a schedule, apply the scheduled file and cron rules from Create. When removing it, remove both `Schedule:` and `scheduledInput`, remove `arg ??= scheduledInput`, and remove the matching cron entry. Remove empty `vercel.json`.
-5. Validate, restart `nitro dev` if `lib/` changed during an explicit template upgrade, and rerun a three-row pilot when behavior changed.
+5. Validate, run `npm run workflow:build`, restart `nitro dev` if `lib/` changed during an explicit template upgrade, and rerun a three-row pilot when behavior changed.
 6. Inspect the complete draft and diff. Begin the proposal turn with the bold acceptance question, put the concise proposal below it, then render the numbered options and exact reply line. Save only the accepted exact bytes to history.
 7. Use [deploy](deploy.md) when the result says `Runs: on Vercel`. If switching to this computer, do not delete the existing Vercel project unless the user separately accepts that destructive action.
 8. Close with the operating change, validation, paths, result location, and exact local or live state.
@@ -137,6 +137,12 @@ Say once that Vercel cron is best effort and may double-fire. On Hobby, it runs 
 1. Recursively find managed `flows/**/*.ts` files and summarize them by qualified slug.
 2. Report missing headers, naming mismatches, cap-order defects, direct side effects, route or `lib/agent.ts` drift, invalid schedules, missing connection names, and deployment metadata problems. Do not repair during inspect.
 3. Distinguish absent run data from healthy state.
+
+### Local Workflows UI
+
+1. Launch the Vercel Workflows local UI with `npm run workflow:web -- --noBrowser`. The script first refreshes the native graph manifest, then runs `workflow web`; the CLI infers both `.workflow-data/` for run history and `.well-known/workflow/v1/manifest.json` for workflow definitions.
+2. When private remote access is requested, hand the running local UI to the `tailscale` skill. Preserve the native UI and both inferred paths; a loopback-only adapter may wrap the same `@workflow/web` app when the installed server cannot bind to loopback itself.
+3. Verify the UI through its `fetchWorkflowsManifest` RPC: at least one expected qualified workflow must appear, and the Runs view must remain readable. A healthy HTTP shell alone is insufficient.
 
 ## Delete
 
@@ -184,5 +190,6 @@ Replace the placeholder with the actual scope summary. Omit option 1 when that e
 | CLI-agent subscription exhausted | Offer `api`; after the backend changes, rerun only the failed rows |
 | Unserializable step argument | Move schema conversion or other non-plain values outside the step boundary, validate, and rerun |
 | Stale bundle after a template upgrade | Restart `nitro dev` after any `lib/` change |
+| Workflows tab is empty but Runs is populated | Run `npm run workflow:build`, confirm `.well-known/workflow/v1/manifest.json` contains graph nodes, and restart the UI so it receives that manifest path |
 | Hobby cron frequency rejected | Change to a once-daily schedule or use a Vercel plan that supports the requested frequency |
 | Persistence unavailable | Leave tracked bytes unchanged, account for draft or deployment state, and offer keyboard recovery |

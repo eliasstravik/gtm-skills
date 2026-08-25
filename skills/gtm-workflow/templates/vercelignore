@@ -1,3 +1,4 @@
 .env*
+.well-known/
 .workflow-data/
 data/

@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "workflow:build": "workflow build",
+    "workflow:web": "npm run workflow:build && workflow web",
     "dev": "nitro dev",
     "build": "nitro build"
   },
