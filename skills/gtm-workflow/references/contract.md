@@ -1,120 +1,168 @@
 # GTM workflow contract
 
-Use this contract for every workflow flow in a workspace governed by `gtm-workspace`.
+Use this contract for every workflow lifecycle flow.
 
 ## Contents
 
-- [Workspace resolution and node ownership](#workspace-resolution-and-node-ownership)
-- [Node shape](#node-shape)
-- [Registry contract](#registry-contract)
-- [Workflow record contract](#workflow-record-contract)
-- [Tracked and working state](#tracked-and-working-state)
-- [Acceptance and target-side ordering](#acceptance-and-target-side-ordering)
-- [Go-live and run gating](#go-live-and-run-gating)
+- [Workspace resolution and ownership](#workspace-resolution-and-ownership)
+- [Project shape](#project-shape)
+- [Workflow file contract](#workflow-file-contract)
+- [Runtime semantics](#runtime-semantics)
+- [House rules](#house-rules)
+- [Results and connections](#results-and-connections)
+- [Deployment state](#deployment-state)
 - [Safety and persistence](#safety-and-persistence)
 
-## Workspace resolution and node ownership
+## Workspace resolution and ownership
 
 Resolve the workspace in order: a repo named in the request; the repo the environment declares connected; canonical repos under `~/.gtm/`, where root `ORG.md` makes a repo valid. If several remain, ask `**Which GTM workspace should I use?**`, list display name and path, and save no preference. If none exists, stop without writing and hand creation or connection to `gtm-workspace`.
 
-A request-named organization node wins. Otherwise root is the default unless the requested workflow or registry is owned by exactly one other node. For create, if any suborganization exists and none was named, ask `**Which organization should own this workflow?**`, listing root first as `(Recommended)` and then every nested node by display name.
+A request-named organization node wins. Otherwise root is the default unless the requested workflow belongs to exactly one other node. For create, if any suborganization exists and none was named, ask `**Which organization should own this workflow?**`, listing root first as `(Recommended)` and then every nested node by display name.
 
-Workflow visibility and configuration are node-local. Read only the resolved node's `workflows/WORKFLOWS.md` and `workflows/*/WORKFLOW.md` records. A suborganization workflow binds to a target in that suborganization node's own registry, matching node-local ICP ownership; it never inherits a root or sibling target.
+The workflow project belongs to the workspace root even when a workflow belongs to a suborganization. A root workflow is `flows/<slug>.ts`. A suborganization workflow is `flows/<suborg-path>/<slug>.ts`, with physical `suborgs/` segments omitted. Its header names the owning node and ICP.
 
-Before acting or judging, state `Using GTM workspace: <display name> — <N> workflows visible`, using `workflow visible` for one. A workflow's qualified label is the bare slug at root and `<org-path>/<slug>` below root, with nested organization slugs joined by `/` and physical `suborgs/` segments omitted.
+Before acting or judging, state `Using GTM workspace: <display name> | <N> workflows visible`, using `workflow visible` for one.
 
-## Node shape
+## Project shape
 
 ```text
-<organization-node>/
+<workspace>/
+├── ORG.md
+├── icps/
+├── personas/
+├── members/
+├── suborgs/
 └── workflows/
-    ├── WORKFLOWS.md
-    └── <workflow-slug>/
-        ├── WORKFLOW.md
-        └── <tracked local-target implementation files, when applicable>
+    ├── .env.example
+    ├── .env                         # ignored
+    ├── package.json
+    ├── package-lock.json
+    ├── nitro.config.ts
+    ├── vercel.json                  # only when schedules exist
+    ├── flows/
+    │   ├── <slug>.ts
+    │   └── <suborg-path>/<slug>.ts
+    ├── lib/agent.ts
+    ├── server/api/run/[...workflow].ts
+    ├── server/api/runs/[runId].get.ts
+    └── data/                        # ignored
 ```
 
-Every node with workflow artifacts has one registry. Every workflow, regardless of backend, has one record. Only local targets place implementation files beside the record. Target-side state is authoritative for external implementations and runs.
+Tracked state is the project scaffold, workflow files, schedule configuration, `.env.example`, lockfile, and deployment metadata in `package.json`. Ignored state is `node_modules/`, `.env*` except `.env.example`, `.vercel/`, `.workflow-data/`, `.nitro/`, `.output/`, `.swc/`, and `data/`.
 
-## Registry contract
+Only the root node may contain the `workflows/` project. Never create `suborgs/<slug>/workflows/`.
 
-`WORKFLOWS.md` begins with `# Workflows`, names exactly one default target when targets exist, and contains `## Targets`, `## Connections`, and `## Limits` as applicable. It is authored prose, not hidden machine state or a rigid data schema.
+## Workflow file contract
 
-Each named target section answers the following internal operating questions. User-facing target choices follow `conversation.md` and do not expose this implementation detail by default.
+Every workflow uses a lowercase kebab-case filename and exports its camelCase basename. For example, `qualify-leads.ts` exports `qualifyLeads`.
 
-- how the agent authors and updates there, including target-native validation;
-- how it runs once, tests, or pilots;
-- how it goes live, who can perform that action, and what draft versus live means;
-- how the agent inspects workflow state and runs;
-- where workflow definitions, data, and run state live;
-- how billing works and how cost is estimated before a run; and
-- how connections and credentials work there.
+The leading header is exactly five lines for on-demand and triggered workflows, and six for scheduled workflows:
 
-Use no target-kind field. Setup may describe a target as an app, infrastructure, or local, but behavior comes from the operating prose. Before saving a target, verify that an available CLI, MCP, API, or file surface lets the agent author, run, and inspect workflows. Record an invoke-only or data-only tool as a connection instead and explain why. One provider may be both a target and a connection.
-
-Each connection section names the provider or API, says how the target uses it, points to the secret without containing it, notes whether credentials live in-app, and records a known billing or credit model. `## Limits` records accepted ceilings such as maximum rows, writes, credits, or pilot size. Every flow honors them.
-
-Targets and connections use the same create, update, inspect, and delete lifecycle as workflows. Route first-time and “create a target” requests through setup. Before deleting a target, check every node-local record for bindings to it; do not leave dangling records.
-
-## Workflow record contract
-
-Store a new record at `workflows/<lowercase-kebab-slug>/WORKFLOW.md`. It contains:
-
-- a display-name H1;
-- one non-empty `Target:` line naming a registry target;
-- one `Kind:` line with exactly `on-demand`, `scheduled`, or `triggered`;
-- one target-native pointer line such as `Workflow ID:`, `URL:`, or `Repo path:`;
-- factual prose for purpose, inputs and outputs, and operation.
-
-The record is freeform beyond those required lines. It contains no run entries or history log. The target-native identifier is assigned before the record preview so accepted bytes are the cross-session map to the real artifact.
-
-Every operation dereferences record → target name → target prose. Missing target prose is a health defect, not permission to improvise backend semantics.
-
-## Tracked and working state
-
-Authored records, registry prose, local scripts, schemas, tests, and fixtures are tracked content. Local-target SQLite databases, run outputs, caches, and logs are working state and remain gitignored. Runs never append to `WORKFLOW.md` or another tracked file.
-
-When setup, quick-local materialization, or no-argument inspect creates a `workflows/` folder, include the applicable lines below in the accepted `.gitignore` bytes and avoid duplicates:
-
-```gitignore
-**/workflows/*/state.sqlite
-**/workflows/*/state.sqlite-*
-**/workflows/*/outputs/
-**/workflows/*/runs/
-**/workflows/*/.cache/
+```ts
+/**
+ * <One sentence stating the workflow's purpose.>
+ * Runs: on this computer | on Vercel
+ * Kind: on-demand | scheduled | triggered
+ * Schedule: <UTC cron expression>              // scheduled only
+ * Owner: <organization node> | ICP: <ICP name>
+ * Providers: <provider + pinned endpoint + cost per row, or none>
+ */
 ```
 
-`gtm-workflow` owns checking and repairing these lines. `gtm-workspace` only tolerates them and validates the placement of `workflows/`.
+The file then exports:
 
-## Acceptance and target-side ordering
+- `input`, a Zod schema;
+- `MAX_ROWS`;
+- `MAX_SPEND_USD`;
+- `COST_PER_ROW_USD`;
+- `scheduledInput` when `Kind: scheduled`; and
+- the camelCase workflow function.
 
-Durable mutations are registry and record bytes, tracked local implementation bytes, anything live, published, or deployed on a target, and any externally visible write. A target's draft or scratch space is not durable; ordinary iterative construction there needs no byte-level gate.
+A scheduled function starts like this, with no default parameter:
 
-Use this order for each mutation:
+```ts
+export async function qualifyLeads(arg: Input) {
+  "use workflow";
+  arg ??= scheduledInput;
+```
 
-1. Agree the design in ordinary conversation.
-2. Build or edit in target-native draft space and validate there.
-3. Obtain target identifiers, inspect the complete actual registry or record bytes and every tracked local script, schema, test, or fixture byte internally, and validate the actual diff. Show the accurate behavior and affected-path proposal from `conversation.md`. On acceptance, write exactly the reviewed draft and save it to history.
-4. Gate and perform go-live when the target has a draft/live divide or deployment is consequential.
+Every return value is shaped `{ completed, failed }`. Each failed entry is `{ row, error }`. Inputs, output schemas, and caps stay in code beside the function rather than in a separate record.
 
-Never leave a target-side artifact the agent created without its accepted record. If the user rejects or cancels after draft construction, offer to delete the abandoned draft. Record-only deletion is the explicit user-chosen exception for an existing workflow and must say that the target workflow remains active but is no longer tracked here.
+## Runtime semantics
 
-For the acceptance turn, use the proposal fields and exact block in `conversation.md`. Do not print complete file bodies or diffs unless the user asks for technical detail. The concise summary must still expose every external write, permission, material limit, destructive effect, and durable path operation.
+The authenticated run route maps `/api/run/<path>/<kebab-name>` to:
 
-A change response asks only `**What would you like me to change?**`, updates and revalidates the internal draft, then repeats the concise proposal. Cancellation writes no tracked byte and invokes draft cleanup handling when applicable.
+```text
+workflow//./flows/<path>/<kebab-name>//<camelCaseName>
+```
 
-## Go-live and run gating
+POST starts a run with the explicit request body. GET starts a run with no arguments and exists for Vercel cron. The result route returns status while pending and the workflow return value when complete. Both routes return 401 when `GTM_RUN_SECRET` is empty or the bearer differs.
 
-Create and update finish by following the target's go-live prose. Ask the user to perform and then verify any target action unavailable to the agent, such as clicking Publish. If deferred, state exactly what is draft and live, how to finish, and—on draft/publish targets—that the live version still runs the old logic. A bare publish, activate, or make-it-live request is update with no content changes; it may skip byte preview and go directly to the go-live gate.
+`Runs: on this computer` means the file runs under local `nitro dev`. Scheduled and triggered workflows still run only when the user or agent invokes them. `Runs: on Vercel` means the project is deployed and its production URL is recorded. Scheduled workflows then use Vercel cron; cron is best effort and may double-fire. On Hobby, schedules run at most once per day and may fire at any point within the specified hour.
 
-Local targets support only on-demand workflows. Refuse scheduled or triggered creation there and name both alternatives: add an infrastructure or app target, or keep the workflow on-demand and have the user's scheduler invoke it on a cadence. Scheduling remains outside the local workflow. On local and push-deploy targets, go-live may be a no-op or part of the accepted build/deploy convention.
+Use `./node_modules/.bin/workflow` for validate, inspect, and cancel only. Pilots and full runs always start through the HTTP route.
 
-A direct request authorizes ordinary work. Before a run that writes externally or incurs material provider cost, preview records touched, writes and destination, estimated credits or cost, saved limits, and an optional target-native pilot on a few records. Use target-native estimation or free count/preview surfaces when available and proceed only after acceptance. Local and read-only runs are ungated. Report the business outcome first, followed by failures, external changes, saved results, and relevant cost; keep run data target-side or gitignored.
+## House rules
+
+These are chosen project rules. Apply each wrong/right pair when authoring or reviewing a workflow.
+
+| Rule | Wrong | Right |
+| --- | --- | --- |
+| Side effects run in steps | Call a provider or webhook directly in the workflow body | Put the call in a function whose first statement is `"use step"` |
+| Step arguments are plain data | Pass a Zod schema, class, function, or other non-serializable value into a step | Convert schemas to JSON Schema before the step and validate the plain result back in the workflow body |
+| Shared runtime files stay canonical | Modify `lib/agent.ts` or either route for one workflow | Copy all three files verbatim from the templates and customize the workflow file |
+| Agent tools are least-privilege | Enable research by default or put a credential in the prompt | Default to `tools: "none"`; use `tools: "web"` only when web evidence is required; keep secrets outside prompts |
+| Agent calls have one bounded attempt | Add retries or omit the per-row bound | Let `runAgent.maxRetries = 0` stand and pass `maxUsd: COST_PER_ROW_USD` to every `agent()` call |
+| Agent output fields are structurally present | Use `.optional()` for a field the agent may omit | Use `.nullable()` because strict output schemas require every property |
+| Rows fail independently | Let one provider or agent exception escape the row loop | Catch each row, append `{ row, error }` to `failed`, and continue |
+| Provider usage is explicit | Hide provider calls or costs in a shared wrapper | Put data-provider calls in steps, name each key in `.env.example`, and pin provider, endpoint, and cost per row in the header; Monid is one possible provider |
+| Caps precede spend | Check limits after an agent or provider call | Project `rows × COST_PER_ROW_USD` and reject `MAX_ROWS` or `MAX_SPEND_USD` violations before the first spending step |
+| Scheduled delivery is deduplicable | Treat cron as exactly-once or key delivery by wall-clock time alone | Include `runId` and a UTC date key in every delivery payload |
+| Delivery is unconditional | Call the result webhook only for one workflow kind | Always call the delivery step; it posts to `GTM_RESULTS_URL` when set and otherwise returns without delivery |
+| Template upgrades refresh local code | Keep `nitro dev` running after `lib/` changes | Restart `nitro dev` after any template upgrade that touches `lib/` |
+
+The pre-step spend check is a projection. The Claude backend also enforces `maxUsd` per row. The API backend relies on the spending budget attached to `AI_GATEWAY_API_KEY`; it makes one attempt and surfaces the budget error.
+
+No provider SDK packages or model-provider keys belong in the scaffold. The API backend is Vercel AI Gateway. Provider contracts may be configured behind that Gateway key.
+
+## Results and connections
+
+The workflow return value is the authoritative result. After completion, fetch it through `GET /api/runs/<runId>` and save:
+
+```text
+data/<slug>/<UTC-date>-<runId>.json
+```
+
+Report `<n> completed, <m> failed` from the two lists and say `saved locally` with the result path. Convert JSON to CSV or a spreadsheet only when requested; do not create a sidecar by default.
+
+The only shipped delivery destination is `GTM_RESULTS_URL`. Its payload contains `runId`, workflow slug, UTC date key, `completed`, and `failed`. A receiver uses `runId` plus the date key to dedupe.
+
+`.env.example` is the connection list. Add variable names and comments there, but values only to ignored `.env`. The generated `GTM_RUN_SECRET` protects both routes. A triggered caller receives the secret only by the user opening `workflows/.env`; never print or copy it into conversation.
+
+## Deployment state
+
+The `gtm` key in `package.json` stores only non-secret deployment identity:
+
+```json
+{
+  "gtm": {
+    "vercel": {
+      "team": "<team>",
+      "project": "<project>",
+      "url": "<production-url>"
+    }
+  }
+}
+```
+
+`Runs: on Vercel` is live only after [the deployment flow](deploy.md) succeeds and a three-row pilot completes through that URL. Run and remote inspect read the recorded values. Switching run location is an update.
 
 ## Safety and persistence
 
-Treat URLs containing credentials, tokens, keys, signatures, invitation codes, or session identifiers as unsafe. Do not open, persist, or echo them. Registry connection entries store only pointers such as an environment-variable name or keychain/1Password item. Advise rotation when a secret was exposed.
+Treat URLs containing credentials, tokens, keys, signatures, invitation codes, or session identifiers as unsafe. Do not open, persist, or echo them. Advise rotation when a secret was exposed.
 
-Every accepted tracked change ends saved to history on `main`, limited to accepted paths and recoverable through history. An environment-declared durable-write mechanism replaces only the Git mechanism; it preserves preview, exact-write, scoped-change, and success-language guarantees.
+Before a durable change, inspect the complete draft and actual diff, then show the proposal and acceptance block from `conversation.md`. A change response updates and revalidates the draft. Cancellation writes no tracked bytes.
 
-Without a replacement mechanism: confirm `main`; stage only accepted paths; inspect the staged diff; commit one plain-English history entry; and, when a remote exists, pull with rebase then push without force. Determine that persistence is available before applying accepted bytes. If it is unavailable, leave the workspace and any agent-created target draft unchanged or cleaned up, explain in plain language what could not be saved, and offer keyboard recovery before cancellation. A verified close says “saved to history” without exposing branch, remote, upstream, command, or commit details unless the user requests developer details or a problem requires them.
+Every accepted tracked change ends saved to history on `main`, limited to accepted paths and recoverable through history. An environment-declared durable-write mechanism may replace Git but must preserve the same preview and scoped-write guarantees.
+
+Without a replacement mechanism: confirm `main`; stage only accepted paths; inspect the staged diff; commit one plain-English history entry; and, when a remote exists, pull with rebase then push without force. If persistence is unavailable, leave the workspace unchanged, explain what could not be saved, and offer keyboard recovery. A verified close says `saved to history` without naming branches, remotes, commands, or commits unless the user asks for developer detail.

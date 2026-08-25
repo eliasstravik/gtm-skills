@@ -5,127 +5,178 @@ Apply the selected flow after loading `contract.md`.
 ## Contents
 
 - [Guided menu](#guided-menu)
-- [Missing registry](#missing-registry)
-- [Setup](#setup)
+- [Silent bootstrap](#silent-bootstrap)
 - [Create](#create)
 - [Update](#update)
 - [Inspect](#inspect)
 - [Delete](#delete)
 - [Run](#run)
-- [Runtime and persistence boundaries](#runtime-and-persistence-boundaries)
+- [Recovery](#recovery)
 
 ## Guided menu
 
-When no lifecycle verb is clear, explain that a workflow is a saved automation bound to one node-local operating target, then render this exact block and continue into the selected flow:
+When no lifecycle verb is clear, render this exact block and continue into the selected flow:
 
 ```text
 **What would you like to do with your GTM workflows?**
 
-1. Set up workflow targets and connections (Recommended)
-2. Create a workflow
-3. Update or publish a workflow
-4. Inspect workflows
-5. Delete a workflow, target, or connection
-6. Run a workflow
+1. Create a workflow (Recommended)
+2. Update a workflow
+3. Inspect workflows
+4. Delete a workflow
+5. Run a workflow
 
 Reply with a number, or type your answer.
 ```
 
-## Missing registry
+## Silent bootstrap
 
-Before create, update, inspect, delete, or run at a node without `workflows/WORKFLOWS.md`, ask:
+Run bootstrap as part of the first create. Do not expose it as a lifecycle verb or ask for separate setup approval.
 
-```text
-**Where and when should this workflow run?**
-
-1. On this computer, whenever I ask it to run (Recommended)
-2. In a connected app
-3. Automatically on a schedule or when something happens
-4. Cancel
-
-Reply with a number, or type your answer.
-```
-
-The first choice selects a provisional `Local` target from `templates/target-local.md` and the contract ignore lines. The agent chooses its implementation from that target prose; there is no registry-less mode. During create, continue through design, build, and validation without a separate setup approval, then include the registry, ignore rules, record, and implementation in one concise proposal and one history entry. For another lifecycle request, finish setup first. A scheduled or triggered request cannot choose Local. Offer a connected app or automatic service, or an on-demand Local workflow invoked on a cadence by the user's scheduler. Scheduling remains outside the local workflow.
-
-## Setup
-
-1. Resolve the workspace and owner node, state the context line, and read only that node's existing registry and records.
-2. Inventory available tools, connections, and relevant repos without exposing secrets or naming implementation products in the default conversation. Ask `**Where and when should these workflows run?**` only for missing intent; offer runs on this computer, a discovered connected app, and an automatic scheduled or triggered service as applicable.
-3. For each candidate, verify author, run, and inspect access. Explain plainly when an invoke-only or data-only tool is a connection rather than a target.
-4. Infer authoring, validation, testing, go-live, inspection, data location, and credential mechanics from the selected target and its documentation. Ask only for missing operating decisions from `conversation.md`, grouping compatible gaps into one compact question. Ask separately when an external write, permission, or material cost needs its own gate.
-5. Ask `**Which target should be the default?**` when more than one viable target exists. A “create a target” request joins here; re-running setup extends rather than replaces accepted entries unless requested.
-6. Render `WORKFLOWS.md` with named targets, connections, limits, one default, and the applicable ignore lines. Inspect the complete draft internally, show the concise proposal from `conversation.md`, and run the contract accept loop.
-7. Save the accepted draft and close with where workflows run, connected systems, limits, affected paths, and “saved to history.” Offer developer details only on request.
+1. Confirm a supported `node` and `npm` are available. If not, stop before writing.
+2. Copy every file from `templates/` into root `workflows/`, preserving paths and copying `gitignore` as `.gitignore` and `vercelignore` as `.vercelignore`. Include the example workflow.
+3. Run `npm ci` inside `workflows/`.
+4. Generate one strong `GTM_RUN_SECRET` and write it only to ignored `workflows/.env`. Do not print it.
+5. Carry every ignored path from `contract.md` in `workflows/.gitignore` without duplicates.
+6. Build the requested workflow in the same draft. The first create has one proposal, one acceptance, and one history entry for the scaffold and workflow together.
 
 ## Create
 
-1. Resolve the owner before reading workflow artifacts. When the registry is missing, select a provisional target through the missing-registry branch and combine its registry and ignore rules with the workflow's eventual proposal and accepted write.
-2. Resolve the requested kind before rendering any target choice. For scheduled or triggered work, exclude Local from the choices and explain that it supports on-demand only. Offer both a viable infrastructure or app target and an on-demand local workflow invoked by the user's scheduler; scheduling stays outside that workflow. Never offer or recommend Local and then retract it. Otherwise resolve a named target or ask `**Where should this workflow live?**`, listing the viable default first as `(Recommended)`.
-3. Extract purpose, inputs, result, timing, systems changed, volume or cost limit, and meaningful failure behavior from the request and registry. Ask only for missing decisions that materially change the workflow. Combine compatible gaps into one compact business question. When a provider is missing, extend connections through the setup-style interview before the workflow build.
-4. Build the workflow in target-native draft or scratch space, using installed backend skills and the target's discovery surface. For Local, keep rows, provider calls, retries, and intermediate data inside the script and SQLite; only summaries and results enter the agent conversation. Reuse a thin tracked `workflows/lib/<connection>.ts` wrapper when provider calls have become common across workflows. Validate before continuing. Do not create an in-skill adapter or guess absent operations.
-5. Run a target-native test or pilot when useful, obtain the real target pointer for the internal record, and draft `WORKFLOW.md`. For local, also finish the tracked scripts, schemas, tests, and fixtures.
-6. Inspect the real record and every tracked local script, schema, test, and fixture internally. Verify the actual diff, then show the behavior, affected systems, timing, limits, failure behavior, validation, path list, and resulting state. Refer to the workflow by name rather than exposing its target pointer, credential pointer, or implementation setting. Do not print implementation or complete file contents unless the user asks for technical details. Run the accept loop.
-7. After acceptance, save exactly the proposed bytes to history. Never continue with an unsaved target artifact.
-8. Follow the target's go-live prose as a separate gate when consequential. Request and verify any required user action. If deferred, state the exact draft/live split, how to finish, and that live still runs old logic where applicable.
-9. Close with what the workflow now does, where it runs, what it may change, validation, path set, live/draft state, and “saved to history.” Keep target pointers under optional technical details.
+1. Resolve the workspace, owner node, and kind: `on-demand`, `scheduled`, or `triggered`. Read the owner node's relevant ICP and persona files at authoring time. These files inform generated code but are not runtime dependencies.
+2. Run silent bootstrap in draft space if the project is absent.
+3. Always ask the run-location question. For on-demand work, put `On this computer (Recommended)` first. For scheduled or triggered work, put `On Vercel (Recommended)` first. Show both applicable notes once:
+   - For scheduled or triggered workflows, on this computer means it runs only when the user or their agent asks.
+   - When the workflow calls `agent()`, on Vercel means research uses the user's budgeted Vercel AI Gateway credits rather than their CLI-agent subscription.
 
-If the user cancels after target draft creation, ask `**Should I remove the abandoned target draft?**`, offer cleanup first as `(Recommended)` and keep it second, then use the exact reply line. Refer to the draft by workflow name unless an identifier is needed for disambiguation. A cancelled record proposal leaves no tracked bytes.
+Use one of these exact choice orders:
+
+```text
+**Where should this workflow run?**
+
+1. On this computer (Recommended)
+2. On Vercel
+
+Reply with a number, or type your answer.
+```
+
+```text
+**Where should this workflow run?**
+
+1. On Vercel (Recommended)
+2. On this computer
+
+Reply with a number, or type your answer.
+```
+
+4. Resolve purpose, input rows, result fields, external changes, provider endpoint and cost, `MAX_ROWS`, `MAX_SPEND_USD`, `COST_PER_ROW_USD`, timing, and meaningful failure behavior. Ask only for missing business decisions that change the result.
+5. Ask where results should go:
+
+```text
+**Where should each run's results go?**
+
+1. Post them to a web address (Recommended)
+2. Somewhere else, tell me
+3. Just save them here
+
+Reply with a number, or type your answer.
+```
+
+For a scheduled workflow on Vercel, replace option 3 with:
+
+```text
+3. Keep them on Vercel; I'll fetch them when you ask
+```
+
+When the user supplies a webhook, put only its safe value in ignored `.env` as `GTM_RESULTS_URL`. If it contains a credential, have the user place it in `.env` without echoing it. A custom destination requires a custom delivery step and remains subject to the same proposal gate.
+
+6. Write `flows/<owner-path>/<slug>.ts` to the file contract. Root workflows omit `<owner-path>/`. Keep the per-row catch and unconditional delivery step.
+7. For `Kind: scheduled`, add the UTC `Schedule:` header, export `scheduledInput`, and place `arg ??= scheduledInput` directly after `"use workflow"`. When it runs on Vercel, add or update this entry in `vercel.json`:
+
+```json
+{
+  "path": "/api/run/<owner-path>/<slug>",
+  "schedule": "<UTC cron expression>"
+}
+```
+
+Say once that Vercel cron is best effort and may double-fire. On Hobby, it runs at most once per day and may fire within the specified hour.
+
+8. For `Kind: triggered`, explain that the caller sends an authenticated GET or POST to the run route. Tell the user to open `workflows/.env` themselves to obtain the secret. Never display it.
+9. Run `./node_modules/.bin/workflow validate`, restart or start `nitro dev`, and run a three-row pilot through the HTTP route when three safe rows exist. Inspect the result through the result route.
+10. Review the full draft and actual diff. Show the proposal from `conversation.md`, including scaffold files on first create, workflow behavior, caps, result destination, schedule, validation, and resulting local or deployment state. Run the acceptance block.
+11. Save accepted bytes to history on `main`.
+12. If `Runs: on Vercel`, continue through [deploy](deploy.md). Otherwise close with what runs, how it is invoked, result location, limits, validation, affected paths, and `saved to history`.
 
 ## Update
 
-1. Resolve the node and named workflow, target, connection, or limits entry. If ambiguous, list only node-local candidates and ask which one to update.
-2. Dereference workflow records through target prose. For a registry edit, preserve unrelated entries and re-run target viability when capabilities changed.
-3. Agree the requested changes, then edit and validate in target-native draft space. For a registry-only change, draft revised config directly. A bare publish, activate, or make-live request has no content change and skips to step 6.
-4. Obtain revised target identifiers when needed. Inspect complete before and after records, config, and every changed local implementation file internally. Show the concise behavior and path proposal from `conversation.md` without exposing target or credential pointers, then run the accept loop.
-5. Save exactly the accepted tracked bytes and describe them as “saved to history.” Offer cleanup if cancellation strands a target draft.
-6. Run the same target go-live gate as create. Ask for and verify unavailable user actions. On deferral, say what remains draft, how to finish, and that the live version still runs the old logic on draft/publish targets.
-7. Close with the operating change, validation, path set, and live/draft state. Keep implementation detail optional.
+1. Resolve the managed file by qualified slug and inspect its header, exports, schedule entry, connections, and deployment state.
+2. Agree the business change. Switching between `Runs: on this computer` and `Runs: on Vercel` is an update and must preserve the same committed workflow file.
+3. Edit only the workflow, `.env.example` names, ignored `.env` values, schedule entry, or allowed `package.json` deployment metadata needed by the change. Never edit `lib/agent.ts` or the routes.
+4. When adding a schedule, apply the scheduled file and cron rules from Create. When removing it, remove both `Schedule:` and `scheduledInput`, remove `arg ??= scheduledInput`, and remove the matching cron entry. Remove empty `vercel.json`.
+5. Validate, restart `nitro dev` if `lib/` changed during an explicit template upgrade, and rerun a three-row pilot when behavior changed.
+6. Inspect the complete draft and diff, show the proposal, accept it, and save exact bytes to history.
+7. Use [deploy](deploy.md) when the result says `Runs: on Vercel`. If switching to this computer, do not delete the existing Vercel project unless the user separately accepts that destructive action.
+8. Close with the operating change, validation, paths, result location, and exact local or live state.
 
 ## Inspect
 
 ### One workflow
 
-1. Resolve the node and record, dereference its target, and use only target-native read operations.
-2. Report live or draft state, validation, recent business outcomes, connected systems, limits, and relevant cost without mutation. For Local, read the saved run and item state, then lead with outcomes and failures by cause and provider. When target state has only diagnostic IDs, status, and cost, omit the IDs and summarize the count by status and cost; say which business outcome details are unavailable. Keep the record pointer, local storage product, and diagnostic identifiers under optional technical details.
-3. For “show me the workflow,” derive a four-to-eight-node business-process Mermaid diagram from the saved implementation and use the caption and failure-note rules in `conversation.md`. A technical control-flow diagram requires an explicit request. If the user asks to retain either diagram in `WORKFLOW.md`, route that tracked change through Update.
-4. For “open saved results” or “open workflow data,” use the target's existing viewer and lead with `Open saved results: <human-readable link>`. Say whether the link is local or private. Hide viewer product, storage mode, port, raw path, and stop command unless the user asks for technical details. For a private share, state who can access it and offer to stop sharing later.
-5. Distinguish unavailable information from healthy state; never repair during a named-workflow inspect.
-6. When the user explicitly requests developer details, identify requested facts under `Tracked implementation` and `Ignored run state` as applicable, then include only the requested technical depth.
+1. Resolve the workflow file and read its header, input, caps, result schema, provider steps, delivery step, and schedule.
+2. For local state, run `./node_modules/.bin/workflow inspect`. For deployed state, read `package.json` `gtm.vercel` and inspect with `./node_modules/.bin/workflow inspect --backend vercel --project <project> --team <team>`.
+3. Report purpose, run location, kind and schedule, connected systems, caps, validation, and recent outcomes without mutation.
+4. For `show me the workflow`, render the business-process diagram from `conversation.md`. Give technical control flow only when requested.
+5. When the user asks for a run's result, call the authenticated result route through the shell, using the secret from `.env` without printing it. This works for a completed local run, deployed run, or a run previously reported as still running. Save a completed result to `data/<slug>/<UTC-date>-<runId>.json` and report it as `saved locally`.
 
-### Node health
+### All workflows
 
-1. With no workflow argument, inspect the resolved node's registry, records, tracked files, target pointers when safely readable, and `.gitignore` without mutation.
-2. Report healthy checks and every defect: orphan target artifacts visible through configured inspection, records with missing target sections or pointers, dangling connections, targets that fail author/run/inspect viability, local kinds beyond on-demand, tracked working state, and missing or duplicated ignore lines. Treat an absent registry on a node with no workflow content as setup-needed, not healthy.
-3. If healthy, change nothing and close with the complete report.
-4. If defective, group all owned fixes into one scoped repair. Inspect every replacement internally, show the defects, behavior change, affected paths, recovery, and any separate target-side repair requiring a go-live gate, then run the accept loop.
-5. Apply only accepted repairs, save once as `Repair GTM workflow artifacts`, rerun every check, and close with resulting health and “saved to history” without naming the branch. `gtm-workspace` remains responsible only for structural defects outside `workflows/`.
+1. Recursively find managed `flows/**/*.ts` files and summarize them by qualified slug.
+2. Report missing headers, naming mismatches, cap-order defects, direct side effects, route or `lib/agent.ts` drift, invalid schedules, missing connection names, and deployment metadata problems. Do not repair during inspect.
+3. Distinguish absent run data from healthy state.
 
 ## Delete
 
-### Workflow
-
-1. Resolve the node and record, dereference its target, inspect current target state, and explain recovery available from workspace history and the target. Refer to the workflow by name in the default consequence report; keep its target pointer internal.
-2. Ask `**What should be deleted?**` with target artifact plus record first as `(Recommended)`, record only second, and cancel last. For record-only, state before acceptance: `<target> workflow keeps running but is no longer tracked here.`
-3. Preview the exact target consequence and record or local tracked-file deletion in plain language. Name the affected paths without printing their contents. Run the accept loop for workspace changes; separately gate destructive target deletion when required.
-4. Apply only the accepted choice. Remove the workflow directory only when empty, preserve gitignored run state unless its deletion was also accepted, save tracked deletion to history, and close with what remains and recovery.
-
-### Target or connection
-
-1. Resolve the entry. Before target deletion, scan node-local records and list every workflow still bound to it. Refuse removal until those records are rebound or explicitly deleted/unmanaged.
-2. Before connection deletion, identify workflows or targets whose prose still depends on it and preview the resulting limitation.
-3. Inspect complete before and after `WORKFLOWS.md` internally. Show the affected connections, limits, bindings, and path through the accept loop, save exactly the accepted revision, and close with affected bindings and “saved to history.”
+1. Resolve the managed workflow and inspect its schedule, result directory, run location, and history recovery.
+2. Preview deletion of the workflow file and its matching cron entry. Ignored results remain unless the user separately asks to remove them. A deployed project remains unless separately accepted.
+3. Show affected paths and recovery in the proposal, run the acceptance block, and apply only the accepted deletion.
+4. Remove an empty nested flow directory and an empty `vercel.json`; preserve all unrelated workflows and cron entries.
+5. Run validation, save the deletion to history, and close with what remains and how history restores it.
 
 ## Run
 
-1. Resolve the node and record, dereference its target, inspect saved limits, and use only the target's run/test/pilot operation.
-2. Determine scope, records, external writes, destination, and expected cost with target-native estimators or free preview/count operations when available.
-3. Local and read-only runs proceed directly. Before an external write or material cost, ask `**Would you like to run this scope?**`, show records, writes, destination, estimate, limits, and choices for a small target-native pilot first `(Recommended)`, full accepted scope, or cancel. End with the exact reply line.
-4. Execute only the accepted scope. Never publish merely to run unless target prose requires a live path and that go-live was separately accepted.
-5. Lead with the business result and the explicit form `<n> completed, <m> failed`, followed by the result or `Open saved results` link. State external systems changed, partial failures, limit enforcement, and relevant observed cost. Say `saved locally` for local results. Keep target run pointers, storage details, and telemetry under optional technical details. Write no tracked run log; local state and outputs remain under ignored paths.
+1. Resolve the workflow and validate the explicit input against its exported schema. A scheduled workflow still receives an explicit body for pilot and full manual runs; use its `scheduledInput` value when that is the intended scope.
+2. For a local run, confirm `nitro dev` is healthy and start it in the background when needed. For a Vercel run, read the production URL from `package.json` `gtm.vercel`.
+3. Count rows before spending. Reject scopes above `MAX_ROWS` or projected spend above `MAX_SPEND_USD`. Calculate projected spend as `rows × COST_PER_ROW_USD`.
+4. Run a three-row pilot first when three safe rows are available. Start it by POSTing the explicit body to the authenticated run route and inspect the result through the GET result route.
+5. Before a full run with material cost or external writes, use:
 
-## Runtime and persistence boundaries
+```text
+**Would you like to run this scope?**
 
-- Missing target tooling degrades only when its template says so: Clay may use guided manual steps; otherwise update target prose through setup or stop unsupported work.
-- If the environment cannot durably save, preserve the workspace and use contract recovery. Clean up or explicitly account for any target draft before closing.
-- Workspace lifecycle and structure defects hand off to `gtm-workspace`; ICP, persona, account-research, and lead-research outcomes hand off before workflow reads or mutation.
+1. Run the three-row pilot first (Recommended)
+2. Run the full accepted scope
+3. Cancel
+
+Reply with a number, or type your answer.
+```
+
+State row count, projected spend, accepted caps, external writes, destination, and pilot outcome before this question. Omit option 1 when that exact pilot has already succeeded.
+
+6. POST every accepted run through `/api/run/<path>` with an explicit body. Substitute the bearer from `.env` in the shell so it never enters conversation, command output, or a tracked file.
+7. Poll `/api/runs/<runId>` for at most ten minutes. If still running, say so and explain that inspect can fetch it later. A local run progresses only while the workflow server is up; if interrupted, restart `nitro dev` and the run resumes.
+8. On completion, save the returned result to `data/<slug>/<UTC-date>-<runId>.json`. Lead with the business outcome and `<n> completed, <m> failed`. Say `saved locally` with the path and `posted to your web address` when the delivery step posted successfully. Name external systems changed and relevant observed cost.
+9. To retry failed rows, make a new explicit run whose input contains only those rows. Never add automatic per-row retries.
+
+## Recovery
+
+| Failure | Required response |
+| --- | --- |
+| No agent backend on this computer | Ask the user to install one supported CLI agent or add a budgeted `AI_GATEWAY_API_KEY` to `.env` |
+| No agent backend on Vercel | Add a budgeted `AI_GATEWAY_API_KEY` to `.env`, then deploy again |
+| Gateway budget or credits exhausted | Report the budget error, then ask the user to raise the key budget or top up credits in the Vercel dashboard |
+| Selected backend cannot restrict web tools | Offer `GTM_AGENT_BACKEND=api` or a run without web tools |
+| CLI-agent subscription exhausted | Offer `api`; after the backend changes, rerun only the failed rows |
+| Unserializable step argument | Move schema conversion or other non-plain values outside the step boundary, validate, and rerun |
+| Stale bundle after a template upgrade | Restart `nitro dev` after any `lib/` change |
+| Hobby cron frequency rejected | Change to a once-daily schedule or use a Vercel plan that supports the requested frequency |
+| Persistence unavailable | Leave tracked bytes unchanged, account for draft or deployment state, and offer keyboard recovery |
