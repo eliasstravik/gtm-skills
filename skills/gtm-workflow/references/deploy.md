@@ -52,7 +52,7 @@ Research on Vercel runs through a Vercel AI Gateway key with a spending budget. 
 Reply with a number, or type your answer.
 ```
 
-Wait for confirmation and verify only that the variable has a non-empty value. Never read the value into conversation, a prompt, a tracked file, or captured command output.
+Wait for confirmation and verify only that the variable has a non-empty value.
 
 ## Link and sync
 
@@ -62,13 +62,13 @@ Wait for confirmation and verify only that the variable has a non-empty value. N
 4. Set `CRON_SECRET` to the same value as `GTM_RUN_SECRET`, transferred through the shell.
 5. When the user says a value changed, remove that production variable with `vercel env rm`, then add it again from `.env`. Rotating `GTM_RUN_SECRET` also removes and rewrites `CRON_SECRET`.
 
-Secret sync runs on every deployment before build. Never use command substitution or logging that exposes a value.
+Variable sync runs on every deployment before build.
 
 ## Deploy and record
 
 1. Run `vercel deploy --prod --yes`.
 2. Stop on a failed build or deployment. Do not describe the workflow as live.
-3. Read the linked team and project plus the production URL from Vercel's non-secret output.
+3. Read the linked team and project plus the production URL from Vercel's output.
 4. Record them under `package.json`:
 
 ```json
@@ -92,13 +92,13 @@ Deployments are CLI-only. Do not configure a Git-connected deployment or a separ
 1. Build a safe three-row body accepted for the workflow being deployed.
 2. POST it to the production run route with the bearer read from `.env` inside the shell. This proves the Gateway path when the workflow calls `agent()`.
 3. Poll the production result route for at most ten minutes. Require a completed result with the expected `completed` and `failed` lists. If still running, report that inspect can retrieve it later.
-4. Run remote inspect with `./node_modules/.bin/workflow inspect --backend vercel --project <project> --team <team>`.
+4. Run remote inspect with `./node_modules/.bin/workflow inspect runs --backend vercel --project <project> --team <team>`.
 5. For a scheduled flow, run `vercel crons run /api/run/<path>` and confirm a new Workflow run starts. Vercel supplies `CRON_SECRET` as the bearer. If cron invocation is unavailable, call the GET run route from the shell with `GTM_RUN_SECRET`.
 
 ## Live state
 
 `Live` means the production deployment succeeded, the workflow starts through the recorded URL, and the verification run reached its expected result state. A saved workflow that has not passed this flow is local, not live.
 
-Webhooks and other trigger systems call the same GET or POST run route. The user obtains the bearer by opening `workflows/.env` and configures it in the caller. Never print or relay that secret.
+Webhooks and other trigger systems call the same GET or POST run route. The user obtains the bearer by opening `workflows/.env` and configures it in the caller.
 
 On Vercel Hobby, cron accepts only once-daily schedules and may fire within the specified hour. Cron has no automatic retry and may double-fire; the delivery payload's run ID and UTC date key support receiver deduplication.

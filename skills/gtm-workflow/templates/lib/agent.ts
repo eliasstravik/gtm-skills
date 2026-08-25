@@ -1,17 +1,11 @@
-// gtm-lib v1
-// Workflow files call agent(). Do not put secrets in its prompt.
+// gtm-lib v2
+// Call agent() from inside a "use step" function; see the workflow contract for the step rules.
 import { spawn } from "node:child_process";
 import { constants } from "node:fs";
 import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
-import {
-  generateText,
-  gateway,
-  jsonSchema,
-  Output,
-  stepCountIs,
-} from "ai";
+import { generateText, gateway, jsonSchema, Output, stepCountIs } from "ai";
 import { z } from "zod";
 
 export type AgentTools = "none" | "web";
@@ -20,7 +14,7 @@ export interface AgentInput<T extends z.ZodTypeAny> {
   prompt: string;
   schema: T;
   tools?: AgentTools;
-  /** This is a hard per-call limit only for the claude backend. */
+  /** Claude checks this between turns. Other backends do not honor it. */
   maxUsd?: number;
   timeoutMs?: number;
 }
@@ -147,40 +141,32 @@ const CLI_ORDER = ["claude", "codex", "cursor", "gemini", "opencode"];
  */
 const API_BACKEND = "api";
 
-// Zod schemas are not serializable step arguments. Convert the schema before
-// the step, then validate the plain result back in the workflow body.
 export async function agent<T extends z.ZodTypeAny>(
   input: AgentInput<T>,
 ): Promise<z.infer<T>> {
   const schemaJson = strictSchema(z.toJSONSchema(input.schema));
-  const result = await runAgent({
+  const runtimeInput: RuntimeInput = {
     prompt: input.prompt,
     schemaJson,
     tools: input.tools ?? "none",
     maxUsd: input.maxUsd,
     timeoutMs: input.timeoutMs,
-  });
+  };
+  const backend = await pickBackend();
+  const result =
+    backend === API_BACKEND
+      ? await viaApi(runtimeInput)
+      : await viaCli(backend, runtimeInput);
   return input.schema.parse(result);
 }
 
-type StepInput = {
+type RuntimeInput = {
   prompt: string;
   schemaJson: Record<string, unknown>;
   tools: AgentTools;
   maxUsd?: number;
   timeoutMs?: number;
 };
-
-export async function runAgent(input: StepInput): Promise<unknown> {
-  "use step";
-  const backend = await pickBackend();
-  return backend === API_BACKEND
-    ? viaApi(input)
-    : viaCli(backend, input);
-}
-
-// Workflow reads maxRetries from the step function. Zero means one attempt.
-runAgent.maxRetries = 0;
 
 async function pickBackend(): Promise<string> {
   const explicit = process.env.GTM_AGENT_BACKEND;
@@ -210,7 +196,7 @@ async function pickBackend(): Promise<string> {
   );
 }
 
-async function viaCli(name: string, input: StepInput) {
+async function viaCli(name: string, input: RuntimeInput) {
   const backend = CLI[name];
   if (input.tools === "web" && !backend.webSafe) {
     throw new Error(
@@ -248,7 +234,7 @@ async function viaCli(name: string, input: StepInput) {
   }
 }
 
-async function viaApi(input: StepInput) {
+async function viaApi(input: RuntimeInput) {
   const web = input.tools === "web";
   const result = await generateText({
     model: process.env.GTM_AGENT_MODEL ?? "anthropic/claude-opus-5",
@@ -260,6 +246,7 @@ async function viaApi(input: StepInput) {
       ? { web_search: gateway.tools.parallelSearch() }
       : undefined,
     stopWhen: web ? stepCountIs(8) : undefined,
+    abortSignal: AbortSignal.timeout(input.timeoutMs ?? 300_000),
   });
   return result.output;
 }
