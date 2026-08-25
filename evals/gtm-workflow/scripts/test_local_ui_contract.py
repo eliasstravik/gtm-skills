@@ -20,14 +20,22 @@ def require(condition: bool, message: str) -> None:
 def main() -> None:
     package = json.loads((TEMPLATES / "package.json").read_text())
     scripts = package.get("scripts", {})
-    require(scripts.get("dev") == "nitro dev", "Nitro development must remain native")
     require(
-        scripts.get("workflow:build") == "workflow build",
-        "workflow:build must create the CLI-discoverable graph manifest",
+        package.get("dependencies", {}).get("workflow") == "5.0.0-beta.44",
+        "the template must pin the tested Workflow v5 beta",
     )
     require(
-        scripts.get("workflow:web") == "npm run workflow:build && workflow web",
-        "workflow:web must refresh the manifest before the native UI",
+        "rollup" not in package.get("dependencies", {}),
+        "Nitro's Workflow module must own workflow bundling",
+    )
+    require(
+        scripts.get("dev")
+        == "WORKFLOW_EMBEDDED_DATA_DIR=node_modules/.nitro/workflow nitro dev",
+        "Nitro dev must expose its generated graph to the embedded v5 UI",
+    )
+    require(
+        "workflow:build" not in scripts and "workflow:web" not in scripts,
+        "the embedded v5 UI must not require a second build or web process",
     )
 
     for name in ("gitignore", "vercelignore"):
@@ -37,16 +45,16 @@ def main() -> None:
     flows = (SKILL_ROOT / "references/flows.md").read_text()
     contract = (SKILL_ROOT / "references/contract.md").read_text()
     require(
-        "npm run workflow:web -- --noBrowser" in flows,
-        "inspect flow must launch the native UI script",
+        "http://127.0.0.1:<port>/_workflow" in flows,
+        "inspect flow must use Nitro's embedded UI route",
     )
     require(
         "fetchWorkflowsManifest" in flows,
         "inspect flow must verify actual workflow discovery",
     )
     require(
-        ".well-known/workflow/v1/manifest.json" in contract,
-        "contract must name the graph manifest",
+        "WORKFLOW_EMBEDDED_DATA_DIR=node_modules/.nitro/workflow" in contract,
+        "contract must connect the beta UI to Nitro's generated manifest",
     )
 
     print("Local Workflows UI contract is valid.")

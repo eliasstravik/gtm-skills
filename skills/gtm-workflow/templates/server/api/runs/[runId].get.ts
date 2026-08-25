@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
     try {
       await run.returnValue;
     } catch (error) {
-      // workflow@4.8.4 exposes the original failure on this typed cause.
+      // Workflow exposes the original failure on this typed cause.
       response.error = {
         message: WorkflowRunFailedError.is(error)
           ? error.cause.message

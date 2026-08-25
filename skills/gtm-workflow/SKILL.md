@@ -52,7 +52,7 @@ If a run exceeds the bounded polling window, report it as still running and let 
 - Enforce `MAX_ROWS` and projected `MAX_SPEND_USD` before the first spending step; pass `maxUsd: COST_PER_ROW_USD` to every `agent()` call.
 - Record every per-row failure in `failed`; one row must never fail the workflow run.
 - Start pilots and full runs through the HTTP route with an explicit body. Use the local workflow binary only to validate, inspect, or cancel.
-- Before presenting the local Workflows UI, refresh its graph manifest and verify that both workflow definitions and run history load.
+- Before presenting the local Workflows UI, verify the embedded `/_workflow` dashboard loads both workflow definitions and run history from the running Nitro process.
 - Save accepted tracked changes to history on `main`. Keep `.env`, runtime state, and `data/` ignored.
 
 ## References

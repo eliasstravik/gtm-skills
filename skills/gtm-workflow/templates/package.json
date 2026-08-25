@@ -4,16 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "workflow:build": "workflow build",
-    "workflow:web": "npm run workflow:build && workflow web",
-    "dev": "nitro dev",
+    "dev": "WORKFLOW_EMBEDDED_DATA_DIR=node_modules/.nitro/workflow nitro dev",
     "build": "nitro build"
   },
   "dependencies": {
     "ai": "7.0.79",
     "nitro": "3.0.260610-beta",
-    "rollup": "4.62.5",
-    "workflow": "4.8.4",
+    "workflow": "5.0.0-beta.44",
     "zod": "4.4.3"
   },
   "devDependencies": {

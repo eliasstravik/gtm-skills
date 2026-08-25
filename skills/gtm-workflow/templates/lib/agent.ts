@@ -179,7 +179,7 @@ export async function runAgent(input: StepInput): Promise<unknown> {
     : viaCli(backend, input);
 }
 
-// workflow@4.8.4 reads maxRetries from the step function. Zero means one attempt.
+// Workflow reads maxRetries from the step function. Zero means one attempt.
 runAgent.maxRetries = 0;
 
 async function pickBackend(): Promise<string> {
