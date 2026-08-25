@@ -577,37 +577,41 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             result(not (repo / "state.json").exists() and not (repo / "suborgs/europe/empty-notes").exists(), "Checked seeded state file and empty directory removal."),
             result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2 and git(repo, "log", "-1", "--pretty=%s") == "Repair GTM workspace repo", "Checked main, exactly one repair commit, and exact repair message."),
         ]
-    if name == "doctor-healthy-skill-content":
+    if name == "doctor-root-workflow-project":
         repo = root / "solstice-freight"
         output = user_output(run_dir)
         lower = output.lower()
         expected_paths = (
-            "icps/logistics-operators/ICP.md",
-            "personas/vp-operations/PERSONA.md",
-            "suborgs/europe/icps/regional-carriers/ICP.md",
-            "suborgs/europe/personas/compliance-director/PERSONA.md",
+            "workflows/package.json",
+            "workflows/package-lock.json",
+            "workflows/flows/account-health.ts",
+            "workflows/.env.example",
         )
         unchanged = (
             git(repo, "branch", "--show-current") == "main"
             and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 1
             and not git(repo, "status", "--porcelain")
             and all((repo / path).is_file() for path in expected_paths)
+            and (repo / "workflows/.env").is_file()
+            and (repo / "workflows/data/result.json").is_file()
         )
-        placements_reported = all(
-            marker in lower
-            for marker in ("icps/", "personas/", "suborgs/europe")
-        ) and any(word in lower for word in ("healthy", "valid", "legitimate"))
+        placements_reported = (
+            "workflows/" in lower
+            and "root" in lower
+            and any(word in lower for word in ("healthy", "valid", "permitted"))
+            and any(marker in lower for marker in ("ignored", "untracked", ".env", "data/"))
+        )
         no_repair = "repair proposal" not in lower and "accept and save" not in output and "repair gtm context repo" not in lower
         no_defect_claim = not any(
             marker in lower
-            for marker in ("defects found", "defect:", "needs repair", "invalid placement", "stray placement")
+            for marker in ("defects found", "defect:", "needs repair", "invalid placement")
         )
         return [
-            result(unchanged, "Checked main, one seeded commit, a clean tree, and all four skill-owned artifact paths."),
-            result(placements_reported, "Checked the health report for root and Europe ICP/persona placement plus healthy language."),
-            result(no_repair and no_defect_claim, "Checked that no defect, repair proposal, acceptance gate, or repair commit was reported."),
+            result(unchanged, "Checked main, one seeded commit, a clean tree, tracked workflow files, and ignored runtime files."),
+            result(placements_reported, "Checked the report for healthy root placement and permitted ignored state."),
+            result(no_repair and no_defect_claim and "use workflow" not in lower, "Checked that no workflow-content review, defect, repair proposal, or commit was reported."),
         ]
-    if name == "doctor-stray-skill-content":
+    if name == "doctor-suborg-workflow-project":
         repo = root / "aster-ridge"
         output = user_output(run_dir)
         lower = output.lower()
@@ -615,30 +619,15 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             git(repo, "branch", "--show-current") == "main"
             and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 1
             and not git(repo, "status", "--porcelain")
-            and (repo / "archive/icps/legacy-targets/ICP.md").is_file()
-            and (repo / "personas/revenue-leader.md").is_file()
+            and (repo / "suborgs/europe/workflows/package.json").is_file()
+            and (repo / "suborgs/europe/workflows/flows/account-health.ts").is_file()
         )
-        stray_explained = "archive/icps" in lower and (
-            "ORG.md" in lower or "organization node" in lower or "organisation node" in lower
-        )
-        root_persona_ok = (
-            re.search(
-                r"(?:root `?personas/|personas/revenue-leader\.md)[^\n]{0,160}(?:healthy|legitimate|valid|allowed)|"
-                r"(?:healthy|legitimate|valid|allowed)[^\n]{0,160}(?:root `?personas/|personas/revenue-leader\.md)",
-                lower,
-            )
-            is not None
-            and re.search(
-                r"(?:move|delete|remove|rewrite)[^\n]{0,120}(?:root `?personas/|personas/revenue-leader\.md)|"
-                r"(?:root `?personas/|personas/revenue-leader\.md)[^\n]{0,120}(?:move|delete|remove|rewrite)",
-                lower,
-            )
-            is None
-        )
+        misplaced_explained = "suborgs/europe/workflows" in lower and "root" in lower
+        ownership_routed = "gtm-workflow" in lower and re.search(r"\buse workflow\b", lower) is None
         return [
-            result(unchanged, "Checked main, one seeded commit, a clean tree, and preservation of the stray ICP plus legitimate root persona."),
-            result(stray_explained, "Checked the report for archive/icps and an explanation tied to the missing ORG.md or organization node."),
-            result(root_persona_ok, "Checked that root personas/ was not paired with defect or repair language."),
+            result(unchanged, "Checked main, one seeded commit, a clean tree, and preservation of the misplaced project."),
+            result(misplaced_explained, "Checked the report for the exact suborganization path and root-only explanation."),
+            result(ownership_routed, "Checked gtm-workflow ownership without workflow-content inspection."),
             result("cancel" in lower and unchanged, "Checked cancellation language and confirmed no repair commit or filesystem change."),
         ]
     if name == "hosted-create-refusal":

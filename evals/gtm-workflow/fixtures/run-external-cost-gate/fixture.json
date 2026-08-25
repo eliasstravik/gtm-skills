@@ -1,9 +1,0 @@
-{
-  "files": {
-    ".gtm/iris/ORG.md": "# Iris\n",
-    ".gtm/iris/workflows/WORKFLOWS.md": "# Workflows\n\nDefault target: Clay\n\n## Targets\n\n### Clay\n\nAuthor, validate, test, publish, run, and inspect through target-sandbox/clay/state.json. Live workflows use published logic. Data and runs live in Clay. Connections live in-app. Estimate credits before runs.\n\n## Connections\n\n### HubSpot\n\nThe connection lives in Clay as Production HubSpot. Writes cost no separate HubSpot credits.\n\n## Limits\n\nMaximum 3,000 Clay credits per run. Pilot 10 rows first.\n",
-    ".gtm/iris/workflows/crm-account-refresh/WORKFLOW.md": "# CRM Account Refresh\n\nTarget: Clay\nKind: on-demand\nWorkflow ID: clay-201\n\n## Purpose\n\nNormalize queued CRM accounts.\n\n## Inputs and outputs\n\nQueued accounts in Clay; normalized domains written to HubSpot.\n\n## Operation\n\nPilot or run through Clay and inspect by workflow ID.\n",
-    ".gtm/iris/.gitignore": "**/workflows/*/state.sqlite\n**/workflows/*/state.sqlite-*\n**/workflows/*/outputs/\n**/workflows/*/runs/\n**/workflows/*/.cache/\n",
-    "target-sandbox/clay/state.json": "{\"workflows\": {\"clay-201\": {\"status\": \"live\", \"queued\": 1200, \"creditsPerRow\": 2, \"runs\": []}}}\n"
-  }
-}

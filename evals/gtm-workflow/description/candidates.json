@@ -1,20 +1,16 @@
 {
   "candidates": [
     {
-      "description": "Triggers when a user asks for workflow setup or to create, update, publish, inspect, delete, or run a GTM workflow or its saved target/connection in an existing GTM workspace, including Clay-, n8n-, Vercel-, local-, scheduled-, triggered-, enrichment-, CRM-cleaning-, inbound-, or outbound-workflow requests. Not for creating, importing, repairing, or deleting the workspace itself; ICP or persona authoring; account or lead research; or a one-off provider action that should not become a saved workflow.",
-      "rationale": "Incumbent routing rule measured as the non-regression baseline."
+      "description": "Triggers when a user wants to create, update, inspect, delete, or run a saved GTM workflow in a GTM workspace, including Vercel Workflows that run on this computer or on Vercel and workflows with an agent research step. Not for creating or repairing the workspace itself, ICP or persona lifecycle work, other workflow engines, or one-off provider calls that are not saved as workflows.",
+      "rationale": "Current description retained as the non-regression baseline."
     },
     {
-      "description": "Triggers when the requested result changes or operates a saved GTM workflow artifact in an existing GTM workspace: set up targets or connections; create or build; update, publish, activate, or make live; inspect workflow state or node health; delete; or run. Covers Clay, n8n, Vercel Workflows, local TypeScript, scheduled, triggered, enrichment, CRM-cleaning, inbound, and outbound automations. Not for workspace lifecycle or structural repair, ICP/persona work, account or lead research, generic CI workflows, or one-off provider actions with no saved workflow outcome.",
-      "rationale": "Makes the durable workflow outcome the routing discriminator and expands publish phrasing."
+      "description": "Use for lifecycle work on saved GTM workflows inside an existing GTM workspace: create/build, update, inspect, delete, run, make live or deploy, schedule, and fetch run results. Covers the root workflows/ Nitro project, workflow files, local or Vercel execution, deployment metadata, bounded row/spending caps, and agent research through Vercel AI Gateway. Excludes workspace creation or repair, ICP/persona lifecycle work, other workflow engines, ordinary Vercel app deployment, GitHub Actions, generic automation advice, and unsaved one-off provider calls.",
+      "rationale": "Codex candidate that leads with natural lifecycle verbs and then defines owned artifacts and exclusions."
     },
     {
-      "description": "Triggers when a user wants to manage the lifecycle of a node-owned GTM workflow, target, or connection in an existing GTM workspace—including setup, creation, updates, publishing, inspection, deletion, and runs for Clay-, n8n-, Vercel-, local-, scheduled-, triggered-, enrichment-, inbound-, outbound-, or CRM-cleaning workflows. Not for merely invoking a provider action, creating or repairing the workspace repo, defining ICPs or personas, researching or scoring accounts/leads, or repairing CI automation.",
-      "rationale": "Leads with lifecycle ownership and explicitly separates invoke-only and CI near-misses."
-    },
-    {
-      "description": "Triggers when a GTM workspace request says set up workflow targets, create or build an automation, update or publish it, inspect its state or workflow health, delete it, or run it with saved target semantics. Use for reusable Clay, n8n, Vercel Workflows, local TypeScript, enrichment, CRM-cleaning, inbound, outbound, scheduled, and triggered workflows. Not for GTM workspace creation/import/repair, ICP or persona lifecycle work, account or lead research/scoring, GitHub Actions, or an unsaved one-off call through a provider plugin.",
-      "rationale": "Uses literal user language and concrete near-miss exclusions in a shorter description."
+      "description": "Manage an existing GTM workspace’s saved-workflow system when the requested outcome is a new or changed workflow, workflow details, removal, an execution, a live Vercel version, a schedule, or a prior run’s result. Owns workflows/ as a Nitro project plus workflow code, local/Vercel runs, schedules, deployment state, row and spend limits, and Vercel AI Gateway research agents. Do not use for workspace setup/repair, ICPs or personas, unrelated workflow engines, normal Vercel apps, GitHub Actions, general automation guidance, or provider calls not persisted as workflows.",
+      "rationale": "Codex candidate that routes by requested outcome and preserves precise adjacent-skill boundaries."
     }
   ]
 }

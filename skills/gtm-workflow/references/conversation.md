@@ -20,7 +20,7 @@ Name an implementation detail only when it changes cost, permission, safety, own
 
 Keep run IDs, project and team identifiers, environment-variable names, branch names, and persistence commands in saved files or internal diagnostics by default. Reveal an identifier when the user asks for developer detail or when it is the only safe way to disambiguate a consequential action.
 
-Every question-bearing message begins with exactly one bold question. Render discrete choices as a numbered list with at most option 1 marked `(Recommended)`. End every discrete choice block exactly:
+Every question-bearing message begins with exactly one bold question as its first non-empty line. Put workspace status, notes, explanations, and proposals below that question. Render discrete choices as a numbered list with at most option 1 marked `(Recommended)`. End every discrete choice block exactly:
 
 ```text
 Reply with a number, or type your answer.
@@ -30,7 +30,7 @@ Never use `AskUserQuestion`.
 
 ## Proposal and approval
 
-Before a durable change, show a concise proposal with:
+Before a durable change, begin the proposal turn with `**Would you like to save these changes?**`, then show a concise proposal with:
 
 - behavior in plain language;
 - inputs, outputs, and external systems that may change;
@@ -44,10 +44,12 @@ Before a durable change, show a concise proposal with:
 
 Do not put source code, schemas, fixtures, configuration bodies, diffs, ignore-file contents, or complete file bodies in the default proposal. Group the workflow project when listing every filename would only expose stack detail. Before approval, inspect the complete draft and actual diff, verify the summary and path list, and hold those exact bytes unchanged through the accepted write.
 
-Use this acceptance block:
+Put the numbered options and reply line after the proposal:
 
 ```text
 **Would you like to save these changes?**
+
+<concise proposal>
 
 1. Accept and save (Recommended)
 2. Change it

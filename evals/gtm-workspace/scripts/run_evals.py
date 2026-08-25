@@ -66,8 +66,8 @@ def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> str | None:
         "update-a-member": ("ember-health", "Morgan Vale", "morgan@ember-health.example"),
         "delete-a-suborg": ("northstar-group", "Amina Yusuf", "amina@northstar-group.example"),
         "doctor-broken-repo": ("atlas-labs", "Sam Rivera", "sam@atlas-labs.example"),
-        "doctor-healthy-skill-content": ("solstice-freight", "Noor Haddad", "noor@solstice-freight.example"),
-        "doctor-stray-skill-content": ("aster-ridge", "Imani Cole", "imani@aster-ridge.example"),
+        "doctor-root-workflow-project": ("solstice-freight", "Noor Haddad", "noor@solstice-freight.example"),
+        "doctor-suborg-workflow-project": ("aster-ridge", "Imani Cole", "imani@aster-ridge.example"),
     }
     if eval_case["name"] in existing:
         slug, name, email = existing[eval_case["name"]]
@@ -199,10 +199,15 @@ def run_one(eval_case: dict, configuration: str, iteration: Path, baseline_skill
                 raise FileNotFoundError(f"Codex authentication file missing: {source.name}")
             shutil.copy2(source, codex_dir / source.name)
 
-        env = os.environ.copy()
-        env["HOME"] = str(home)
-        env["GIT_CONFIG_GLOBAL"] = str(home / ".gitconfig")
-        env["XDG_CONFIG_HOME"] = str(home / ".config")
+        env = {
+            "HOME": str(home),
+            "CODEX_HOME": str(codex_dir),
+            "GIT_CONFIG_GLOBAL": str(home / ".gitconfig"),
+            "XDG_CONFIG_HOME": str(home / ".config"),
+            "PATH": os.environ.get("PATH", ""),
+            "LANG": os.environ.get("LANG", "C.UTF-8"),
+            "TERM": "dumb",
+        }
         source_digest = seed_home(eval_case, home, env)
         skill_source = SKILL_ROOT if configuration == "with_skill" else baseline_skill_root
         skill_path = copy_skill(home, skill_source, configuration) if skill_source else None

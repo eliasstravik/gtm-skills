@@ -1,0 +1,162 @@
+[
+  {
+    "eval": "create-on-demand-local",
+    "configuration": "with_skill",
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  {
+    "eval": "create-on-demand-local",
+    "configuration": "without_skill",
+    "passed": 0,
+    "failed": 5,
+    "total": 5,
+    "pass_rate": 0.0
+  },
+  {
+    "eval": "deploy-missing-gateway-key",
+    "configuration": "with_skill",
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  {
+    "eval": "deploy-missing-gateway-key",
+    "configuration": "without_skill",
+    "passed": 2,
+    "failed": 2,
+    "total": 4,
+    "pass_rate": 0.5
+  },
+  {
+    "eval": "create-scheduled-vercel",
+    "configuration": "with_skill",
+    "passed": 5,
+    "failed": 0,
+    "total": 5,
+    "pass_rate": 1.0
+  },
+  {
+    "eval": "create-scheduled-vercel",
+    "configuration": "without_skill",
+    "passed": 2,
+    "failed": 3,
+    "total": 5,
+    "pass_rate": 0.4
+  },
+  {
+    "eval": "create-nested-suborganization",
+    "configuration": "with_skill",
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  {
+    "eval": "create-nested-suborganization",
+    "configuration": "without_skill",
+    "passed": 1,
+    "failed": 3,
+    "total": 4,
+    "pass_rate": 0.25
+  },
+  {
+    "eval": "update-switch-location",
+    "configuration": "with_skill",
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  {
+    "eval": "update-switch-location",
+    "configuration": "without_skill",
+    "passed": 1,
+    "failed": 3,
+    "total": 4,
+    "pass_rate": 0.25
+  },
+  {
+    "eval": "inspect-project-health",
+    "configuration": "with_skill",
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  {
+    "eval": "inspect-project-health",
+    "configuration": "without_skill",
+    "passed": 2,
+    "failed": 2,
+    "total": 4,
+    "pass_rate": 0.5
+  },
+  {
+    "eval": "inspect-fetch-deployed-result",
+    "configuration": "with_skill",
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  {
+    "eval": "inspect-fetch-deployed-result",
+    "configuration": "without_skill",
+    "passed": 0,
+    "failed": 4,
+    "total": 4,
+    "pass_rate": 0.0
+  },
+  {
+    "eval": "run-pilot-cap-and-row-failure",
+    "configuration": "with_skill",
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  {
+    "eval": "run-pilot-cap-and-row-failure",
+    "configuration": "without_skill",
+    "passed": 2,
+    "failed": 2,
+    "total": 4,
+    "pass_rate": 0.5
+  },
+  {
+    "eval": "delete-scheduled-workflow",
+    "configuration": "with_skill",
+    "passed": 4,
+    "failed": 0,
+    "total": 4,
+    "pass_rate": 1.0
+  },
+  {
+    "eval": "delete-scheduled-workflow",
+    "configuration": "without_skill",
+    "passed": 2,
+    "failed": 2,
+    "total": 4,
+    "pass_rate": 0.5
+  },
+  {
+    "eval": "handoff-without-workspace",
+    "configuration": "with_skill",
+    "passed": 3,
+    "failed": 0,
+    "total": 3,
+    "pass_rate": 1.0
+  },
+  {
+    "eval": "handoff-without-workspace",
+    "configuration": "without_skill",
+    "passed": 2,
+    "failed": 1,
+    "total": 3,
+    "pass_rate": 0.6666666666666666
+  }
+]

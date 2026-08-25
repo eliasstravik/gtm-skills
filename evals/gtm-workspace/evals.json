@@ -200,28 +200,28 @@
     },
     {
       "id": 12,
-      "name": "doctor-healthy-skill-content",
-      "prompt": "Doctor my Solstice Freight GTM workspace. Simulate Noor, a non-technical operator. The repo is intentionally healthy and contains legitimate icps/ and personas/ directories at both the root and Europe suborg. Report those skill-owned directories as healthy placement, do not judge or rewrite their file contents, make no changes, and complete the health report inside this run's HOME.",
-      "expected_output": "A clean bill of health that recognizes root and suborg ICP/persona directories as legitimate, leaves every file and history entry unchanged, and performs no repair.",
-      "files": ["evals/gtm-workspace/fixtures/doctor-healthy-skill-content"],
+      "name": "doctor-root-workflow-project",
+      "prompt": "Doctor my Solstice Freight GTM workspace. Simulate Noor, a non-technical operator. The repo is intentionally healthy and contains a workflow Node project at the workspace root with tracked package files and flow code plus ignored runtime directories and an ignored .env. Report the placement and ignored state as healthy, do not inspect or rewrite workflow-owned content, make no changes, and complete the health report inside this run's HOME.",
+      "expected_output": "A clean bill of health that accepts the root workflow project and its permitted ignored runtime state, leaves every file and history entry unchanged, and performs no repair.",
+      "files": ["evals/gtm-workspace/fixtures/doctor-root-workflow-project"],
       "assertions": [
-        "The healthy Solstice Freight repo remains clean on main with exactly its seeded history and all ICP/persona files unchanged.",
-        "The health report recognizes both root and Europe icps/ and personas/ directories as legitimate placements.",
-        "No defect, repair proposal, or durable change is reported for the healthy skill-owned content.",
+        "The healthy Solstice Freight repo remains clean on main with exactly its seeded history and all workflow-owned files unchanged.",
+        "The health report recognizes the root workflows/ Node project and permitted ignored runtime paths as healthy.",
+        "No workflow-content inspection, defect, repair proposal, or durable change is reported.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
       ],
       "allowed_example_values": []
     },
     {
       "id": 13,
-      "name": "doctor-stray-skill-content",
-      "prompt": "Doctor my Aster Ridge GTM workspace. Simulate Imani, a non-technical operator. The root personas/ directory is legitimate, but archive/icps/ is deliberately stray because archive has no ORG.md. Identify that exact placement defect and explain it plainly. Imani cancels the repair proposal, so change nothing and complete the report inside this run's HOME.",
-      "expected_output": "The doctor flags archive/icps/ because its parent is not an organization node, leaves the legitimate root personas/ content alone, and makes no change after cancellation.",
-      "files": ["evals/gtm-workspace/fixtures/doctor-stray-skill-content"],
+      "name": "doctor-suborg-workflow-project",
+      "prompt": "Doctor my Aster Ridge GTM workspace. Simulate Imani, a non-technical operator. The root organization is healthy, but suborgs/europe/workflows/ is deliberately misplaced because workflow projects may exist only at the workspace root. Identify that exact placement defect as a gtm-workflow concern and explain it plainly. Imani cancels the repair proposal, so change nothing and complete the report inside this run's HOME.",
+      "expected_output": "The doctor flags suborgs/europe/workflows/ as misplaced, routes the concern to gtm-workflow, and makes no change after cancellation.",
+      "files": ["evals/gtm-workspace/fixtures/doctor-suborg-workflow-project"],
       "assertions": [
         "The Aster Ridge repo remains clean on main with exactly its seeded history after the repair is cancelled.",
-        "The report names archive/icps/ and explains that its parent lacks ORG.md or is not an organization node.",
-        "The legitimate root personas/ directory is not reported as a defect or rewritten.",
+        "The report names suborgs/europe/workflows/ and explains that workflows/ is root-only.",
+        "The report identifies the misplaced project as a gtm-workflow concern without inspecting its content.",
         "No repair commit or filesystem change occurs after cancellation.",
         "Fictional prompt examples are absent from research arguments, artifact proposals, and generated context artifacts unless explicitly user-supplied."
       ],

@@ -1,9 +1,0 @@
-{
-  "files": {
-    ".gtm/atlas-cloud/ORG.md": "# Atlas Cloud\n",
-    ".gtm/atlas-cloud/workflows/WORKFLOWS.md": "# Workflows\n\nDefault target: Local\n\n## Targets\n\n### Local\n\nAuthor tracked TypeScript locally. Run once only. No scheduled or triggered workflows. Inspect source and ignored outputs. Local state uses ignored SQLite. Secrets are environment pointers and provider costs are estimated before runs.\n\n### Vercel Workflows\n\nAuthor and validate in ~/projects/atlas-automation. Test via the repo harness. Deploy with the declared repo mechanism; the agent can execute it. Inspect via target-state.json. Runtime state lives on Vercel. Secrets are repo environment names; provider billing is usage based.\n",
-    ".gtm/atlas-cloud/.gitignore": "**/workflows/*/state.sqlite\n**/workflows/*/state.sqlite-*\n**/workflows/*/outputs/\n**/workflows/*/runs/\n**/workflows/*/.cache/\n",
-    "projects/atlas-automation/AGENTS.md": "# Atlas automation\n\nWrite workflows under src/workflows. Validate with the seeded validate marker and deploy by changing target-state.json from draft to live after explicit approval.\n",
-    "projects/atlas-automation/target-state.json": "{\"deployments\": []}\n"
-  }
-}

@@ -1,0 +1,13 @@
+{
+  "workflow_template_repos": [".gtm/acme"],
+  "vercel": {
+    ".gtm/acme": {
+      "team": "acme-team",
+      "project": "acme-workflows",
+      "url": "https://acme-workflows.example.test"
+    }
+  },
+  "ignored_files": {
+    ".gtm/acme/workflows/.env": "GTM_RUN_SECRET=eval-secret-deployed\nAI_GATEWAY_API_KEY=eval-gateway-key\nGTM_AGENT_BACKEND=api\n"
+  }
+}

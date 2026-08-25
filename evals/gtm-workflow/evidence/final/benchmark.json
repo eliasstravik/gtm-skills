@@ -1,10 +1,10 @@
 {
   "metadata": {
     "skill_name": "gtm-workflow",
-    "skill_path": "skills/gtm-workflow",
+    "skill_path": "/Users/eliasstravik/.herdr/worktrees/gtm-skills/issue-32-rework-gtm-workflow-on-vercel-workflows/skills/gtm-workflow",
     "executor_model": "gpt-5.6-sol",
     "analyzer_model": "gpt-5.6-sol",
-    "timestamp": "2026-08-24T13:19:59Z",
+    "timestamp": "2026-08-25T14:45:06Z",
     "evals_run": [
       1,
       2,
@@ -15,11 +15,7 @@
       7,
       8,
       9,
-      10,
-      11,
-      12,
-      13,
-      14
+      10
     ],
     "runs_per_configuration": 1
   },
@@ -30,1114 +26,772 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 4,
+        "passed": 5,
         "failed": 0,
-        "total": 4,
-        "time_seconds": 123.013,
-        "tokens": 440264,
-        "tool_calls": 0,
+        "total": 5,
+        "time_seconds": 216.559,
+        "tokens": 29490,
+        "tool_calls": 21,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "Setup verifies author, run, and inspect viability and plainly classifies invoke-only Zapier as a connection rather than a target.",
+          "text": "The accepted root project contains the shipped scaffold and a five-line on-demand workflow header.",
           "passed": true,
-          "evidence": "Checked capability explanation and Zapier classification."
+          "evidence": "Checked scaffold integrity and the five-line header."
         },
         {
-          "text": "The accepted WORKFLOWS.md has Clay as its sole default target, a Zapier connection, the 500-row limit, and every required target-operation topic.",
+          "text": "The location and result-destination questions use the exact conversation blocks and the Vercel research-cost note appears.",
           "passed": true,
-          "evidence": "Checked complete Clay registry, connection, and limit prose."
+          "evidence": "Checked exact location/result questions and cost note."
         },
         {
-          "text": "The accepted write includes workflow-owned gitignore lines, matches the internally reviewed draft, and is saved as one clean main-branch history entry without printing config or ignore-file bodies.",
+          "text": "The workflow enforces row and projected-spend caps before agent calls, bounds each agent call, and catches each row failure.",
           "passed": true,
-          "evidence": "Checked ignore lines, concise proposal, and one clean scoped commit."
+          "evidence": "Checked cap ordering, per-call bound, and row isolation."
         },
         {
-          "text": "Questions follow the direct bold one-question format, and no secret, target-kind field, deploy verb, or doctor verb is introduced.",
+          "text": "The scaffold and workflow are saved in one scoped history entry while .env and data remain ignored.",
           "passed": true,
-          "evidence": "Checked banned field/tool absence."
+          "evidence": "Checked one accepted create commit and ignored runtime state."
+        },
+        {
+          "text": "The transcript contains no secret value or AskUserQuestion call and follows the conversation standard.",
+          "passed": true,
+          "evidence": "Checked conversation format and secret handling."
         }
       ],
-      "notes": [],
-      "eval_name": "fresh-setup-invoke-only-connection"
+      "notes": []
+    },
+    {
+      "eval_id": 10,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 71.166,
+        "tokens": 23134,
+        "tool_calls": 8,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The response explains that Vercel research uses a Gateway key with a spending budget.",
+          "passed": true,
+          "evidence": "Checked budgeted Gateway explanation."
+        },
+        {
+          "text": "The exact budgeted-key question appears before any project link action.",
+          "passed": true,
+          "evidence": "Checked key question before any link."
+        },
+        {
+          "text": "No Vercel project link, secret sync, deployment, or package metadata change occurs.",
+          "passed": true,
+          "evidence": "Checked cancellation before project, secret, deploy, or metadata mutation."
+        },
+        {
+          "text": "No credential value appears in conversation or tracked files.",
+          "passed": true,
+          "evidence": "Checked credential safety and conversation controls."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 172.669,
+        "tokens": 28186,
+        "tool_calls": 17,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The scheduled file has a six-line header, exported scheduledInput, and arg ??= scheduledInput directly after use workflow.",
+          "passed": true,
+          "evidence": "Checked six-line header and immediate scheduled fallback."
+        },
+        {
+          "text": "The Vercel location is recommended and both the local timing note and Gateway-credit note are shown.",
+          "passed": true,
+          "evidence": "Checked both required location notes and choice order."
+        },
+        {
+          "text": "The result question uses the exact keep-on-Vercel option.",
+          "passed": true,
+          "evidence": "Checked the scheduled Vercel result option."
+        },
+        {
+          "text": "vercel.json contains the UTC cron and /api/run/<slug> path.",
+          "passed": true,
+          "evidence": "Checked matching UTC cron route."
+        },
+        {
+          "text": "The close says the workflow is saved but not live and no project link is created.",
+          "passed": true,
+          "evidence": "Checked saved but not-live closure without linking."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 162.223,
+        "tokens": 29175,
+        "tool_calls": 15,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The workflow is created at root workflows/flows/europe/<slug>.ts and no suborganization workflows directory is created.",
+          "passed": true,
+          "evidence": "Checked root-owned nested flow placement."
+        },
+        {
+          "text": "The header names Acme Europe and its Europe ICP.",
+          "passed": true,
+          "evidence": "Checked owner and ICP header."
+        },
+        {
+          "text": "The pilot uses /api/run/europe/<slug> and results use data/<slug>/<date>-<runId>.json.",
+          "passed": true,
+          "evidence": "Checked nested run route and result handling."
+        },
+        {
+          "text": "The accepted project is clean on main with one scoped create commit.",
+          "passed": true,
+          "evidence": "Checked one scoped create commit and safe conversation."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 163.437,
+        "tokens": 25056,
+        "tool_calls": 20,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The existing workflow file changes only its run location among workflow behavior lines.",
+          "passed": true,
+          "evidence": "Checked location switch with behavior and caps preserved."
+        },
+        {
+          "text": "The key check precedes project linking, secret values never appear, and deployment uses the CLI.",
+          "passed": true,
+          "evidence": "Checked key-before-link ordering and secret safety."
+        },
+        {
+          "text": "package.json records team, project, and production URL under gtm.vercel.",
+          "passed": true,
+          "evidence": "Checked non-secret gtm.vercel metadata."
+        },
+        {
+          "text": "The deployed route is verified with a three-row pilot and the repo is clean on main.",
+          "passed": true,
+          "evidence": "Checked deployed route pilot and clean main."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 5,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 102.51,
+        "tokens": 25460,
+        "tool_calls": 9,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The report names Account Scoring, on-this-computer location, on-demand kind, and its caps.",
+          "passed": true,
+          "evidence": "Checked workflow, location, kind, and caps report."
+        },
+        {
+          "text": "The report covers validation and the canonical agent and route files without mutating them.",
+          "passed": true,
+          "evidence": "Checked validation and canonical shared files."
+        },
+        {
+          "text": "Absent run data is distinguished from a defect.",
+          "passed": true,
+          "evidence": "Checked absent run data is not treated as a defect."
+        },
+        {
+          "text": "The repository remains byte-clean with exactly the seeded history.",
+          "passed": true,
+          "evidence": "Checked read-only inspection and safe conversation."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 6,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 84.585,
+        "tokens": 23857,
+        "tool_calls": 9,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Inspection reads gtm.vercel metadata and uses remote workflow inspection.",
+          "passed": true,
+          "evidence": "Checked deployment metadata and remote inspect."
+        },
+        {
+          "text": "The authenticated result route is used without exposing the secret.",
+          "passed": true,
+          "evidence": "Checked authenticated result retrieval without exposure."
+        },
+        {
+          "text": "The completed return value is saved at data/account-scoring/<date>-run-eval-001.json.",
+          "passed": true,
+          "evidence": "Checked saved completed return value path and shape."
+        },
+        {
+          "text": "The report says saved locally and the tracked repository remains unchanged.",
+          "passed": true,
+          "evidence": "Checked local result report with unchanged tracked state."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 7,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 105.863,
+        "tokens": 24651,
+        "tool_calls": 11,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The pilot and full run start through POST /api/run/account-scoring with explicit bodies rather than workflow start.",
+          "passed": true,
+          "evidence": "Checked route-started pilot and full run."
+        },
+        {
+          "text": "The gate states 12 rows, $12 projected spend, caps, and the 2 completed, 1 failed pilot result.",
+          "passed": true,
+          "evidence": "Checked projected spend and pilot gate."
+        },
+        {
+          "text": "The workflow source checks caps before the first spending step and preserves per-row failure isolation.",
+          "passed": true,
+          "evidence": "Checked source cap order and row isolation."
+        },
+        {
+          "text": "The final result is saved under data/account-scoring and the report leads with completed and failed counts.",
+          "passed": true,
+          "evidence": "Checked saved result and outcome-first report."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 8,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": 102.672,
+        "tokens": 22840,
+        "tool_calls": 11,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "flows/pipeline-watch.ts and only its cron entry are removed.",
+          "passed": true,
+          "evidence": "Checked selected file and cron removal."
+        },
+        {
+          "text": "The example flow, package deployment metadata, and ignored data remain.",
+          "passed": true,
+          "evidence": "Checked preservation of example, deployment, and ignored results."
+        },
+        {
+          "text": "The proposal names recovery and exact path consequences before acceptance.",
+          "passed": true,
+          "evidence": "Checked accepted path consequences and recovery."
+        },
+        {
+          "text": "The clean main repository gains one scoped deletion history entry.",
+          "passed": true,
+          "evidence": "Checked one scoped deletion commit and safe conversation."
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 9,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": 58.22,
+        "tokens": 859,
+        "tool_calls": 6,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The response directs workspace creation or connection to gtm-workspace.",
+          "passed": true,
+          "evidence": "Checked handoff to gtm-workspace."
+        },
+        {
+          "text": "No .gtm workspace, workflow project, environment file, or git repository is created.",
+          "passed": true,
+          "evidence": "Checked that no workspace or Git repository was created."
+        },
+        {
+          "text": "No workflow design interview or run-location question begins.",
+          "passed": true,
+          "evidence": "Checked that workflow authoring did not begin."
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 1,
-      "configuration": "old_skill",
+      "configuration": "without_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 0.75,
-        "passed": 3,
-        "failed": 1,
-        "total": 4,
-        "time_seconds": 113.054,
-        "tokens": 233363,
-        "tool_calls": 0,
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 5,
+        "total": 5,
+        "time_seconds": 148.268,
+        "tokens": 8066,
+        "tool_calls": 11,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "Setup verifies author, run, and inspect viability and plainly classifies invoke-only Zapier as a connection rather than a target.",
-          "passed": true,
-          "evidence": "Checked capability explanation and Zapier classification."
-        },
-        {
-          "text": "The accepted WORKFLOWS.md has Clay as its sole default target, a Zapier connection, the 500-row limit, and every required target-operation topic.",
-          "passed": true,
-          "evidence": "Checked complete Clay registry, connection, and limit prose."
-        },
-        {
-          "text": "The accepted write includes workflow-owned gitignore lines, matches the internally reviewed draft, and is saved as one clean main-branch history entry without printing config or ignore-file bodies.",
+          "text": "The accepted root project contains the shipped scaffold and a five-line on-demand workflow header.",
           "passed": false,
-          "evidence": "Checked ignore lines, concise proposal, and one clean scoped commit."
+          "evidence": "Checked scaffold integrity and the five-line header."
         },
         {
-          "text": "Questions follow the direct bold one-question format, and no secret, target-kind field, deploy verb, or doctor verb is introduced.",
-          "passed": true,
-          "evidence": "Checked banned field/tool absence."
+          "text": "The location and result-destination questions use the exact conversation blocks and the Vercel research-cost note appears.",
+          "passed": false,
+          "evidence": "Checked exact location/result questions and cost note."
+        },
+        {
+          "text": "The workflow enforces row and projected-spend caps before agent calls, bounds each agent call, and catches each row failure.",
+          "passed": false,
+          "evidence": "Checked cap ordering, per-call bound, and row isolation."
+        },
+        {
+          "text": "The scaffold and workflow are saved in one scoped history entry while .env and data remain ignored.",
+          "passed": false,
+          "evidence": "Checked one accepted create commit and ignored runtime state."
+        },
+        {
+          "text": "The transcript contains no secret value or AskUserQuestion call and follows the conversation standard.",
+          "passed": false,
+          "evidence": "Checked conversation format and secret handling."
         }
       ],
-      "notes": [],
-      "eval_name": "fresh-setup-invoke-only-connection"
+      "notes": []
+    },
+    {
+      "eval_id": 10,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
+        "total": 4,
+        "time_seconds": 61.08,
+        "tokens": 22850,
+        "tool_calls": 7,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "The response explains that Vercel research uses a Gateway key with a spending budget.",
+          "passed": true,
+          "evidence": "Checked budgeted Gateway explanation."
+        },
+        {
+          "text": "The exact budgeted-key question appears before any project link action.",
+          "passed": false,
+          "evidence": "Checked key question before any link."
+        },
+        {
+          "text": "No Vercel project link, secret sync, deployment, or package metadata change occurs.",
+          "passed": true,
+          "evidence": "Checked cancellation before project, secret, deploy, or metadata mutation."
+        },
+        {
+          "text": "No credential value appears in conversation or tracked files.",
+          "passed": false,
+          "evidence": "Checked credential safety and conversation controls."
+        }
+      ],
+      "notes": []
     },
     {
       "eval_id": 2,
-      "configuration": "with_skill",
+      "configuration": "without_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 134.218,
-        "tokens": 387022,
-        "tool_calls": 0,
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": 140.359,
+        "tokens": 6120,
+        "tool_calls": 10,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "Setup treats the named repo as a viable author/run/inspect target and adds a complete Vercel Workflows operating section.",
-          "passed": true,
-          "evidence": "Checked Vercel target operations."
-        },
-        {
-          "text": "The revised registry preserves Local as default plus all prior connection and limit prose.",
-          "passed": true,
-          "evidence": "Checked preservation of default, connection, and limit."
-        },
-        {
-          "text": "The proposal accurately summarizes the target behavior and registry path without printing before/after config bodies, and the internally reviewed revision is saved as one scoped clean history entry.",
-          "passed": true,
-          "evidence": "Checked concise accepted registry revision and scoped history."
-        },
-        {
-          "text": "No target-kind field, in-skill backend adapter, or unrelated workspace artifact is created.",
-          "passed": true,
-          "evidence": "Checked absence of target-kind and adapters."
-        }
-      ],
-      "notes": [],
-      "eval_name": "setup-second-target"
-    },
-    {
-      "eval_id": 2,
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 0.75,
-        "passed": 3,
-        "failed": 1,
-        "total": 4,
-        "time_seconds": 113.672,
-        "tokens": 282430,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Setup treats the named repo as a viable author/run/inspect target and adds a complete Vercel Workflows operating section.",
-          "passed": true,
-          "evidence": "Checked Vercel target operations."
-        },
-        {
-          "text": "The revised registry preserves Local as default plus all prior connection and limit prose.",
-          "passed": true,
-          "evidence": "Checked preservation of default, connection, and limit."
-        },
-        {
-          "text": "The proposal accurately summarizes the target behavior and registry path without printing before/after config bodies, and the internally reviewed revision is saved as one scoped clean history entry.",
+          "text": "The scheduled file has a six-line header, exported scheduledInput, and arg ??= scheduledInput directly after use workflow.",
           "passed": false,
-          "evidence": "Checked concise accepted registry revision and scoped history."
+          "evidence": "Checked six-line header and immediate scheduled fallback."
         },
         {
-          "text": "No target-kind field, in-skill backend adapter, or unrelated workspace artifact is created.",
+          "text": "The Vercel location is recommended and both the local timing note and Gateway-credit note are shown.",
+          "passed": false,
+          "evidence": "Checked both required location notes and choice order."
+        },
+        {
+          "text": "The result question uses the exact keep-on-Vercel option.",
           "passed": true,
-          "evidence": "Checked absence of target-kind and adapters."
+          "evidence": "Checked the scheduled Vercel result option."
+        },
+        {
+          "text": "vercel.json contains the UTC cron and /api/run/<slug> path.",
+          "passed": true,
+          "evidence": "Checked matching UTC cron route."
+        },
+        {
+          "text": "The close says the workflow is saved but not live and no project link is created.",
+          "passed": false,
+          "evidence": "Checked saved but not-live closure without linking."
         }
       ],
-      "notes": [],
-      "eval_name": "setup-second-target"
+      "notes": []
     },
     {
       "eval_id": 3,
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 231.465,
-        "tokens": 502566,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The missing-registry choice says the workflow runs on this computer and never asks Sam to choose TypeScript, SQLite, or another implementation product.",
-          "passed": true,
-          "evidence": "Checked operating-language local choice and materialization."
-        },
-        {
-          "text": "The proposal covers behavior, inputs, output, affected systems, local timing, 500-row limit, failure handling, validation, affected paths, and local state without printing code, schemas, tests, config bodies, diffs, or ignore-file contents.",
-          "passed": true,
-          "evidence": "Checked complete behavior and grouped path summary without implementation bodies."
-        },
-        {
-          "text": "The saved record dereferences Local, is on-demand, has a real repo pointer, and the internally chosen implementation writes working data only under ignored paths.",
-          "passed": true,
-          "evidence": "Checked local record dereference and ignored output design."
-        },
-        {
-          "text": "The complete supplied design causes no implementation interview, and all accepted paths are saved in one clean history entry with local reported as live.",
-          "passed": true,
-          "evidence": "Checked no long interview, one scoped history entry, and local live close."
-        }
-      ],
-      "notes": [],
-      "eval_name": "create-local-materializes-registry"
-    },
-    {
-      "eval_id": 3,
-      "configuration": "old_skill",
+      "configuration": "without_skill",
       "run_number": 1,
       "result": {
         "pass_rate": 0.25,
         "passed": 1,
         "failed": 3,
         "total": 4,
-        "time_seconds": 254.685,
-        "tokens": 414766,
-        "tool_calls": 0,
+        "time_seconds": 132.351,
+        "tokens": 9431,
+        "tool_calls": 11,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "The missing-registry choice says the workflow runs on this computer and never asks Sam to choose TypeScript, SQLite, or another implementation product.",
-          "passed": false,
-          "evidence": "Checked operating-language local choice and materialization."
-        },
-        {
-          "text": "The proposal covers behavior, inputs, output, affected systems, local timing, 500-row limit, failure handling, validation, affected paths, and local state without printing code, schemas, tests, config bodies, diffs, or ignore-file contents.",
-          "passed": false,
-          "evidence": "Checked complete behavior and grouped path summary without implementation bodies."
-        },
-        {
-          "text": "The saved record dereferences Local, is on-demand, has a real repo pointer, and the internally chosen implementation writes working data only under ignored paths.",
-          "passed": false,
-          "evidence": "Checked local record dereference and ignored output design."
-        },
-        {
-          "text": "The complete supplied design causes no implementation interview, and all accepted paths are saved in one clean history entry with local reported as live.",
+          "text": "The workflow is created at root workflows/flows/europe/<slug>.ts and no suborganization workflows directory is created.",
           "passed": true,
-          "evidence": "Checked no long interview, one scoped history entry, and local live close."
+          "evidence": "Checked root-owned nested flow placement."
+        },
+        {
+          "text": "The header names Acme Europe and its Europe ICP.",
+          "passed": false,
+          "evidence": "Checked owner and ICP header."
+        },
+        {
+          "text": "The pilot uses /api/run/europe/<slug> and results use data/<slug>/<date>-<runId>.json.",
+          "passed": false,
+          "evidence": "Checked nested run route and result handling."
+        },
+        {
+          "text": "The accepted project is clean on main with one scoped create commit.",
+          "passed": false,
+          "evidence": "Checked one scoped create commit and safe conversation."
         }
       ],
-      "notes": [],
-      "eval_name": "create-local-materializes-registry"
+      "notes": []
     },
     {
       "eval_id": 4,
-      "configuration": "with_skill",
+      "configuration": "without_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
         "total": 4,
-        "time_seconds": 178.786,
-        "tokens": 436222,
-        "tool_calls": 0,
+        "time_seconds": 188.693,
+        "tokens": 24329,
+        "tool_calls": 19,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "Create explicitly refuses the local target for a triggered workflow and recommends an infrastructure target.",
-          "passed": true,
-          "evidence": "Checked local refusal before target choice."
+          "text": "The existing workflow file changes only its run location among workflow behavior lines.",
+          "passed": false,
+          "evidence": "Checked location switch with behavior and caps preserved."
         },
         {
-          "text": "The Vercel draft is built and validated before a record with Target Vercel Workflows, Kind triggered, and a real repo path is previewed.",
-          "passed": true,
-          "evidence": "Checked validated infrastructure draft and record."
+          "text": "The key check precedes project linking, secret values never appear, and deployment uses the CLI.",
+          "passed": false,
+          "evidence": "Checked key-before-link ordering and secret safety."
         },
         {
-          "text": "The accepted record is saved before the separately gated deployment and no record-less target artifact remains.",
-          "passed": true,
-          "evidence": "Checked record save before deployment."
+          "text": "package.json records team, project, and production URL under gtm.vercel.",
+          "passed": false,
+          "evidence": "Checked non-secret gtm.vercel metadata."
         },
         {
-          "text": "The close reports the workflow live, validated, saved to history, and bound to its target without a deploy lifecycle verb.",
+          "text": "The deployed route is verified with a three-row pilot and the repo is clean on main.",
           "passed": true,
-          "evidence": "Checked live close without a deploy lifecycle menu choice."
+          "evidence": "Checked deployed route pilot and clean main."
         }
       ],
-      "notes": [],
-      "eval_name": "create-triggered-infrastructure"
-    },
-    {
-      "eval_id": 4,
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 150.225,
-        "tokens": 315196,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Create explicitly refuses the local target for a triggered workflow and recommends an infrastructure target.",
-          "passed": true,
-          "evidence": "Checked local refusal before target choice."
-        },
-        {
-          "text": "The Vercel draft is built and validated before a record with Target Vercel Workflows, Kind triggered, and a real repo path is previewed.",
-          "passed": true,
-          "evidence": "Checked validated infrastructure draft and record."
-        },
-        {
-          "text": "The accepted record is saved before the separately gated deployment and no record-less target artifact remains.",
-          "passed": true,
-          "evidence": "Checked record save before deployment."
-        },
-        {
-          "text": "The close reports the workflow live, validated, saved to history, and bound to its target without a deploy lifecycle verb.",
-          "passed": true,
-          "evidence": "Checked live close without a deploy lifecycle menu choice."
-        }
-      ],
-      "notes": [],
-      "eval_name": "create-triggered-infrastructure"
+      "notes": []
     },
     {
       "eval_id": 5,
-      "configuration": "with_skill",
+      "configuration": "without_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
         "total": 4,
-        "time_seconds": 116.076,
-        "tokens": 396608,
-        "tool_calls": 0,
+        "time_seconds": 101.252,
+        "tokens": 25564,
+        "tool_calls": 8,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "The on-demand Clay workflow still receives a separate publish/go-live gate after its real-ID record is accepted.",
+          "text": "The report names Account Scoring, on-this-computer location, on-demand kind, and its caps.",
           "passed": true,
-          "evidence": "Checked separate on-demand publish gate after record save."
+          "evidence": "Checked workflow, location, kind, and caps report."
         },
         {
-          "text": "Renewals Enrichment has a saved record and a verified live target artifact, with draft/live status stated clearly.",
-          "passed": true,
-          "evidence": "Checked saved record and live target artifact."
+          "text": "The report covers validation and the canonical agent and route files without mutating them.",
+          "passed": false,
+          "evidence": "Checked validation and canonical shared files."
         },
         {
-          "text": "Cancellation after Churn Rescue draft creation offers target cleanup, removes the abandoned draft, and leaves no Churn Rescue record.",
-          "passed": true,
-          "evidence": "Checked abandoned draft cleanup and absent record."
+          "text": "Absent run data is distinguished from a defect.",
+          "passed": false,
+          "evidence": "Checked absent run data is not treated as a defect."
         },
         {
-          "text": "No agent-created target artifact is left record-less and the workspace has one clean scoped history entry.",
+          "text": "The repository remains byte-clean with exactly the seeded history.",
           "passed": true,
-          "evidence": "Checked no record-less artifact and one scoped commit."
+          "evidence": "Checked read-only inspection and safe conversation."
         }
       ],
-      "notes": [],
-      "eval_name": "clay-on-demand-publish-and-cancel"
-    },
-    {
-      "eval_id": 5,
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 135.326,
-        "tokens": 389966,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The on-demand Clay workflow still receives a separate publish/go-live gate after its real-ID record is accepted.",
-          "passed": true,
-          "evidence": "Checked separate on-demand publish gate after record save."
-        },
-        {
-          "text": "Renewals Enrichment has a saved record and a verified live target artifact, with draft/live status stated clearly.",
-          "passed": true,
-          "evidence": "Checked saved record and live target artifact."
-        },
-        {
-          "text": "Cancellation after Churn Rescue draft creation offers target cleanup, removes the abandoned draft, and leaves no Churn Rescue record.",
-          "passed": true,
-          "evidence": "Checked abandoned draft cleanup and absent record."
-        },
-        {
-          "text": "No agent-created target artifact is left record-less and the workspace has one clean scoped history entry.",
-          "passed": true,
-          "evidence": "Checked no record-less artifact and one scoped commit."
-        }
-      ],
-      "notes": [],
-      "eval_name": "clay-on-demand-publish-and-cancel"
+      "notes": []
     },
     {
       "eval_id": 6,
-      "configuration": "with_skill",
+      "configuration": "without_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
+        "pass_rate": 0.0,
+        "passed": 0,
+        "failed": 4,
         "total": 4,
-        "time_seconds": 73.103,
-        "tokens": 184886,
-        "tool_calls": 0,
+        "time_seconds": 76.358,
+        "tokens": 23723,
+        "tool_calls": 9,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "Before external writes, the run preview states 1,200 records, HubSpot writes, the 2,400-credit estimate, the 3,000-credit limit, and a recommended pilot.",
-          "passed": true,
-          "evidence": "Checked external-write scope, cost, limit, and pilot preview."
+          "text": "Inspection reads gtm.vercel metadata and uses remote workflow inspection.",
+          "passed": false,
+          "evidence": "Checked deployment metadata and remote inspect."
         },
         {
-          "text": "A 10-record pilot runs first and the full scope runs only after a second acceptance based on pilot results.",
-          "passed": true,
-          "evidence": "Checked pilot then accepted remaining scope."
+          "text": "The authenticated result route is used without exposing the secret.",
+          "passed": false,
+          "evidence": "Checked authenticated result retrieval without exposure."
         },
         {
-          "text": "Results, failures, external HubSpot changes, and observed cost are reported in business language while diagnostic run pointers stay hidden by default and the workspace remains byte-preserved and clean.",
-          "passed": true,
-          "evidence": "Checked outcome-first report, hidden diagnostic pointers, and unchanged workspace."
+          "text": "The completed return value is saved at data/account-scoring/<date>-run-eval-001.json.",
+          "passed": false,
+          "evidence": "Checked saved completed return value path and shape."
         },
         {
-          "text": "The workflow is dereferenced through its Clay target and no publish, record update, or tracked run log occurs.",
-          "passed": true,
-          "evidence": "Checked target dereference and no tracked workflow mutation."
+          "text": "The report says saved locally and the tracked repository remains unchanged.",
+          "passed": false,
+          "evidence": "Checked local result report with unchanged tracked state."
         }
       ],
-      "notes": [],
-      "eval_name": "run-external-cost-gate"
-    },
-    {
-      "eval_id": 6,
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 0.5,
-        "passed": 2,
-        "failed": 2,
-        "total": 4,
-        "time_seconds": 78.304,
-        "tokens": 168217,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Before external writes, the run preview states 1,200 records, HubSpot writes, the 2,400-credit estimate, the 3,000-credit limit, and a recommended pilot.",
-          "passed": true,
-          "evidence": "Checked external-write scope, cost, limit, and pilot preview."
-        },
-        {
-          "text": "A 10-record pilot runs first and the full scope runs only after a second acceptance based on pilot results.",
-          "passed": false,
-          "evidence": "Checked pilot then accepted remaining scope."
-        },
-        {
-          "text": "Results, failures, external HubSpot changes, and observed cost are reported in business language while diagnostic run pointers stay hidden by default and the workspace remains byte-preserved and clean.",
-          "passed": false,
-          "evidence": "Checked outcome-first report, hidden diagnostic pointers, and unchanged workspace."
-        },
-        {
-          "text": "The workflow is dereferenced through its Clay target and no publish, record update, or tracked run log occurs.",
-          "passed": true,
-          "evidence": "Checked target dereference and no tracked workflow mutation."
-        }
-      ],
-      "notes": [],
-      "eval_name": "run-external-cost-gate"
+      "notes": []
     },
     {
       "eval_id": 7,
-      "configuration": "with_skill",
+      "configuration": "without_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
         "total": 4,
-        "time_seconds": 67.334,
-        "tokens": 202429,
-        "tool_calls": 0,
+        "time_seconds": 100.695,
+        "tokens": 24697,
+        "tool_calls": 9,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "The record dereferences Local and executes its saved entry point without an acceptance or cost gate.",
+          "text": "The pilot and full run start through POST /api/run/account-scoring with explicit bodies rather than workflow start.",
           "passed": true,
-          "evidence": "Checked local dereference and no gate."
+          "evidence": "Checked route-started pilot and full run."
         },
         {
-          "text": "All five rows are processed and the report leads with the business result, completed and failed counts, and where the results were saved.",
-          "passed": true,
-          "evidence": "Checked five-row execution and outcome-first report."
-        },
-        {
-          "text": "Output is written only beneath the ignored workflow outputs directory and no tracked run log or record edit occurs.",
-          "passed": true,
-          "evidence": "Checked ignored output and no tracked run log."
-        },
-        {
-          "text": "The repo remains clean on main with unchanged history, and internal run IDs, token counts, database names, and raw filesystem paths stay hidden.",
-          "passed": true,
-          "evidence": "Checked clean unchanged history and hidden diagnostics."
-        }
-      ],
-      "notes": [],
-      "eval_name": "run-local-ungated"
-    },
-    {
-      "eval_id": 7,
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 0.75,
-        "passed": 3,
-        "failed": 1,
-        "total": 4,
-        "time_seconds": 67.6,
-        "tokens": 213991,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The record dereferences Local and executes its saved entry point without an acceptance or cost gate.",
-          "passed": true,
-          "evidence": "Checked local dereference and no gate."
-        },
-        {
-          "text": "All five rows are processed and the report leads with the business result, completed and failed counts, and where the results were saved.",
+          "text": "The gate states 12 rows, $12 projected spend, caps, and the 2 completed, 1 failed pilot result.",
           "passed": false,
-          "evidence": "Checked five-row execution and outcome-first report."
+          "evidence": "Checked projected spend and pilot gate."
         },
         {
-          "text": "Output is written only beneath the ignored workflow outputs directory and no tracked run log or record edit occurs.",
+          "text": "The workflow source checks caps before the first spending step and preserves per-row failure isolation.",
           "passed": true,
-          "evidence": "Checked ignored output and no tracked run log."
+          "evidence": "Checked source cap order and row isolation."
         },
         {
-          "text": "The repo remains clean on main with unchanged history, and internal run IDs, token counts, database names, and raw filesystem paths stay hidden.",
-          "passed": true,
-          "evidence": "Checked clean unchanged history and hidden diagnostics."
+          "text": "The final result is saved under data/account-scoring and the report leads with completed and failed counts.",
+          "passed": false,
+          "evidence": "Checked saved result and outcome-first report."
         }
       ],
-      "notes": [],
-      "eval_name": "run-local-ungated"
+      "notes": []
     },
     {
       "eval_id": 8,
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 52.382,
-        "tokens": 151293,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Inspect resolves the record through its Clay target and saved pointer internally while hiding that diagnostic identifier by default.",
-          "passed": true,
-          "evidence": "Checked internal record-to-target resolution and hidden pointer."
-        },
-        {
-          "text": "The report covers draft/live state, validation, recent business outcomes, connections, limits, and observed cost without leading with run IDs.",
-          "passed": true,
-          "evidence": "Checked outcome-first inspection fields without run IDs."
-        },
-        {
-          "text": "No repair proposal, lifecycle menu, or mutation occurs during the named-workflow inspection.",
-          "passed": true,
-          "evidence": "Checked mutation-free named inspect."
-        },
-        {
-          "text": "The workspace and target sandbox remain byte-preserved and the repo stays clean with unchanged history.",
-          "passed": true,
-          "evidence": "Checked byte-preserved workspace and target state."
-        }
-      ],
-      "notes": [],
-      "eval_name": "inspect-single-workflow"
-    },
-    {
-      "eval_id": 8,
-      "configuration": "old_skill",
+      "configuration": "without_skill",
       "run_number": 1,
       "result": {
         "pass_rate": 0.5,
         "passed": 2,
         "failed": 2,
         "total": 4,
-        "time_seconds": 54.748,
-        "tokens": 145823,
-        "tool_calls": 0,
+        "time_seconds": 99.581,
+        "tokens": 22519,
+        "tool_calls": 12,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "Inspect resolves the record through its Clay target and saved pointer internally while hiding that diagnostic identifier by default.",
-          "passed": false,
-          "evidence": "Checked internal record-to-target resolution and hidden pointer."
-        },
-        {
-          "text": "The report covers draft/live state, validation, recent business outcomes, connections, limits, and observed cost without leading with run IDs.",
-          "passed": false,
-          "evidence": "Checked outcome-first inspection fields without run IDs."
-        },
-        {
-          "text": "No repair proposal, lifecycle menu, or mutation occurs during the named-workflow inspection.",
+          "text": "flows/pipeline-watch.ts and only its cron entry are removed.",
           "passed": true,
-          "evidence": "Checked mutation-free named inspect."
+          "evidence": "Checked selected file and cron removal."
         },
         {
-          "text": "The workspace and target sandbox remain byte-preserved and the repo stays clean with unchanged history.",
+          "text": "The example flow, package deployment metadata, and ignored data remain.",
           "passed": true,
-          "evidence": "Checked byte-preserved workspace and target state."
+          "evidence": "Checked preservation of example, deployment, and ignored results."
+        },
+        {
+          "text": "The proposal names recovery and exact path consequences before acceptance.",
+          "passed": false,
+          "evidence": "Checked accepted path consequences and recovery."
+        },
+        {
+          "text": "The clean main repository gains one scoped deletion history entry.",
+          "passed": false,
+          "evidence": "Checked one scoped deletion commit and safe conversation."
         }
       ],
-      "notes": [],
-      "eval_name": "inspect-single-workflow"
+      "notes": []
     },
     {
       "eval_id": 9,
-      "configuration": "with_skill",
+      "configuration": "without_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 108.91,
-        "tokens": 263918,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The mutation-free first report names the orphaned record, tracked SQLite state, and missing workflow ignore lines, plus healthy checks.",
-          "passed": true,
-          "evidence": "Checked complete first health report."
-        },
-        {
-          "text": "One concise proposal names the revised record and ignore-file paths plus the untrack-without-delete operation without printing file bodies, then waits for acceptance.",
-          "passed": true,
-          "evidence": "Checked one concise accepted repair proposal."
-        },
-        {
-          "text": "The accepted repair preserves state.sqlite locally but untracked, binds the record to Local, and adds every workflow-owned ignore line.",
-          "passed": true,
-          "evidence": "Checked repaired binding, preserved untracked state, and ignore lines."
-        },
-        {
-          "text": "A full rerun reports healthy and one Repair GTM workflow artifacts history entry leaves the main worktree clean.",
-          "passed": true,
-          "evidence": "Checked exact repair entry and healthy rerun."
-        }
-      ],
-      "notes": [],
-      "eval_name": "inspect-node-health-repair"
-    },
-    {
-      "eval_id": 9,
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 0.75,
-        "passed": 3,
+        "pass_rate": 0.6666666666666666,
+        "passed": 2,
         "failed": 1,
-        "total": 4,
-        "time_seconds": 90.448,
-        "tokens": 244732,
-        "tool_calls": 0,
+        "total": 3,
+        "time_seconds": 40.528,
+        "tokens": 821,
+        "tool_calls": 4,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "The mutation-free first report names the orphaned record, tracked SQLite state, and missing workflow ignore lines, plus healthy checks.",
-          "passed": true,
-          "evidence": "Checked complete first health report."
-        },
-        {
-          "text": "One concise proposal names the revised record and ignore-file paths plus the untrack-without-delete operation without printing file bodies, then waits for acceptance.",
+          "text": "The response directs workspace creation or connection to gtm-workspace.",
           "passed": false,
-          "evidence": "Checked one concise accepted repair proposal."
+          "evidence": "Checked handoff to gtm-workspace."
         },
         {
-          "text": "The accepted repair preserves state.sqlite locally but untracked, binds the record to Local, and adds every workflow-owned ignore line.",
+          "text": "No .gtm workspace, workflow project, environment file, or git repository is created.",
           "passed": true,
-          "evidence": "Checked repaired binding, preserved untracked state, and ignore lines."
+          "evidence": "Checked that no workspace or Git repository was created."
         },
         {
-          "text": "A full rerun reports healthy and one Repair GTM workflow artifacts history entry leaves the main worktree clean.",
+          "text": "No workflow design interview or run-location question begins.",
           "passed": true,
-          "evidence": "Checked exact repair entry and healthy rerun."
+          "evidence": "Checked that workflow authoring did not begin."
         }
       ],
-      "notes": [],
-      "eval_name": "inspect-node-health-repair"
-    },
-    {
-      "eval_id": 10,
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 105.31,
-        "tokens": 311174,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The target draft is changed and validated before one concise proposal accurately summarizes the record and registry changes without printing complete before/after bodies.",
-          "passed": true,
-          "evidence": "Checked validated draft and concise tracked revision summary."
-        },
-        {
-          "text": "Deferring go-live states that threshold 80 is draft, live still runs threshold 70, and explains how to finish.",
-          "passed": true,
-          "evidence": "Checked stale-live deferral warning."
-        },
-        {
-          "text": "The bare publish request routes to update with no content changes and goes directly to a separate go-live gate without a new save proposal.",
-          "passed": true,
-          "evidence": "Checked bare publish routing without a second save proposal."
-        },
-        {
-          "text": "The final state is verified live at threshold 80, the accepted files are saved in one scoped clean history entry, and no deploy verb appears.",
-          "passed": true,
-          "evidence": "Checked verified live state and scoped history."
-        }
-      ],
-      "notes": [],
-      "eval_name": "update-draft-registry-and-bare-publish"
-    },
-    {
-      "eval_id": 10,
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 0.5,
-        "passed": 2,
-        "failed": 2,
-        "total": 4,
-        "time_seconds": 104.754,
-        "tokens": 290749,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The target draft is changed and validated before one concise proposal accurately summarizes the record and registry changes without printing complete before/after bodies.",
-          "passed": false,
-          "evidence": "Checked validated draft and concise tracked revision summary."
-        },
-        {
-          "text": "Deferring go-live states that threshold 80 is draft, live still runs threshold 70, and explains how to finish.",
-          "passed": true,
-          "evidence": "Checked stale-live deferral warning."
-        },
-        {
-          "text": "The bare publish request routes to update with no content changes and goes directly to a separate go-live gate without a new save proposal.",
-          "passed": false,
-          "evidence": "Checked bare publish routing without a second save proposal."
-        },
-        {
-          "text": "The final state is verified live at threshold 80, the accepted files are saved in one scoped clean history entry, and no deploy verb appears.",
-          "passed": true,
-          "evidence": "Checked verified live state and scoped history."
-        }
-      ],
-      "notes": [],
-      "eval_name": "update-draft-registry-and-bare-publish"
-    },
-    {
-      "eval_id": 11,
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 94.814,
-        "tokens": 283104,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Delete separately offers target artifact plus record, record-only, and cancel; record-only warns that Clay keeps running but is no longer tracked.",
-          "passed": true,
-          "evidence": "Checked separate deletion choices and unmanagement warning."
-        },
-        {
-          "text": "Only the accepted Legacy Enrichment record is deleted and saved to history; the seeded Clay target artifact remains live.",
-          "passed": true,
-          "evidence": "Checked record-only deletion and preserved target artifact."
-        },
-        {
-          "text": "Local target deletion scans bindings, names Normalize Accounts, and refuses removal until that workflow is rebound or deleted/unmanaged.",
-          "passed": true,
-          "evidence": "Checked bound-target refusal."
-        },
-        {
-          "text": "WORKFLOWS.md and Normalize Accounts remain byte-preserved, with one clean scoped deletion history entry and recovery guidance.",
-          "passed": true,
-          "evidence": "Checked preserved registry/bound record, scoped commit, and recovery."
-        }
-      ],
-      "notes": [],
-      "eval_name": "delete-record-only-and-bound-target"
-    },
-    {
-      "eval_id": 11,
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 95.336,
-        "tokens": 244888,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "Delete separately offers target artifact plus record, record-only, and cancel; record-only warns that Clay keeps running but is no longer tracked.",
-          "passed": true,
-          "evidence": "Checked separate deletion choices and unmanagement warning."
-        },
-        {
-          "text": "Only the accepted Legacy Enrichment record is deleted and saved to history; the seeded Clay target artifact remains live.",
-          "passed": true,
-          "evidence": "Checked record-only deletion and preserved target artifact."
-        },
-        {
-          "text": "Local target deletion scans bindings, names Normalize Accounts, and refuses removal until that workflow is rebound or deleted/unmanaged.",
-          "passed": true,
-          "evidence": "Checked bound-target refusal."
-        },
-        {
-          "text": "WORKFLOWS.md and Normalize Accounts remain byte-preserved, with one clean scoped deletion history entry and recovery guidance.",
-          "passed": true,
-          "evidence": "Checked preserved registry/bound record, scoped commit, and recovery."
-        }
-      ],
-      "notes": [],
-      "eval_name": "delete-record-only-and-bound-target"
-    },
-    {
-      "eval_id": 12,
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 72.654,
-        "tokens": 180530,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The response contains a Mermaid business-process diagram with four to eight primary nodes and operator-language labels.",
-          "passed": true,
-          "evidence": "Counted 8 operator-language diagram nodes."
-        },
-        {
-          "text": "The diagram hides retries, schemas, database operations, model settings, process state, telemetry, and implementation loops.",
-          "passed": true,
-          "evidence": "Checked diagram for hidden implementation details."
-        },
-        {
-          "text": "A short caption says what starts the workflow, what it reads or changes, and what it saves, with one note that failed websites continue and appear in the report.",
-          "passed": true,
-          "evidence": "Checked operating caption and partial-failure note."
-        },
-        {
-          "text": "The workspace remains byte-preserved on main with unchanged history, and no technical diagram appears without an explicit implementation-detail request.",
-          "passed": true,
-          "evidence": "Checked no mutation and no unsolicited technical diagram."
-        }
-      ],
-      "notes": [],
-      "eval_name": "show-business-workflow"
-    },
-    {
-      "eval_id": 12,
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 0.5,
-        "passed": 2,
-        "failed": 2,
-        "total": 4,
-        "time_seconds": 68.699,
-        "tokens": 126152,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The response contains a Mermaid business-process diagram with four to eight primary nodes and operator-language labels.",
-          "passed": false,
-          "evidence": "Counted 9 operator-language diagram nodes."
-        },
-        {
-          "text": "The diagram hides retries, schemas, database operations, model settings, process state, telemetry, and implementation loops.",
-          "passed": false,
-          "evidence": "Checked diagram for hidden implementation details."
-        },
-        {
-          "text": "A short caption says what starts the workflow, what it reads or changes, and what it saves, with one note that failed websites continue and appear in the report.",
-          "passed": true,
-          "evidence": "Checked operating caption and partial-failure note."
-        },
-        {
-          "text": "The workspace remains byte-preserved on main with unchanged history, and no technical diagram appears without an explicit implementation-detail request.",
-          "passed": true,
-          "evidence": "Checked no mutation and no unsolicited technical diagram."
-        }
-      ],
-      "notes": [],
-      "eval_name": "show-business-workflow"
-    },
-    {
-      "eval_id": 13,
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 47.493,
-        "tokens": 148743,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The response leads with an Open saved results or Open workflow data link using the seeded private URL.",
-          "passed": true,
-          "evidence": "Checked human-readable private result link."
-        },
-        {
-          "text": "The response says the report is shared privately with the team and offers to stop sharing later.",
-          "passed": true,
-          "evidence": "Checked access statement and stop-sharing offer."
-        },
-        {
-          "text": "The default response hides database and viewer product names, immutable mode, port, raw filesystem path, process identifiers, and shell commands.",
-          "passed": true,
-          "evidence": "Checked hidden viewer, storage, port, path, process, and command details."
-        },
-        {
-          "text": "The workspace and viewer state remain byte-preserved on main with unchanged history.",
-          "passed": true,
-          "evidence": "Checked byte-preserved workspace and viewer state."
-        }
-      ],
-      "notes": [],
-      "eval_name": "open-and-share-saved-results"
-    },
-    {
-      "eval_id": 13,
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 0.5,
-        "passed": 2,
-        "failed": 2,
-        "total": 4,
-        "time_seconds": 81.818,
-        "tokens": 167453,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The response leads with an Open saved results or Open workflow data link using the seeded private URL.",
-          "passed": false,
-          "evidence": "Checked human-readable private result link."
-        },
-        {
-          "text": "The response says the report is shared privately with the team and offers to stop sharing later.",
-          "passed": false,
-          "evidence": "Checked access statement and stop-sharing offer."
-        },
-        {
-          "text": "The default response hides database and viewer product names, immutable mode, port, raw filesystem path, process identifiers, and shell commands.",
-          "passed": true,
-          "evidence": "Checked hidden viewer, storage, port, path, process, and command details."
-        },
-        {
-          "text": "The workspace and viewer state remain byte-preserved on main with unchanged history.",
-          "passed": true,
-          "evidence": "Checked byte-preserved workspace and viewer state."
-        }
-      ],
-      "notes": [],
-      "eval_name": "open-and-share-saved-results"
-    },
-    {
-      "eval_id": 14,
-      "configuration": "with_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 1.0,
-        "passed": 4,
-        "failed": 0,
-        "total": 4,
-        "time_seconds": 74.284,
-        "tokens": 233835,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The explicit expert request receives accurate TypeScript, SQLite, entry-point, schema-field, run-ID, and viewer-start details from the fixture.",
-          "passed": true,
-          "evidence": "Checked all explicitly requested implementation and run details."
-        },
-        {
-          "text": "The response distinguishes tracked implementation from ignored local run state and does not invent model or deployment details.",
-          "passed": true,
-          "evidence": "Checked implementation/state distinction and absence of invented details."
-        },
-        {
-          "text": "The response still states the business outcome and failure state before or alongside the requested diagnostics.",
-          "passed": true,
-          "evidence": "Checked business outcome alongside diagnostics."
-        },
-        {
-          "text": "The workspace remains byte-preserved on main with unchanged history.",
-          "passed": true,
-          "evidence": "Checked no mutation and ignored local state."
-        }
-      ],
-      "notes": [],
-      "eval_name": "expert-technical-details"
-    },
-    {
-      "eval_id": 14,
-      "configuration": "old_skill",
-      "run_number": 1,
-      "result": {
-        "pass_rate": 0.75,
-        "passed": 3,
-        "failed": 1,
-        "total": 4,
-        "time_seconds": 87.63,
-        "tokens": 215029,
-        "tool_calls": 0,
-        "errors": 0
-      },
-      "expectations": [
-        {
-          "text": "The explicit expert request receives accurate TypeScript, SQLite, entry-point, schema-field, run-ID, and viewer-start details from the fixture.",
-          "passed": true,
-          "evidence": "Checked all explicitly requested implementation and run details."
-        },
-        {
-          "text": "The response distinguishes tracked implementation from ignored local run state and does not invent model or deployment details.",
-          "passed": false,
-          "evidence": "Checked implementation/state distinction and absence of invented details."
-        },
-        {
-          "text": "The response still states the business outcome and failure state before or alongside the requested diagnostics.",
-          "passed": true,
-          "evidence": "Checked business outcome alongside diagnostics."
-        },
-        {
-          "text": "The workspace remains byte-preserved on main with unchanged history.",
-          "passed": true,
-          "evidence": "Checked no mutation and ignored local state."
-        }
-      ],
-      "notes": [],
-      "eval_name": "expert-technical-details"
+      "notes": []
     }
   ],
   "run_summary": {
-    "old_skill": {
-      "pass_rate": {
-        "mean": 0.6786,
-        "stddev": 0.2285,
-        "min": 0.25,
-        "max": 1.0
-      },
-      "time_seconds": {
-        "mean": 106.8785,
-        "stddev": 50.0462,
-        "min": 54.748,
-        "max": 254.685
-      },
-      "tokens": {
-        "mean": 246625.3571,
-        "stddev": 85972.0523,
-        "min": 126152,
-        "max": 414766
-      }
-    },
     "with_skill": {
       "pass_rate": {
         "mean": 1.0,
@@ -1146,30 +800,43 @@
         "max": 1.0
       },
       "time_seconds": {
-        "mean": 105.703,
-        "stddev": 50.6515,
-        "min": 47.493,
-        "max": 231.465
+        "mean": 123.9904,
+        "stddev": 51.4995,
+        "min": 58.22,
+        "max": 216.559
       },
       "tokens": {
-        "mean": 294471.0,
-        "stddev": 118927.3471,
-        "min": 148743,
-        "max": 502566
+        "mean": 23270.8,
+        "stddev": 8235.5491,
+        "min": 859,
+        "max": 29490
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.3567,
+        "stddev": 0.2254,
+        "min": 0.0,
+        "max": 0.6667
+      },
+      "time_seconds": {
+        "mean": 108.9165,
+        "stddev": 44.334,
+        "min": 40.528,
+        "max": 188.693
+      },
+      "tokens": {
+        "mean": 16812.0,
+        "stddev": 9504.7816,
+        "min": 821,
+        "max": 25564
       }
     },
     "delta": {
-      "pass_rate": "+0.32",
-      "time_seconds": "-1.2",
-      "tokens": "+47846"
+      "pass_rate": "+0.64",
+      "time_seconds": "+15.1",
+      "tokens": "+6459"
     }
   },
-  "notes": [
-    "The final candidate passed all 56 assertions across fourteen scenarios. The PR #27 baseline passed 38 of 56, or 67.9%, for a 32.1 percentage-point difference.",
-    "The candidate passed every communication scenario: nontechnical Local selection and one-message creation, concise implementation approval, outcome-first external and local runs, pointer-free inspection, an eight-node business diagram, private saved-result sharing, and explicit expert technical detail.",
-    "PR #27 passed all assertions in triggered infrastructure creation, Clay publish and cancellation cleanup, and bound-target deletion. These remain lifecycle regression guards rather than communication discriminators.",
-    "The largest difference is detailed local creation, where the candidate scored 4 of 4 and PR #27 scored 1 of 4. The candidate used one location reply, one concise approval, one scoped history entry, and no implementation-stack choice.",
-    "Candidate transcripts passed the separate negative checker for fenced implementation code, complete workflow file bodies, raw paths, telemetry, Git and scheduler mechanics, target or run identifiers, credential pointers, unsolicited local stack products, and diagnostic metadata. The expert scenario is exempt only for the technical details explicitly requested.",
-    "The candidate averaged 105.7 seconds and 294,471 tokens per scenario versus 106.9 seconds and 246,625 tokens for PR #27. With one run per configuration, the small timing difference is not evidence of a speed gain; the 47,846-token increase reflects the added communication reference and should be treated as a cost of the stronger behavior."
-  ]
+  "notes": []
 }
