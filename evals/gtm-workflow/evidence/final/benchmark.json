@@ -1,10 +1,10 @@
 {
   "metadata": {
     "skill_name": "gtm-workflow",
-    "skill_path": "/Users/eliasstravik/.herdr/worktrees/gtm-skills/issue-32-rework-gtm-workflow-on-vercel-workflows/skills/gtm-workflow",
+    "skill_path": "skills/gtm-workflow",
     "executor_model": "gpt-5.6-sol",
     "analyzer_model": "gpt-5.6-sol",
-    "timestamp": "2026-08-25T14:45:06Z",
+    "timestamp": "2026-08-26T06:19:08Z",
     "evals_run": [
       1,
       2,
@@ -26,12 +26,12 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 5,
+        "passed": 6,
         "failed": 0,
-        "total": 5,
-        "time_seconds": 216.559,
-        "tokens": 29490,
-        "tool_calls": 21,
+        "total": 6,
+        "time_seconds": 238.109,
+        "tokens": 25952,
+        "tool_calls": 22,
         "errors": 0
       },
       "expectations": [
@@ -41,9 +41,14 @@
           "evidence": "Checked scaffold integrity and the five-line header."
         },
         {
-          "text": "The location and result-destination questions use the exact conversation blocks and the Vercel research-cost note appears.",
+          "text": "The location, retained-result, and free-form external-destination questions use the exact conversation blocks and the Vercel research-cost note appears.",
           "passed": true,
-          "evidence": "Checked exact location/result questions and cost note."
+          "evidence": "Checked exact location, retained-result, destination, and cost copy."
+        },
+        {
+          "text": "External delivery adds a named delivery step and only the selected destination's connection configuration.",
+          "passed": true,
+          "evidence": "Checked named external delivery and selected connection configuration."
         },
         {
           "text": "The workflow enforces row and projected-spend caps before agent calls, bounds each agent call, and catches each row failure.",
@@ -72,8 +77,8 @@
         "passed": 4,
         "failed": 0,
         "total": 4,
-        "time_seconds": 71.166,
-        "tokens": 23134,
+        "time_seconds": 62.5,
+        "tokens": 18624,
         "tool_calls": 8,
         "errors": 0
       },
@@ -107,12 +112,12 @@
       "run_number": 1,
       "result": {
         "pass_rate": 1.0,
-        "passed": 5,
+        "passed": 6,
         "failed": 0,
-        "total": 5,
-        "time_seconds": 172.669,
-        "tokens": 28186,
-        "tool_calls": 17,
+        "total": 6,
+        "time_seconds": 159.815,
+        "tokens": 22970,
+        "tool_calls": 15,
         "errors": 0
       },
       "expectations": [
@@ -127,9 +132,14 @@
           "evidence": "Checked both required location notes and choice order."
         },
         {
-          "text": "The result question uses the exact keep-on-Vercel option.",
+          "text": "The completed-result question recommends external delivery and offers the exact keep-with-workflow option.",
           "passed": true,
-          "evidence": "Checked the scheduled Vercel result option."
+          "evidence": "Checked scheduled and triggered result choice order."
+        },
+        {
+          "text": "Keeping results with the workflow adds no delivery step or delivery connection configuration.",
+          "passed": true,
+          "evidence": "Checked retained-only workflow has no delivery step or connection."
         },
         {
           "text": "vercel.json contains the UTC cron and /api/run/<slug> path.",
@@ -153,14 +163,14 @@
         "passed": 4,
         "failed": 0,
         "total": 4,
-        "time_seconds": 162.223,
-        "tokens": 29175,
-        "tool_calls": 15,
+        "time_seconds": 182.026,
+        "tokens": 23750,
+        "tool_calls": 20,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "The workflow is created at root workflows/flows/europe/<slug>.ts and no suborganization workflows directory is created.",
+          "text": "The workflow is created at root workflows/workflows/europe/<slug>.ts and no suborganization workflows directory is created.",
           "passed": true,
           "evidence": "Checked root-owned nested flow placement."
         },
@@ -191,9 +201,9 @@
         "passed": 4,
         "failed": 0,
         "total": 4,
-        "time_seconds": 163.437,
-        "tokens": 25056,
-        "tool_calls": 20,
+        "time_seconds": 150.696,
+        "tokens": 20720,
+        "tool_calls": 22,
         "errors": 0
       },
       "expectations": [
@@ -229,9 +239,9 @@
         "passed": 4,
         "failed": 0,
         "total": 4,
-        "time_seconds": 102.51,
-        "tokens": 25460,
-        "tool_calls": 9,
+        "time_seconds": 93.846,
+        "tokens": 20341,
+        "tool_calls": 15,
         "errors": 0
       },
       "expectations": [
@@ -267,9 +277,9 @@
         "passed": 4,
         "failed": 0,
         "total": 4,
-        "time_seconds": 84.585,
-        "tokens": 23857,
-        "tool_calls": 9,
+        "time_seconds": 75.794,
+        "tokens": 19498,
+        "tool_calls": 12,
         "errors": 0
       },
       "expectations": [
@@ -305,9 +315,9 @@
         "passed": 4,
         "failed": 0,
         "total": 4,
-        "time_seconds": 105.863,
-        "tokens": 24651,
-        "tool_calls": 11,
+        "time_seconds": 107.602,
+        "tokens": 20599,
+        "tool_calls": 12,
         "errors": 0
       },
       "expectations": [
@@ -343,14 +353,14 @@
         "passed": 4,
         "failed": 0,
         "total": 4,
-        "time_seconds": 102.672,
-        "tokens": 22840,
-        "tool_calls": 11,
+        "time_seconds": 103.318,
+        "tokens": 18655,
+        "tool_calls": 16,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "flows/pipeline-watch.ts and only its cron entry are removed.",
+          "text": "workflows/pipeline-watch.ts and only its cron entry are removed.",
           "passed": true,
           "evidence": "Checked selected file and cron removal."
         },
@@ -381,9 +391,9 @@
         "passed": 3,
         "failed": 0,
         "total": 3,
-        "time_seconds": 58.22,
-        "tokens": 859,
-        "tool_calls": 6,
+        "time_seconds": 45.676,
+        "tokens": 685,
+        "tool_calls": 8,
         "errors": 0
       },
       "expectations": [
@@ -407,16 +417,16 @@
     },
     {
       "eval_id": 1,
-      "configuration": "without_skill",
+      "configuration": "baseline_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 0.0,
-        "passed": 0,
-        "failed": 5,
-        "total": 5,
-        "time_seconds": 148.268,
-        "tokens": 8066,
-        "tool_calls": 11,
+        "pass_rate": 0.3333333333333333,
+        "passed": 2,
+        "failed": 4,
+        "total": 6,
+        "time_seconds": 218.056,
+        "tokens": 26157,
+        "tool_calls": 21,
         "errors": 0
       },
       "expectations": [
@@ -426,9 +436,14 @@
           "evidence": "Checked scaffold integrity and the five-line header."
         },
         {
-          "text": "The location and result-destination questions use the exact conversation blocks and the Vercel research-cost note appears.",
+          "text": "The location, retained-result, and free-form external-destination questions use the exact conversation blocks and the Vercel research-cost note appears.",
           "passed": false,
-          "evidence": "Checked exact location/result questions and cost note."
+          "evidence": "Checked exact location, retained-result, destination, and cost copy."
+        },
+        {
+          "text": "External delivery adds a named delivery step and only the selected destination's connection configuration.",
+          "passed": false,
+          "evidence": "Checked named external delivery and selected connection configuration."
         },
         {
           "text": "The workflow enforces row and projected-spend caps before agent calls, bounds each agent call, and catches each row failure.",
@@ -437,12 +452,12 @@
         },
         {
           "text": "The scaffold and workflow are saved in one scoped history entry while .env and data remain ignored.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked one accepted create commit and ignored runtime state."
         },
         {
           "text": "The transcript contains no secret value or AskUserQuestion call and follows the conversation standard.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked conversation format and secret handling."
         }
       ],
@@ -450,16 +465,16 @@
     },
     {
       "eval_id": 10,
-      "configuration": "without_skill",
+      "configuration": "baseline_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 0.5,
-        "passed": 2,
-        "failed": 2,
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
         "total": 4,
-        "time_seconds": 61.08,
-        "tokens": 22850,
-        "tool_calls": 7,
+        "time_seconds": 60.867,
+        "tokens": 18772,
+        "tool_calls": 11,
         "errors": 0
       },
       "expectations": [
@@ -470,7 +485,7 @@
         },
         {
           "text": "The exact budgeted-key question appears before any project link action.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked key question before any link."
         },
         {
@@ -480,7 +495,7 @@
         },
         {
           "text": "No credential value appears in conversation or tracked files.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked credential safety and conversation controls."
         }
       ],
@@ -488,16 +503,16 @@
     },
     {
       "eval_id": 2,
-      "configuration": "without_skill",
+      "configuration": "baseline_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 0.4,
-        "passed": 2,
+        "pass_rate": 0.5,
+        "passed": 3,
         "failed": 3,
-        "total": 5,
-        "time_seconds": 140.359,
-        "tokens": 6120,
-        "tool_calls": 10,
+        "total": 6,
+        "time_seconds": 170.455,
+        "tokens": 22761,
+        "tool_calls": 19,
         "errors": 0
       },
       "expectations": [
@@ -508,13 +523,18 @@
         },
         {
           "text": "The Vercel location is recommended and both the local timing note and Gateway-credit note are shown.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked both required location notes and choice order."
         },
         {
-          "text": "The result question uses the exact keep-on-Vercel option.",
+          "text": "The completed-result question recommends external delivery and offers the exact keep-with-workflow option.",
+          "passed": false,
+          "evidence": "Checked scheduled and triggered result choice order."
+        },
+        {
+          "text": "Keeping results with the workflow adds no delivery step or delivery connection configuration.",
           "passed": true,
-          "evidence": "Checked the scheduled Vercel result option."
+          "evidence": "Checked retained-only workflow has no delivery step or connection."
         },
         {
           "text": "vercel.json contains the UTC cron and /api/run/<slug> path.",
@@ -531,22 +551,22 @@
     },
     {
       "eval_id": 3,
-      "configuration": "without_skill",
+      "configuration": "baseline_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 0.25,
-        "passed": 1,
-        "failed": 3,
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
         "total": 4,
-        "time_seconds": 132.351,
-        "tokens": 9431,
-        "tool_calls": 11,
+        "time_seconds": 210.571,
+        "tokens": 23898,
+        "tool_calls": 22,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "The workflow is created at root workflows/flows/europe/<slug>.ts and no suborganization workflows directory is created.",
-          "passed": true,
+          "text": "The workflow is created at root workflows/workflows/europe/<slug>.ts and no suborganization workflows directory is created.",
+          "passed": false,
           "evidence": "Checked root-owned nested flow placement."
         },
         {
@@ -556,12 +576,12 @@
         },
         {
           "text": "The pilot uses /api/run/europe/<slug> and results use data/<slug>/<date>-<runId>.json.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked nested run route and result handling."
         },
         {
           "text": "The accepted project is clean on main with one scoped create commit.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked one scoped create commit and safe conversation."
         }
       ],
@@ -569,32 +589,32 @@
     },
     {
       "eval_id": 4,
-      "configuration": "without_skill",
+      "configuration": "baseline_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 0.25,
-        "passed": 1,
-        "failed": 3,
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
         "total": 4,
-        "time_seconds": 188.693,
-        "tokens": 24329,
-        "tool_calls": 19,
+        "time_seconds": 171.806,
+        "tokens": 21001,
+        "tool_calls": 24,
         "errors": 0
       },
       "expectations": [
         {
           "text": "The existing workflow file changes only its run location among workflow behavior lines.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked location switch with behavior and caps preserved."
         },
         {
           "text": "The key check precedes project linking, secret values never appear, and deployment uses the CLI.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked key-before-link ordering and secret safety."
         },
         {
           "text": "package.json records team, project, and production URL under gtm.vercel.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked non-secret gtm.vercel metadata."
         },
         {
@@ -607,16 +627,16 @@
     },
     {
       "eval_id": 5,
-      "configuration": "without_skill",
+      "configuration": "baseline_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 0.5,
-        "passed": 2,
-        "failed": 2,
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
         "total": 4,
-        "time_seconds": 101.252,
-        "tokens": 25564,
-        "tool_calls": 8,
+        "time_seconds": 120.556,
+        "tokens": 20571,
+        "tool_calls": 18,
         "errors": 0
       },
       "expectations": [
@@ -627,12 +647,12 @@
         },
         {
           "text": "The report covers validation and the canonical agent and route files without mutating them.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked validation and canonical shared files."
         },
         {
           "text": "Absent run data is distinguished from a defect.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked absent run data is not treated as a defect."
         },
         {
@@ -645,37 +665,37 @@
     },
     {
       "eval_id": 6,
-      "configuration": "without_skill",
+      "configuration": "baseline_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 0.0,
-        "passed": 0,
-        "failed": 4,
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
         "total": 4,
-        "time_seconds": 76.358,
-        "tokens": 23723,
-        "tool_calls": 9,
+        "time_seconds": 92.145,
+        "tokens": 19476,
+        "tool_calls": 10,
         "errors": 0
       },
       "expectations": [
         {
           "text": "Inspection reads gtm.vercel metadata and uses remote workflow inspection.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked deployment metadata and remote inspect."
         },
         {
           "text": "The authenticated result route is used without exposing the secret.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked authenticated result retrieval without exposure."
         },
         {
           "text": "The completed return value is saved at data/account-scoring/<date>-run-eval-001.json.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked saved completed return value path and shape."
         },
         {
           "text": "The report says saved locally and the tracked repository remains unchanged.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked local result report with unchanged tracked state."
         }
       ],
@@ -683,16 +703,16 @@
     },
     {
       "eval_id": 7,
-      "configuration": "without_skill",
+      "configuration": "baseline_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 0.5,
-        "passed": 2,
-        "failed": 2,
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
         "total": 4,
-        "time_seconds": 100.695,
-        "tokens": 24697,
-        "tool_calls": 9,
+        "time_seconds": 131.462,
+        "tokens": 20539,
+        "tool_calls": 15,
         "errors": 0
       },
       "expectations": [
@@ -703,7 +723,7 @@
         },
         {
           "text": "The gate states 12 rows, $12 projected spend, caps, and the 2 completed, 1 failed pilot result.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked projected spend and pilot gate."
         },
         {
@@ -713,7 +733,7 @@
         },
         {
           "text": "The final result is saved under data/account-scoring and the report leads with completed and failed counts.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked saved result and outcome-first report."
         }
       ],
@@ -721,21 +741,21 @@
     },
     {
       "eval_id": 8,
-      "configuration": "without_skill",
+      "configuration": "baseline_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 0.5,
-        "passed": 2,
-        "failed": 2,
+        "pass_rate": 1.0,
+        "passed": 4,
+        "failed": 0,
         "total": 4,
-        "time_seconds": 99.581,
-        "tokens": 22519,
-        "tool_calls": 12,
+        "time_seconds": 110.394,
+        "tokens": 19427,
+        "tool_calls": 13,
         "errors": 0
       },
       "expectations": [
         {
-          "text": "flows/pipeline-watch.ts and only its cron entry are removed.",
+          "text": "workflows/pipeline-watch.ts and only its cron entry are removed.",
           "passed": true,
           "evidence": "Checked selected file and cron removal."
         },
@@ -746,12 +766,12 @@
         },
         {
           "text": "The proposal names recovery and exact path consequences before acceptance.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked accepted path consequences and recovery."
         },
         {
           "text": "The clean main repository gains one scoped deletion history entry.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked one scoped deletion commit and safe conversation."
         }
       ],
@@ -759,22 +779,22 @@
     },
     {
       "eval_id": 9,
-      "configuration": "without_skill",
+      "configuration": "baseline_skill",
       "run_number": 1,
       "result": {
-        "pass_rate": 0.6666666666666666,
-        "passed": 2,
-        "failed": 1,
+        "pass_rate": 1.0,
+        "passed": 3,
+        "failed": 0,
         "total": 3,
-        "time_seconds": 40.528,
-        "tokens": 821,
-        "tool_calls": 4,
+        "time_seconds": 52.977,
+        "tokens": 837,
+        "tool_calls": 8,
         "errors": 0
       },
       "expectations": [
         {
           "text": "The response directs workspace creation or connection to gtm-workspace.",
-          "passed": false,
+          "passed": true,
           "evidence": "Checked handoff to gtm-workspace."
         },
         {
@@ -800,43 +820,51 @@
         "max": 1.0
       },
       "time_seconds": {
-        "mean": 123.9904,
-        "stddev": 51.4995,
-        "min": 58.22,
-        "max": 216.559
+        "mean": 121.9382,
+        "stddev": 59.8028,
+        "min": 45.676,
+        "max": 238.109
       },
       "tokens": {
-        "mean": 23270.8,
-        "stddev": 8235.5491,
-        "min": 859,
-        "max": 29490
+        "mean": 19179.4,
+        "stddev": 6908.8749,
+        "min": 685,
+        "max": 25952
       }
     },
-    "without_skill": {
+    "baseline_skill": {
       "pass_rate": {
-        "mean": 0.3567,
-        "stddev": 0.2254,
-        "min": 0.0,
-        "max": 0.6667
+        "mean": 0.8333,
+        "stddev": 0.2722,
+        "min": 0.3333,
+        "max": 1.0
       },
       "time_seconds": {
-        "mean": 108.9165,
-        "stddev": 44.334,
-        "min": 40.528,
-        "max": 188.693
+        "mean": 133.9289,
+        "stddev": 57.8275,
+        "min": 52.977,
+        "max": 218.056
       },
       "tokens": {
-        "mean": 16812.0,
-        "stddev": 9504.7816,
-        "min": 821,
-        "max": 25564
+        "mean": 19343.9,
+        "stddev": 6890.9887,
+        "min": 837,
+        "max": 26157
       }
     },
     "delta": {
-      "pass_rate": "+0.64",
-      "time_seconds": "+15.1",
-      "tokens": "+6459"
+      "pass_rate": "+0.17",
+      "time_seconds": "-12.0",
+      "tokens": "-164"
     }
   },
-  "notes": []
+  "notes": [
+    "The candidate passed 43/43 assertions. The pre-change snapshot passed 34/43, so the candidate gained nine assertions. The unweighted mean scenario pass rate rose from 83.3% to 100%; the weighted assertion rate rose from 79.1% to 100%.",
+    "All nine discriminating assertions are in create scenarios 1 through 3. They cover the shipped Nitro scaffold, exact retained-result and external-destination questions, conditional delivery configuration, scheduled fallback and saved-not-live behavior, and root-owned nested workflow placement.",
+    "The nested-suborganization scenario directly distinguishes the directory change: the candidate wrote the definition under workflows/workflows/europe/, while the pre-change snapshot did not satisfy the canonical placement assertion.",
+    "The on-demand and scheduled creation scenarios distinguish delivery semantics in both directions. External delivery added one named step and destination-specific configuration, while retained-only scheduled work added neither.",
+    "Scenarios 4 through 10 passed every assertion in both configurations. This shows the path and delivery changes did not regress location switching, read-only inspection, deployed result retrieval, capped execution, deletion, missing-workspace handoff, or the Gateway-key deployment stop.",
+    "The candidate averaged 121.9 seconds and 19,179 normalized tokens per scenario, versus 133.9 seconds and 19,344 tokens for the snapshot. Each scenario has one run per configuration, so timing and token differences are descriptive rather than statistical.",
+    "The final benchmark has no candidate failures or executor errors. Earlier discarded iterations exposed one real pre-save export-name miss and several stale fixture or grader checks; the finished full iteration reran all ten paired cases after those corrections."
+  ]
 }

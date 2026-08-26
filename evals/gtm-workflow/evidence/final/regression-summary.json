@@ -1,0 +1,54 @@
+{
+  "date": "2026-08-26",
+  "model": "gpt-5.6-sol",
+  "suites": [
+    {
+      "skill": "gtm-workflow",
+      "configuration": "with_skill",
+      "scenarios": 10,
+      "executors_succeeded": 10,
+      "passed": 43,
+      "total": 43
+    },
+    {
+      "skill": "gtm-workflow",
+      "configuration": "baseline_skill",
+      "scenarios": 10,
+      "executors_succeeded": 10,
+      "passed": 34,
+      "total": 43,
+      "baseline_commit": "bef823e"
+    },
+    {
+      "skill": "gtm-workspace",
+      "configuration": "with_skill",
+      "scenarios": 13,
+      "executors_succeeded": 13,
+      "passed": 80,
+      "total": 80,
+      "scenario_assertions": [10, 7, 4, 4, 5, 9, 6, 5, 6, 6, 6, 6, 6]
+    },
+    {
+      "skill": "gtm-icp",
+      "configuration": "with_skill",
+      "scenarios": 7,
+      "executors_succeeded": 7,
+      "passed": 50,
+      "total": 50
+    },
+    {
+      "skill": "gtm-persona",
+      "configuration": "with_skill",
+      "scenarios": 7,
+      "executors_succeeded": 7,
+      "passed": 50,
+      "total": 50
+    }
+  ],
+  "deterministic_checks": {
+    "local_ui_contract": "passed",
+    "workspace_template_contract": "5/5",
+    "gtm_icp_retained_lines": "31/31",
+    "gtm_persona_retained_lines": "31/31"
+  }
+}

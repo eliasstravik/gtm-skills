@@ -54,8 +54,8 @@ Your repository can hold:
 ├── members/<member-slug>/MEMBER.md
 └── workflows/
     ├── package.json
-    ├── flows/<workflow-slug>.ts
-    ├── flows/<suborg-path>/<workflow-slug>.ts
+    ├── workflows/<workflow-slug>.ts
+    ├── workflows/<suborg-path>/<workflow-slug>.ts
     └── data/                         # ignored run results
 ```
 
@@ -89,7 +89,7 @@ Run:
 /gtm-workflow
 ```
 
-Choose **Create a workflow** and describe the repeatable GTM job. The skill asks where it should run, what data it accepts, which organization and ICP it uses, where results go, and the maximum rows and spend allowed.
+Choose **Create a workflow** and describe the repeatable GTM job. The skill asks where it should run, what data it accepts, which organization and ICP it uses, whether to add external delivery, and the maximum rows and spend allowed. Completed results remain available through the workflow runtime.
 
 For an on-demand workflow, start with **On this computer**. The first create silently adds the root `workflows/` project, installs its pinned dependencies, creates an ignored local environment file, builds the workflow, validates it, and runs a three-row pilot. You review one complete proposal before anything durable is saved.
 

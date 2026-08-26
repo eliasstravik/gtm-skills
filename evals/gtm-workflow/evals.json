@@ -5,12 +5,13 @@
       "id": 1,
       "name": "create-on-demand-local",
       "fixture": "absent-root",
-      "prompt": "Create an on-demand workflow in the Acme GTM workspace that normalizes account domains from supplied rows and researches missing websites. Simulate Maya choosing On this computer, posting results to https://results.example.test/gtm, accepting a 25-row and $25 cap, approving the exact proposal, and accepting a three-row pilot. Complete the conversation and authorized work without waiting.",
+      "prompt": "Create an on-demand workflow in the Acme GTM workspace that normalizes account domains from supplied rows and researches missing websites. Simulate Maya choosing On this computer, choosing to also send completed results to another app or system, naming https://results.example.test/gtm as the destination, accepting a 25-row and $25 cap, approving the exact proposal, and accepting a three-row pilot. Complete the conversation and authorized work without waiting.",
       "expected_output": "A bootstrapped root workflow project and validated local workflow with exact questions, caps, isolated row errors, accepted history, and ignored secrets/results.",
       "files": ["evals/gtm-workflow/fixtures/absent-root"],
       "assertions": [
         "The accepted root project contains the shipped scaffold and a five-line on-demand workflow header.",
-        "The location and result-destination questions use the exact conversation blocks and the Vercel research-cost note appears.",
+        "The location, retained-result, and free-form external-destination questions use the exact conversation blocks and the Vercel research-cost note appears.",
+        "External delivery adds a named delivery step and only the selected destination's connection configuration.",
         "The workflow enforces row and projected-spend caps before agent calls, bounds each agent call, and catches each row failure.",
         "The scaffold and workflow are saved in one scoped history entry while .env and data remain ignored.",
         "The transcript contains no secret value or AskUserQuestion call and follows the conversation standard."
@@ -20,13 +21,14 @@
       "id": 2,
       "name": "create-scheduled-vercel",
       "fixture": "absent-root",
-      "prompt": "Create a scheduled workflow in the Acme GTM workspace that researches up to 20 new accounts every weekday at 09:00 UTC. Simulate Maya accepting Vercel, choosing Keep them on Vercel; I'll fetch them when you ask, accepting a $20 cap, approving the proposal, and declining deployment after the workflow is saved. Complete the exchange without waiting.",
+      "prompt": "Create a scheduled workflow in the Acme GTM workspace that researches up to 20 new accounts every weekday at 09:00 UTC. Simulate Maya accepting Vercel, choosing Keep them with the workflow and show me when I ask, accepting a $20 cap, approving the proposal, and declining deployment after the workflow is saved. Complete the exchange without waiting.",
       "expected_output": "A validated scheduled workflow with the six-line header, scheduled fallback directly after use workflow, a matching cron route, both location notes, and saved but not-live closure.",
       "files": ["evals/gtm-workflow/fixtures/absent-root"],
       "assertions": [
         "The scheduled file has a six-line header, exported scheduledInput, and arg ??= scheduledInput directly after use workflow.",
         "The Vercel location is recommended and both the local timing note and Gateway-credit note are shown.",
-        "The result question uses the exact keep-on-Vercel option.",
+        "The completed-result question recommends external delivery and offers the exact keep-with-workflow option.",
+        "Keeping results with the workflow adds no delivery step or delivery connection configuration.",
         "vercel.json contains the UTC cron and /api/run/<slug> path.",
         "The close says the workflow is saved but not live and no project link is created."
       ]
@@ -35,11 +37,11 @@
       "id": 3,
       "name": "create-nested-suborganization",
       "fixture": "absent-suborg",
-      "prompt": "Create an on-demand renewal-risk research workflow owned by Acme Europe and grounded in its Europe ICP. Simulate Maya choosing On this computer, Just save them here, accepting 15 rows and $15, approving the proposal, and accepting the pilot. Complete the exchange and work without waiting.",
+      "prompt": "Create an on-demand renewal-risk research workflow owned by Acme Europe and grounded in its Europe ICP. Simulate Maya choosing On this computer, choosing Keep them with the workflow and show me when I ask, accepting 15 rows and $15, approving the proposal, and accepting the pilot. Complete the exchange and work without waiting.",
       "expected_output": "A root project whose nested flow path, owner header, route path, and result path represent the Europe suborganization without creating a workflow folder under the suborganization.",
       "files": ["evals/gtm-workflow/fixtures/absent-suborg"],
       "assertions": [
-        "The workflow is created at root workflows/flows/europe/<slug>.ts and no suborganization workflows directory is created.",
+        "The workflow is created at root workflows/workflows/europe/<slug>.ts and no suborganization workflows directory is created.",
         "The header names Acme Europe and its Europe ICP.",
         "The pilot uses /api/run/europe/<slug> and results use data/<slug>/<date>-<runId>.json.",
         "The accepted project is clean on main with one scoped create commit."
@@ -109,7 +111,7 @@
       "expected_output": "Only the selected workflow and matching cron entry are removed, ignored results and deployment remain, validation passes, and one deletion commit is saved.",
       "files": ["evals/gtm-workflow/fixtures/scheduled-project"],
       "assertions": [
-        "flows/pipeline-watch.ts and only its cron entry are removed.",
+        "workflows/pipeline-watch.ts and only its cron entry are removed.",
         "The example flow, package deployment metadata, and ignored data remain.",
         "The proposal names recovery and exact path consequences before acceptance.",
         "The clean main repository gains one scoped deletion history entry."

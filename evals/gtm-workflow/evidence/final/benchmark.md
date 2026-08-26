@@ -1,18 +1,13 @@
-# Skill benchmark: gtm-workflow
+# Skill Benchmark: gtm-workflow
 
-Model: `gpt-5.6-sol`
+**Model**: gpt-5.6-sol
+**Date**: 2026-08-26T06:19:08Z
+**Evals**: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 (1 run each per configuration)
 
-Date: 2026-08-25
+## Summary
 
-Scenarios: 10
-
-Runs: one per scenario and configuration
-
-| Metric | With skill | Without skill | Difference |
-| --- | ---: | ---: | ---: |
-| Deterministic assertions | 41/41 | 14/41 | +27 |
-| Mean scenario pass rate | 100.0% | 35.7% | +64.3 points |
-| Mean time | 124.0 s | 108.9 s | +15.1 s |
-| Mean normalized tokens | 23,271 | 16,812 | +6,459 |
-
-Timing and token figures are descriptive because each scenario and configuration has one recorded run.
+| Metric | With Skill | Baseline Skill | Delta |
+|--------|------------|---------------|-------|
+| Pass Rate | 100% ± 0% | 83% ± 27% | +0.17 |
+| Time | 121.9s ± 59.8s | 133.9s ± 57.8s | -12.0s |
+| Tokens | 19179 ± 6909 | 19344 ± 6891 | -164 |

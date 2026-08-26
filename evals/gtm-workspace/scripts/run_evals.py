@@ -80,6 +80,14 @@ def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> str | None:
         run_git(repo, "add", "-A", env=env)
         run_git(repo, "commit", "-m", "Seed fixture", env=env)
 
+        if eval_case["name"] == "doctor-root-workflow-project":
+            runtime = repo / "workflows"
+            (runtime / ".env").write_text("GTM_RUN_SECRET=fixture-only\n")
+            (runtime / "data").mkdir()
+            (runtime / "data/result.json").write_text(
+                '{"completed":[],"failed":[]}\n'
+            )
+
         if eval_case["name"] == "delete-a-suborg":
             remote = home / "remotes" / "northstar-group.git"
             remote.parent.mkdir(parents=True, exist_ok=True)
