@@ -1,4 +1,4 @@
-// gtm-lib v2
+// gtm-lib v3
 // Call agent() from inside a "use step" function; see the workflow contract for the step rules.
 import { spawn } from "node:child_process";
 import { constants } from "node:fs";
@@ -7,16 +7,19 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { generateText, gateway, jsonSchema, Output, stepCountIs } from "ai";
 import { z } from "zod";
+import { provider, type PaidCallMeta } from "./provider";
 
 export type AgentTools = "none" | "web";
 
 export interface AgentInput<T extends z.ZodTypeAny> {
   prompt: string;
   schema: T;
+  meta: PaidCallMeta;
   tools?: AgentTools;
   /** Claude checks this between turns. Other backends do not honor it. */
   maxUsd?: number;
   timeoutMs?: number;
+  ttlMs?: number;
 }
 
 type Context = {
@@ -32,8 +35,10 @@ type CliBackend = {
   bin: string;
   webSafe: boolean;
   args: (context: Context) => string[];
-  parse: (stdout: string, context: Context) => Promise<unknown>;
+  parse: (stdout: string, context: Context) => Promise<BackendResult>;
 };
+
+type BackendResult = { value: unknown; costUsd?: number };
 
 const JSON_INSTRUCTION = (schemaJson: string) =>
   `\n\nRespond with only a JSON object matching this JSON Schema, no prose:\n${schemaJson}`;
@@ -72,7 +77,13 @@ const CLI: Record<string, CliBackend> = {
       if (result.is_error) {
         throw new Error(`claude: ${result.result ?? "error"}`);
       }
-      return result.structured_output ?? extractJson(result.result);
+      return {
+        value: result.structured_output ?? extractJson(result.result),
+        costUsd:
+          typeof result.total_cost_usd === "number"
+            ? result.total_cost_usd
+            : undefined,
+      };
     },
   },
   /** Verified live. The -o file holds schema output. Read-only mode can still read disk, so webSafe is false. */
@@ -91,8 +102,9 @@ const CLI: Record<string, CliBackend> = {
       "--skip-git-repo-check",
       context.prompt,
     ],
-    parse: async (_stdout, context) =>
-      JSON.parse(await readFile(context.outFile, "utf8")),
+    parse: async (_stdout, context) => ({
+      value: JSON.parse(await readFile(context.outFile, "utf8")),
+    }),
   },
   /** Flags verified from help text. result holds text. The CLI has no web-only allowlist. */
   cursor: {
@@ -104,7 +116,7 @@ const CLI: Record<string, CliBackend> = {
       "--output-format",
       "json",
     ],
-    parse: async (stdout) => extractJson(JSON.parse(stdout).result),
+    parse: async (stdout) => ({ value: extractJson(JSON.parse(stdout).result) }),
   },
   /** Flags verified from help text. response holds text. Its tool controls were not verified, so webSafe is false. */
   gemini: {
@@ -116,7 +128,7 @@ const CLI: Record<string, CliBackend> = {
       "-o",
       "json",
     ],
-    parse: async (stdout) => extractJson(JSON.parse(stdout).response),
+    parse: async (stdout) => ({ value: extractJson(JSON.parse(stdout).response) }),
   },
   /** Flags verified from help text. JSON events hold the text. The CLI has no verified web-only allowlist. */
   opencode: {
@@ -128,7 +140,7 @@ const CLI: Record<string, CliBackend> = {
       "json",
       context.prompt + JSON_INSTRUCTION(context.schemaJson),
     ],
-    parse: async (stdout) => extractJson(stdout),
+    parse: async (stdout) => ({ value: extractJson(stdout) }),
   },
 };
 
@@ -153,11 +165,33 @@ export async function agent<T extends z.ZodTypeAny>(
     timeoutMs: input.timeoutMs,
   };
   const backend = await pickBackend();
-  const result =
-    backend === API_BACKEND
-      ? await viaApi(runtimeInput)
-      : await viaCli(backend, runtimeInput);
-  return input.schema.parse(result);
+  const model =
+    process.env.GTM_AGENT_MODEL ??
+    (backend === API_BACKEND ? "anthropic/claude-opus-5" : "default");
+  const result = await provider({
+    name: "agent",
+    endpoint: `${backend}/${model}`,
+    input: {
+      prompt: input.prompt,
+      schema: schemaJson,
+      tools: runtimeInput.tools,
+    },
+    schema: input.schema,
+    ttlMs: input.ttlMs ?? 30 * 24 * 60 * 60 * 1_000,
+    costUsd: input.maxUsd,
+    meta: input.meta,
+    call: async () => {
+      const called =
+        backend === API_BACKEND
+          ? await viaApi(runtimeInput)
+          : await viaCli(backend, runtimeInput);
+      return {
+        value: called.value as z.input<T>,
+        costUsd: called.costUsd ?? input.maxUsd,
+      };
+    },
+  });
+  return result.value;
 }
 
 type RuntimeInput = {
@@ -170,6 +204,11 @@ type RuntimeInput = {
 
 async function pickBackend(): Promise<string> {
   const explicit = process.env.GTM_AGENT_BACKEND;
+  if (process.env.GTM_SANDBOX === "1" && explicit !== API_BACKEND) {
+    throw new Error(
+      "GTM_SANDBOX=1 requires GTM_AGENT_BACKEND=api; CLI backends are disabled in the sandbox.",
+    );
+  }
   if (explicit) {
     if (explicit === API_BACKEND) {
       if (!process.env.AI_GATEWAY_API_KEY) {
@@ -237,7 +276,7 @@ async function viaCli(name: string, input: RuntimeInput) {
   }
 }
 
-async function viaApi(input: RuntimeInput) {
+async function viaApi(input: RuntimeInput): Promise<BackendResult> {
   const web = input.tools === "web";
   const result = await generateText({
     model: process.env.GTM_AGENT_MODEL ?? "anthropic/claude-opus-5",
@@ -251,7 +290,14 @@ async function viaApi(input: RuntimeInput) {
     stopWhen: web ? stepCountIs(8) : undefined,
     abortSignal: AbortSignal.timeout(input.timeoutMs ?? 300_000),
   });
-  return result.output;
+  const metadata = result.providerMetadata?.gateway as
+    | { cost?: number | string }
+    | undefined;
+  const cost = metadata?.cost === undefined ? undefined : Number(metadata.cost);
+  return {
+    value: result.output,
+    costUsd: Number.isFinite(cost) ? cost : undefined,
+  };
 }
 
 function run(

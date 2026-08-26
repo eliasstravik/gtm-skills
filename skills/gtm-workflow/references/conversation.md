@@ -21,7 +21,7 @@ Use one save gate for each coherent batch of tracked changes. After acceptance, 
 ```text
 **Would you like to save these changes?**
 
-<behavior, inputs, outputs, external changes, run location, timing, caps, retained results, optional external delivery, failure behavior, validation, affected file groups, and resulting state>
+<behavior, inputs, table and key, paid stages, outputs, external changes, run location, timing, dry-run rows and projected cost, caps, checkpoint, migration, failure behavior, validation, affected file groups, and resulting state>
 
 1. Accept and save (Recommended)
 2. Change it
@@ -30,7 +30,7 @@ Use one save gate for each coherent batch of tracked changes. After acceptance, 
 Reply with a number, or type your answer.
 ```
 
-Keep source, schemas, configuration bodies, diffs, and complete files out of the default proposal. Show requested technical detail without weakening any gate.
+Keep source, schemas, configuration bodies, diffs, and complete files out of the default proposal. Name generated migration files after acceptance. Show requested technical detail without weakening a gate.
 
 A change response asks `**What would you like me to change?**`, updates the draft, reruns validation, and presents one revised proposal. Cancellation writes no tracked bytes.
 
@@ -42,6 +42,10 @@ Add a short caption with the trigger, inputs or changes, saved result, and parti
 
 ## Outcome reports
 
-Lead completion with the business result and `<n> completed, <m> failed`. Follow with the result or saved path, external systems changed, delivery state, and `saved locally` for JSON. State cost or usage when it bears on an accepted cap.
+Lead completion with the business result and `<n> completed, <m> failed`. Follow with rows written, table name, cache hits, vendor cost, model cost, external systems changed, and delivery state. Say when a model cost is the accepted projection because the backend did not report billing.
 
-Keep ports, process controls, run IDs, project identifiers, environment names, branch names, token counts, and telemetry in internal diagnostics unless the user requests them or they safely disambiguate an action. Describe clean persistence as `saved to history`.
+At a checkpoint, report `<n> rows done, <m> failed, $<x> spent, $<y> projected for the remaining rows`, the table inspection command, and the exact approval command. Ask for approval before resuming the same run.
+
+For a duplicate run, say `<workflow> is already running as <runKey>`. Offer inspection first. If the operator wants to abandon a zombie run, give the one recovery sequence: cancel the SDK run, then reconcile with `gtm runs get`.
+
+Keep ports, process controls, SDK run IDs, project identifiers, environment names, branch names, token counts, and telemetry in internal diagnostics unless the user requests them or they safely disambiguate an action. Run keys may appear when needed for inspection or duplicate recovery. Describe clean persistence as `saved to history`.

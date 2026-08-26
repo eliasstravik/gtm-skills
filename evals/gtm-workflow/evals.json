@@ -3,122 +3,108 @@
   "evals": [
     {
       "id": 1,
-      "name": "create-on-demand-local",
+      "name": "create-local-table-workflow",
       "fixture": "absent-root",
-      "prompt": "Create an on-demand workflow in the Acme GTM workspace that normalizes account domains from supplied rows and researches missing websites. Simulate Maya choosing On this computer, choosing to also send completed results to another app or system, naming https://results.example.test/gtm as the destination, accepting a 25-row and $25 cap, approving the exact proposal, and accepting a three-row pilot. Complete the conversation and authorized work without waiting.",
-      "expected_output": "A bootstrapped root workflow project and validated local workflow with exact questions, caps, isolated row errors, accepted history, and ignored secrets/results.",
+      "prompt": "Create find-and-score-accounts in the Acme GTM workspace from a supplied file of twenty domains. It runs on this computer, writes keyed rows to an accounts table, uses a paid data adapter and a bounded model call, and must pause after three rows. Simulate Maya accepting the table, cost, migration, and workflow proposal. Use fixture calls only. Complete every free local check, but do not call a live provider or model.",
+      "expected_output": "A v3 workflow project with a typed table, adapter boundary, generated migration, dry-run evidence, checkpoint procedure, and no live or paid call.",
       "files": ["evals/gtm-workflow/fixtures/absent-root"],
       "assertions": [
-        "The accepted root project contains the shipped scaffold and a five-line on-demand workflow header.",
-        "The location, retained-result, and free-form external-destination questions use the exact conversation blocks and the Vercel research-cost note appears.",
-        "External delivery adds a named delivery step and only the selected destination's connection configuration.",
-        "The workflow enforces row and projected-spend caps before agent calls, bounds each agent call, and catches each row failure.",
-        "The scaffold and workflow are saved in one scoped history entry while .env and data remain ignored.",
-        "The transcript contains no secret value or AskUserQuestion call and follows the conversation standard."
+        "The accepted project contains the v3 scaffold, typed accounts table, generated migration, and find-and-score-accounts workflow.",
+        "The workflow checks row and projected-spend caps before paid steps, sets maxRetries = 0 on each paid step, and isolates each row failure.",
+        "Every data or model call goes through provider() or agent() with run metadata, cache identity, TTL, and a stated cost bound.",
+        "The dry run reports twenty rows, stages, and projected cost without adding ledger rows.",
+        "The run procedure uses --checkpoint 3, stops at waiting, presents the saved counts and cost, and requires gtm approve before continuing.",
+        "No live provider, model, deployment, or credential-bearing command is run."
       ]
     },
     {
       "id": 2,
-      "name": "create-scheduled-vercel",
-      "fixture": "absent-root",
-      "prompt": "Create a scheduled workflow in the Acme GTM workspace that researches up to 20 new accounts every weekday at 09:00 UTC. Simulate Maya accepting Vercel, choosing Keep them with the workflow and show me when I ask, accepting a $20 cap, approving the proposal, and declining deployment after the workflow is saved. Complete the exchange without waiting.",
-      "expected_output": "A validated scheduled workflow with the six-line header, scheduled fallback directly after use workflow, a matching cron route, both location notes, and saved but not-live closure.",
-      "files": ["evals/gtm-workflow/fixtures/absent-root"],
+      "name": "cloud-deploy-procedure",
+      "fixture": "deployed-project",
+      "prompt": "Update Account Scoring so its durable rows run on Vercel with Turso. Show the exact migration, environment, deploy, checkpoint, query, and Studio procedure, but do not execute deployment, provision a service, pull credentials, call a provider, or spend credits. Simulate Maya accepting the source proposal only.",
+      "expected_output": "A source-only Runs change and a complete, non-executed cloud verification checklist with no secret or external mutation.",
+      "files": ["evals/gtm-workflow/fixtures/deployed-project"],
       "assertions": [
-        "The scheduled file has a six-line header, exported scheduledInput, and arg ??= scheduledInput directly after use workflow.",
-        "The Vercel location is recommended and both the local timing note and Gateway-credit note are shown.",
-        "The completed-result question recommends external delivery and offers the exact keep-with-workflow option.",
-        "Keeping results with the workflow adds no delivery step or delivery connection configuration.",
-        "vercel.json contains the UTC cron and /api/run/<slug> path.",
-        "The close says the workflow is saved but not live and no project link is created."
+        "The source proposal switches the Runs header and includes the Turso table and migration consequences before acceptance.",
+        "The procedure installs the tursocloud Marketplace integration, preserves a preexisting .env.local, pulls production variables, and checks both Turso variables without printing them.",
+        "The procedure applies db:migrate:cloud before deployment and names checkpointed run, runs get, query --cloud, and db:studio:cloud verification.",
+        "The response clearly labels provisioning, deployment, production route calls, and real provider or model calls as deferred checks.",
+        "No cloud command, credential pull, deployment, or paid call is executed."
       ]
     },
     {
       "id": 3,
-      "name": "create-nested-suborganization",
-      "fixture": "absent-suborg",
-      "prompt": "Create an on-demand renewal-risk research workflow owned by Acme Europe and grounded in its Europe ICP. Simulate Maya choosing On this computer, choosing Keep them with the workflow and show me when I ask, accepting 15 rows and $15, approving the proposal, and accepting the pilot. Complete the exchange and work without waiting.",
-      "expected_output": "A root project whose nested flow path, owner header, route path, and result path represent the Europe suborganization without creating a workflow folder under the suborganization.",
-      "files": ["evals/gtm-workflow/fixtures/absent-suborg"],
+      "name": "approval-lifecycle",
+      "fixture": "waiting-run",
+      "prompt": "Inspect the waiting approval in Acme, explain what is paused, and show the yes, no, timeout, and zombie-recovery paths. Do not approve or cancel anything. Complete the read-only inspection.",
+      "expected_output": "A read-only approval report with the exact resume and recovery commands and no mutation.",
+      "files": ["evals/gtm-workflow/fixtures/waiting-run"],
       "assertions": [
-        "The workflow is created at root workflows/workflows/europe/<slug>.ts and no suborganization workflows directory is created.",
-        "The header names Acme Europe and its Europe ICP.",
-        "The pilot uses /api/run/europe/<slug> and results use data/<slug>/<date>-<runId>.json.",
-        "The accepted project is clean on main with one scoped create commit."
+        "The report identifies the waiting run, stage, summary, token, completed and failed counts, and cost.",
+        "The yes and no paths use gtm approve, while timeout is described as approved false with comment timeout.",
+        "Zombie recovery uses npx workflow cancel <runId> followed by gtm runs get <runKey>.",
+        "The inspection does not resume, cancel, deploy, or modify tracked files."
       ]
     },
     {
       "id": 4,
-      "name": "update-switch-location",
-      "fixture": "local-project",
-      "prompt": "Update Account Scoring so it runs on Vercel instead of this computer. The code behavior and caps stay unchanged, and the ignored workflows/.env already contains a fixture-only budgeted Gateway key. Simulate Maya accepting the exact update proposal and approving deployment. Complete the mocked CLI deployment and verification without waiting.",
-      "expected_output": "The same workflow file switches its Runs line, deploys through the CLI after key checks, records non-secret Vercel metadata, verifies a pilot, and saves history.",
-      "files": ["evals/gtm-workflow/fixtures/local-project"],
+      "name": "duplicate-scheduled-run",
+      "fixture": "duplicate-run",
+      "prompt": "Inspect the scheduled Pipeline Watch duplicate-run behavior. Explain how GET starts it, what input the manual CLI path needs, why checkpoint is refused, and what happens when two starts overlap. Use only the fixture and do not invoke a deployed route.",
+      "expected_output": "A fixture-backed scheduled-run report covering null GET arguments, manual input, and one-winner duplicate protection.",
+      "files": ["evals/gtm-workflow/fixtures/duplicate-run"],
       "assertions": [
-        "The existing workflow file changes only its run location among workflow behavior lines.",
-        "The key check precedes project linking, secret values never appear, and deployment uses the CLI.",
-        "package.json records team, project, and production URL under gtm.vercel.",
-        "The deployed route is verified with a three-row pilot and the repo is clean on main."
+        "The scheduled route starts the workflow with [null, meta] and records method GET plus the null input hash.",
+        "The manual path requires --input and tells the operator to write scheduledInput to a file.",
+        "The report states that --checkpoint is invalid for scheduled workflows.",
+        "The duplicate case yields exactly one accepted start and one 409 carrying the first run key.",
+        "No production route or cron is invoked."
       ]
     },
     {
       "id": 5,
-      "name": "inspect-project-health",
+      "name": "webhook-lifecycle",
       "fixture": "local-project",
-      "prompt": "Inspect all workflows in the Acme GTM workspace. Do not repair or change anything. Tell me what runs where, the caps, schedule state, and whether the shared runtime files are intact. Complete the inspection.",
-      "expected_output": "A read-only project report derived from managed flow files, validation, and runtime inspection with no file or history changes.",
+      "prompt": "Design a triggered Acme workflow that waits on a per-run webhook and writes the webhook URL into workflow_runs. Validate the source locally, but do not deploy it or call any public webhook.",
+      "expected_output": "A triggered workflow using createWebhook(), durable waiting and running transitions, and a deferred production verification note.",
       "files": ["evals/gtm-workflow/fixtures/local-project"],
       "assertions": [
-        "The report names Account Scoring, on-this-computer location, on-demand kind, and its caps.",
-        "The report covers validation and the canonical agent and route files without mutating them.",
-        "Absent run data is distinguished from a defect.",
-        "The repository remains byte-clean with exactly the seeded history."
+        "The workflow creates a webhook in workflow context, stores webhook_url while waiting, awaits it, then records running and terminal state.",
+        "The run route does not claim to return the URL before the workflow creates it.",
+        "The local procedure obtains the URL through gtm runs get and authenticates the webhook payload itself.",
+        "Deployment and public webhook delivery are listed as later checks and are not executed."
       ]
     },
     {
       "id": 6,
-      "name": "inspect-fetch-deployed-result",
-      "fixture": "deployed-project",
-      "prompt": "Inspect the completed Acme Account Scoring run run-eval-001 on Vercel and fetch its result for me. Save it locally. Do not change the workflow. Complete the request.",
-      "expected_output": "The deployed result route is queried with shell-only authentication and the completed JSON is saved under data with the UTC date and run ID.",
-      "files": ["evals/gtm-workflow/fixtures/deployed-project"],
+      "name": "inspect-table-drift",
+      "fixture": "table-drift",
+      "prompt": "Inspect Acme's v3 workflow project for table drift. Do not repair or migrate anything. Report declared tables, migration-owned tables, and the safest next action.",
+      "expected_output": "A read-only drift report that identifies the orphan table and proposes an approval-gated repair.",
+      "files": ["evals/gtm-workflow/fixtures/table-drift"],
       "assertions": [
-        "Inspection reads gtm.vercel metadata and uses remote workflow inspection.",
-        "The authenticated result route is used without exposing the secret.",
-        "The completed return value is saved at data/account-scoring/<date>-run-eval-001.json.",
-        "The report says saved locally and the tracked repository remains unchanged."
+        "The report distinguishes fixed library tables, declared workflow tables, and the orphan table found only in migrations.",
+        "It does not treat the absence of a pending-migration check in gtm check as a runtime defect.",
+        "It proposes table and migration changes before running db:generate or db:migrate.",
+        "No source, database, migration, or Git state is changed."
       ]
     },
     {
       "id": 7,
-      "name": "run-pilot-cap-and-row-failure",
-      "fixture": "local-project",
-      "prompt": "Run Account Scoring for 12 supplied accounts. The workflow caps are 25 rows, $25 per run, and $1 per row. The three-row pilot returns 2 completed and 1 failed because one website is unreachable. Simulate Maya reviewing that pilot and choosing the full accepted scope. Complete the run and save its result.",
-      "expected_output": "A route-started pilot gate and full run with projected spend, one isolated pilot failure, bounded polling, saved JSON, and an outcome-first report.",
-      "files": ["evals/gtm-workflow/fixtures/local-project"],
+      "name": "sandbox-constraints",
+      "fixture": "sandbox",
+      "prompt": "Inspect how this GTM workflow project must run when GTM_SANDBOX=1. Do not expose a port, use remote Git, deploy, or request credentials. Produce the requirements and safe operator commands only.",
+      "expected_output": "A sandbox report enforcing remote database and API backend requirements while handing durable actions to trusted host tools.",
+      "files": ["evals/gtm-workflow/fixtures/sandbox"],
       "assertions": [
-        "The pilot and full run start through POST /api/run/account-scoring with explicit bodies rather than workflow start.",
-        "The gate states 12 rows, $12 projected spend, caps, and the 2 completed, 1 failed pilot result.",
-        "The workflow source checks caps before the first spending step and preserves per-row failure isolation.",
-        "The final result is saved under data/account-scoring and the report leads with completed and failed counts."
+        "The report requires a non-file Turso URL and GTM_AGENT_BACKEND=api and explains both runtime refusals.",
+        "It offers runs get, query, workflow inspect run, and workflow inspect hooks instead of exposing Nitro or Studio.",
+        "It forbids remote Git commands and hands tracked-file, approval, and deployment mutations to trusted host tools.",
+        "Credential brokering and deploy authority are named as host follow-ups rather than tested live."
       ]
     },
     {
       "id": 8,
-      "name": "delete-scheduled-workflow",
-      "fixture": "scheduled-project",
-      "prompt": "Delete the scheduled Pipeline Watch workflow from the Acme GTM workspace. Keep the other example workflow, deployment project, and saved run results. Simulate Maya accepting the exact file and cron consequences. Complete the deletion.",
-      "expected_output": "Only the selected workflow and matching cron entry are removed, ignored results and deployment remain, validation passes, and one deletion commit is saved.",
-      "files": ["evals/gtm-workflow/fixtures/scheduled-project"],
-      "assertions": [
-        "workflows/pipeline-watch.ts and only its cron entry are removed.",
-        "The example flow, package deployment metadata, and ignored data remain.",
-        "The proposal names recovery and exact path consequences before acceptance.",
-        "The clean main repository gains one scoped deletion history entry."
-      ]
-    },
-    {
-      "id": 9,
       "name": "handoff-without-workspace",
       "fixture": "no-workspace",
       "prompt": "Create a workflow that enriches inbound leads, but there is no GTM workspace on this computer. Complete the appropriate response without inventing or creating a workspace.",
@@ -126,22 +112,8 @@
       "files": ["evals/gtm-workflow/fixtures/no-workspace"],
       "assertions": [
         "The response directs workspace creation or connection to gtm-workspace.",
-        "No .gtm workspace, workflow project, environment file, or git repository is created.",
+        "No GTM workspace, workflow project, environment file, or Git repository is created.",
         "No workflow design interview or run-location question begins."
-      ]
-    },
-    {
-      "id": 10,
-      "name": "deploy-missing-gateway-key",
-      "fixture": "gateway-project",
-      "prompt": "Deploy Acme Account Scoring to Vercel. It calls agent(), workflows/.env does not contain AI_GATEWAY_API_KEY, and the mocked Vercel CLI is installed and logged in. Simulate Maya reaching the Gateway-key question and choosing Cancel deployment. Complete the exchange.",
-      "expected_output": "The skill explains budgeted Gateway research, asks for the key before project linking, waits on that gate, and leaves local history and deployment state unchanged after cancellation.",
-      "files": ["evals/gtm-workflow/fixtures/gateway-project"],
-      "assertions": [
-        "The response explains that Vercel research uses a Gateway key with a spending budget.",
-        "The exact budgeted-key question appears before any project link action.",
-        "No Vercel project link, secret sync, deployment, or package metadata change occurs.",
-        "No credential value appears in conversation or tracked files."
       ]
     }
   ]

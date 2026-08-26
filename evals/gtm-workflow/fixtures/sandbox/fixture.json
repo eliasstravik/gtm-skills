@@ -1,0 +1,6 @@
+{
+  "workflow_template_repos": [".gtm/acme"],
+  "ignored_files": {
+    ".gtm/acme/workflows/.env": "GTM_RUN_SECRET=eval-secret-local\nTURSO_DATABASE_URL=libsql://fixture.example.test\nTURSO_AUTH_TOKEN=eval-turso-token\nGTM_AGENT_BACKEND=api\n"
+  }
+}

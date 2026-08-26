@@ -1,0 +1,7 @@
+{
+  "workflow_template_repos": [".gtm/acme"],
+  "ignored_files": {
+    ".gtm/acme/workflows/.env": "GTM_RUN_SECRET=eval-secret-local\n",
+    ".gtm/acme/workflows/data/eval-waiting-run.json": "{\"runId\":\"run-waiting-001\",\"runKey\":\"approval-review:fixture\",\"status\":\"waiting\",\"completed\":3,\"failed\":1,\"costUsd\":0.42,\"approval\":{\"token\":\"approval-review:fixture\",\"stage\":\"outreach\",\"summary\":\"Review four prepared rows\"}}\n"
+  }
+}

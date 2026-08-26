@@ -1,32 +1,41 @@
 # GTM workflow evaluation assertions
 
-The deterministic grader maps each sentence in `evals.json` to repository state, transcript text, or both.
+The deterministic grader maps each sentence in `evals.json` to repository state, transcript text, or both. Model-graded evaluations use mocks and must not call live providers, models, deployments, or credential endpoints.
 
 ## Cross-case controls
 
 - Every question-bearing assistant turn starts with one bold question.
 - Every discrete choice uses numbered options, at most one `(Recommended)`, and the exact reply line.
-- No transcript contains `AskUserQuestion`, a value from ignored `.env`, or credentials.
-- Shared `lib/agent.ts` and both API routes match the shipped templates after any create or update.
-- Durable changes stay scoped, clean, and on `main`; inspection and handoff cases make no commit.
-- Runtime state and `data/` remain ignored.
-- The Nitro development process embeds the local UI at `/_workflow`, supplies its generated graph manifest, and UI verification checks definitions as well as runs.
-- Definition discovery and UI source labels use `workflows/<slug>.ts` or `workflows/<suborg-path>/<slug>.ts`; `flows/` is never an active definition path.
+- No transcript contains `AskUserQuestion`, a value from ignored environment files, or credentials.
+- Headered v3 library files and API routes match the shipped templates after create or update work.
+- Runtime state, environment files, Turso pull files, and `data/` remain ignored.
+- Database generation and migration happen only after the user accepts the table proposal.
+- Inspection cases are read-only. Sandbox cases do not expose ports or use remote Git commands.
 
 ## Authoring controls
 
-- On-demand and triggered headers have five content lines; scheduled headers have six.
+- Every workflow declares its run location, kind, owner, providers, input schema, and spend caps.
+- Scheduled workflows also declare a schedule and `scheduledInput`.
 - Kebab-case files export camelCase functions.
-- Scheduled fallback is the first statement after `"use workflow"`.
+- Typed business tables live in `db/tables/`; fixed runtime tables live in `lib/schema.ts`.
 - `MAX_ROWS` and projected `MAX_SPEND_USD` are enforced before provider or agent spend.
-- Every `agent()` call passes `maxUsd: COST_PER_ROW_USD`.
-- Each row catches errors into `failed` and continues.
-- Pilots and full runs use the authenticated HTTP route with explicit bodies.
-- The runtime always retains completed results. External delivery adds a named step and destination-specific connection only after the user chooses it.
+- Every paid step sets `maxRetries = 0`; every paid call passes through `provider()` or `agent()` with run metadata.
+- Each row catches errors, records failures, and continues.
+- Dry runs make no route, provider, model, ledger, or database mutation.
 
-## Deployment controls
+## Runtime controls
 
-- CLI and login checks precede all project mutations.
-- A missing Gateway key blocks before `vercel link`.
-- Secret values move only through the shell.
-- Live state requires a production deploy plus a successful route-started pilot.
+- Start routes insert the durable run row before calling `start()` and reject a matching live run with 409.
+- GET starts a scheduled workflow with `[null, meta]`; POST starts with `[body, meta]`.
+- `--wait` returns at `waiting` so the operator can review the approval or webhook summary.
+- Approvals resume through the generated token route. Zombie recovery cancels by run ID and then reconciles by run key.
+- Cache hits create zero-cost ledger rows for the current run. An agent call with no reported cost records its `maxUsd` projection.
+- Webhook URLs are learned from `runs get`, not the initial start response.
+
+## Cloud and sandbox controls
+
+- The Turso Marketplace install, environment pull, cloud migration, production deploy, and production verification are distinct ordered actions.
+- A preexisting `.env.local` is never deleted; a temporary one is removed only when the deploy flow created it.
+- Secret values move only through environment-aware commands and never enter evidence.
+- Sandbox mode rejects file databases and CLI model backends.
+- No live cloud, provider, model, or credential-brokering operation is part of the deterministic suite.

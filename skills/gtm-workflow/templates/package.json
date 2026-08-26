@@ -2,20 +2,36 @@
   "name": "gtm-workflows",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22 <24"
+  },
   "type": "module",
   "scripts": {
-    "dev": "WORKFLOW_EMBEDDED_DATA_DIR=node_modules/.nitro/workflow WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS=360000 WORKFLOW_LOCAL_BODY_TIMEOUT_MS=360000 nitro dev",
-    "build": "nitro build"
+    "dev": "WORKFLOW_EMBEDDED_DATA_DIR=node_modules/.nitro/workflow WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS=360000 WORKFLOW_LOCAL_BODY_TIMEOUT_MS=360000 nitro dev --port 3000",
+    "build": "nitro build",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:migrate:cloud": "node --env-file=.env.turso ./node_modules/drizzle-kit/bin.cjs migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:studio:cloud": "node --env-file=.env.turso ./node_modules/drizzle-kit/bin.cjs studio",
+    "gtm": "node --env-file-if-exists=.env --import tsx scripts/gtm.ts"
   },
   "dependencies": {
+    "@libsql/client": "0.17.4",
     "ai": "7.0.79",
+    "drizzle-orm": "0.45.2",
+    "drizzle-zod": "0.8.3",
     "nitro": "3.0.260610-beta",
     "workflow": "5.0.0-beta.44",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.3.0",
+    "drizzle-kit": "0.31.10",
+    "tsx": "4.23.12",
     "typescript": "7.0.2"
   },
-  "gtm": {}
+  "gtm": {
+    "libVersion": 3
+  }
 }
