@@ -1,4 +1,4 @@
-// gtm-lib v3
+// gtm-lib v4
 import { defineHook, sleep } from "workflow";
 import { z } from "zod";
 import { updateRun } from "./steps";

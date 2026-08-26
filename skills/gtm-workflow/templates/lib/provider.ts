@@ -1,4 +1,4 @@
-// gtm-lib v3
+// gtm-lib v4
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -47,7 +47,7 @@ export async function provider<T extends z.ZodTypeAny>(
   )[0];
 
   if (cache && cache.expiresAt > now) {
-    const value = input.schema.parse(JSON.parse(cache.value));
+    const value = input.schema.parse(JSON.parse(cache.raw ?? cache.value));
     await writeLedger(input, inputsHash, "cache_hit", 0, null);
     return { value, costUsd: 0, status: "cache_hit" };
   }
@@ -65,6 +65,7 @@ export async function provider<T extends z.ZodTypeAny>(
         endpoint: input.endpoint,
         inputsHash,
         inputs: canonical,
+        raw: JSON.stringify(reported.value),
         value: JSON.stringify(value),
         expiresAt: now + input.ttlMs,
         createdAt: now,
@@ -77,6 +78,7 @@ export async function provider<T extends z.ZodTypeAny>(
         ],
         set: {
           inputs: canonical,
+          raw: JSON.stringify(reported.value),
           value: JSON.stringify(value),
           expiresAt: now + input.ttlMs,
           createdAt: now,

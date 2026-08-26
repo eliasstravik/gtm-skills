@@ -1,4 +1,4 @@
-// gtm-lib v3
+// gtm-lib v4
 import { sql } from "drizzle-orm";
 import {
   index,
@@ -25,6 +25,7 @@ export const enrichmentCache = sqliteTable(
     endpoint: text("endpoint").notNull(),
     inputsHash: text("inputs_hash").notNull(),
     inputs: text("inputs").notNull(),
+    raw: text("raw"),
     value: text("value").notNull(),
     expiresAt: integer("expires_at").notNull(),
     createdAt: integer("created_at").notNull(),

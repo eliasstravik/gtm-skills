@@ -1,4 +1,4 @@
-// gtm-lib v3
+// gtm-lib v4
 // Call agent() from inside a "use step" function; see the workflow contract for the step rules.
 import { spawn } from "node:child_process";
 import { constants } from "node:fs";
