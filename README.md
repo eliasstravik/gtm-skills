@@ -86,7 +86,7 @@ The install command adds GTM Workspace, GTM ICP, GTM Persona, and GTM Workflow. 
 
 ### What does GTM Workspace store?
 
-It stores your organization’s durable self-knowledge: organization facts, members, suborganizations, ICPs, personas, and a root workflow project. The canonical root is `~/.gtm/<org-slug>/`; suborganizations use `suborgs/<suborg-slug>/`, member records use `members/<member-slug>/MEMBER.md`, and reusable workflow files live under root `workflows/flows/`.
+It stores your organization’s durable self-knowledge: organization facts, members, suborganizations, ICPs, personas, and a root workflow project. The canonical root is `~/.gtm/<org-slug>/`; suborganizations use `suborgs/<suborg-slug>/`, member records use `members/<member-slug>/MEMBER.md`, and reusable workflow files live under root `workflows/workflows/`.
 
 ### Can different teams keep different ICPs and personas?
 

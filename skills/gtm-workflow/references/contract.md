@@ -16,11 +16,11 @@ Use this contract for every workflow action.
 
 ## Workspace resolution and ownership
 
-Resolve the workspace in this order: a repo named in the request, the repo the environment declares connected, then canonical repos under `~/.gtm/` where root `ORG.md` makes a repo valid. If several remain, ask `**Which GTM workspace should I use?**`, list display name and path, and save no preference. If none exists, stop without writing and hand creation or connection to `gtm-workspace`.
+Resolve the workspace in this order: a repo named in the request, the repo the environment declares connected, then canonical repos under `~/.gtm/` where root `ORG.md` makes a repo valid. If several remain, ask `**Which GTM workspace should I use?**`, list display name and path, and save no preference. If none exists, stop without writing and tell the user to create or connect one with `gtm-workspace`.
 
 A request-named organization node wins. Otherwise use root unless the workflow belongs to exactly one other node. For create, when suborganizations exist and none was named, ask `**Which organization should own this workflow?**`, with root first as `(Recommended)` and every nested node by display name.
 
-The project always belongs at workspace root. A root workflow is `flows/<slug>.ts`. A suborganization workflow is `flows/<suborg-path>/<slug>.ts`, with physical `suborgs/` segments omitted. Its header names the owner and ICP.
+The project always belongs at workspace root. A root workflow is `workflows/<slug>.ts`. A suborganization workflow is `workflows/<suborg-path>/<slug>.ts`, with physical `suborgs/` segments omitted. Its header names the owner and ICP.
 
 Before acting, state `Using GTM workspace: <display name> | <N> workflows visible`, using `workflow visible` for one. Put this status below the opening bold question when the message asks a question.
 
@@ -34,7 +34,7 @@ workflows/
 ├── package-lock.json
 ├── nitro.config.ts
 ├── vercel.json
-├── flows/<owner-path>/<slug>.ts
+├── workflows/<owner-path>/<slug>.ts
 ├── lib/agent.ts
 ├── server/api/run/[...workflow].ts
 ├── server/api/runs/[runId].get.ts
@@ -112,7 +112,7 @@ For scheduled work, export `scheduledInput`, accept `arg: Input` with no default
 
 ## Runtime semantics
 
-The run route maps `/api/run/<path>/<kebab-name>` to `workflow//./flows/<path>/<kebab-name>//<camelCaseName>`. POST starts with an explicit body. GET starts without arguments for Vercel cron. The result route returns pending status or the completed workflow value. Both routes require the configured bearer.
+The run route maps `/api/run/<path>/<kebab-name>` to `workflow//./workflows/<path>/<kebab-name>//<camelCaseName>`. POST starts with an explicit body. GET starts without arguments for Vercel cron. The result route returns pending status or the completed workflow value. Both routes require the configured bearer.
 
 `Runs: on this computer` uses local `nitro dev`. Scheduled and triggered work runs only when invoked. `Runs: on Vercel` requires a recorded deployment. Vercel cron is best effort and may double-fire. Hobby schedules run at most daily and may fire anywhere within the specified hour.
 
@@ -154,9 +154,9 @@ Set `GTM_AGENT_MODEL` in ignored `.env` when a workflow pins a Claude CLI or API
 
 ## Results and connections
 
-Return `{ completed, failed }`, fetch it through `GET /api/runs/<runId>`, and save `data/<slug>/<UTC-date>-<runId>.json`. Report `<n> completed, <m> failed` and `saved locally`. Convert it only when requested.
+Return `{ completed, failed }`, fetch it through `GET /api/runs/<runId>`, and save `data/<slug>/<UTC-date>-<runId>.json`. Report `<n> completed, <m> failed` and `saved locally`. Convert it only when requested. The workflow runtime retains results regardless of external delivery.
 
-Add a named delivery step only when the user configured a web address or custom destination. Add its variable name and comment to `.env.example`, and put its value in ignored `.env`. Include `runId` and UTC date in delivery payloads.
+Add a named delivery step only when the user chooses external delivery or already supplied an external destination. Add only that destination's required non-secret variable names and comments to `.env.example`, and put secret values, credentials, and signed URLs in ignored `.env` through the shell. Include `runId` and UTC date in delivery payloads.
 
 ## Deployment state
 

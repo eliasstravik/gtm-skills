@@ -4,10 +4,12 @@ Apply the selected flow after loading `contract.md`.
 
 ## Guided menu
 
-When no lifecycle verb is clear, explain that an ICP is a saved definition of accounts that fit or do not fit an organization, then render this exact block and continue into the selected flow. There is no import or clear branch.
+When no lifecycle verb is clear, begin with this exact block and continue into the selected flow. There is no import or clear branch.
 
 ```text
 **What would you like to do with your ideal customer profiles?**
+
+An ICP is a saved definition of accounts that fit or do not fit an organization.
 
 1. Create an ICP (Recommended)
 2. Update an ICP
@@ -20,7 +22,7 @@ Reply with a number, or type your answer.
 ## Create
 
 1. Resolve the workspace and create owner. Make the owner choice before reading any ICP.
-2. Read the root-to-owner `ORG.md` chain and only owner-local ICPs, then state the context line.
+2. Read the root-to-owner `ORG.md` chain and only owner-local ICPs. Put the context line below the next bold question instead of sending it first.
 3. Extract supplied facts before asking anything. Ask one freeform question at a time only for facts needed to make the ICP matchable: display name, account traits, fit signals or buying context, disqualifiers, and material unknowns.
 4. Apply link safety to supplied sources. Research is optional.
 5. Compare only owner-local ICPs for material overlap. If a near-duplicate exists, explain it and ask whether to update the existing ICP `(Recommended)` or continue with a distinct definition.

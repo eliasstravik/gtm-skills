@@ -19,7 +19,7 @@ Use the accepted intent, resolved GTM workspace and owner, relevant ICP and pers
 
 ## Roles
 
-The agent owns authoring, validation, pilots, scoped changes, runs, inspection, UI opening, and CLI deployment. The user accepts behavior, limits, result destination, tracked changes, consequential runs, deployment, destruction, and credentials they must enter.
+The agent owns authoring, validation, pilots, scoped changes, runs, inspection, UI opening, and CLI deployment. The user accepts behavior, limits, optional external delivery, tracked changes, consequential runs, deployment, destruction, and credentials they must enter.
 
 ## Procedure
 

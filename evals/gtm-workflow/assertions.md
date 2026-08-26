@@ -11,6 +11,7 @@ The deterministic grader maps each sentence in `evals.json` to repository state,
 - Durable changes stay scoped, clean, and on `main`; inspection and handoff cases make no commit.
 - Runtime state and `data/` remain ignored.
 - The Nitro development process embeds the local UI at `/_workflow`, supplies its generated graph manifest, and UI verification checks definitions as well as runs.
+- Definition discovery and UI source labels use `workflows/<slug>.ts` or `workflows/<suborg-path>/<slug>.ts`; `flows/` is never an active definition path.
 
 ## Authoring controls
 
@@ -21,6 +22,7 @@ The deterministic grader maps each sentence in `evals.json` to repository state,
 - Every `agent()` call passes `maxUsd: COST_PER_ROW_USD`.
 - Each row catches errors into `failed` and continues.
 - Pilots and full runs use the authenticated HTTP route with explicit bodies.
+- The runtime always retains completed results. External delivery adds a named step and destination-specific connection only after the user chooses it.
 
 ## Deployment controls
 

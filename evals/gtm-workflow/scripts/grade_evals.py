@@ -86,6 +86,7 @@ def header_lines(path: Path) -> list[str]:
 
 def canonical_runtime(workflows: Path) -> bool:
     pairs = (
+        ("nitro.config.ts", "nitro.config.ts"),
         ("lib/agent.ts", "lib/agent.ts"),
         ("server/api/run/[...workflow].ts", "server/api/run/[...workflow].ts"),
         ("server/api/runs/[runId].get.ts", "server/api/runs/[runId].get.ts"),
@@ -130,13 +131,32 @@ def safe_output(run_dir: Path) -> bool:
 def workflow_files(workflows: Path, pattern: str = "*.ts") -> list[Path]:
     return sorted(
         path
-        for path in (workflows / "flows").rglob(pattern)
+        for path in (workflows / "workflows").rglob(pattern)
         if path.name != "example.ts"
     )
 
 
 def position(body: str, needle: str) -> int:
     return body.find(needle)
+
+
+def connection_variables(workflows: Path) -> set[str]:
+    baseline = {
+        line.split("=", 1)[0]
+        for line in text(TEMPLATES / ".env.example").splitlines()
+        if re.fullmatch(r"[A-Z][A-Z0-9_]*=.*", line)
+    }
+    current = {
+        line.split("=", 1)[0]
+        for line in text(workflows / ".env.example").splitlines()
+        if re.fullmatch(r"[A-Z][A-Z0-9_]*=.*", line)
+    }
+    return current - baseline
+
+
+def delivery_step_names(body: str) -> list[str]:
+    names = re.findall(r"async function ([A-Za-z0-9_]+)", body)
+    return [name for name in names if re.search(r"send|deliver|post|publish", name, re.I)]
 
 
 def checks_for(name: str, run_dir: Path) -> list[tuple[bool, str]]:
@@ -165,7 +185,8 @@ def checks_for(name: str, run_dir: Path) -> list[tuple[bool, str]]:
         )
         return [
             (canonical_runtime(workflows) and len(header_lines(flow)) == 5 and contains_all("\n".join(header_lines(flow)), "Runs: on this computer", "Kind: on-demand", "Owner:", "Providers:"), "Checked scaffold integrity and the five-line header."),
-            (contains_all(user_chat, "**Where should this workflow run?**", "On this computer (Recommended)", "**Where should each run's results go?**", "Post them to a web address", "Gateway", "budget") and conversation_valid(text(run_dir / "outputs/conversation.md")), "Checked exact location/result questions and cost note."),
+            (contains_all(user_chat, "**Where should this workflow run?**", "On this computer (Recommended)", "**Where should completed results be available?**", "Keep them with the workflow and show me when I ask (Recommended)", "Also send them to another app or system", "**Where should I send them?**", "Tell me the destination.", "Gateway", "budget") and conversation_valid(text(run_dir / "outputs/conversation.md")), "Checked exact location, retained-result, destination, and cost copy."),
+            (bool(connection_variables(workflows)) and bool(delivery_step_names(body)), "Checked named external delivery and selected connection configuration."),
             (cap_before_agent and "maxUsd: COST_PER_ROW_USD" in body and "catch (error)" in body and "failed.push" in body, "Checked cap ordering, per-call bound, and row isolation."),
             (clean_main(repo, 2) and (workflows / ".env").is_file() and ignored(repo, "workflows/.env") and ignored(repo, "workflows/data"), "Checked one accepted create commit and ignored runtime state."),
             (safe_output(run_dir), "Checked conversation format and secret handling."),
@@ -184,13 +205,14 @@ def checks_for(name: str, run_dir: Path) -> list[tuple[bool, str]]:
         return [
             (len(header_lines(flow)) == 6 and "export const scheduledInput" in body and next_statement == "arg ??= scheduledInput;", "Checked six-line header and immediate scheduled fallback."),
             (contains_all(user_chat, "On Vercel (Recommended)", "only when you or your agent ask", "Gateway", "budget") and safe_output(run_dir), "Checked both required location notes and choice order."),
-            ("Keep them on Vercel; I'll fetch them when you ask" in user_chat, "Checked the scheduled Vercel result option."),
+            (contains_all(user_chat, "**Where should completed results be available?**", "Also send them to another app or system (Recommended)", "Keep them with the workflow and show me when I ask"), "Checked scheduled and triggered result choice order."),
+            (not connection_variables(workflows) and not delivery_step_names(body), "Checked retained-only workflow has no delivery step or connection."),
             (contains_all(cron, "/api/run/", "0 9 * * 1-5"), "Checked matching UTC cron route."),
             (clean_main(repo, 2) and not (workflows / ".vercel").exists() and contains_all(user_chat, "saved", "not live"), "Checked saved but not-live closure without linking."),
         ]
 
     if name == "create-nested-suborganization":
-        nested = list((workflows / "flows/europe").glob("*.ts"))
+        nested = list((workflows / "workflows/europe").glob("*.ts"))
         flow = nested[0] if nested else Path()
         result_files = list((workflows / "data").rglob("*.json")) if (workflows / "data").exists() else []
         return [
@@ -201,7 +223,7 @@ def checks_for(name: str, run_dir: Path) -> list[tuple[bool, str]]:
         ]
 
     if name == "update-switch-location":
-        flow = workflows / "flows/account-scoring.ts"
+        flow = workflows / "workflows/account-scoring.ts"
         package = json.loads(text(workflows / "package.json") or "{}")
         deployment = package.get("gtm", {}).get("vercel", {})
         key_check = transcript.lower().find("ai_gateway_api_key")
@@ -219,7 +241,7 @@ def checks_for(name: str, run_dir: Path) -> list[tuple[bool, str]]:
             (contains_all(user_chat, "valid", "agent", "route") and canonical_runtime(workflows), "Checked validation and canonical shared files."),
             (
                 (contains_all(user_chat, "no recorded runs") or contains_all(user_chat, "no run data") or contains_all(user_chat, "no runs"))
-                and (contains_all(user_chat, "not unhealthy") or contains_all(user_chat, "not evidence", "fault") or contains_all(user_chat, "not", "defect")),
+                and not re.search(r"no (?:recent |recorded )?runs.{0,80}(?:defect|unhealthy|fault)", user_chat, re.I | re.S),
                 "Checked absent run data is not treated as a defect.",
             ),
             (clean_main(repo, 1) and safe_output(run_dir), "Checked read-only inspection and safe conversation."),
@@ -236,7 +258,7 @@ def checks_for(name: str, run_dir: Path) -> list[tuple[bool, str]]:
         ]
 
     if name == "run-pilot-cap-and-row-failure":
-        flow = workflows / "flows/account-scoring.ts"
+        flow = workflows / "workflows/account-scoring.ts"
         body = text(flow)
         results = list((workflows / "data/account-scoring").glob("*.json"))
         return [
@@ -250,9 +272,9 @@ def checks_for(name: str, run_dir: Path) -> list[tuple[bool, str]]:
         cron = text(workflows / "vercel.json")
         package = text(workflows / "package.json")
         return [
-            (not (workflows / "flows/pipeline-watch.ts").exists() and "pipeline-watch" not in cron, "Checked selected file and cron removal."),
-            ((workflows / "flows/example.ts").is_file() and contains_all(package, "gtm", "vercel") and (workflows / "data/pipeline-watch/2026-08-25-run-old.json").is_file(), "Checked preservation of example, deployment, and ignored results."),
-            (contains_all(user_chat, "pipeline-watch", "vercel.json", "recover", "**Would you like to save these changes?**"), "Checked accepted path consequences and recovery."),
+            (not (workflows / "workflows/pipeline-watch.ts").exists() and "pipeline-watch" not in cron, "Checked selected file and cron removal."),
+            ((workflows / "workflows/example.ts").is_file() and contains_all(package, "gtm", "vercel") and (workflows / "data/pipeline-watch/2026-08-25-run-old.json").is_file(), "Checked preservation of example, deployment, and ignored results."),
+            (contains_all(user_chat, "pipeline-watch", "vercel.json") and re.search(r"recover|restore|revert", user_chat, re.I) is not None and re.search(r"(?m)^\*\*[^*\n]+\?\*\*$", user_chat) is not None, "Checked accepted path consequences and recovery."),
             (clean_main(repo, 2) and safe_output(run_dir), "Checked one scoped deletion commit and safe conversation."),
         ]
 
@@ -316,7 +338,7 @@ def main() -> None:
     for eval_dir in sorted(args.iteration.glob("eval-*")):
         metadata = json.loads((eval_dir / "eval_metadata.json").read_text())
         case = cases[metadata["eval_name"]]
-        for configuration in ("with_skill", "without_skill"):
+        for configuration in ("with_skill", "baseline_skill", "without_skill"):
             run_dir = eval_dir / configuration / "run-1"
             if not run_dir.is_dir():
                 continue

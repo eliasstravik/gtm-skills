@@ -584,7 +584,7 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
         expected_paths = (
             "workflows/package.json",
             "workflows/package-lock.json",
-            "workflows/flows/account-health.ts",
+            "workflows/workflows/account-health.ts",
             "workflows/.env.example",
         )
         unchanged = (
@@ -620,7 +620,7 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 1
             and not git(repo, "status", "--porcelain")
             and (repo / "suborgs/europe/workflows/package.json").is_file()
-            and (repo / "suborgs/europe/workflows/flows/account-health.ts").is_file()
+            and (repo / "suborgs/europe/workflows/workflows/account-health.ts").is_file()
         )
         misplaced_explained = "suborgs/europe/workflows" in lower and "root" in lower
         ownership_routed = "gtm-workflow" in lower and re.search(r"\buse workflow\b", lower) is None

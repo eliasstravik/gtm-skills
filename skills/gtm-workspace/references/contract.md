@@ -14,8 +14,8 @@ Use this contract when creating, importing, updating, deleting, or doctoring a G
 ├── personas/<persona-slug>/PERSONA.md
 ├── workflows/
 │   ├── package.json
-│   ├── flows/<workflow-slug>.ts
-│   ├── flows/<suborg-path>/<workflow-slug>.ts
+│   ├── workflows/<workflow-slug>.ts
+│   ├── workflows/<suborg-path>/<workflow-slug>.ts
 │   ├── lib/
 │   └── server/
 ├── suborgs/
@@ -30,7 +30,7 @@ Use this contract when creating, importing, updating, deleting, or doctoring a G
 
 - A repo represents one organization. Its directory slug is lowercase kebab-case.
 - Every organization node has `ORG.md`. A suborganization is an organization node under `suborgs/<suborg-slug>/` and may recursively contain the same `ORG.md`, `suborgs/`, and `members/` shape without a depth limit.
-- Any organization node may carry `icps/` and `personas/`. The workspace root alone may carry `workflows/`, a `gtm-workflow`-owned Node project; a suborganization's workflow lives at root `workflows/flows/<suborg-path>/<slug>.ts`. New ICP and persona artifacts use `icps/<slug>/ICP.md` and `personas/<slug>/PERSONA.md`; existing flat `<slug>.md` artifacts remain compatible without migration. Artifact lifecycles belong to `gtm-icp`, `gtm-persona`, and `gtm-workflow`; `gtm-workspace` validates placement but not content.
+- Any organization node may carry `icps/` and `personas/`. The workspace root alone may carry `workflows/`, a `gtm-workflow`-owned Node project; a suborganization's workflow lives at root `workflows/workflows/<suborg-path>/<slug>.ts`. New ICP and persona artifacts use `icps/<slug>/ICP.md` and `personas/<slug>/PERSONA.md`; existing flat `<slug>.md` artifacts remain compatible without migration. Artifact lifecycles belong to `gtm-icp`, `gtm-persona`, and `gtm-workflow`; `gtm-workspace` validates placement but not content.
 - A member belongs to one owning organization node and lives directly below it at `members/<member-slug>/MEMBER.md`. Move the directory to change ownership; never duplicate a record implicitly.
 - The H1 of every `ORG.md` and `MEMBER.md` is its display name.
 - `MEMBER.md` contains a non-empty `- Email:` line. Role and `Suborganizations:` are optional facts, not required guesses. A `Suborganizations:` value records additional affiliations; the file path remains the ownership source of truth.

@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
   const functionName = basename.replace(/-([a-z0-9])/g, (_, character) =>
     character.toUpperCase(),
   );
-  const workflowId = `workflow//./flows/${workflowPath}//${functionName}`;
+  const workflowId = `workflow//./workflows/${workflowPath}//${functionName}`;
 
   if (event.req.method === "GET") {
     const run = await start({ workflowId });

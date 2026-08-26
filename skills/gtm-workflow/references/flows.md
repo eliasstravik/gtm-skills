@@ -71,29 +71,41 @@ Reply with a number, or type your answer.
 ```
 
 4. Resolve purpose, input rows, result fields, external changes, provider and row cost, caps, timing, and meaningful failure behavior.
-5. Ask the result-destination question unless the user already supplied the destination.
+5. Treat results as retained by the workflow runtime. Unless the user already supplied an external destination, ask where completed results should be available. Use the first block for on-demand work and the second block for scheduled or triggered work.
 
 ```text
-**Where should each run's results go?**
+**Where should completed results be available?**
 
-1. Post them to a web address (Recommended)
-2. Somewhere else, tell me
-3. Just save them here
+1. Keep them with the workflow and show me when I ask (Recommended)
+2. Also send them to another app or system
 
 Reply with a number, or type your answer.
 ```
 
-For a scheduled workflow on Vercel, replace option 3 with:
-
 ```text
-3. Keep them on Vercel; I'll fetch them when you ask
+**Where should completed results be available?**
+
+1. Also send them to another app or system (Recommended)
+2. Keep them with the workflow and show me when I ask
+
+Reply with a number, or type your answer.
 ```
 
-For option 1, add `GTM_RESULTS_URL` to `.env.example`, place the supplied value in ignored `.env`, and author a named delivery step. For option 2, add the custom connection and named delivery step.
+When the user chooses external delivery without naming a destination, ask:
+
+```text
+**Where should I send them?**
+
+Examples: Slack, email, Airtable, a CRM, Google Sheets, or a webhook URL.
+
+Tell me the destination.
+```
+
+Ask only for connection details required by the selected destination. Add its named delivery step and connection configuration after the user selects it. Keep credentials and signed URLs out of conversation and tracked files. When the user keeps results with the workflow, add no delivery step or delivery connection.
 
 6. Write the workflow from the contract skeleton with named business steps. Add schedule exports and the matching `vercel.json` entry for scheduled Vercel work.
 7. For a triggered workflow, explain that callers use authenticated GET or POST. The user obtains the bearer by opening `workflows/.env`.
-8. Validate, build, start or restart the server through `open.md`, and run a three-row pilot when three safe rows exist.
+8. Before the proposal, mechanically confirm that the file basename's camelCase form is the exported workflow function and that no step uses the same name. Validate, build, start or restart the server through `open.md`, and run a three-row pilot when three safe rows exist.
 9. Use one proposal and save gate from `conversation.md` for the complete batch.
 10. Continue through `deploy.md` when the accepted file says `Runs: on Vercel`. Otherwise report behavior, invocation, results, limits, validation, paths, and saved state.
 
@@ -111,7 +123,7 @@ For option 1, add `GTM_RESULTS_URL` to `.env.example`, place the supplied value 
 
 For one workflow, read its contract fields and run `./node_modules/.bin/workflow inspect runs`. For deployed state, add `--backend vercel --project <project> --team <team>` from `package.json`. Report purpose, location, kind, schedule, connections, caps, validation, and recent outcomes without mutation.
 
-For all workflows, inspect every managed `flows/**/*.ts` file. Report contract, schedule, connection, route, shared-lib, and deployment drift without repairing it.
+For all workflows, inspect every managed `workflows/**/*.ts` file. Report contract, schedule, connection, route, shared-lib, and deployment drift without repairing it.
 
 For `show me the workflow`, render one Mermaid node per named step in the same order as the UI graph. Split camelCase into spaced labels, so `scoreAccountAgainstIcp` becomes `Score account against ICP`. Include the loop edge. Use the diagram rules in `conversation.md`.
 
@@ -128,7 +140,7 @@ Follow [open](open.md).
 1. Resolve the workflow and inspect its schedule, result directory, run location, and history recovery.
 2. Preview removal of the workflow file and matching cron entry. Keep ignored results and any deployed project unless the user separately accepts their removal.
 3. Use the deletion proposal and save gate from `conversation.md`.
-4. Remove empty nested flow directories and an empty `vercel.json`. Preserve unrelated workflows and cron entries.
+4. Remove empty nested workflow directories and an empty `vercel.json`. Preserve unrelated workflows and cron entries.
 5. Validate, save, and report what remains and how history restores the deletion.
 
 ## Run

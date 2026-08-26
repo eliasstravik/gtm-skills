@@ -169,9 +169,9 @@ def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> None:
         target.write_text(body)
 
 
-def copy_skill(home: Path) -> Path:
+def copy_skill(home: Path, source: Path) -> Path:
     target = home / "skill"
-    shutil.copytree(SKILL_ROOT, target)
+    shutil.copytree(source, target)
     return target
 
 
@@ -260,7 +260,12 @@ User task:
 """
 
 
-def run_one(eval_case: dict, configuration: str, iteration: Path) -> dict:
+def run_one(
+    eval_case: dict,
+    configuration: str,
+    iteration: Path,
+    baseline_skill_root: Path | None,
+) -> dict:
     eval_dir = iteration / f"eval-{eval_case['id']}-{eval_case['name']}"
     run_dir = eval_dir / configuration / "run-1"
     outputs = run_dir / "outputs"
@@ -285,7 +290,14 @@ def run_one(eval_case: dict, configuration: str, iteration: Path) -> dict:
             "TERM": "dumb",
         }
         seed_home(eval_case, home, env)
-        skill_path = copy_skill(home) if configuration == "with_skill" else None
+        skill_source = (
+            SKILL_ROOT
+            if configuration == "with_skill"
+            else baseline_skill_root
+            if configuration == "baseline_skill"
+            else None
+        )
+        skill_path = copy_skill(home, skill_source) if skill_source else None
         (home / "eval-output").mkdir()
         command = [
             "codex",
@@ -403,12 +415,18 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("iteration", type=Path)
     parser.add_argument("--ids")
-    parser.add_argument("--configurations", default="with_skill,without_skill")
+    parser.add_argument("--configurations", default="with_skill,baseline_skill")
+    parser.add_argument("--baseline-skill-root", type=Path)
     parser.add_argument("--max-workers", type=int, default=4)
     args = parser.parse_args()
     configurations = [item.strip() for item in args.configurations.split(",") if item.strip()]
-    if set(configurations) - {"with_skill", "without_skill"}:
-        parser.error("configurations must be with_skill and/or without_skill")
+    if set(configurations) - {"with_skill", "baseline_skill", "without_skill"}:
+        parser.error("configurations must be with_skill, baseline_skill, and/or without_skill")
+    if "baseline_skill" in configurations and (
+        not args.baseline_skill_root
+        or not (args.baseline_skill_root / "SKILL.md").is_file()
+    ):
+        parser.error("--baseline-skill-root must identify the pre-change skill snapshot")
     evals = json.loads((EVAL_ROOT / "evals.json").read_text())["evals"]
     if args.ids:
         selected = {int(item) for item in args.ids.split(",")}
@@ -438,7 +456,16 @@ def main() -> None:
     ]
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.max_workers) as pool:
-        futures = [pool.submit(run_one, case, configuration, args.iteration) for case, configuration in jobs]
+        futures = [
+            pool.submit(
+                run_one,
+                case,
+                configuration,
+                args.iteration,
+                args.baseline_skill_root,
+            )
+            for case, configuration in jobs
+        ]
         for future in concurrent.futures.as_completed(futures):
             result = future.result()
             results.append(result)

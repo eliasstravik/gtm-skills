@@ -1,108 +1,40 @@
 {
-  "skill": "gtm-workflow",
+  "date": "2026-08-26",
   "model": "gpt-5.6-sol",
-  "eval_set": "evals/gtm-workflow/description/trigger-eval.json",
-  "query_count": 20,
   "runs_per_query": 3,
-  "split": "deterministic index split: 12 train, 8 held_out",
-  "candidates": [
+  "query_count_per_skill": 20,
+  "split_per_skill": {
+    "train": 12,
+    "held_out": 8
+  },
+  "skills": [
     {
-      "index": 0,
-      "description": "Triggers when a user wants to create, update, inspect, delete, or run a saved GTM workflow in a GTM workspace, including Vercel Workflows that run on this computer or on Vercel and workflows with an agent research step. Not for creating or repairing the workspace itself, ICP or persona lifecycle work, other workflow engines, or one-off provider calls that are not saved as workflows.",
-      "rationale": "Current description retained as the non-regression baseline.",
-      "summary": {
-        "overall": {
-          "runs": 60,
-          "correct": 60,
-          "accuracy": 1.0,
-          "positive_recall": 1.0,
-          "negative_specificity": 1.0
-        },
-        "train": {
-          "runs": 36,
-          "correct": 36,
-          "accuracy": 1.0,
-          "positive_recall": 1.0,
-          "negative_specificity": 1.0
-        },
-        "held_out": {
-          "runs": 24,
-          "correct": 24,
-          "accuracy": 1.0,
-          "positive_recall": 1.0,
-          "negative_specificity": 1.0
-        },
-        "total_duration_seconds": 781.518,
-        "total_tokens": 610788,
-        "failures": []
-      }
+      "skill": "gtm-workflow",
+      "overall": "60/60",
+      "train": "36/36",
+      "held_out": "24/24",
+      "positive_recall": 1.0,
+      "negative_specificity": 1.0,
+      "description_changed": false
     },
     {
-      "index": 1,
-      "description": "Use for lifecycle work on saved GTM workflows inside an existing GTM workspace: create/build, update, inspect, delete, run, make live or deploy, schedule, and fetch run results. Covers the root workflows/ Nitro project, workflow files, local or Vercel execution, deployment metadata, bounded row/spending caps, and agent research through Vercel AI Gateway. Excludes workspace creation or repair, ICP/persona lifecycle work, other workflow engines, ordinary Vercel app deployment, GitHub Actions, generic automation advice, and unsaved one-off provider calls.",
-      "rationale": "Codex candidate that leads with natural lifecycle verbs and then defines owned artifacts and exclusions.",
-      "summary": {
-        "overall": {
-          "runs": 60,
-          "correct": 60,
-          "accuracy": 1.0,
-          "positive_recall": 1.0,
-          "negative_specificity": 1.0
-        },
-        "train": {
-          "runs": 36,
-          "correct": 36,
-          "accuracy": 1.0,
-          "positive_recall": 1.0,
-          "negative_specificity": 1.0
-        },
-        "held_out": {
-          "runs": 24,
-          "correct": 24,
-          "accuracy": 1.0,
-          "positive_recall": 1.0,
-          "negative_specificity": 1.0
-        },
-        "total_duration_seconds": 798.505,
-        "total_tokens": 407396,
-        "failures": []
-      }
+      "skill": "gtm-workspace",
+      "overall": "60/60",
+      "train": "36/36",
+      "held_out": "24/24",
+      "positive_recall": 1.0,
+      "negative_specificity": 1.0,
+      "description_changed": false
     },
     {
-      "index": 2,
-      "description": "Manage an existing GTM workspace’s saved-workflow system when the requested outcome is a new or changed workflow, workflow details, removal, an execution, a live Vercel version, a schedule, or a prior run’s result. Owns workflows/ as a Nitro project plus workflow code, local/Vercel runs, schedules, deployment state, row and spend limits, and Vercel AI Gateway research agents. Do not use for workspace setup/repair, ICPs or personas, unrelated workflow engines, normal Vercel apps, GitHub Actions, general automation guidance, or provider calls not persisted as workflows.",
-      "rationale": "Codex candidate that routes by requested outcome and preserves precise adjacent-skill boundaries.",
-      "summary": {
-        "overall": {
-          "runs": 60,
-          "correct": 60,
-          "accuracy": 1.0,
-          "positive_recall": 1.0,
-          "negative_specificity": 1.0
-        },
-        "train": {
-          "runs": 36,
-          "correct": 36,
-          "accuracy": 1.0,
-          "positive_recall": 1.0,
-          "negative_specificity": 1.0
-        },
-        "held_out": {
-          "runs": 24,
-          "correct": 24,
-          "accuracy": 1.0,
-          "positive_recall": 1.0,
-          "negative_specificity": 1.0
-        },
-        "total_duration_seconds": 815.765,
-        "total_tokens": 476079,
-        "failures": []
-      }
+      "skill": "gtm-icp",
+      "overall": "60/60",
+      "train": "36/36",
+      "held_out": "24/24",
+      "positive_recall": 1.0,
+      "negative_specificity": 1.0,
+      "description_changed": false
     }
   ],
-  "selection": {
-    "candidate_index": 0,
-    "best_description": "Triggers when a user wants to create, update, inspect, delete, or run a saved GTM workflow in a GTM workspace, including Vercel Workflows that run on this computer or on Vercel and workflows with an agent research step. Not for creating or repairing the workspace itself, ICP or persona lifecycle work, other workflow engines, or one-off provider calls that are not saved as workflows.",
-    "reason": "All three candidates scored 60/60 overall and 24/24 held out. The current description wins the tie because it has the smallest prompt footprint while retaining perfect recall and specificity."
-  }
+  "selection": "Retain all three active descriptions; every routing run was correct."
 }

@@ -2,7 +2,7 @@
 
 Use the operator's business language unless technical detail changes cost, permission, safety, ownership, or behavior. Answer what the workflow does, what it reads or changes, when it runs, where results go, and how partial failure appears.
 
-Read the request and managed files before asking. Ask only for a missing decision that changes the result. Gate cost, external writes, deployment, destruction, a missing run location, a missing result destination, and tracked saves. Group compatible gaps.
+Read the request and managed files before asking. Ask only for a missing decision that changes the result. Gate cost, external delivery, deployment, destruction, a missing run location, and tracked saves. Group compatible gaps.
 
 ## Questions
 
@@ -12,6 +12,8 @@ Begin a question-bearing message with one bold question. Put status and explanat
 Reply with a number, or type your answer.
 ```
 
+A free-form follow-up may omit numbered options. End the external-destination follow-up with `Tell me the destination.`
+
 ## Save gate
 
 Use one save gate for each coherent batch of tracked changes. After acceptance, save the accepted bytes without asking again. Inspect the full draft and actual diff before presenting:
@@ -19,7 +21,7 @@ Use one save gate for each coherent batch of tracked changes. After acceptance, 
 ```text
 **Would you like to save these changes?**
 
-<behavior, inputs, outputs, external changes, run location, timing, caps, result destination, failure behavior, validation, affected file groups, and resulting state>
+<behavior, inputs, outputs, external changes, run location, timing, caps, retained results, optional external delivery, failure behavior, validation, affected file groups, and resulting state>
 
 1. Accept and save (Recommended)
 2. Change it

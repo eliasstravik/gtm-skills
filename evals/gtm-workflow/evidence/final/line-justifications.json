@@ -2,122 +2,34 @@
   "skill": "gtm-workflow",
   "records": [
     {
-      "line_numbers": [
-        2,
-        3,
-        10,
-        48
-      ],
+      "line_numbers": [2, 3, 10],
       "survivor_category": "chosen-among-equals conventions",
-      "justification": "These lines define the skill identity, trigger boundary, and exact five-verb lifecycle vocabulary. The missing-workspace and lifecycle scenarios show that this routing vocabulary prevents adjacent workspace work from being absorbed into workflow authoring."
+      "justification": "These lines define the skill identity, exact lifecycle vocabulary, and routing boundary tested by the trigger suite and missing-workspace scenario."
     },
     {
-      "line_numbers": [
-        14,
-        18,
-        39
-      ],
+      "line_numbers": [14, 18, 39],
       "survivor_category": "private or internal facts",
-      "justification": "These encode the repository's ownership boundary, required local inputs, root-project state, result artifacts, and tracked-versus-ignored distinction. Nested ownership, inspection, and result-fetch scenarios directly depended on those project-specific facts."
+      "justification": "These lines encode root-project ownership, accepted local inputs, runtime results, UI ownership, and deployment state that general workflow guidance would not supply."
     },
     {
-      "line_numbers": [
-        22,
-        28,
-        29
-      ],
+      "line_numbers": [22, 35, 43],
       "survivor_category": "authority or approval structures",
-      "justification": "These allocate responsibility among the agent, user, gtm-workspace skill, and adjacent lifecycle owners. The no-workspace scenario's unique lift was the explicit handoff while leaving state untouched, and the approval allocation underlies durable-change and credential gates."
+      "justification": "These lines allocate acceptance and credential authority, enforce the workspace handoff, and preserve durable state on persistence failure."
     },
     {
-      "line_numbers": [
-        30,
-        31,
-        32,
-        33,
-        34,
-        35
-      ],
+      "line_numbers": [26, 28, 29, 30, 31, 32, 33, 34],
       "survivor_category": "authority or approval structures",
-      "justification": "The procedure table is the lifecycle state machine: it determines when to ask, draft, inspect, pilot, approve, persist, deploy, fetch, or delete. Broad gains across create, update, inspect, delete, run, and deployment show that these lines coordinate authority and sequencing rather than merely describe implementation."
+      "justification": "The procedure table is the lifecycle state machine that routes create, update, inspect, delete, run, and open work into the detailed contracts."
     },
     {
-      "line_numbers": [
-        31,
-        47
-      ],
+      "line_numbers": [47, 48, 49, 50, 51],
       "survivor_category": "taste or quality bars",
-      "justification": "The required business-facing location notes and exact question discipline are deliberate interaction-quality constraints. Exact conversation blocks, recommendation order, research-cost explanation, and absence of AskUserQuestion were discriminating assertions."
+      "justification": "These checks preserve secret custody, canonical route integrity, scoped history, conversation discipline, and controlled local processes."
     },
     {
-      "line_numbers": [
-        39,
-        43,
-        55
-      ],
-      "survivor_category": "fresh local state",
-      "justification": "These lines govern state that exists only in the active workspace or run: accepted history, ignored run results, still-running status, persistence availability, current branch, and ignored paths. Inspection, deletion, creation, and result retrieval all tested correct separation of durable and ephemeral state."
-    },
-    {
-      "line_numbers": [
-        43
-      ],
-      "survivor_category": "authority or approval structures",
-      "justification": "The persistence-failure branch forbids silently converting an unsaved draft into durable state, while bounded polling transfers later retrieval to inspect. Both are authority-preserving lifecycle transitions, although the benchmark directly exercised later inspection more than persistence failure."
-    },
-    {
-      "line_numbers": [
-        49
-      ],
-      "survivor_category": "chosen-among-equals conventions",
-      "justification": "Header shape, naming, step boundaries, one-attempt calls, and schema-checked output are house contracts chosen for this workflow system. Header, scheduledInput, cap-order, and failure-isolation assertions show substantial behavioral dependence on this contract."
-    },
-    {
-      "line_numbers": [
-        50,
-        63
-      ],
+      "line_numbers": [55],
       "survivor_category": "private or internal facts",
-      "justification": "Canonical template files, permitted customization surfaces, and verbatim copying are repository-internal facts that a general agent would not reliably infer. Scaffold integrity and canonical-file inspection failed without the skill."
-    },
-    {
-      "line_numbers": [
-        51
-      ],
-      "survivor_category": "authority or approval structures",
-      "justification": "This line constrains who handles secret values and where they may flow. Credential non-disclosure and the key-before-link cancellation scenario demonstrate that secret custody is a material authority boundary."
-    },
-    {
-      "line_numbers": [
-        52,
-        53
-      ],
-      "survivor_category": "taste or quality bars",
-      "justification": "Pre-spend caps, per-row budgets, and independent row failure are explicit safety and reliability bars. They produced lift in creation and full-run scenarios and prevent a single row or unbounded agent call from determining the whole run."
-    },
-    {
-      "line_numbers": [
-        54
-      ],
-      "survivor_category": "chosen-among-equals conventions",
-      "justification": "Using authenticated HTTP routes for pilots and runs while reserving the workflow binary for validation, inspection, and cancellation is a system-specific execution convention. Route-start assertions passed with the skill, though one without-skill run also inferred this behavior."
-    },
-    {
-      "line_numbers": [
-        55
-      ],
-      "survivor_category": "authority or approval structures",
-      "justification": "Accepted tracked changes, scoped history on main, and ignored secrets/results define what may become durable and when. One-entry creation, clean-main deployment, and scoped deletion were major discriminators."
-    },
-    {
-      "line_numbers": [
-        59,
-        60,
-        61,
-        62
-      ],
-      "survivor_category": "private or internal facts",
-      "justification": "These routing lines ensure the correct detailed contract, lifecycle, conversation, and deployment knowledge is loaded at the moment it applies. Their value is supported collectively by perfect cross-scenario behavior, but the benchmark cannot attribute causality to any individual reference directive."
+      "justification": "The routing line loads repository-specific file, lifecycle, UI, conversation, and deployment contracts only when they apply."
     }
   ]
 }

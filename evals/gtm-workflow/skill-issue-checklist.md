@@ -3,9 +3,11 @@
 - [x] Admitted by chosen workspace conventions, workflow file contracts, approval boundaries, and deployment authority.
 - [x] Classified as one Lifecycle SOP and named for the managed entity.
 - [x] `SKILL.md` has Trigger, Scope, Inputs, Roles, Procedure, Outputs, Exceptions, QC, and References in order.
-- [x] The body reduces to one lifecycle owner applying five flows to produce saved workflows, run results, or inspection reports under the contract controls.
-- [x] Public-tool instructions are retained only where their exact ordering, flags, or use boundary is a chosen contract.
-- [x] Bulky file, lifecycle, conversation, and deployment rules live in four references.
+- [x] The body reduces to one lifecycle owner applying create, update, inspect, delete, run, and open procedures under the shared contract.
+- [x] Public-tool instructions remain only where exact ordering, flags, or use boundaries are chosen contracts.
+- [x] Bulky file, lifecycle, conversation, UI, and deployment rules live in focused references.
 - [x] Every reference over 100 lines has a table of contents.
-- [x] The provisional description states positive and negative triggers in third person and stays below 1,024 characters.
-- [x] Applied the Codex trigger optimizer's `best_description` verbatim after three repeated runs over 20 trigger queries.
+- [x] The description states positive and negative triggers in third person and stays below 1,024 characters.
+- [x] Codex trigger routing passed 60/60 overall, 36/36 train, and 24/24 held out across three repeated runs per query.
+- [x] Paired Codex evaluation passed 43/43 final-candidate assertions against 34/43 for the untouched snapshot.
+- [x] Static review, benchmark, analyst notes, regression summary, and failure/rerun notes are stored under `evals/gtm-workflow/evidence/final/`.
