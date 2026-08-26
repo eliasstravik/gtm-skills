@@ -32,7 +32,7 @@ def main() -> None:
     )
     require(
         scripts.get("dev")
-        == "WORKFLOW_EMBEDDED_DATA_DIR=node_modules/.nitro/workflow WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS=360000 WORKFLOW_LOCAL_BODY_TIMEOUT_MS=360000 nitro dev",
+        == "WORKFLOW_EMBEDDED_DATA_DIR=node_modules/.nitro/workflow WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS=360000 WORKFLOW_LOCAL_BODY_TIMEOUT_MS=360000 nitro dev --port 3000",
         "Nitro dev must expose its generated graph and keep local queue timeouts above agent timeouts",
     )
     require(
@@ -55,7 +55,7 @@ def main() -> None:
     actions = (SKILL_ROOT / "references/flows.md").read_text()
     open_contract = (SKILL_ROOT / "references/open.md").read_text()
     require(
-        "http://127.0.0.1:<port>/_workflow" in open_contract,
+        "http://127.0.0.1:3000/_workflow" in open_contract,
         "inspect flow must use Nitro's embedded UI route",
     )
     require(

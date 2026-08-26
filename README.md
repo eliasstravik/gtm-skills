@@ -27,6 +27,9 @@ The GTM workspace records durable facts about the business and its team. ICPs de
 | **Organization lifecycle management** | ✅ | ❌ | ❌ | ❌ |
 | **ICP and persona lifecycle management** | ✅ | ❌ | ❌ | ❌ |
 | **Local and Vercel workflow lifecycle management** | ✅ | ❌ | ❌ | ❌ |
+| **Typed workflow result tables and migrations** | ✅ | ❌ | ❌ | ❌ |
+| **Dry runs, checkpoints, approvals, schedules, and webhooks** | ✅ | ❌ | ❌ | ❌ |
+| **Cached provider and model calls with a cost ledger** | ✅ | ❌ | ❌ | ❌ |
 | **Node-local organization support** | ✅ | ❌ | ❌ | ❌ |
 | **Review-before-write workflows** | ✅ | ❌ | ❌ | ❌ |
 
@@ -48,7 +51,9 @@ Create, refine, delete, or doctor personas with clear responsibilities, influenc
 
 ### ⚙️ Build and run reusable GTM workflows
 
-Create, update, inspect, delete, or run a saved workflow. The same TypeScript workflow can run on your computer through an installed CLI agent or, when you choose it, on Vercel through a budgeted AI Gateway key.
+Create, update, inspect, delete, or run a saved workflow. Each workflow declares a typed result table, commits its database migrations, and upserts rows by a stable key. The same TypeScript file runs on your computer with a local SQLite database or on Vercel with Turso.
+
+Before a real run, the agent reports rows, stages, projected cost, and caps without calling a provider or model. A checkpoint pauses the real run after the first saved rows so you can inspect them in Drizzle Studio and approve the rest of the same run. Provider and model calls share a cache and cost ledger, so unchanged reruns reuse prior results. Workflows can also wait for approval, run on a schedule, or resume from a per-run webhook.
 
 ## Build your GTM foundation in four steps
 
@@ -57,7 +62,7 @@ Create, update, inspect, delete, or run a saved workflow. The same TypeScript wo
 <td align="center" valign="top" width="25%"><h3>1️⃣</h3><b>Install GTM Skills</b><br /><sub>Run <code>npx skills add eliasstravik/gtm-skills -g</code> to install all four skills.</sub></td>
 <td align="center" valign="top" width="25%"><h3>2️⃣</h3><b>Build your GTM workspace</b><br /><sub>Run <code>/gtm-workspace</code> to create or import the organization repository and add the members and business units it owns.</sub></td>
 <td align="center" valign="top" width="25%"><h3>3️⃣</h3><b>Define the market and buyer</b><br /><sub>Run <code>/gtm-icp</code> and <code>/gtm-persona</code> to create the definitions each organization needs.</sub></td>
-<td align="center" valign="top" width="25%"><h3>4️⃣</h3><b>Build your first workflow</b><br /><sub>Run <code>/gtm-workflow</code>, choose where it runs, set its caps, and approve a three-row pilot before saving it.</sub></td>
+<td align="center" valign="top" width="25%"><h3>4️⃣</h3><b>Build your first workflow</b><br /><sub>Run <code>/gtm-workflow</code>, declare its table and caps, review a zero-spend dry run, then inspect the first saved rows at a checkpoint.</sub></td>
 </tr>
 </table>
 
@@ -94,7 +99,7 @@ Yes. The root organization and its suborganizations can own their own definition
 
 ### Where do workflows run?
 
-You choose per workflow. Local workflows use a supported CLI agent already available on your computer. Vercel workflows use the same committed file, the optional Vercel CLI, and a Vercel AI Gateway key with a spending budget.
+You choose per workflow. Local workflows use a supported CLI agent and `data/gtm.db`. Vercel workflows use the same committed file, Turso, the optional Vercel CLI, and a Vercel AI Gateway key with a spending budget.
 
 ### What does it cost?
 

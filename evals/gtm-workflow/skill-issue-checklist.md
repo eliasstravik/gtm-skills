@@ -8,6 +8,7 @@
 - [x] Bulky file, lifecycle, conversation, UI, and deployment rules live in focused references.
 - [x] Every reference over 100 lines has a table of contents.
 - [x] The description states positive and negative triggers in third person and stays below 1,024 characters.
-- [x] Codex trigger routing passed 60/60 overall, 36/36 train, and 24/24 held out across three repeated runs per query.
-- [x] Paired Codex evaluation passed 43/43 final-candidate assertions against 34/43 for the untouched snapshot.
-- [x] Static review, benchmark, analyst notes, regression summary, and failure/rerun notes are stored under `evals/gtm-workflow/evidence/final/`.
+- [x] The v3 deterministic harness covers typed tables, migrations, dry run, paid-call caching, checkpoint approval, duplicate protection, approval denial and timeout, scheduled starts, webhook registration, and sandbox refusals.
+- [x] Model-graded assertions cover the five golden paths, table drift, and sandbox constraints without requiring live services.
+- [ ] Rerun trigger and paired model evaluations after a model-credit budget is approved.
+- [ ] Complete the production and real-provider checks listed in `evidence/live-verification-follow-ups.md` under an explicit spend budget.

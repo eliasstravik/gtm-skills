@@ -1,20 +1,10 @@
 # Deploy GTM workflows to Vercel
 
-Use this flow only after accepted workflow bytes say `Runs: on Vercel`. Run every command from inside the workspace's `workflows/` directory.
-
-## Contents
-
-- [Deployment gate](#deployment-gate)
-- [CLI check](#cli-check)
-- [Gateway key check](#gateway-key-check)
-- [Link and sync](#link-and-sync)
-- [Deploy and record](#deploy-and-record)
-- [Verify](#verify)
-- [Live state](#live-state)
+Use this flow only after accepted workflow bytes say `Runs: on Vercel`. Run commands inside the workspace `workflows/` directory.
 
 ## Deployment gate
 
-If the user has not already authorized deployment, ask:
+If deployment is not already authorized, ask:
 
 ```text
 **Would you like to put this workflow live on Vercel now?**
@@ -26,79 +16,65 @@ If the user has not already authorized deployment, ask:
 Reply with a number, or type your answer.
 ```
 
-Option 2 closes with the exact saved-versus-live state and how to return to deploy. Option 3 cancels deployment only; it does not undo the accepted local history.
+Option 2 closes with the saved and live state. Option 3 cancels deployment only.
 
-## CLI check
+## CLI and sandbox check
 
-1. Confirm `vercel` is on `PATH`.
-2. Run `vercel whoami`.
-3. If either check fails, say: `Install the Vercel CLI, then run vercel login.`
-4. Wait for the user, then recheck both conditions. `vercel login` is the one deployment command the user runs themselves.
+On a laptop, require `vercel` on `PATH` and a successful `vercel whoami`. If either fails, ask the user to install the CLI and run `vercel login`, then wait and recheck.
 
-Do not link a project before both checks pass.
+When `GTM_SANDBOX=1`, do not wait for keyboard login. Require a deploy-scoped credential supplied by the host and a Vercel CLI made available through its bootstrap. Stop before linking when either is absent.
 
-## Gateway key check
+## Model key check
 
-Before linking, scan managed flow files for `agent()` calls. If any flow calls it and ignored `.env` lacks a non-empty `AI_GATEWAY_API_KEY`, use this exact order:
+Before linking, scan workflows for `agent()` calls. If any exists and ignored `.env` has no non-empty `AI_GATEWAY_API_KEY`, ask the user to save a budgeted Gateway key directly into `workflows/.env` without sharing it in conversation. Stop deployment until the non-empty variable exists.
+
+## Link, database, and environment
+
+1. Refuse deployment if `.env.local` already exists. Name it and leave it unchanged.
+2. Run `vercel link --yes --project <org-slug>-workflows`.
+3. Check `vercel env ls production` for `TURSO_DATABASE_URL`.
+4. When it is absent, run:
 
 ```text
-**Is a budgeted Gateway key saved in workflows/.env now?**
-
-Research on Vercel runs through a Vercel AI Gateway key with a spending budget. Create the key with a spending budget in the [Vercel AI Gateway dashboard](https://vercel.com/ai-gateway) and paste it directly into `workflows/.env` without sharing it in conversation.
-
-1. Yes, continue (Recommended)
-2. Cancel deployment
-
-Reply with a number, or type your answer.
+vercel install tursocloud --environment production --format=json
 ```
 
-Wait for confirmation and verify only that the variable has a non-empty value.
+This Vercel Marketplace slug and flag set is current as of the v3 build. If the CLI requires marketplace terms or plan selection, stop for that user decision. The integration supplies `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.
 
-## Link and sync
-
-1. On every deployment, run `vercel link --yes --project <org-slug>-workflows`. The local `.vercel/` link is ignored, so linking is not assumed to persist.
-2. Read variable names from `.env.example`. For each name with a non-empty value in `.env` that is absent from `vercel env ls`, pipe its value from `.env` through the shell to `vercel env add <name> production`. Disable shell tracing and do not print the value.
-3. Sync `GTM_AGENT_BACKEND` only when its value is `api`. A CLI backend cannot run on Vercel.
-4. Set `CRON_SECRET` to the same value as `GTM_RUN_SECRET`, transferred through the shell.
-5. When the user says a value changed, remove that production variable with `vercel env rm`, then add it again from `.env`. Rotating `GTM_RUN_SECRET` also removes and rewrites `CRON_SECRET`.
-
-Variable sync runs on every deployment before build.
+5. Record whether `.env.local` existed before install. Since step 1 refused a preexisting file, delete `.env.local` if install created it and say so. The production database pair belongs in `.env.turso`, not `.env`.
+6. Run `vercel env pull .env.turso --environment production`. Require both Turso variables. If the auth token is not pullable, ask the user to create a database token in the Turso dashboard and write the pair directly to ignored `.env.turso`.
+7. Run `npm run db:migrate:cloud`. Migrations do not run during build.
+8. Read names from `.env.example`. For each name with a non-empty `.env` value absent from production, transfer its value through shell input to `vercel env add <name> production`. Disable shell tracing and print no value. Leave the empty Turso pair in `.env.example` unsynced.
+9. Sync `GTM_AGENT_BACKEND` only when it is `api`. Set `CRON_SECRET` to the same value as `GTM_RUN_SECRET` through shell input.
 
 ## Deploy and record
 
 1. Run `vercel deploy --prod --yes`.
-2. Stop on a failed build or deployment. Do not describe the workflow as live.
-3. Read the linked team and project plus the production URL from Vercel's output.
-4. Record them under `package.json`:
+2. Stop on a failed build or deployment.
+3. Record the linked team, project, and production URL under `package.json` `gtm.vercel`.
+4. Inspect and save that non-secret metadata change.
 
-```json
-{
-  "gtm": {
-    "vercel": {
-      "team": "<team>",
-      "project": "<project>",
-      "url": "<production-url>"
-    }
-  }
-}
-```
-
-5. Inspect the exact `package.json` change and save it to history on `main`.
-
-Deployments are CLI-only. Do not configure a Git-connected deployment or a separate Root Directory.
+Deploy from the CLI only. Configure no Git-connected deployment and no separate root directory.
 
 ## Verify
 
-1. Build a safe three-row body accepted for the workflow being deployed.
-2. POST it to the production run route with the bearer read from `.env` inside the shell. This proves the Gateway path when the workflow calls `agent()`.
-3. Poll the production result route for at most ten minutes. Require a completed result with the expected `completed` and `failed` lists. If still running, report that inspect can retrieve it later.
-4. Run remote inspect with `./node_modules/.bin/workflow inspect runs --backend vercel --project <project> --team <team>`.
-5. For a scheduled flow, run `vercel crons run /api/run/<path>` and confirm a new Workflow run starts. Vercel supplies `CRON_SECRET` as the bearer. If cron invocation is unavailable, call the GET run route from the shell with `GTM_RUN_SECRET`.
+1. Run `npm run gtm -- check` before deployment and keep its output.
+2. Run the accepted production input through `gtm run --dry-run`.
+3. Start the first real run with `--checkpoint 3 --wait` against the recorded production URL.
+4. Query the first rows with `npm run gtm -- query --cloud` and inspect them through `npm run db:studio:cloud`.
+5. Ask for checkpoint approval. Resume the same run with `gtm approve --yes --wait`.
+6. Require a terminal `workflow_runs` row, expected business rows, and a visible run in Vercel Observability.
+7. For a scheduled workflow, invoke its GET route once with `CRON_SECRET` and save the response. A second live GET must return 409.
+8. For a webhook workflow, require `runs get` to show its per-run URL, POST one fixture payload to it, and require completion.
+
+## Evidence
+
+Save sanitized path 2 and path 5 evidence under `evals/gtm-workflow/evidence/`. Include command names, status codes, timestamps, run keys, row counts, cache-hit counts, migration result, and relevant redacted output. Do not save credentials or full environment files.
+
+Before commit, scan evidence and `.env.turso` for the run bearer, Turso token, and Gateway key. Keep `.env.turso` ignored. Put the harness output and evidence file list in the pull request body.
 
 ## Live state
 
-`Live` means the production deployment succeeded, the workflow starts through the recorded URL, and the verification run reached its expected result state. A saved workflow that has not passed this flow is local, not live.
+`Live` means production deployment succeeded, cloud migration applied, a run started through the recorded URL, and verification reached the expected database and workflow state. A saved workflow that has not passed this flow is not live.
 
-Webhooks and other trigger systems call the same GET or POST run route. The user obtains the bearer by opening `workflows/.env` and configures it in the caller.
-
-On Vercel Hobby, cron accepts only once-daily schedules and may fire within the specified hour. Cron has no automatic retry and may double-fire; the delivery payload's run ID and UTC date key support receiver deduplication.
+On Vercel Hobby, cron may fire once daily within its hour and may double-fire. The live-run guard covers overlap. Delivery payloads include the SDK run id and UTC date for receiver deduplication.

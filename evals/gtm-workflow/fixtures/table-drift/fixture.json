@@ -1,0 +1,6 @@
+{
+  "workflow_template_repos": [".gtm/acme"],
+  "ignored_files": {
+    ".gtm/acme/workflows/.env": "GTM_RUN_SECRET=eval-secret-local\n"
+  }
+}

@@ -6,7 +6,7 @@ GTM Skills gives your AI agent four focused Lifecycle SOPs that share one Git-ba
 
 You need:
 
-- Node.js and `npx`
+- Node.js 22 and `npx`
 - Git
 - An AI agent that can load installed skills
 - Vercel CLI only if you want a workflow to run on Vercel
@@ -56,7 +56,10 @@ Your repository can hold:
     ├── package.json
     ├── workflows/<workflow-slug>.ts
     ├── workflows/<suborg-path>/<workflow-slug>.ts
-    └── data/                         # ignored run results
+    ├── db/tables/<table>.ts
+    ├── providers/<provider>.ts
+    ├── drizzle/                      # committed migrations
+    └── data/                         # ignored local database and inputs
 ```
 
 Every recursively nested suborganization has the same `ORG.md`, optional `suborgs/`, and optional `members/` shape. Organization facts, member records, ICPs, and personas stay versioned in Git so every skill uses the same accepted definitions.
@@ -89,11 +92,27 @@ Run:
 /gtm-workflow
 ```
 
-Choose **Create a workflow** and describe the repeatable GTM job. The skill asks where it should run, what data it accepts, which organization and ICP it uses, whether to add external delivery, and the maximum rows and spend allowed. Completed results remain available through the workflow runtime.
+Choose **Create a workflow** and describe the repeatable GTM job. The skill asks where it should run, what data it accepts, which stable key identifies a row, which organization and ICP it uses, and the maximum rows and spend allowed. It declares a typed table for the business result and commits each schema change as a migration.
 
-For an on-demand workflow, start with **On this computer**. The first create silently adds the root `workflows/` project, installs its pinned dependencies, creates an ignored local environment file, builds the workflow, validates it, and runs a three-row pilot. You review one complete proposal before anything durable is saved.
+For an on-demand workflow, start with **On this computer**. The first create adds the root `workflows/` project, installs its pinned dependencies, creates an ignored local environment file, builds the workflow, and validates it. You review one complete proposal before tracked files or migrations are written.
 
 Local agent work uses the first supported CLI already available on your `PATH`. You do not need Vercel or a separate model-provider key for this path.
+
+The agent first runs a zero-spend preview:
+
+```sh
+cd ~/.gtm/<org-slug>/workflows
+npm run gtm -- run <workflow-slug> --input data/input.json --dry-run
+```
+
+After you accept the rows, stages, projected cost, and caps, the first real run pauses after three saved rows:
+
+```sh
+npm run gtm -- run <workflow-slug> --input data/input.json --checkpoint 3 --wait
+npm run db:studio
+```
+
+Inspect the typed result table in Studio, then approve the rest of the same run with the exact command the agent shows. An unchanged rerun reuses cached provider and model results and records zero-cost cache hits.
 
 To run the same workflow on Vercel, install and sign in to the optional CLI:
 
@@ -102,7 +121,14 @@ npm install --global vercel
 vercel login
 ```
 
-Research on Vercel uses a Vercel AI Gateway key with a spending budget. Save that key directly in the ignored `workflows/.env` file when the skill asks. Do not paste it into chat or commit it. The deployment flow checks the key before linking a project, synchronizes secrets through the shell, deploys, and verifies the production route with a three-row pilot.
+Research on Vercel uses a Vercel AI Gateway key with a spending budget. Save that key directly in the ignored `workflows/.env` file when the skill asks. Do not paste it into chat or commit it. The deployment flow links the project, provisions Turso through the Vercel Marketplace when needed, pulls the database pair into ignored `.env.turso`, applies the committed cloud migration, deploys, and verifies the production route with a checkpointed run.
+
+Query cloud rows or open Studio against Turso:
+
+```sh
+npm run gtm -- query --cloud --sql "select * from <table> limit 20" --format markdown
+npm run db:studio:cloud
+```
 
 ## 7. Maintain the shared workspace
 

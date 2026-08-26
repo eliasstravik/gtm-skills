@@ -1,0 +1,7 @@
+{
+  "workflow_template_repos": [".gtm/acme"],
+  "ignored_files": {
+    ".gtm/acme/workflows/.env": "GTM_RUN_SECRET=eval-secret-scheduled\n",
+    ".gtm/acme/workflows/data/eval-duplicate-run.json": "{\"first\":{\"status\":202,\"runKey\":\"pipeline-watch:null\"},\"second\":{\"status\":409,\"error\":{\"code\":\"run_in_progress\",\"runKey\":\"pipeline-watch:null\"}}}\n"
+  }
+}
