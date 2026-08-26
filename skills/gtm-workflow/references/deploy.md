@@ -39,7 +39,7 @@ Before linking, scan workflows for `agent()` calls. If any exists and ignored `.
 vercel install tursocloud --environment production --format=json
 ```
 
-This Vercel Marketplace slug and flag set is current as of the v3 build. If the CLI requires marketplace terms or plan selection, stop for that user decision. The integration supplies `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.
+This Vercel Marketplace slug and flag set is current as of the v4 build. If the CLI requires marketplace terms or plan selection, stop for that user decision. The integration supplies `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.
 
 5. Record whether `.env.local` existed before install. Since step 1 refused a preexisting file, delete `.env.local` if install created it and say so. The production database pair belongs in `.env.turso`, not `.env`.
 6. Run `vercel env pull .env.turso --environment production`. Require both Turso variables. If the auth token is not pullable, ask the user to create a database token in the Turso dashboard and write the pair directly to ignored `.env.turso`.

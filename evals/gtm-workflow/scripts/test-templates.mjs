@@ -9,8 +9,8 @@ import { test } from "node:test";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v3 templates pass the local, approval, scheduled, webhook, and sandbox paths", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v3-"));
+test("v4 templates pass the local, approval, scheduled, webhook, and sandbox paths", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v4-"));
   let vendor;
   let server;
   context.after(async () => {
@@ -58,7 +58,12 @@ test("v3 templates pass the local, approval, scheduled, webhook, and sandbox pat
     vendorCalls += 1;
     const url = new URL(request.url, "http://127.0.0.1");
     response.setHeader("content-type", "application/json");
-    response.end(JSON.stringify({ company: url.searchParams.get("domain") }));
+    response.end(
+      JSON.stringify({
+        company: url.searchParams.get("domain"),
+        providerRecordId: `vendor-${vendorCalls}`,
+      }),
+    );
   });
   await new Promise((resolvePromise) => vendor.listen(0, "127.0.0.1", resolvePromise));
   const vendorPort = vendor.address().port;
@@ -87,7 +92,7 @@ test("v3 templates pass the local, approval, scheduled, webhook, and sandbox pat
   await command("npm", ["run", "db:generate"], { cwd: directory, env });
   await command("npm", ["run", "db:migrate"], { cwd: directory, env });
   const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
-  assert.deepEqual(JSON.parse(lastJsonLine(check.stdout)), { ok: true, workflows: 4, libVersion: 3 });
+  assert.deepEqual(JSON.parse(lastJsonLine(check.stdout)), { ok: true, workflows: 4, libVersion: 4 });
   const scheduledNoInput = await gtmFailure(directory, env, ["run", "scheduled-proof"]);
   assert.equal(scheduledNoInput.error.code, "invalid_input");
   assert.match(scheduledNoInput.error.message, /write scheduledInput to a file/);
@@ -136,6 +141,27 @@ test("v3 templates pass the local, approval, scheduled, webhook, and sandbox pat
   assert.equal((await tableRows(directory, env, "accounts")).length, 20);
   assert.equal(vendorCalls, 20);
   assert.equal((await readFile(fakeCount, "utf8")).length, 20);
+  const cached = await sqlRows(
+    directory,
+    env,
+    "select value, raw from enrichment_cache where provider = 'mock-data' order by inputs_hash limit 1",
+  );
+  assert.deepEqual(Object.keys(JSON.parse(cached[0].value)), ["company"]);
+  assert.equal(typeof JSON.parse(cached[0].raw).providerRecordId, "string");
+  const expandedCacheHit = await providerProbe(directory, env, {
+    runKey: "expanded-schema",
+    schema: "expanded",
+  });
+  assert.equal(expandedCacheHit.status, "cache_hit");
+  assert.equal(expandedCacheHit.value.providerRecordId, "vendor-1");
+  assert.equal(vendorCalls, 20);
+  const legacyCacheHit = await providerProbe(directory, env, {
+    runKey: "legacy-fallback",
+    schema: "legacy",
+  });
+  assert.equal(legacyCacheHit.status, "cache_hit");
+  assert.deepEqual(legacyCacheHit.value, { company: "legacy.test" });
+  assert.equal(vendorCalls, 20);
   const writeQuery = await gtmFailure(directory, env, [
     "query",
     "--sql",
@@ -285,6 +311,49 @@ async function tableRows(directory, env, table) {
 
 async function sqlRows(directory, env, sql) {
   return gtm(directory, env, ["query", "--sql", sql, "--format", "json"]);
+}
+
+async function providerProbe(directory, env, options) {
+  const script = `
+    const [{ provider }, { getDb }, { enrichmentCache }, { z }] = await Promise.all([
+      import("./lib/provider.ts"),
+      import("./lib/db.ts"),
+      import("./lib/schema.ts"),
+      import("zod"),
+    ]);
+    if (${JSON.stringify(options.schema)} === "legacy") {
+      const now = Date.now();
+      await (await getDb()).insert(enrichmentCache).values({
+        provider: "mock-data",
+        endpoint: "organization-lookup-v1",
+        inputsHash: "634f69893e1dc602fd23f311f27a4ac8d42ccc21059b47876d5b51d85117d1a3",
+        inputs: JSON.stringify({ domain: "legacy.test" }),
+        raw: null,
+        value: JSON.stringify({ company: "legacy.test" }),
+        expiresAt: now + 86_400_000,
+        createdAt: now,
+      });
+    }
+    const schema = ${JSON.stringify(options.schema)} === "expanded"
+      ? z.object({ company: z.string(), providerRecordId: z.string() })
+      : z.object({ company: z.string() });
+    const domain = ${JSON.stringify(options.schema)} === "expanded" ? "account-0.test" : "legacy.test";
+    const result = await provider({
+      name: "mock-data",
+      endpoint: "organization-lookup-v1",
+      input: { domain },
+      schema,
+      ttlMs: 86_400_000,
+      call: async () => { throw new Error("cache miss"); },
+      meta: { runKey: ${JSON.stringify(options.runKey)}, slug: "provider-probe" },
+    });
+    process.stdout.write(JSON.stringify(result));
+  `;
+  const result = await command(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+    cwd: directory,
+    env,
+  });
+  return JSON.parse(result.stdout);
 }
 
 async function httpJson(url, init = {}, expectedStatus = 200) {

@@ -1,4 +1,4 @@
-// gtm-lib v3
+// gtm-lib v4
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
