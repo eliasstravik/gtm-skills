@@ -57,18 +57,26 @@ No provider, deployment, or agent call ran. The package install reported 13 high
 
 ## Verification commands
 
+`$SCRATCH` below is the disposable evaluation root and `$BASELINE_SKILL_ROOT` is its untouched `bef823e` skill snapshot.
+
 - `python3 <skill-creator>/scripts/quick_validate.py skills/gtm-workflow`
 - `python3 <skill-creator>/scripts/quick_validate.py skills/gtm-icp`
 - `python3 scripts/check_repo_layout.py`
-- `python3 evals/gtm-workflow/scripts/run_evals.py <iteration> --configurations with_skill,baseline_skill --baseline-skill-root <snapshot>`
-- `python3 evals/gtm-workflow/scripts/grade_evals.py <iteration>`
-- `python3 evals/gtm-workspace/scripts/run_evals.py <iteration> --configurations with_skill`
-- `python3 evals/gtm-workspace/scripts/grade_evals.py <iteration>`
-- `python3 evals/gtm-icp/scripts/run_evals.py <iteration> --configurations with_skill`
-- `python3 evals/gtm-icp/scripts/grade_evals.py <iteration>`
-- `python3 evals/gtm-persona/scripts/run_evals.py <iteration> --configurations with_skill`
-- `python3 evals/gtm-persona/scripts/grade_evals.py <iteration>`
+- `python3 evals/gtm-workflow/scripts/run_evals.py "$SCRATCH/iteration-3" --configurations with_skill,baseline_skill --baseline-skill-root "$BASELINE_SKILL_ROOT" --max-workers 4`
+- `python3 evals/gtm-workflow/scripts/grade_evals.py "$SCRATCH/iteration-3"`
+- `python3 evals/gtm-workspace/scripts/run_evals.py "$SCRATCH/workspace-regression-4" --configurations with_skill --max-workers 4`
+- `python3 evals/gtm-workspace/scripts/grade_evals.py "$SCRATCH/workspace-regression-4"`
+- `python3 evals/gtm-icp/scripts/run_evals.py "$SCRATCH/icp-regression-3" --configurations with_skill --max-workers 4`
+- `python3 evals/gtm-icp/scripts/grade_evals.py "$SCRATCH/icp-regression-3"`
+- `python3 evals/gtm-persona/scripts/run_evals.py "$SCRATCH/persona-regression-2" --configurations with_skill --max-workers 4`
+- `python3 evals/gtm-persona/scripts/grade_evals.py "$SCRATCH/persona-regression-2"`
+- `python3 evals/gtm-icp/description/run_classifier.py --evals evals/gtm-workflow/description/trigger-eval.json --candidates evals/gtm-workflow/description/candidates.json --candidate-index 0 --runs 3 --workers 6 --output "$SCRATCH/triggers/gtm-workflow"`
+- `python3 evals/gtm-icp/description/run_classifier.py --evals evals/gtm-workspace/description/trigger-eval.json --candidates evals/gtm-workspace/description/candidates.json --candidate-index 0 --runs 3 --workers 6 --output "$SCRATCH/triggers/gtm-workspace"`
+- `python3 evals/gtm-icp/description/run_classifier.py --candidate-index 0 --runs 3 --workers 6 --output "$SCRATCH/triggers/gtm-icp"`
+- `python3 <skill-creator>/scripts/aggregate_benchmark.py "$SCRATCH/iteration-3" --skill-name gtm-workflow --skill-path skills/gtm-workflow`
+- `python3 <skill-creator>/eval-viewer/generate_review.py "$SCRATCH/iteration-3" --skill-name gtm-workflow --benchmark "$SCRATCH/iteration-3/benchmark.json" --static "$SCRATCH/iteration-3/review.html"`
 - `python3 evals/gtm-workflow/scripts/test_local_ui_contract.py`
 - `python3 evals/gtm-workspace/scripts/test_contract.py`
 - `python3 evals/gtm-icp/scripts/check_compliance.py`
 - `python3 evals/gtm-persona/scripts/check_compliance.py`
+- In the disposable runtime scaffold: `npm ci`, `npm run build`, `./node_modules/.bin/workflow validate`, `PORT=43136 npm run dev`, authenticated POST and GET requests to the unchanged run/result routes, `./node_modules/.bin/workflow inspect runs`, GET `/_workflow`, and the native `fetchWorkflowsManifest` RPC.
