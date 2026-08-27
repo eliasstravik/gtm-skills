@@ -1,4 +1,4 @@
-// gtm-lib v7
+// gtm-lib v8
 import { defineEventHandler } from "nitro/h3";
 import { resumeHook } from "workflow/api";
 import { HookNotFoundError } from "workflow/internal/errors";

@@ -48,11 +48,11 @@ Ignore `node_modules/`, `.env*` except `.env.example`, `.vercel/`, `.well-known/
 
 ## Versioned files
 
-Every `lib/*.ts`, all five route files, `scripts/gtm.ts`, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v7`. `package.json` carries `gtm.libVersion: 7`. Compare these versions before every action. Name differing files and offer a template recopy in the proposal. Compare headers, not hashes, and never recopy silently.
+Every `lib/*.ts`, all five route files, `scripts/gtm.ts`, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v8`. `package.json` carries `gtm.libVersion: 8`. Compare these versions before every action. Name differing files and offer a template recopy in the proposal. Compare headers, not hashes, and never recopy silently.
 
-A v2 project has no `lib/schema.ts` or `drizzle/`. Offer a v7 re-scaffold through update: copy the v7 files, add the pinned dependencies and baseline migrations, migrate, then recreate each workflow through create from its header and purpose. Present the full diff before saving. Keep old ignored JSON results.
+A v2 project has no `lib/schema.ts` or `drizzle/`. Offer a v8 re-scaffold through update: copy the v8 files, add the pinned dependencies and baseline migrations, migrate, then recreate each workflow through create from its header and purpose. Present the full diff before saving. Keep old ignored JSON results.
 
-A v5 project lacks the cancel route and the `gtm cancel` command. A v6 project answers Gateway web searches in the same model step as the search, so the evidence never reaches the structured result. Offer the v7 recopy through update: copy the versioned files verbatim and set `gtm.libVersion: 7`. It changes no table, migration, or workflow file.
+A v5 project lacks the cancel route and the `gtm cancel` command. A v6 project answers Gateway web searches in the same model step as the search, so the evidence never reaches the structured result. Offer the v8 recopy through update: copy the versioned files verbatim and set `gtm.libVersion: 8`. It changes no table, migration, or workflow file.
 
 ## Workflow and table contract
 
@@ -70,7 +70,7 @@ Use a lowercase kebab-case filename and export its camelCase basename. Row-produ
  */
 ```
 
-Export `input`, `MAX_ROWS`, `MAX_SPEND_USD`, `COST_PER_ROW_USD`, the workflow function, and `scheduledInput` for scheduled work. Every workflow accepts `(arg: Input, meta: WorkflowMeta)`. A scheduled workflow puts `arg ??= scheduledInput` directly after `"use workflow"`.
+Export `input`, `MAX_ROWS`, `MAX_SPEND_USD`, `COST_PER_ROW_USD`, the workflow function, and `scheduledInput` for scheduled work. Every workflow accepts `(arg: Input, meta: WorkflowMeta)` and assigns `arg = input.parse(arg)` immediately after `"use workflow"`; this runtime parse is what applies Zod defaults and rejects malformed route input. A scheduled workflow puts `arg ??= scheduledInput` first, then parses it.
 
 Declare each result table in `db/tables/<snake_case>.ts`. Export one `sqliteTable` whose SQL name matches the basename. It has `key: text("key").primaryKey()` and `updatedAt: integer("updated_at").notNull()`. New columns on an existing table are nullable or defaulted. Input schemas that select existing rows include `key`.
 
@@ -126,6 +126,7 @@ async function saveAccount(row: Record<string, unknown>) {
 
 export async function findAccounts(arg: Input, meta: WorkflowMeta) {
   "use workflow";
+  arg = input.parse(arg);
   const projected = arg.rows.length * COST_PER_ROW_USD;
   if (arg.rows.length > MAX_ROWS || projected > MAX_SPEND_USD) {
     throw new Error("Accepted workflow limits exceeded");
@@ -212,7 +213,7 @@ See [providers](providers.md) before writing or changing an adapter.
 
 Run `npm run gtm -- run <slug> --input <file> --dry-run` before every real run. Gate the real run with rows, stages, projected cost, caps, external writes, and checkpoint position. The first real run of new or changed on-demand work uses `--checkpoint 3` unless the user accepts the full scope. Scheduled runs never checkpoint and rely on caps.
 
-Use committed migrations only. A rename uses `npm run db:generate -- --custom --name <rename-name>` and a hand-written `ALTER TABLE ... RENAME` statement. A drop needs the delete gate and a migration. Nothing runs a migration as a build side effect. A hosted save names every migration file it applies and declares whether any statement drops a table or column; the host refuses an undeclared destructive migration.
+Use committed migrations only. Every generated migration is one atomic artifact set: `drizzle/<sequence>_<name>.sql`, its entry in `drizzle/meta/_journal.json`, and `drizzle/meta/<sequence>_snapshot.json`. Never add migration SQL by hand without registering the matching journal and snapshot; `gtm check` and the hosted save reject orphan artifacts. A rename uses `npm run db:generate -- --custom --name <rename-name>` and a hand-written `ALTER TABLE ... RENAME` statement. A drop needs the delete gate and a migration. Nothing runs a migration as a build side effect. A hosted save names every migration file it applies and declares whether any statement drops a table or column; the host refuses an undeclared or unregistered migration and verifies each accepted SQL hash exists in `__drizzle_migrations` before committing.
 
 Stop a live run with `npm run gtm -- cancel <runId|runKey>` or the trusted cancel action. Report that cancellation stops at the next step boundary, keeps rows already saved, and does not refund spend.
 

@@ -9,8 +9,8 @@ import { test } from "node:test";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v7 templates pass the local, approval, scheduled, webhook, cancel, and sandbox paths", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v7-"));
+test("v8 templates pass the local, approval, scheduled, webhook, cancel, and sandbox paths", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v8-"));
   let vendor;
   let server;
   context.after(async () => {
@@ -94,7 +94,18 @@ test("v7 templates pass the local, approval, scheduled, webhook, cancel, and san
   await command("npm", ["run", "db:generate"], { cwd: directory, env });
   await command("npm", ["run", "db:migrate"], { cwd: directory, env });
   const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
-  assert.deepEqual(JSON.parse(lastJsonLine(check.stdout)), { ok: true, workflows: 4, libVersion: 7 });
+  assert.deepEqual(JSON.parse(lastJsonLine(check.stdout)), { ok: true, workflows: 4, libVersion: 8 });
+  await writeFile(join(directory, "drizzle/9999_orphan.sql"), "SELECT 1;\n");
+  const orphanMigration = await gtmFailure(directory, env, ["check"]);
+  assert.equal(orphanMigration.error.code, "invalid_migration_artifacts");
+  await rm(join(directory, "drizzle/9999_orphan.sql"));
+
+  const localWorkflowPath = join(directory, "workflows/local-proof.ts");
+  const validLocalWorkflow = await readFile(localWorkflowPath, "utf8");
+  await writeFile(localWorkflowPath, validLocalWorkflow.replace("  arg = input.parse(arg);\n", ""));
+  const missingInputParse = await gtmFailure(directory, env, ["check"]);
+  assert.equal(missingInputParse.error.code, "invalid_input_parse");
+  await writeFile(localWorkflowPath, validLocalWorkflow);
   const scheduledNoInput = await gtmFailure(directory, env, ["run", "scheduled-proof"]);
   assert.equal(scheduledNoInput.error.code, "invalid_input");
   assert.match(scheduledNoInput.error.message, /write scheduledInput to a file/);
@@ -526,6 +537,7 @@ async function saveAccount(row: Record<string, unknown>) {
 
 export async function localProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
+  arg = input.parse(arg);
   const projected = arg.rows.length * COST_PER_ROW_USD;
   if (arg.rows.length > MAX_ROWS || projected > MAX_SPEND_USD) throw new Error("Accepted workflow limits exceeded");
   const completed: string[] = [];
@@ -580,6 +592,7 @@ async function recordApproval(key: string) {
 }
 export async function approvalProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
+  arg = input.parse(arg);
   const decision = await approve({ stage: "outreach", summary: "Approve fixture side effect", meta, timeoutMs: arg.timeoutMs });
   if (decision.approved) await recordApproval(arg.case);
   await updateRun(meta.runKey, { status: "completed", completed: decision.approved ? 1 : 0, failed: 0, cost_usd: 0, finished: true });
@@ -607,6 +620,7 @@ export const COST_PER_ROW_USD = 0;
 export async function scheduledProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
   arg ??= scheduledInput;
+  arg = input.parse(arg);
   await approve({ stage: "scheduled", summary: "Hold scheduled fixture", meta });
   await updateRun(meta.runKey, { status: "completed", completed: 1, failed: 0, cost_usd: 0, finished: true });
   return arg;
@@ -631,6 +645,7 @@ export const MAX_SPEND_USD = 0;
 export const COST_PER_ROW_USD = 0;
 export async function webhookProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
+  arg = input.parse(arg);
   const webhook = createWebhook();
   await updateRun(meta.runKey, { status: "waiting", webhook_url: webhook.url });
   await webhook;

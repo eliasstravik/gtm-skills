@@ -44,7 +44,7 @@ Bootstrap during the first create and keep the draft outside the repository unti
 ## Create
 
 1. Resolve workspace, owner, and kind. Read the owner's relevant ICP and persona files.
-2. Compare the headered template version before editing an existing project. Offer a v7 recopy when needed.
+2. Compare the headered template version before editing an existing project. Offer a v8 recopy when needed.
 3. Resolve where it runs. For on-demand work, recommend this computer. For scheduled or webhook work, recommend Vercel. In a sandbox, recommend Vercel for every workflow because the sandbox never starts a real run. Explain that local scheduled work runs only when invoked and model calls on Vercel use the user's budgeted Gateway key.
 4. Resolve the purpose, explicit input shape, stable row key, result columns, paid stages, adapter docs, caps, timing, approval stages, checkpoint, and external writes.
 5. When the workflow needs a provider, read [providers](providers.md), write its adapter against the user's own credential, and test it against fixtures. The skill ships no adapter catalog.
@@ -53,7 +53,7 @@ Bootstrap during the first create and keep the draft outside the repository unti
 8. Check basename-to-export, row input, reachability, caps before spend, `maxRetries = 0`, save before checkpoint, and terminal `updateRun`.
 9. Run `npm run gtm -- check`. Run `gtm run --dry-run` against the accepted input. A fresh table is not required for this dry run.
 10. Present one save proposal containing behavior, table and key, stages, dry-run output, caps, checkpoint, external writes, migration files to be generated, deployment state, and affected file groups.
-11. On acceptance, copy the draft into the workspace, run `npm ci`, then `db:generate`. Inspect the generated SQL. For a Vercel workflow, the approval-gated save operation applies the accepted migration before its one atomic `main` commit; that commit starts production deployment. For local work, run `db:migrate` before saving.
+11. On acceptance, copy the draft into the workspace, run `npm ci`, then `db:generate`. Inspect the generated SQL and confirm the same batch contains its `_journal.json` update and numbered snapshot. For a Vercel workflow, the approval-gated save operation applies the accepted migration, verifies its SQL hash in `__drizzle_migrations`, and only then creates its one atomic `main` commit; that commit starts production deployment. For local work, run `db:migrate` and verify the ledger hash before saving.
 12. If the header says `Runs: on Vercel`, follow [deploy](deploy.md) and report the commit as deploying. Otherwise enter the run gate. The first real run defaults to a checkpoint after three rows.
 
 Cancellation before step 11 writes no tracked bytes and no migration.
@@ -61,12 +61,12 @@ Cancellation before step 11 writes no tracked bytes and no migration.
 ## Update
 
 1. Resolve the workflow and inspect its header, table, adapter, migrations, schedule, approvals, and deployment state.
-2. Compare every headered file with v7. Include any accepted recopy in the proposal.
+2. Compare every headered file with v8. Include any accepted recopy in the proposal.
 3. Agree the business change. A run-location switch is an update to the same workflow.
 4. Change only the workflow, table, adapter, environment names, cron entry, or deployment metadata required by the request.
 5. New columns are nullable or defaulted. For a rename, plan a custom migration and hand-write `ALTER TABLE ... RENAME`. Keep schedule headers, `scheduledInput`, and cron entries aligned.
 6. Run `gtm check` and the dry run before the save proposal. Do not generate a migration yet.
-7. Present one proposal. On acceptance, run `db:generate`, inspect the SQL, and save the batch. The approval-gated save operation applies Vercel-workflow migrations before its `main` commit; local work runs `db:migrate` before saving. If behavior changed, enter the checkpointed run gate.
+7. Present one proposal. On acceptance, run `db:generate`, inspect the SQL, and save the SQL, journal, and snapshot as one batch. The approval-gated save operation applies Vercel-workflow migrations and verifies their ledger hashes before its `main` commit; local work runs `db:migrate` and verifies the ledger before saving. If behavior changed, enter the checkpointed run gate.
 8. A `main` commit deploys when the accepted header says `Runs: on Vercel`; wait for that exact SHA before a real run.
 
 ## Inspect
@@ -167,7 +167,7 @@ When `GTM_SANDBOX=1`:
 | Hook no longer pending | Inspect the run. A timed-out or completed hook cannot resume. |
 | No Vercel model backend | Add a budgeted Gateway key, then deploy again. |
 | Provider or model allowance exhausted | Change the budget or backend, then run only the explicitly selected rows. |
-| Table missing at runtime | Stop the server, run the accepted `db:generate` and `db:migrate`, then retry. |
+| Table missing at runtime | Do not retry the workflow. Compare its runtime SQL table name with the declaration and generated migration, repair any orphan migration with `db:generate`, run `db:migrate`, then verify both the table and the migration hash in `__drizzle_migrations`. Enter the run gate again only after those checks pass. |
 | Local migration is busy | Stop the owned Nitro process and retry `db:migrate` once. |
 | Graph or lib change not visible | Restart the owned Nitro process through `open.md`. |
 | Persistence unavailable | Leave tracked bytes unchanged and offer keyboard recovery. |

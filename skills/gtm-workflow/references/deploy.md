@@ -11,11 +11,11 @@ Offer a saved-but-not-deployed option only by keeping the draft outside the repo
 ## Before the commit
 
 1. Run `npm run gtm -- check` and the accepted production input through `gtm run --dry-run`.
-2. Generate committed migrations only after acceptance and inspect their SQL.
-3. Apply new committed migrations to the workspace Turso database inside the approval-gated save operation, before creating the Git commit. Migrations must be backward-compatible because an applied migration can outlive a failed commit or deployment. Nothing runs migration as a build side effect.
+2. Generate committed migrations only after acceptance. Inspect the SQL and require its matching `drizzle/meta/_journal.json` entry and numbered snapshot in the same tracked batch.
+3. Apply new committed migrations to the workspace Turso database inside the approval-gated save operation, then verify every accepted SQL SHA-256 hash exists in `__drizzle_migrations` before creating the Git commit. A successful command without the ledger entries is a failed save. Migrations must be backward-compatible because an applied migration can outlive a failed commit or deployment. Nothing runs migration as a build side effect.
 4. Require the connected workflow project to expose Vercel system environment variables so `VERCEL_GIT_COMMIT_SHA` is available at runtime.
 
-In a sandbox, submit the accepted tracked batch through `apply_gtm_workspace_changes`. The request names every migration file it carries and declares whether any statement drops a table or column. The tool stages the accepted workflow tree, applies its new migrations through a write credential that exists only for that step, then atomically commits to `main`. It never receives a Vercel token and never opens `api.vercel.com`.
+In a sandbox, submit the accepted tracked batch through `apply_gtm_workspace_changes`. The request names every migration file it carries, includes each generated journal and snapshot artifact, and declares whether any statement drops a table or column. The tool stages the accepted workflow tree, applies its new migrations through a write credential that exists only for that step, verifies their hashes in the ledger, then atomically commits to `main`. It never receives a Vercel token and never opens `api.vercel.com`.
 
 On a laptop, pull the production Turso pair into ignored `.env.turso`, run `npm run db:migrate:cloud`, and then commit and push the accepted batch to `main`.
 

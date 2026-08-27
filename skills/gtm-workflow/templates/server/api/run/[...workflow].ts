@@ -1,4 +1,4 @@
-// gtm-lib v7
+// gtm-lib v8
 import { createHash, randomBytes } from "node:crypto";
 import { defineEventHandler } from "nitro/h3";
 import { start } from "workflow/api";

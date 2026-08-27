@@ -45,7 +45,7 @@ Report a run still active after the bounded poll so `gtm runs get` can retrieve 
 ## QC
 
 - Secrets never appear in prompts, tracked files, conversation, or command output; values move from `.env` through the shell only.
-- Compare every `// gtm-lib v7` header with the template before an action. Offer a recopy when versions differ and never apply it silently.
+- Compare every `// gtm-lib v8` header with the template before an action. Offer a recopy when versions differ and never apply it silently.
 - Copy the versioned lib, routes, scripts, and config verbatim and edit workflow-owned tables, adapters, migrations, and workflow files instead.
 - Route every paid vendor call through `provider()` and every model call through `agent()`.
 - Use committed migrations. The project has no `db:push` command.

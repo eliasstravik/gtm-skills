@@ -1,4 +1,4 @@
-// gtm-lib v7
+// gtm-lib v8
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
@@ -201,6 +201,13 @@ async function check() {
     if (!new RegExp(`export\\s+async\\s+function\\s+${expected}\\s*\\(`).test(source)) {
       throw new AppError("invalid_export", `${relative(root, file)} must export ${expected}`, 2);
     }
+    if (!/\barg\s*=\s*input\.parse\s*\(\s*arg\s*\)/.test(source)) {
+      throw new AppError(
+        "invalid_input_parse",
+        `${relative(root, file)} must assign arg = input.parse(arg) inside the workflow body`,
+        2,
+      );
+    }
     if (
       /rows\s*:\s*z\.array/.test(source) &&
       !/\.pick\s*\(\s*\{[^}]*key\s*:/s.test(source) &&
@@ -209,6 +216,7 @@ async function check() {
       throw new AppError("invalid_rows_input", `${relative(root, file)} rows input must include key`, 2);
     }
   }
+  await validateMigrationArtifacts();
 
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   const expectedVersion = packageJson.gtm?.libVersion;
@@ -223,6 +231,64 @@ async function check() {
     }
   }
   print({ ok: true, workflows: workflows.length, libVersion: expectedVersion });
+}
+
+async function validateMigrationArtifacts() {
+  const directory = join(root, "drizzle");
+  const migrationFiles = (await readdir(directory))
+    .filter((file) => file.endsWith(".sql"))
+    .sort();
+  const journalPath = join(directory, "meta", "_journal.json");
+  let journal: any;
+  try {
+    journal = JSON.parse(await readFile(journalPath, "utf8"));
+  } catch {
+    throw new AppError(
+      "invalid_migration_artifacts",
+      "drizzle/meta/_journal.json is missing or invalid",
+      2,
+    );
+  }
+  if (!Array.isArray(journal.entries)) {
+    throw new AppError(
+      "invalid_migration_artifacts",
+      "drizzle/meta/_journal.json must contain an entries array",
+      2,
+    );
+  }
+  const tags = new Set(
+    journal.entries.flatMap((entry: any) =>
+      entry && typeof entry.tag === "string" ? [entry.tag] : [],
+    ),
+  );
+  const files = new Set(migrationFiles.map((file) => basename(file, ".sql")));
+  for (const tag of tags) {
+    if (!files.has(tag)) {
+      throw new AppError(
+        "invalid_migration_artifacts",
+        `Drizzle journal entry ${tag} has no matching migration SQL`,
+        2,
+      );
+    }
+  }
+  for (const file of migrationFiles) {
+    const tag = basename(file, ".sql");
+    const sequence = /^(\d{4})_.+/.exec(tag)?.[1];
+    if (!sequence || !tags.has(tag)) {
+      throw new AppError(
+        "invalid_migration_artifacts",
+        `${file} is not registered in drizzle/meta/_journal.json; generate migrations with db:generate`,
+        2,
+      );
+    }
+    if (!existsSync(join(directory, "meta", `${sequence}_snapshot.json`))) {
+      throw new AppError(
+        "invalid_migration_artifacts",
+        `${file} has no matching drizzle/meta/${sequence}_snapshot.json`,
+        2,
+      );
+    }
+  }
 }
 
 async function poll(origin: string, identifier: string) {
