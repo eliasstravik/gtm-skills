@@ -5,7 +5,7 @@ import { constants } from "node:fs";
 import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
-import { generateText, gateway, jsonSchema, Output, stepCountIs } from "ai";
+import { generateText, gateway, jsonSchema, Output } from "ai";
 import { z } from "zod";
 import { provider, type PaidCallMeta } from "./provider";
 
@@ -280,14 +280,45 @@ async function viaApi(input: RuntimeInput): Promise<BackendResult> {
   const web = input.tools === "web";
   const result = await generateText({
     model: process.env.GTM_AGENT_MODEL ?? "anthropic/claude-opus-5",
-    prompt: input.prompt,
+    prompt: web
+      ? [
+          "Make exactly one Exa search call using one comprehensive query. Use its current web evidence before producing the structured result. Do not make multiple search calls.",
+          input.prompt,
+        ].join("\n\n")
+      : input.prompt,
     output: Output.object({
       schema: jsonSchema(input.schemaJson),
     }),
     tools: web
-      ? { web_search: gateway.tools.parallelSearch() }
+      ? {
+          exa_search: gateway.tools.exaSearch({
+            type: "fast",
+            numResults: 5,
+            contents: {
+              text: {
+                maxCharacters: 2_500,
+                verbosity: "compact",
+                includeSections: ["body", "metadata"],
+              },
+              highlights: { maxCharacters: 1_000 },
+              maxAgeHours: 0,
+              livecrawlTimeout: 10_000,
+              extras: { links: 10 },
+            },
+          }),
+        }
       : undefined,
-    stopWhen: web ? stepCountIs(8) : undefined,
+    prepareStep: web
+      ? ({ stepNumber }) =>
+          stepNumber === 0
+            ? {
+                toolChoice: {
+                  type: "tool" as const,
+                  toolName: "exa_search" as const,
+                },
+              }
+            : {}
+      : undefined,
     abortSignal: AbortSignal.timeout(input.timeoutMs ?? 300_000),
   });
   const metadata = result.providerMetadata?.gateway as

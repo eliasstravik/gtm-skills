@@ -201,7 +201,7 @@ See [providers](providers.md) before writing or changing an adapter.
 | Caps precede spend | Reject row or projected-cost excess before the first paid step. |
 | Rows fail independently | Catch row errors inside the row step and continue. |
 | Checkpoints save first | Save the row that reaches the checkpoint before calling `checkpoint()`. |
-| Bookkeeping is explicit | Call terminal `updateRun()` before returning. It is the only unnamed lib step. |
+| Bookkeeping is explicit | Call terminal `updateRun()` before returning. It aliases the named `recordWorkflowProgressAndStatus` library step. |
 | Scheduled delivery deduplicates | Include the SDK run id and UTC date in delivery payloads. |
 
 ## Safety and persistence

@@ -1,7 +1,7 @@
 // gtm-lib v5
 import { defineHook, sleep } from "workflow";
 import { z } from "zod";
-import { updateRun } from "./steps";
+import { recordWorkflowProgressAndStatus } from "./steps";
 
 const approvalHook = defineHook({
   schema: z.object({
@@ -26,7 +26,7 @@ export async function approve(input: {
   const token = `${input.meta.slug}.${input.meta.runKey}.${input.stage}`;
   const pending = approvalHook.create({ token });
   const approval = { stage: input.stage, token, summary: input.summary };
-  await updateRun(input.meta.runKey, {
+  await recordWorkflowProgressAndStatus(input.meta.runKey, {
     status: "waiting",
     approval,
   });
@@ -43,7 +43,7 @@ export async function approve(input: {
       : { approved: false, comment: "timeout" };
   if (winner.kind === "timeout") await pending.dispose();
 
-  await updateRun(input.meta.runKey, {
+  await recordWorkflowProgressAndStatus(input.meta.runKey, {
     status: "running",
     approval: { ...approval, ...payload },
     resolved: true,
@@ -63,7 +63,7 @@ export async function checkpoint(
 ): Promise<{ approved: boolean; comment: string | null }> {
   if (meta.checkpoint === null) return { approved: true, comment: null };
   const done = state.completed + state.failed;
-  await updateRun(meta.runKey, {
+  await recordWorkflowProgressAndStatus(meta.runKey, {
     completed: state.completed,
     failed: state.failed,
     cost_usd: state.spentUsd,

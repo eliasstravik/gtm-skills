@@ -176,7 +176,9 @@ export async function executeReadOnly(query: string): Promise<Record<string, unk
     throw new Error("query accepts one read-only SELECT statement");
   }
   const client = await getClient();
-  await client.execute("PRAGMA query_only=1");
+  if (getDatabaseConfig().dialect === "sqlite") {
+    await client.execute("PRAGMA query_only=1");
+  }
   const result = await client.execute(trimmed);
   return result.rows.map((row) => ({ ...row }));
 }

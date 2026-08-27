@@ -24,7 +24,10 @@ export type RunPatch = {
   resolved?: boolean;
 };
 
-export async function updateRun(runKey: string, patch: RunPatch): Promise<void> {
+export async function recordWorkflowProgressAndStatus(
+  runKey: string,
+  patch: RunPatch,
+): Promise<void> {
   "use step";
   const now = Date.now();
   const approval =
@@ -46,3 +49,5 @@ export async function updateRun(runKey: string, patch: RunPatch): Promise<void> 
     ...(patch.finished ? { finishedAt: now } : {}),
   });
 }
+
+export const updateRun = recordWorkflowProgressAndStatus;
