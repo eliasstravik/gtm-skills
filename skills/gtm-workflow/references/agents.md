@@ -51,3 +51,5 @@ Keep Vercel at `prompt` because link, environment, integration, deploy, and remo
 ## Boundaries
 
 These rules do not make a real run, migration, deploy, approval, or destructive table change preapproved. They only let the agent invoke the bounded CLI after the skill's human gate has granted the action. Secrets still move through ignored environment files or shell input and never appear in an allowed command string.
+
+A hosted agent may expose trusted workflow controls instead of the Vercel and production-run commands above. Their read-only preview and status actions need no approval. Their deploy, start, and approval actions require native approval after the skill's matching gate. The controls fix the workspace repository, committed HEAD, Vercel project, and production URL in host configuration; they never accept those authorities from model input.

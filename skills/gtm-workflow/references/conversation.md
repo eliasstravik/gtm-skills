@@ -48,4 +48,4 @@ At a checkpoint, report `<n> rows done, <m> failed, $<x> spent, $<y> projected f
 
 For a duplicate run, say `<workflow> is already running as <runKey>`. Offer inspection first. If the operator wants to abandon a zombie run, give the one recovery sequence: cancel the SDK run, then reconcile with `gtm runs get`.
 
-Keep ports, process controls, SDK run IDs, project identifiers, environment names, branch names, token counts, and telemetry in internal diagnostics unless the user requests them or they safely disambiguate an action. Run keys may appear when needed for inspection or duplicate recovery. Describe clean persistence as `saved to history`.
+Keep ports, process controls, SDK run IDs, project identifiers, environment names, branch names, token counts, and telemetry in internal diagnostics unless the user requests them or they safely disambiguate an action. Keep production bearers, OIDC tokens, hook tokens, and per-run webhook URLs out of messages and tool results. Run keys may appear when needed for inspection or duplicate recovery. Describe clean persistence as `saved to history`.
