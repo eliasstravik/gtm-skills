@@ -48,11 +48,11 @@ Ignore `node_modules/`, `.env*` except `.env.example`, `.vercel/`, `.well-known/
 
 ## Versioned files
 
-Every `lib/*.ts`, all five route files, `scripts/gtm.ts`, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v6`. `package.json` carries `gtm.libVersion: 6`. Compare these versions before every action. Name differing files and offer a template recopy in the proposal. Compare headers, not hashes, and never recopy silently.
+Every `lib/*.ts`, all five route files, `scripts/gtm.ts`, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v7`. `package.json` carries `gtm.libVersion: 7`. Compare these versions before every action. Name differing files and offer a template recopy in the proposal. Compare headers, not hashes, and never recopy silently.
 
-A v2 project has no `lib/schema.ts` or `drizzle/`. Offer a v6 re-scaffold through update: copy the v6 files, add the pinned dependencies and baseline migrations, migrate, then recreate each workflow through create from its header and purpose. Present the full diff before saving. Keep old ignored JSON results.
+A v2 project has no `lib/schema.ts` or `drizzle/`. Offer a v7 re-scaffold through update: copy the v7 files, add the pinned dependencies and baseline migrations, migrate, then recreate each workflow through create from its header and purpose. Present the full diff before saving. Keep old ignored JSON results.
 
-A v5 project lacks the cancel route and the `gtm cancel` command. Offer the v6 recopy through update: copy the versioned files verbatim and set `gtm.libVersion: 6`. It changes no table, migration, or workflow file.
+A v5 project lacks the cancel route and the `gtm cancel` command. A v6 project answers Gateway web searches in the same model step as the search, so the evidence never reaches the structured result. Offer the v7 recopy through update: copy the versioned files verbatim and set `gtm.libVersion: 7`. It changes no table, migration, or workflow file.
 
 ## Workflow and table contract
 

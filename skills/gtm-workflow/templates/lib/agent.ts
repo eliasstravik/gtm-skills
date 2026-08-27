@@ -1,11 +1,11 @@
-// gtm-lib v6
+// gtm-lib v7
 // Call agent() from inside a "use step" function; see the workflow contract for the step rules.
 import { spawn } from "node:child_process";
 import { constants } from "node:fs";
 import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
-import { generateText, gateway, jsonSchema, Output } from "ai";
+import { generateText, gateway, jsonSchema, Output, stepCountIs } from "ai";
 import { z } from "zod";
 import { provider, type PaidCallMeta } from "./provider";
 
@@ -149,7 +149,7 @@ const CLI_ORDER = ["claude", "codex", "cursor", "gemini", "opencode"];
 /**
  * GTM_AGENT_MODEL configures the Claude CLI or API model. The api backend uses
  * AI_GATEWAY_API_KEY with Vercel AI Gateway and defaults to
- * anthropic/claude-opus-5. Gateway web search is bounded to eight model steps.
+ * anthropic/claude-opus-5. Gateway web search runs one search call and one tool-free answer call.
  */
 const API_BACKEND = "api";
 
@@ -277,57 +277,77 @@ async function viaCli(name: string, input: RuntimeInput) {
 }
 
 async function viaApi(input: RuntimeInput): Promise<BackendResult> {
-  const web = input.tools === "web";
-  const result = await generateText({
-    model: process.env.GTM_AGENT_MODEL ?? "anthropic/claude-opus-5",
-    prompt: web
-      ? [
-          "Make exactly one Exa search call using one comprehensive query. Use its current web evidence before producing the structured result. Do not make multiple search calls.",
-          input.prompt,
-        ].join("\n\n")
-      : input.prompt,
-    output: Output.object({
-      schema: jsonSchema(input.schemaJson),
-    }),
-    tools: web
-      ? {
-          exa_search: gateway.tools.exaSearch({
-            type: "fast",
-            numResults: 5,
-            contents: {
-              text: {
-                maxCharacters: 2_500,
-                verbosity: "compact",
-                includeSections: ["body", "metadata"],
-              },
-              highlights: { maxCharacters: 1_000 },
-              maxAgeHours: 0,
-              livecrawlTimeout: 10_000,
-              extras: { links: 10 },
-            },
-          }),
-        }
-      : undefined,
-    prepareStep: web
-      ? ({ stepNumber }) =>
-          stepNumber === 0
-            ? {
-                toolChoice: {
-                  type: "tool" as const,
-                  toolName: "exa_search" as const,
-                },
-              }
-            : {}
-      : undefined,
-    abortSignal: AbortSignal.timeout(input.timeoutMs ?? 300_000),
+  const model = process.env.GTM_AGENT_MODEL ?? "anthropic/claude-opus-5";
+  const abortSignal = AbortSignal.timeout(input.timeoutMs ?? 300_000);
+  const output = Output.object({ schema: jsonSchema(input.schemaJson) });
+  const costs: number[] = [];
+  const record = (result: { providerMetadata?: Record<string, unknown> }) => {
+    const metadata = result.providerMetadata?.gateway as { cost?: number | string } | undefined;
+    if (metadata?.cost !== undefined) costs.push(Number(metadata.cost));
+  };
+
+  if (input.tools !== "web") {
+    const result = await generateText({ model, prompt: input.prompt, output, abortSignal });
+    record(result);
+    return finish(result.output, costs);
+  }
+
+  // Web mode runs two calls on purpose. A single call with a forced tool and a
+  // structured output lets the model answer in the same step as the search, so
+  // the evidence never reaches the answer. Call one only searches; call two
+  // answers from that evidence with no tools.
+  const search = await generateText({
+    model,
+    prompt: [
+      "Make exactly one Exa search call using one comprehensive query for the task below. Do not answer the task in this turn.",
+      input.prompt,
+    ].join("\n\n"),
+    tools: {
+      exa_search: gateway.tools.exaSearch({
+        type: "fast",
+        numResults: 5,
+        contents: {
+          text: {
+            maxCharacters: 2_500,
+            verbosity: "compact",
+            includeSections: ["body", "metadata"],
+          },
+          highlights: { maxCharacters: 1_000 },
+          maxAgeHours: 0,
+          livecrawlTimeout: 10_000,
+          extras: { links: 10 },
+        },
+      }),
+    },
+    toolChoice: { type: "tool", toolName: "exa_search" },
+    stopWhen: stepCountIs(1),
+    abortSignal,
   });
-  const metadata = result.providerMetadata?.gateway as
-    | { cost?: number | string }
-    | undefined;
-  const cost = metadata?.cost === undefined ? undefined : Number(metadata.cost);
+  record(search);
+  const answer = await generateText({
+    model,
+    messages: [
+      ...search.response.messages,
+      {
+        role: "user",
+        content: [
+          "Using only the search evidence above, produce the structured result now. Omit anything the evidence does not support.",
+          input.prompt,
+        ].join("\n\n"),
+      },
+    ],
+    output,
+    abortSignal,
+  });
+  record(answer);
+  return finish(answer.output, costs);
+}
+
+function finish(value: unknown, costs: number[]): BackendResult {
+  const reported = costs.filter((cost) => Number.isFinite(cost));
   return {
-    value: result.output,
-    costUsd: Number.isFinite(cost) ? cost : undefined,
+    value,
+    costUsd: reported.length ? reported.reduce((sum, cost) => sum + cost, 0) : undefined,
   };
 }
 

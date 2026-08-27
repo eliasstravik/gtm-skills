@@ -7,7 +7,7 @@ The deterministic grader maps each sentence in `evals.json` to repository state,
 - Every question-bearing assistant turn starts with one bold question.
 - Every discrete choice uses numbered options, at most one `(Recommended)`, and the exact reply line.
 - No transcript contains `AskUserQuestion`, a value from ignored environment files, or credentials.
-- Headered v6 library files and API routes match the shipped templates after create or update work.
+- Headered v7 library files and API routes match the shipped templates after create or update work.
 - Runtime state, environment files, Turso pull files, and `data/` remain ignored.
 - Database generation and migration happen only after the user accepts the table proposal.
 - Inspection cases are read-only. Sandbox cases do not expose ports or use remote Git commands.

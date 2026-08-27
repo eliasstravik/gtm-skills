@@ -9,8 +9,8 @@ import { test } from "node:test";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v6 templates pass the local, approval, scheduled, webhook, cancel, and sandbox paths", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v6-"));
+test("v7 templates pass the local, approval, scheduled, webhook, cancel, and sandbox paths", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v7-"));
   let vendor;
   let server;
   context.after(async () => {
@@ -94,7 +94,7 @@ test("v6 templates pass the local, approval, scheduled, webhook, cancel, and san
   await command("npm", ["run", "db:generate"], { cwd: directory, env });
   await command("npm", ["run", "db:migrate"], { cwd: directory, env });
   const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
-  assert.deepEqual(JSON.parse(lastJsonLine(check.stdout)), { ok: true, workflows: 4, libVersion: 6 });
+  assert.deepEqual(JSON.parse(lastJsonLine(check.stdout)), { ok: true, workflows: 4, libVersion: 7 });
   const scheduledNoInput = await gtmFailure(directory, env, ["run", "scheduled-proof"]);
   assert.equal(scheduledNoInput.error.code, "invalid_input");
   assert.match(scheduledNoInput.error.message, /write scheduledInput to a file/);
