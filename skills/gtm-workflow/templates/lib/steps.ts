@@ -1,5 +1,7 @@
-// gtm-lib v8
-import { updateRunPlain } from "./db";
+// gtm-lib v9
+import { eq, sql } from "drizzle-orm";
+import { getDb, updateRunPlain } from "./db";
+import { enrichmentRuns } from "./schema";
 
 export type ApprovalState = {
   stage: string;
@@ -34,12 +36,16 @@ export async function recordWorkflowProgressAndStatus(
     patch.approval && patch.resolved
       ? { ...patch.approval, resolved_at: now }
       : patch.approval;
+  const actualCostUsd =
+    patch.cost_usd !== undefined || patch.finished
+      ? await getActualRunCostUsd(runKey)
+      : undefined;
   await updateRunPlain(runKey, {
     ...(patch.status !== undefined ? { status: patch.status } : {}),
     ...(patch.run_id !== undefined ? { runId: patch.run_id } : {}),
     ...(patch.completed !== undefined ? { completed: patch.completed } : {}),
     ...(patch.failed !== undefined ? { failed: patch.failed } : {}),
-    ...(patch.cost_usd !== undefined ? { costUsd: patch.cost_usd } : {}),
+    ...(actualCostUsd !== undefined ? { costUsd: actualCostUsd } : {}),
     ...(patch.checkpoint !== undefined ? { checkpoint: patch.checkpoint } : {}),
     ...(patch.webhook_url !== undefined ? { webhookUrl: patch.webhook_url } : {}),
     ...(approval !== undefined
@@ -51,3 +57,17 @@ export async function recordWorkflowProgressAndStatus(
 }
 
 export const updateRun = recordWorkflowProgressAndStatus;
+
+export async function getActualRunCostUsd(runKey: string): Promise<number> {
+  "use step";
+  const db = await getDb();
+  const row = (
+    await db
+      .select({
+        costUsd: sql<number>`coalesce(sum(${enrichmentRuns.costUsd}), 0)`,
+      })
+      .from(enrichmentRuns)
+      .where(eq(enrichmentRuns.runKey, runKey))
+  )[0];
+  return Number(row?.costUsd ?? 0);
+}

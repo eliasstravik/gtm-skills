@@ -1,0 +1,30 @@
+name: GTM workflow templates
+
+on:
+  pull_request:
+    paths:
+      - "skills/gtm-workflow/**"
+      - "evals/gtm-workflow/scripts/test-templates.mjs"
+      - ".github/workflows/gtm-workflow-templates.yml"
+  push:
+    branches: [main]
+    paths:
+      - "skills/gtm-workflow/**"
+      - "evals/gtm-workflow/scripts/test-templates.mjs"
+      - ".github/workflows/gtm-workflow-templates.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  templates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: skills/gtm-workflow/templates/.nvmrc
+          cache: npm
+          cache-dependency-path: skills/gtm-workflow/templates/package-lock.json
+      - run: node --test evals/gtm-workflow/scripts/test-templates.mjs

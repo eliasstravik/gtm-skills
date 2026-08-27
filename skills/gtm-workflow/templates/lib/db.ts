@@ -1,4 +1,4 @@
-// gtm-lib v8
+// gtm-lib v9
 import {
   createClient as createWebClient,
   type Client,
@@ -11,7 +11,7 @@ import {
   sql,
 } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql/driver-core";
-import { drizzle } from "drizzle-orm/libsql/web";
+import { drizzle as drizzleWeb } from "drizzle-orm/libsql/web";
 import { getRun } from "workflow/api";
 import { getDatabaseConfig } from "./db-url";
 import {
@@ -22,35 +22,54 @@ import {
 } from "./schema";
 import * as schema from "./schema";
 
-let clientPromise: Promise<Client> | undefined;
-let databasePromise: Promise<LibSQLDatabase<typeof schema>> | undefined;
+type Database = LibSQLDatabase<typeof schema>;
+type Runtime = { client: Client; database: Database };
+
+let runtimePromise: Promise<Runtime> | undefined;
+
+// Keep the file client invisible to the Vercel workflow bundler. It is loaded
+// only from an installed local project when the configured URL is file:.
+const importLocal = new Function(
+  "specifier",
+  "return import(specifier)",
+) as <T>(specifier: string) => Promise<T>;
 
 async function getClient(): Promise<Client> {
-  if (!clientPromise) {
-    clientPromise = (async () => {
+  return (await getRuntime()).client;
+}
+
+async function getRuntime(): Promise<Runtime> {
+  if (!runtimePromise) {
+    runtimePromise = (async () => {
       const config = getDatabaseConfig();
       if (config.dialect === "sqlite") {
-        throw new Error(
-          "The workflow runtime requires TURSO_DATABASE_URL; file SQLite is supported only by drizzle-kit commands.",
-        );
+        const [{ createClient }, { drizzle }] = await Promise.all([
+          importLocal<typeof import("@libsql/client")>("@libsql/client"),
+          importLocal<typeof import("drizzle-orm/libsql")>("drizzle-orm/libsql"),
+        ]);
+        const client = createClient({ url: config.url });
+        await client.execute("PRAGMA journal_mode=WAL");
+        await client.execute("PRAGMA busy_timeout=5000");
+        return {
+          client,
+          database: drizzle(client, { schema }) as Database,
+        };
       }
       const client = createWebClient({
         url: config.url,
         authToken: config.authToken,
       });
-      if (config.dialect === "sqlite") {
-        await client.execute("PRAGMA journal_mode=WAL");
-        await client.execute("PRAGMA busy_timeout=5000");
-      }
-      return client;
+      return {
+        client,
+        database: drizzleWeb(client, { schema }),
+      };
     })();
   }
-  return clientPromise;
+  return runtimePromise;
 }
 
-export async function getDb(): Promise<LibSQLDatabase<typeof schema>> {
-  databasePromise ??= getClient().then((client) => drizzle(client, { schema }));
-  return databasePromise;
+export async function getDb(): Promise<Database> {
+  return (await getRuntime()).database;
 }
 
 export async function upsertRows(

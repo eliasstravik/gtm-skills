@@ -11,7 +11,7 @@
     "build": "nitro build",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:migrate:cloud": "node --env-file=.env.turso ./node_modules/drizzle-kit/bin.cjs migrate",
+    "db:migrate:cloud": "node --env-file=.env.turso --import tsx scripts/migrate-cloud.ts",
     "db:studio": "drizzle-kit studio",
     "db:studio:cloud": "node --env-file=.env.turso ./node_modules/drizzle-kit/bin.cjs studio",
     "gtm": "node --env-file-if-exists=.env --import tsx scripts/gtm.ts"
@@ -32,6 +32,6 @@
     "typescript": "7.0.2"
   },
   "gtm": {
-    "libVersion": 8
+    "libVersion": 9
   }
 }

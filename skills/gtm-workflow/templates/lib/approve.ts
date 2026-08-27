@@ -1,7 +1,10 @@
-// gtm-lib v8
+// gtm-lib v9
 import { defineHook, sleep } from "workflow";
 import { z } from "zod";
-import { recordWorkflowProgressAndStatus } from "./steps";
+import {
+  getActualRunCostUsd,
+  recordWorkflowProgressAndStatus,
+} from "./steps";
 
 const approvalHook = defineHook({
   schema: z.object({
@@ -56,6 +59,7 @@ export async function checkpoint(
   state: {
     completed: number;
     failed: number;
+    /** Retained for v8 workflow compatibility; v9 reads actual spend from the ledger. */
     spentUsd: number;
     projectedRemainingUsd: number;
     table: string;
@@ -63,15 +67,16 @@ export async function checkpoint(
 ): Promise<{ approved: boolean; comment: string | null }> {
   if (meta.checkpoint === null) return { approved: true, comment: null };
   const done = state.completed + state.failed;
+  const spentUsd = await getActualRunCostUsd(meta.runKey);
   await recordWorkflowProgressAndStatus(meta.runKey, {
     completed: state.completed,
     failed: state.failed,
-    cost_usd: state.spentUsd,
+    cost_usd: spentUsd,
     checkpoint: meta.checkpoint,
   });
   return approve({
     stage: "checkpoint",
     meta,
-    summary: `${done} rows done, ${state.failed} failed, $${state.spentUsd.toFixed(2)} spent, $${state.projectedRemainingUsd.toFixed(2)} projected for the remaining rows; open ${state.table} in Studio`,
+    summary: `${done} rows done, ${state.failed} failed, $${spentUsd.toFixed(2)} spent, $${state.projectedRemainingUsd.toFixed(2)} projected for the remaining rows; open ${state.table} in Studio`,
   });
 }

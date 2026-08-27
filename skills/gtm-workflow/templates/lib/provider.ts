@@ -1,4 +1,4 @@
-// gtm-lib v8
+// gtm-lib v9
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -14,7 +14,12 @@ export type ProviderInput<T extends z.ZodTypeAny> = {
   schema: T;
   ttlMs: number;
   costUsd?: number;
-  call: () => Promise<z.input<T> | { value: z.input<T>; costUsd?: number }>;
+  call: () => Promise<
+    | z.input<T>
+    | { value: z.input<T>; raw?: unknown; costUsd?: number }
+  >;
+  /** Rebuild the adapter value from a preserved vendor response on cache hits. */
+  parseRaw?: (raw: unknown) => z.input<T>;
   meta: PaidCallMeta;
   isEmpty?: (value: z.infer<T>) => boolean;
 };
@@ -47,7 +52,8 @@ export async function provider<T extends z.ZodTypeAny>(
   )[0];
 
   if (cache && cache.expiresAt > now) {
-    const value = input.schema.parse(JSON.parse(cache.raw ?? cache.value));
+    const raw = JSON.parse(cache.raw ?? cache.value);
+    const value = input.schema.parse(input.parseRaw ? input.parseRaw(raw) : raw);
     await writeLedger(input, inputsHash, "cache_hit", 0, null);
     return { value, costUsd: 0, status: "cache_hit" };
   }
@@ -65,7 +71,7 @@ export async function provider<T extends z.ZodTypeAny>(
         endpoint: input.endpoint,
         inputsHash,
         inputs: canonical,
-        raw: JSON.stringify(reported.value),
+        raw: JSON.stringify(reported.raw),
         value: JSON.stringify(value),
         expiresAt: now + input.ttlMs,
         createdAt: now,
@@ -78,7 +84,7 @@ export async function provider<T extends z.ZodTypeAny>(
         ],
         set: {
           inputs: canonical,
-          raw: JSON.stringify(reported.value),
+          raw: JSON.stringify(reported.raw),
           value: JSON.stringify(value),
           expiresAt: now + input.ttlMs,
           createdAt: now,
@@ -115,16 +121,23 @@ async function writeLedger(
   });
 }
 
-function unwrapCallResult<T>(value: T | { value: T; costUsd?: number }) {
+function unwrapCallResult<T>(
+  value: T | { value: T; raw?: unknown; costUsd?: number },
+) {
   if (
     value &&
     typeof value === "object" &&
     "value" in value &&
     ("costUsd" in value || Object.keys(value).length <= 2)
   ) {
-    return value as { value: T; costUsd?: number };
+    const reported = value as { value: T; raw?: unknown; costUsd?: number };
+    return {
+      value: reported.value,
+      raw: reported.raw ?? reported.value,
+      costUsd: reported.costUsd,
+    };
   }
-  return { value: value as T, costUsd: undefined };
+  return { value: value as T, raw: value, costUsd: undefined };
 }
 
 function isEmpty(value: unknown): boolean {

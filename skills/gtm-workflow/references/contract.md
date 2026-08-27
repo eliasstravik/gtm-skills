@@ -48,11 +48,11 @@ Ignore `node_modules/`, `.env*` except `.env.example`, `.vercel/`, `.well-known/
 
 ## Versioned files
 
-Every `lib/*.ts`, all five route files, `scripts/gtm.ts`, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v8`. `package.json` carries `gtm.libVersion: 8`. Compare these versions before every action. Name differing files and offer a template recopy in the proposal. Compare headers, not hashes, and never recopy silently.
+Every `lib/*.ts`, all five route files, `scripts/gtm.ts`, `scripts/migrate-cloud.ts`, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v9`. `package.json` carries `gtm.libVersion: 9`. Compare these versions before every action. Name differing files and offer a template recopy in the proposal. Compare headers, not hashes, and never recopy silently.
 
-A v2 project has no `lib/schema.ts` or `drizzle/`. Offer a v8 re-scaffold through update: copy the v8 files, add the pinned dependencies and baseline migrations, migrate, then recreate each workflow through create from its header and purpose. Present the full diff before saving. Keep old ignored JSON results.
+A v2 project has no `lib/schema.ts` or `drizzle/`. Offer a v9 re-scaffold through update: copy the v9 files, add the pinned dependencies and baseline migrations, migrate, then recreate each workflow through create from its header and purpose. Present the full diff before saving. Keep old ignored JSON results.
 
-A v5 project lacks the cancel route and the `gtm cancel` command. A v6 project answers Gateway web searches in the same model step as the search, so the evidence never reaches the structured result. Offer the v8 recopy through update: copy the versioned files verbatim and set `gtm.libVersion: 8`. It changes no table, migration, or workflow file.
+A v5 project lacks the cancel route and the `gtm cancel` command. A v6 project answers Gateway web searches in the same model step as the search, so the evidence never reaches the structured result. A v8 project cannot preserve original vendor responses, contains the web-client-only local runtime regression, and trusts workflow cost estimates instead of its paid-call ledger. Offer the v9 recopy through update: copy the versioned files verbatim and set `gtm.libVersion: 9`. It changes no table, migration, or workflow file.
 
 ## Workflow and table contract
 
@@ -180,7 +180,7 @@ If a local restart leaves a zombie row in `running` or `waiting`, run `npx workf
 
 ## Paid calls
 
-Every paid vendor call goes through `provider()` inside an operator-named step. Every model call goes through `agent()`, which uses the same cache and ledger. Each call writes one `enrichment_runs` row. Cache hits cost zero. A backend that reports no model cost records the accepted `maxUsd` projection.
+Every paid vendor call goes through `provider()` inside an operator-named step. Every model call goes through `agent()`, which uses the same cache and ledger. Each call writes one `enrichment_runs` row. Cache hits cost zero. A backend that reports no model cost records the accepted `maxUsd` projection. Progress and terminal run costs are derived from this ledger; workflow-supplied cost fields are compatibility inputs, not the authoritative total.
 
 Adapter input is canonical and visible in the cache, so it contains no credential. Paid steps set `maxRetries = 0`. A step may use bounded retries only when it catches every other error and rethrows `RetryableError` solely when the provider confirms the failed attempt was not billed.
 

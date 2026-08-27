@@ -39,7 +39,11 @@ const result = await provider({
 
 The call returns a validated `value`, the cost attributed to this run, and `cache_hit`, `success`, or `empty`. A cache miss stores the adapter payload in `enrichment_cache.raw` before schema parsing and keeps the parsed copy in `value`. Cache hits parse `raw` so added schema fields can use the original response. Rows written before v4 have no `raw`, so they fall back to `value`. A cache hit writes a ledger row with zero cost. A miss writes the cache and one ledger row. A throw writes one `error` row and rethrows.
 
-When the service reports actual cost, return `{ value, costUsd }` from the adapter call. Otherwise `provider()` records the accepted fixed cost. `agent()` records reported model cost when available and the accepted `maxUsd` projection otherwise. Outcome reports distinguish projected model cost.
+When the service reports actual cost, return `{ value, costUsd }` from the adapter call. When debugging or future normalization needs the original vendor response, return `{ raw, value, costUsd }` and supply `parseRaw` to rebuild `value` from `raw` on cache hits. Otherwise `provider()` records the accepted fixed cost. `agent()` records reported model cost when available and the accepted `maxUsd` projection otherwise. Outcome reports distinguish projected model cost.
+
+## Slack Block Kit links
+
+A Block Kit `button` with a `url` is still an interactive component: Slack sends an interaction payload and expects an acknowledgement within three seconds. Use a normal `mrkdwn` link when the workflow has no signed interaction endpoint. Add a URL button only when the user accepts the endpoint, Slack signing secret, acknowledgement handling, and replay protection.
 
 ## Empty, error, and retry behavior
 

@@ -17,7 +17,7 @@ Offer a saved-but-not-deployed option only by keeping the draft outside the repo
 
 In a sandbox, submit the accepted tracked batch through `apply_gtm_workspace_changes`. The request names every migration file it carries, includes the generated journal plus any schema snapshot, and declares whether any statement drops a table or column. The tool stages the accepted workflow tree, applies its new migrations through a write credential that exists only for that step, verifies their hashes in the ledger, then atomically commits to `main`. It never receives a Vercel token and never opens `api.vercel.com`.
 
-On a laptop, pull the production Turso pair into ignored `.env.turso`, run `npm run db:migrate:cloud`, and then commit and push the accepted batch to `main`.
+On a laptop, obtain a current database URL and write token directly from Turso and place the non-empty pair in ignored `.env.turso`. Sensitive Vercel variables are not returned by `vercel env pull`. Run `npm run db:migrate:cloud`; its credential preflight, migration exit status, and ledger verification must all pass before committing and pushing the accepted batch to `main`.
 
 ## Git-connected project setup
 

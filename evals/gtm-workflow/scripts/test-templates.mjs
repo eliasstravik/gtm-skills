@@ -9,8 +9,8 @@ import { test } from "node:test";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v8 templates pass the local, approval, scheduled, webhook, cancel, and sandbox paths", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v8-"));
+test("v9 templates pass the local, approval, scheduled, webhook, cancel, and sandbox paths", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v9-"));
   let vendor;
   let server;
   context.after(async () => {
@@ -94,7 +94,18 @@ test("v8 templates pass the local, approval, scheduled, webhook, cancel, and san
   await command("npm", ["run", "db:generate"], { cwd: directory, env });
   await command("npm", ["run", "db:migrate"], { cwd: directory, env });
   const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
-  assert.deepEqual(JSON.parse(lastJsonLine(check.stdout)), { ok: true, workflows: 4, libVersion: 8 });
+  assert.deepEqual(JSON.parse(lastJsonLine(check.stdout)), { ok: true, workflows: 4, libVersion: 9 });
+  await writeFile(
+    join(directory, ".env.turso"),
+    "TURSO_DATABASE_URL=libsql://fixture.turso.io\nTURSO_AUTH_TOKEN=\n",
+  );
+  const missingCloudToken = await commandFailure("npm", ["run", "db:migrate:cloud"], {
+    cwd: directory,
+    env,
+  });
+  assert.match(missingCloudToken.stderr, /TURSO_AUTH_TOKEN must be non-empty/);
+  await rm(join(directory, ".env.turso"));
+  await command("npm", ["run", "build"], { cwd: directory, env });
   await writeFile(join(directory, "drizzle/9999_orphan.sql"), "SELECT 1;\n");
   const orphanMigration = await gtmFailure(directory, env, ["check"]);
   assert.equal(orphanMigration.error.code, "invalid_migration_artifacts");
@@ -213,6 +224,12 @@ test("v8 templates pass the local, approval, scheduled, webhook, cancel, and san
   );
   assert.equal(secondLedger.length, 40);
   assert.ok(secondLedger.every((row) => row.status === "cache_hit" && row.cost_usd === 0));
+  const rerunCost = await sqlRows(
+    directory,
+    env,
+    `select cost_usd from workflow_runs where run_key = '${rerun.runKey}'`,
+  );
+  assert.equal(rerunCost[0].cost_usd, 0);
 
   const denied = await startAndWait(directory, env, "approval-proof", { case: "deny" });
   const hooks = await command("npx", ["workflow", "inspect", "hooks", "--runId", denied.runId], { cwd: directory, env });
@@ -390,6 +407,7 @@ async function providerProbe(directory, env, options) {
       endpoint: "organization-lookup-v1",
       input: { domain },
       schema,
+      parseRaw: (raw) => raw,
       ttlMs: 86_400_000,
       call: async () => { throw new Error("cache miss"); },
       meta: { runKey: ${JSON.stringify(options.runKey)}, slug: "provider-probe" },
@@ -514,8 +532,10 @@ async function enrichAccount(row: Input["rows"][number], meta: WorkflowMeta) {
     costUsd: 0.02,
     call: async () => {
       const response = await fetch(process.env.MOCK_VENDOR_URL + "?domain=" + encodeURIComponent(row.domain));
-      return response.json();
+      const raw = await response.json();
+      return { raw, value: raw };
     },
+    parseRaw: (raw) => raw,
     meta,
   });
   const rowSchema = createInsertSchema(accounts).pick({ score: true, reason: true });
