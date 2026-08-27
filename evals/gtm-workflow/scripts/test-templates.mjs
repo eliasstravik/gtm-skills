@@ -9,8 +9,8 @@ import { test } from "node:test";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v5 templates pass the local, approval, scheduled, webhook, and sandbox paths", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v5-"));
+test("v6 templates pass the local, approval, scheduled, webhook, cancel, and sandbox paths", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v6-"));
   let vendor;
   let server;
   context.after(async () => {
@@ -94,7 +94,7 @@ test("v5 templates pass the local, approval, scheduled, webhook, and sandbox pat
   await command("npm", ["run", "db:generate"], { cwd: directory, env });
   await command("npm", ["run", "db:migrate"], { cwd: directory, env });
   const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
-  assert.deepEqual(JSON.parse(lastJsonLine(check.stdout)), { ok: true, workflows: 4, libVersion: 5 });
+  assert.deepEqual(JSON.parse(lastJsonLine(check.stdout)), { ok: true, workflows: 4, libVersion: 6 });
   const scheduledNoInput = await gtmFailure(directory, env, ["run", "scheduled-proof"]);
   assert.equal(scheduledNoInput.error.code, "invalid_input");
   assert.match(scheduledNoInput.error.message, /write scheduledInput to a file/);
@@ -214,6 +214,21 @@ test("v5 templates pass the local, approval, scheduled, webhook, and sandbox pat
   const accepted = await startAndWait(directory, env, "approval-proof", { case: "approve" });
   const acceptedDone = await gtm(directory, env, ["approve", accepted.approval.token, "--yes", "--wait"]);
   assert.equal(acceptedDone.status, "completed", JSON.stringify(acceptedDone));
+  assert.equal((await tableRows(directory, env, "approval_effects")).length, 1);
+  const toCancel = await startAndWait(directory, env, "approval-proof", { case: "cancel" });
+  assert.equal(toCancel.status, "waiting");
+  const unauthenticatedCancel = await fetch(`${env.GTM_BASE_URL}/api/runs/${toCancel.runKey}/cancel`, { method: "POST" });
+  assert.equal(unauthenticatedCancel.status, 401);
+  const cancelled = await gtm(directory, env, ["cancel", toCancel.runKey, "--reason", "operator stopped it"]);
+  assert.equal(cancelled.status, "cancelled");
+  assert.equal(cancelled.runKey, toCancel.runKey);
+  assert.notEqual(cancelled.finishedAt, null);
+  assert.match(cancelled.error, /operator stopped it/);
+  const cancelledAgain = await gtmFailure(directory, env, ["cancel", toCancel.runKey]);
+  assert.equal(cancelledAgain.error.code, "run_not_active");
+  const approveAfterCancel = await gtmFailure(directory, env, ["approve", toCancel.approval.token, "--yes"]);
+  assert.equal(approveAfterCancel.error.code, "not_found");
+  assert.equal((await gtm(directory, env, ["runs", "get", toCancel.runKey])).status, "cancelled");
   assert.equal((await tableRows(directory, env, "approval_effects")).length, 1);
   const timed = await startAndWait(directory, env, "approval-proof", { case: "timeout", timeoutMs: 100 });
   const timedDone = await waitForRun(directory, env, timed.runKey, "completed");

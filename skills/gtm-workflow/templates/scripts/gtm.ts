@@ -1,4 +1,4 @@
-// gtm-lib v5
+// gtm-lib v6
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
@@ -34,11 +34,12 @@ async function main() {
   if (command === "run") return run(rest);
   if (command === "runs" && rest[0] === "get") return runsGet(rest.slice(1));
   if (command === "approve") return approve(rest);
+  if (command === "cancel") return cancel(rest);
   if (command === "query") return query(rest);
   if (command === "check") return check();
   throw new AppError(
     "invalid_command",
-    "Use run, runs get, approve, query, or check.",
+    "Use run, runs get, approve, cancel, query, or check.",
     2,
   );
 }
@@ -154,6 +155,19 @@ async function approve(args: string[]) {
     }
     await delay(500);
   }
+}
+
+async function cancel(args: string[]) {
+  const { positionals, flags } = parseArgs(args);
+  const identifier = positionals[0];
+  if (!identifier) throw new AppError("invalid_run", "cancel requires a run id or run key", 2);
+  const origin = await resolveOrigin(undefined, flags);
+  const row = await request(new URL(`/api/runs/${encodeURIComponent(identifier)}/cancel`, origin), {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ reason: stringFlag(flags, "reason") ?? null }),
+  });
+  print(row);
 }
 
 async function query(args: string[]) {
@@ -297,6 +311,7 @@ async function headeredFiles() {
   const files = (await walk(join(root, "lib"), (file) => file.endsWith(".ts"))).concat([
     join(root, "server", "api", "run", "[...workflow].ts"),
     join(root, "server", "api", "runs", "[runId].get.ts"),
+    join(root, "server", "api", "runs", "[runId]", "cancel.post.ts"),
     join(root, "server", "api", "approve", "[token].post.ts"),
     join(root, "scripts", "gtm.ts"),
     join(root, "drizzle.config.ts"),

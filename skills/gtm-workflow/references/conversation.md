@@ -48,6 +48,8 @@ Lead completion with the business result and `<n> completed, <m> failed`. Follow
 
 At a checkpoint, report `<n> rows done, <m> failed, $<x> spent, $<y> projected for the remaining rows`, the table inspection command, and the exact approval command. Ask for approval before resuming the same run.
 
+For a cancelled run, say `<workflow> was cancelled as <runKey>` with rows saved, spend so far, and that no further spend occurs after the current step.
+
 For a duplicate run, say `<workflow> is already running as <runKey>`. Offer inspection first. If the operator wants to abandon a zombie run, give the one recovery sequence: cancel the SDK run, then reconcile with `gtm runs get`.
 
 Keep ports, process controls, SDK run IDs, project identifiers, environment names, branch names, token counts, and telemetry in internal diagnostics unless the user requests them or they safely disambiguate an action. Keep production bearers, OIDC tokens, hook tokens, and per-run webhook URLs out of messages and tool results. Run keys may appear when needed for inspection or duplicate recovery. Describe clean persistence as `saved to history`.

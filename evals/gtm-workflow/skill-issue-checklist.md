@@ -8,7 +8,7 @@
 - [x] Bulky file, lifecycle, conversation, UI, and deployment rules live in focused references.
 - [x] Every reference over 100 lines has a table of contents.
 - [x] The description states positive and negative triggers in third person and stays below 1,024 characters.
-- [x] The v5 deterministic harness covers typed tables, migrations, dry run, paid-call caching, checkpoint approval, duplicate protection, approval denial and timeout, scheduled starts, webhook registration, and sandbox refusals.
+- [x] The v6 deterministic harness covers typed tables, migrations, dry run, paid-call caching, checkpoint approval, duplicate protection, approval denial and timeout, run cancellation, scheduled starts, webhook registration, and sandbox refusals.
 - [x] Model-graded assertions cover the five golden paths, table drift, and sandbox constraints without requiring live services.
 - [ ] Rerun trigger and paired model evaluations after a model-credit budget is approved.
 - [ ] Complete the production and real-provider checks listed in `evidence/live-verification-follow-ups.md` under an explicit spend budget.

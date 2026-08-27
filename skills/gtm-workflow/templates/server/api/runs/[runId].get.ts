@@ -1,4 +1,4 @@
-// gtm-lib v5
+// gtm-lib v6
 import { defineEventHandler } from "nitro/h3";
 import { getRun } from "workflow/api";
 import { WorkflowRunFailedError } from "workflow/errors";

@@ -1,4 +1,4 @@
-// gtm-lib v5
+// gtm-lib v6
 import { defineHook, sleep } from "workflow";
 import { z } from "zod";
 import { recordWorkflowProgressAndStatus } from "./steps";

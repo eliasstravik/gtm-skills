@@ -44,8 +44,8 @@ Bootstrap during the first create and keep the draft outside the repository unti
 ## Create
 
 1. Resolve workspace, owner, and kind. Read the owner's relevant ICP and persona files.
-2. Compare the headered template version before editing an existing project. Offer a v5 recopy when needed.
-3. Resolve where it runs. For on-demand work, recommend this computer. For scheduled or webhook work, recommend Vercel. Explain that local scheduled work runs only when invoked and model calls on Vercel use the user's budgeted Gateway key.
+2. Compare the headered template version before editing an existing project. Offer a v6 recopy when needed.
+3. Resolve where it runs. For on-demand work, recommend this computer. For scheduled or webhook work, recommend Vercel. In a sandbox, recommend Vercel for every workflow because the sandbox never starts a real run. Explain that local scheduled work runs only when invoked and model calls on Vercel use the user's budgeted Gateway key.
 4. Resolve the purpose, explicit input shape, stable row key, result columns, paid stages, adapter docs, caps, timing, approval stages, checkpoint, and external writes.
 5. When the workflow needs a provider, read [providers](providers.md), write its adapter against the user's own credential, and test it against fixtures. The skill ships no adapter catalog.
 6. Declare the result table and derive the model-facing business schema with drizzle-zod inside the agent step. Add `key` and `updatedAt` only when saving.
@@ -61,7 +61,7 @@ Cancellation before step 11 writes no tracked bytes and no migration.
 ## Update
 
 1. Resolve the workflow and inspect its header, table, adapter, migrations, schedule, approvals, and deployment state.
-2. Compare every headered file with v5. Include any accepted recopy in the proposal.
+2. Compare every headered file with v6. Include any accepted recopy in the proposal.
 3. Agree the business change. A run-location switch is an update to the same workflow.
 4. Change only the workflow, table, adapter, environment names, cron entry, or deployment metadata required by the request.
 5. New columns are nullable or defaulted. For a rename, plan a custom migration and hand-write `ALTER TABLE ... RENAME`. Keep schedule headers, `scheduledInput`, and cron entries aligned.
@@ -130,7 +130,8 @@ Omit option 1 for scheduled work. If the user chooses full scope, start without 
 7. Start with `npm run gtm -- run <slug> --input <file> --checkpoint 3 --wait`, or use the trusted workflow control's approved start action for Vercel. The action returns on start; inspect the run until it reaches a terminal state or a wait.
 8. At a checkpoint or approval, report the saved rows, failures, spend, remaining projection, table, and exact inspection command. Ask the user to approve, deny, or comment. Continue the same run with `npm run gtm -- approve <token> --yes --wait`, or the trusted workflow control's approved decision action, only after their answer. The trusted control resolves the hook token internally and never returns it to the agent or Slack.
 9. If start returns `run_in_progress`, report the existing run key and do not retry. Inspect it. Use the cancel and reconcile recovery only when the operator chooses to abandon it.
-10. Report completed, failed, rows written, cache hits, vendor cost, model cost, and external changes. Costs for backends without reported billing are projections.
+10. To stop a live run, use `npm run gtm -- cancel <runKey>` or the trusted control's approval-gated cancel action. Report that cancellation takes effect at the next step boundary, keeps saved rows, and does not refund spend.
+11. Report completed, failed, rows written, cache hits, vendor cost, model cost, and external changes. Costs for backends without reported billing are projections.
 
 Row selection composes two commands:
 
@@ -148,9 +149,9 @@ When `GTM_SANDBOX=1`:
 1. Build a new scaffold under `$HOME/.gtm-scratch/<repo>/workflows/`. Reuse it for the session.
 2. Require `TURSO_DATABASE_URL` and `GTM_AGENT_BACKEND=api`. The runtime refuses a file database and CLI backend.
 3. Submit tracked bytes through the host approval tool. Run no `git push`, `git fetch`, `git remote`, or other remote Git command.
-4. A save containing `Runs: on Vercel` changes applies accepted migrations and commits once to `main`, which triggers the connected Vercel project. Use trusted controls for read-only preview and status, and approval-gated start and approval actions. Start waits for the exact committed HEAD. Keep the production run bearer, OIDC tokens, and hook tokens in the host runtime; there is no deploy token.
+4. A save containing `Runs: on Vercel` changes applies accepted migrations and commits once to `main`, which triggers the connected Vercel project. Name every migration file in the save and declare a destructive statement explicitly. Use trusted controls for read-only preview and status, and approval-gated start, approval, and cancel actions. Start waits for the exact committed HEAD. Keep the production run bearer, OIDC tokens, and hook tokens in the host runtime; there is no deploy token.
 5. Use no Studio and expose no port. Relay `gtm query --format markdown`, `gtm runs get`, `workflow inspect run`, and `workflow inspect hooks` output.
-6. Keep a paused local run and its approval in the same session because a sandbox idle snapshot stops `nitro dev`. Prefer Vercel for approval workflows that must survive.
+6. Start no real run in the sandbox. `Runs: on this computer` is a keyboard location; in the sandbox, recommend and deploy `Runs: on Vercel`. The sandbox database credential is read-only, so rows change only through hosted runs and accepted migrations.
 
 ## Recovery
 
@@ -162,6 +163,7 @@ When `GTM_SANDBOX=1`:
 | Sandbox file URL selected | Supply the workspace Turso URL and token through the host. |
 | Duplicate live run | Inspect the returned run key. Do not retry. |
 | Zombie `running` or `waiting` row | Run `npx workflow cancel <runId>`, then `npm run gtm -- runs get <runKey>`. |
+| Runaway or stuck hosted run | Run `npm run gtm -- cancel <runKey>` or the trusted cancel action, then inspect with `runs get` or the status action. |
 | Hook no longer pending | Inspect the run. A timed-out or completed hook cannot resume. |
 | No Vercel model backend | Add a budgeted Gateway key, then deploy again. |
 | Provider or model allowance exhausted | Change the budget or backend, then run only the explicitly selected rows. |

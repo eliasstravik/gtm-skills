@@ -1,4 +1,4 @@
-// gtm-lib v5
+// gtm-lib v6
 import { createClient, type Client } from "@libsql/client";
 import {
   and,

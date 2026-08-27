@@ -45,11 +45,11 @@ Report a run still active after the bounded poll so `gtm runs get` can retrieve 
 ## QC
 
 - Secrets never appear in prompts, tracked files, conversation, or command output; values move from `.env` through the shell only.
-- Compare every `// gtm-lib v5` header with the template before an action. Offer a recopy when versions differ and never apply it silently.
+- Compare every `// gtm-lib v6` header with the template before an action. Offer a recopy when versions differ and never apply it silently.
 - Copy the versioned lib, routes, scripts, and config verbatim and edit workflow-owned tables, adapters, migrations, and workflow files instead.
 - Route every paid vendor call through `provider()` and every model call through `agent()`.
 - Use committed migrations. The project has no `db:push` command.
-- When `GTM_SANDBOX=1`, use Turso, the `api` model backend, host-approved tracked writes, and no exposed port or remote Git command.
+- When `GTM_SANDBOX=1`, use Turso, the `api` model backend, host-approved tracked writes, and no exposed port or remote Git command. The sandbox authors, validates, dry-runs, and queries; it starts no real run. Real runs, approvals, and cancellations go through the host's trusted controls.
 - Save accepted tracked changes to history on `main`.
 - For `Runs: on Vercel`, state in the save gate that the `main` commit starts production deployment; do not add a second deploy gate or deploy token.
 - Never use `AskUserQuestion`.

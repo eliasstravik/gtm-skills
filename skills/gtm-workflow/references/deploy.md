@@ -15,7 +15,7 @@ Offer a saved-but-not-deployed option only by keeping the draft outside the repo
 3. Apply new committed migrations to the workspace Turso database inside the approval-gated save operation, before creating the Git commit. Migrations must be backward-compatible because an applied migration can outlive a failed commit or deployment. Nothing runs migration as a build side effect.
 4. Require the connected workflow project to expose Vercel system environment variables so `VERCEL_GIT_COMMIT_SHA` is available at runtime.
 
-In a sandbox, submit the accepted tracked batch through `apply_gtm_workspace_changes`. The tool stages the accepted workflow tree, applies its new migrations through the brokered Turso connection, then atomically commits to `main`. It never receives a Vercel token and never opens `api.vercel.com`.
+In a sandbox, submit the accepted tracked batch through `apply_gtm_workspace_changes`. The request names every migration file it carries and declares whether any statement drops a table or column. The tool stages the accepted workflow tree, applies its new migrations through a write credential that exists only for that step, then atomically commits to `main`. It never receives a Vercel token and never opens `api.vercel.com`.
 
 On a laptop, pull the production Turso pair into ignored `.env.turso`, run `npm run db:migrate:cloud`, and then commit and push the accepted batch to `main`.
 
@@ -51,9 +51,10 @@ The run route returns `409 deployment_not_ready` if production changed between t
 1. Start the first real run with a checkpoint after three rows through the trusted start action, or use the CLI against the production URL after its exact commit is live.
 2. Query the first rows and inspect the run.
 3. Ask for checkpoint approval and resume the same run. The trusted control resolves the hook token internally and never returns it.
-4. Require a terminal `workflow_runs` row, expected business rows, and a visible run in Vercel Observability.
-5. For a scheduled workflow, invoke its GET route once with `CRON_SECRET`; a second matching live GET must return 409.
-6. For a webhook workflow, require `runs get` to show its per-run URL, POST one fixture payload, and require completion.
+4. Stop a live run with the trusted cancel action or `npm run gtm -- cancel <runKey>`; it is approval-gated and reports the run as `cancelled`.
+5. Require a terminal `workflow_runs` row, expected business rows, and a visible run in Vercel Observability.
+6. For a scheduled workflow, invoke its GET route once with `CRON_SECRET`; a second matching live GET must return 409.
+7. For a webhook workflow, require `runs get` to show its per-run URL, POST one fixture payload, and require completion.
 
 ## Live state
 

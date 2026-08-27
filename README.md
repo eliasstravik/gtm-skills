@@ -99,7 +99,7 @@ Yes. The root organization and its suborganizations can own their own definition
 
 ### Where do workflows run?
 
-You choose per workflow. Local workflows use a supported CLI agent and `data/gtm.db`. Vercel workflows use the same committed file, Turso, the optional Vercel CLI, and a Vercel AI Gateway key with a spending budget.
+You choose per workflow. Local workflows use a supported CLI agent and `data/gtm.db`. Vercel workflows use the same committed file, Turso, the optional Vercel CLI, and a Vercel AI Gateway key with a spending budget. A hosted Slack agent authors, dry-runs, and queries in its sandbox but runs, approves, and cancels only on Vercel through approval-gated controls.
 
 ### What does it cost?
 

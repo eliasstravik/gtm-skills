@@ -38,13 +38,11 @@ When the user asks for private remote access, hand the running Nitro origin to t
 
 ## Sandbox inspection
 
-When `GTM_SANDBOX=1`, open no port and offer no Studio command. Relay these commands instead:
+When `GTM_SANDBOX=1`, open no port and offer no Studio command. The sandbox holds a read-only database credential and starts no local server, so hosted run state comes from the trusted status action. Relay these commands for database facts:
 
 ```text
-npm run gtm -- runs get <runId|runKey>
 npm run gtm -- query --sql "select * from <table> limit 20" --format markdown
-npx workflow inspect run <runId> --json
-npx workflow inspect hooks --runId <runId>
+npm run gtm -- query --sql "select run_key, status, completed, failed, cost_usd from workflow_runs order by started_at desc limit 20" --format markdown
 ```
 
 ## Process ownership

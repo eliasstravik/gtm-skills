@@ -37,7 +37,7 @@ workflows/
 ├── providers/<provider>.ts
 ├── lib/{schema,db-url,db,steps,provider,agent,approve}.ts
 ├── scripts/gtm.ts
-└── server/api/{deployment,run,runs,approve}/...
+└── server/api/{deployment,run,runs,runs/[runId]/cancel,approve}/...
 ```
 
 Git owns definitions, table declarations, adapters, and migrations. Vercel owns steps, attempts, retries, graphs, and logs. The database owns business rows, the paid-call cache and ledger, and the run index. The database does not copy a step trace. Source and deployments can roll back. Schema and data do not roll back.
@@ -48,9 +48,11 @@ Ignore `node_modules/`, `.env*` except `.env.example`, `.vercel/`, `.well-known/
 
 ## Versioned files
 
-Every `lib/*.ts`, all four route files, `scripts/gtm.ts`, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v5`. `package.json` carries `gtm.libVersion: 5`. Compare these versions before every action. Name differing files and offer a template recopy in the proposal. Compare headers, not hashes, and never recopy silently.
+Every `lib/*.ts`, all five route files, `scripts/gtm.ts`, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v6`. `package.json` carries `gtm.libVersion: 6`. Compare these versions before every action. Name differing files and offer a template recopy in the proposal. Compare headers, not hashes, and never recopy silently.
 
-A v2 project has no `lib/schema.ts` or `drizzle/`. Offer a v5 re-scaffold through update: copy the v5 files, add the pinned dependencies and baseline migrations, migrate, then recreate each workflow through create from its header and purpose. Present the full diff before saving. Keep old ignored JSON results.
+A v2 project has no `lib/schema.ts` or `drizzle/`. Offer a v6 re-scaffold through update: copy the v6 files, add the pinned dependencies and baseline migrations, migrate, then recreate each workflow through create from its header and purpose. Present the full diff before saving. Keep old ignored JSON results.
+
+A v5 project lacks the cancel route and the `gtm cancel` command. Offer the v6 recopy through update: copy the versioned files verbatim and set `gtm.libVersion: 6`. It changes no table, migration, or workflow file.
 
 ## Workflow and table contract
 
@@ -171,6 +173,8 @@ If a local restart leaves a zombie row in `running` or `waiting`, run `npx workf
 
 `GET /api/runs/<runId|runKey>` reconciles active rows and returns the database row. It includes the SDK result while retained. Approval uses `defineHook`; the bearer-protected approve route calls `resumeHook` directly. A timeout defaults to seven days, records a denial with comment `timeout`, and disposes the hook.
 
+`POST /api/runs/<runId|runKey>/cancel` is bearer-protected. It reconciles the row, cancels the retained SDK run with an optional `reason`, records `cancelled` with `finished_at`, and returns the row. A finished run answers `409 run_not_active`. A pending approval hook cannot resume after cancellation; the approve route answers `404`. Cancellation takes effect at the next step boundary and does not recall spend already made.
+
 `GET /api/deployment` is bearer-protected and returns the production deployment's `VERCEL_GIT_COMMIT_SHA`. Trusted starts poll it until it matches the accepted workspace commit, then send that commit in `x-gtm-workspace-head`. The POST run route returns `409 deployment_not_ready` when production is not serving that exact commit.
 
 ## Paid calls
@@ -187,7 +191,7 @@ See [providers](providers.md) before writing or changing an adapter.
 
 `.env.local` must not exist in `workflows/`. Nitro would load it after `.env` and point local runs at the cloud database while local database commands still used the file. Refuse local start or reuse until it is removed.
 
-`GTM_SANDBOX=1` is the sole sandbox signal. It refuses file URLs, requires `GTM_AGENT_BACKEND=api`, offers no Studio or exposed port, performs no remote Git command, and hands tracked writes to the host approval tool. Use the Turso dashboard, `gtm query`, `gtm runs get`, and Workflow inspect commands for sandbox inspection.
+`GTM_SANDBOX=1` is the sole sandbox signal. It refuses file URLs, requires `GTM_AGENT_BACKEND=api`, offers no Studio or exposed port, performs no remote Git command, and hands tracked writes to the host approval tool. The sandbox starts no real run: it authors, validates, dry-runs, and queries with a read-only database credential, and accepted migrations apply only inside the host's approval-gated save. Real runs, approvals, and cancellations go through the host's trusted controls against the Vercel deployment. Use the Turso dashboard, `gtm query`, and the trusted status action for sandbox inspection.
 
 ## House rules
 
@@ -208,6 +212,8 @@ See [providers](providers.md) before writing or changing an adapter.
 
 Run `npm run gtm -- run <slug> --input <file> --dry-run` before every real run. Gate the real run with rows, stages, projected cost, caps, external writes, and checkpoint position. The first real run of new or changed on-demand work uses `--checkpoint 3` unless the user accepts the full scope. Scheduled runs never checkpoint and rely on caps.
 
-Use committed migrations only. A rename uses `npm run db:generate -- --custom --name <rename-name>` and a hand-written `ALTER TABLE ... RENAME` statement. A drop needs the delete gate and a migration. Nothing runs a migration as a build side effect.
+Use committed migrations only. A rename uses `npm run db:generate -- --custom --name <rename-name>` and a hand-written `ALTER TABLE ... RENAME` statement. A drop needs the delete gate and a migration. Nothing runs a migration as a build side effect. A hosted save names every migration file it applies and declares whether any statement drops a table or column; the host refuses an undeclared destructive migration.
+
+Stop a live run with `npm run gtm -- cancel <runId|runKey>` or the trusted cancel action. Report that cancellation stops at the next step boundary, keeps rows already saved, and does not refund spend.
 
 Secrets stay out of prompts, tracked files, step input and output, ledgers, comments, and command output. Values move through ignored environment files or shell input. Treat hook tokens and per-run webhook URLs as unsafe to share even though the approve route also requires the bearer.

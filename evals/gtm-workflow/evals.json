@@ -98,8 +98,9 @@
       "files": ["evals/gtm-workflow/fixtures/sandbox"],
       "assertions": [
         "The report requires a non-file Turso URL and GTM_AGENT_BACKEND=api and explains both runtime refusals.",
-        "It offers runs get, query, workflow inspect run, and workflow inspect hooks instead of exposing Nitro or Studio.",
-        "It forbids remote Git commands and hands tracked-file, approval, and deployment mutations to trusted host tools.",
+        "It offers gtm query and the trusted status action instead of exposing Nitro or Studio.",
+        "It forbids remote Git commands and hands tracked-file, approval, deployment, real-run, and cancellation mutations to trusted host tools.",
+        "It states that the sandbox starts no real run and treats its database access as read-only.",
         "Credential brokering and deploy authority are named as host follow-ups rather than tested live."
       ]
     },

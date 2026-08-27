@@ -1,16 +1,16 @@
-# GTM agent requirements for workflow v5
+# GTM agent requirements for workflow v6
 
-This is the host contract for a small Eve Slack agent that authors and runs the v5 `gtm-workflow` project in one connected GTM workspace. Vercel deploys the workflow project from that same repository.
+This is the host contract for a small Eve Slack agent that authors the v6 `gtm-workflow` project in one connected GTM workspace and runs it on Vercel. Vercel deploys the workflow project from that same repository. The sandbox never starts a real run.
 
 ## What belongs in the reusable gtm-agent template
 
 The template owns the mechanism:
 
 - Slack is the only channel.
-- `apply_gtm_workspace_changes` is the only authored write tool. It applies accepted workflow migrations and saves one approved atomic commit to `main`.
-- `operate_gtm_workflow` has read-only preview and status actions plus approval-gated start and approval actions.
+- `apply_gtm_workspace_changes` is the only authored write tool. Its request names every migration file it carries and declares whether any statement is destructive; the host refuses an undeclared `DROP`. It applies accepted workflow migrations through a write credential that exists only for that step and saves one approved atomic commit to `main`. If the commit fails after migrations applied, the result says so.
+- `operate_gtm_workflow` has read-only preview and status actions plus approval-gated start, approval, and cancel actions. Start carries the rows and projected cost the approver saw and refuses when the fresh dry run disagrees.
 - One host module dry-runs the exact workspace HEAD, waits until the protected production runtime reports that same Git SHA, starts it with an atomic SHA recheck, and strips input, hook tokens, webhook URLs, and credentials from results.
-- The sandbox remains deny-all except npm, the workspace Turso host, the Gateway host, and accepted provider hosts. It never receives the production run bearer, OIDC token, or hook tokens.
+- The sandbox remains deny-all except npm, the workspace Turso host with a read-only credential, and accepted provider hosts without credentials. It never receives the production run bearer, OIDC token, hook tokens, a Gateway key, or a database write credential. It authors, validates, dry-runs, and queries; it starts no real run.
 
 For `Runs: on Vercel`, save and deploy are one state transition: the accepted `main` commit starts Vercel's Git deployment. A real run remains a separate approval.
 
@@ -21,7 +21,7 @@ The downstream repository owns the identity and fixed deployment values:
 - its agent name, model, Slack response budget, and retention settings;
 - `SLACK_CONNECTOR`, `GITHUB_CONNECTOR`, and `GTM_WORKSPACE_REPOSITORY`;
 - the verified Git commit-author name and email connected to the Vercel project owner;
-- its Turso database pair and optional workflow Gateway key/provider hosts;
+- its Turso database URL, write token, and read-only token, plus optional provider hosts;
 - the existing workflow production URL and `GTM_RUN_SECRET`;
 - a Vercel Trusted Sources rule that lets this Eve production project call the protected workflow production project with OIDC.
 
@@ -37,7 +37,14 @@ The sandbox runtime uses:
 GTM_SANDBOX=1
 GTM_AGENT_BACKEND=api
 TURSO_DATABASE_URL=<workspace database URL>
-AI_GATEWAY_API_KEY=brokered-at-sandbox-firewall  # only when configured
+```
+
+The host holds the database pair and a read-only token:
+
+```text
+TURSO_DATABASE_URL=<workspace database URL>
+TURSO_AUTH_TOKEN=<write token, brokered only inside the approval-gated migration step>
+TURSO_READ_ONLY_AUTH_TOKEN=<read-only token, brokered for every session>
 ```
 
 The Eve host may additionally hold this all-or-nothing production run set:
@@ -56,7 +63,7 @@ GTM_WORKSPACE_COMMIT_AUTHOR_EMAIL=<verified Git author email>
 
 The author must map to the Vercel project owner on Hobby, or a project team member on Pro. The GitHub App remains the committer. This keeps bot-created, user-approved commits deployable without giving Eve a Vercel token.
 
-The Turso token and workflow Gateway key stay at the sandbox firewall. The run set stays in the Eve host. Only the database URL and non-secret Gateway placeholder enter the sandbox environment. There is no Vercel deployment token.
+The read-only Turso token stays at the sandbox firewall for every session; the write token is injected only while the approved save applies migrations and is withdrawn before the commit. No Gateway key enters the sandbox: model calls happen on Vercel with the workflow project's own budgeted key. The run set stays in the Eve host. Only the database URL enters the sandbox environment. There is no Vercel deployment token.
 
 ## Save and deployment
 
@@ -65,12 +72,13 @@ The save proposal must state that accepting a Vercel-workflow batch commits it t
 Inside the one approval-gated write operation, the host:
 
 1. verifies the connected checkout and remote `main` still match the requested full commit ID;
-2. stages the accepted tracked `workflows/` tree outside the checkout;
-3. applies new committed migrations to the brokered workspace Turso database;
-4. creates the one atomic GitHub commit with the configured Vercel-recognized author and the GitHub App as committer; and
-5. refreshes the checkout to the returned SHA.
+2. verifies the declared migration list matches the SQL additions and that any `DROP` is declared destructive;
+3. stages the accepted tracked `workflows/` tree outside the checkout;
+4. opens the write credential, applies new committed migrations to the workspace Turso database, and restores the read-only baseline;
+5. creates the one atomic GitHub commit with the configured Vercel-recognized author and the GitHub App as committer; and
+6. refreshes the checkout to the returned SHA.
 
-Migrations are backward-compatible and never run as a Vercel build side effect. If migration succeeds but commit or deployment fails, the old production code must remain valid.
+Migrations are backward-compatible and never run as a Vercel build side effect. If migration succeeds but commit or deployment fails, the old production code must remain valid, and the tool result states that the migrations were already applied so a retry re-proposes the same batch.
 
 Vercel's Git integration deploys the commit. `api.vercel.com` stays closed to both Eve and the sandbox.
 
@@ -78,7 +86,7 @@ Vercel's Git integration deploys the commit. `api.vercel.com` stays closed to bo
 
 Preview runs the committed workflow's zero-spend dry run against one ignored `workflows/data/*.json` input and reports rows, stages, projected cost, caps, and checkpoint.
 
-Start repeats the dry run, then polls the protected `GET /api/deployment` route until it returns the requested workspace SHA. It reads the bounded ignored input and calls the production route with:
+Start repeats the dry run, refuses when its rows or projected cost differ from the values the approver accepted, then polls the protected `GET /api/deployment` route until it returns the requested workspace SHA. It reads the bounded ignored input and calls the production route with:
 
 - the host-only `GTM_WORKFLOW_RUN_SECRET` bearer;
 - a short-lived `x-vercel-trusted-oidc-idp-token` from the Eve production deployment; and
@@ -86,7 +94,7 @@ Start repeats the dry run, then polls the protected `GET /api/deployment` route 
 
 The production POST route rejects a mismatch with `409 deployment_not_ready`, closing the race between readiness polling and start. A timeout starts nothing.
 
-Status returns the public run key and sanitized business state. Approval fetches the pending run, resolves its hook token internally, submits the accepted decision, and never returns the token.
+Status returns the public run key and sanitized business state. Approval fetches the pending run, resolves its hook token internally, submits the accepted decision, and never returns the token. Cancel posts to the bearer-protected cancel route, reports the run as `cancelled`, and treats `409 run_not_active` as already finished.
 
 ## Draft and checkout paths
 
@@ -102,7 +110,7 @@ node_modules/
 data/
 ```
 
-The sandbox runs no remote Git command, exposes no port, and opens no custom workflow UI or Drizzle Studio.
+The sandbox runs no remote Git command, exposes no port, starts no local workflow server or real run, and opens no custom workflow UI or Drizzle Studio.
 
 ## Setup that remains manual
 
