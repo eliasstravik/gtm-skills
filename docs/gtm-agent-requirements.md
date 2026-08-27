@@ -1,65 +1,86 @@
-# GTM agent requirements for workflow v3
+# GTM agent requirements for workflow v4
 
-This document defines the host changes required for the separate sandbox agent to run the v3 workflow skill. It does not change that repository.
+This is the host contract for a small Eve Slack agent that authors, deploys, and runs the v4 `gtm-workflow` project in one connected GTM workspace.
 
-## Contents
+## What belongs in the reusable gtm-agent template
 
-- [Session environment](#session-environment)
-- [Credentials and brokering](#credentials-and-brokering)
-- [Egress allowlist](#egress-allowlist)
-- [Deploying](#deploying)
-- [Draft and checkout paths](#draft-and-checkout-paths)
-- [Runtime behavior](#runtime-behavior)
-- [Trust obligations](#trust-obligations)
-- [Repository sync changes](#repository-sync-changes)
-- [Resource note](#resource-note)
+The template owns the mechanism:
 
-## Session environment
+- Slack is the only channel.
+- `apply_gtm_workspace_changes` is the only authored write tool. It saves one approved atomic commit to `main`.
+- `deploy_gtm_workflows` has a read-only preview action and an approval-gated deploy action.
+- `operate_gtm_workflow` has read-only preview and status actions plus approval-gated start and approval actions.
+- One host module validates the exact workspace HEAD, reads only tracked `workflows/` source, applies committed migrations, calls the fixed Vercel project, and strips input, hook tokens, webhook URLs, and credentials from results.
+- The sandbox remains deny-all except npm, the workspace Turso host, the Gateway host, and accepted provider hosts. It never receives Vercel deployment access, the production run bearer, the OIDC token, or hook tokens.
 
-Set these values for every workflow session:
+Save, deploy, and run are separate states. A commit to `main` does not deploy the non-Git-connected workflow project.
+
+## What belongs in each downstream Eve deployment
+
+The downstream repository owns the identity and fixed deployment values:
+
+- its agent name, model, Slack response budget, and retention settings;
+- `SLACK_CONNECTOR`, `GITHUB_CONNECTOR`, and `GTM_WORKSPACE_REPOSITORY`;
+- its Turso database pair and optional workflow Gateway key/provider hosts;
+- the existing Vercel workflow team ID, project ID, project name, and production URL;
+- a Vercel access token for that one host deployment and the existing workflow `GTM_RUN_SECRET`;
+- a Vercel Trusted Sources rule that lets this Eve production project call the protected workflow production project with OIDC.
+
+Do not hard-code a customer's IDs, URLs, repository, tokens, model, identity, or Slack budget in `gtm-agent`.
+
+## Host environment
+
+The sandbox runtime uses:
 
 ```text
 GTM_SANDBOX=1
 GTM_AGENT_BACKEND=api
 TURSO_DATABASE_URL=<workspace database URL>
+AI_GATEWAY_API_KEY=brokered-at-sandbox-firewall  # only when configured
 ```
 
-The database URL is not a credential. Without it, `getDb()` selects a file URL and refuses the sandbox run. Give each workspace its own database.
+The Eve host may additionally hold this all-or-nothing production-control set:
 
-## Credentials and brokering
+```text
+GTM_WORKFLOW_VERCEL_TEAM_ID=team_...
+GTM_WORKFLOW_VERCEL_PROJECT_ID=prj_...
+GTM_WORKFLOW_VERCEL_PROJECT=<project-name>
+GTM_WORKFLOW_VERCEL_URL=https://<production-host>
+GTM_WORKFLOW_VERCEL_TOKEN=<host-only token>
+GTM_WORKFLOW_RUN_SECRET=<host-only production bearer>
+```
 
-The host currently brokers credentials per HTTPS host at the sandbox firewall so tokens do not enter the VM. Provider adapters may omit their authorization header under `GTM_SANDBOX=1` when the host injects it.
+The Turso token and workflow Gateway key stay at the sandbox firewall. The production-control set stays in the Eve host. Only the database URL and non-secret Gateway placeholder enter the sandbox environment.
 
-The Turso token, Gateway key, and production run bearer each support two delivery modes:
+## Deployment control
 
-1. Broker the `Authorization` header for the exact host. This is preferred. The libsql client maps a `libsql:` URL to HTTPS transport. For the Gateway, set `AI_GATEWAY_API_KEY` to a non-empty placeholder so the local check passes while the firewall replaces the header.
-2. Put the value in the session environment.
+The preview action must:
 
-A sandbox-local `.env` gets a fresh `GTM_RUN_SECRET`. The production bearer is needed only when `gtm run`, `gtm runs get`, or `gtm approve` targets a workflow whose header says `Runs: on Vercel`.
+1. Verify a clean connected checkout on `main` at the requested full commit ID.
+2. Run the v4 workflow check.
+3. Collect only `git ls-files -- workflows/`, reject links and bounds violations, and remove the `workflows/` prefix.
+4. Verify `package.json` deployment metadata against the fixed host configuration.
+5. Verify required production environment variable names without reading or returning their values.
+6. Report file count, bytes, migration count, library version, and validation status.
 
-## Egress allowlist
+The approved deploy action repeats that preview, applies committed Turso migrations through the brokered sandbox connection, uploads the tracked file set through the Vercel API in the host, creates a production deployment tagged with the workspace HEAD, and waits for `READY` or `ERROR`.
 
-Allow these hosts per session:
+The workflow Vercel project stays non-Git-connected. `api.vercel.com` stays closed to the sandbox.
 
-- the npm registry because `npm ci` runs after the session checkout exists;
-- the workspace Turso host;
-- the Gateway host;
-- every provider host used by an accepted adapter;
-- `api.vercel.com` only when deployment is enabled.
+## Run control
 
-Keep the default deny-all policy for other network access.
+The preview action runs the committed workflow's zero-spend dry run against one ignored `workflows/data/*.json` input and reports rows, stages, projected cost, caps, and checkpoint.
 
-## Deploying
+The approved start action repeats the dry run, verifies that the production domain currently serves a `READY` deployment tagged with the same workspace HEAD, reads the bounded ignored input, then calls the production route with both:
 
-The sandbox image does not include the Vercel CLI, and the normal deploy flow waits for keyboard login. To deploy from the sandbox, the host must make the CLI available through bootstrap and provide or broker a deploy-scoped Vercel credential. Until both exist, sandbox workflows run as `Runs: on this computer` against Turso.
+- the host-only `GTM_WORKFLOW_RUN_SECRET` bearer;
+- a short-lived `x-vercel-trusted-oidc-idp-token` from the Eve production deployment.
 
-Deployment authority remains a trusted host action. The sandbox does not gain general production access.
+Status returns the public run key and sanitized business state. Approval fetches the pending run, resolves its hook token internally, submits the accepted decision, and never returns the token.
 
 ## Draft and checkout paths
 
-Build a new scaffold under `$HOME/.gtm-scratch/<repo>/workflows/`. Submit only accepted tracked files through the host approval tool and reuse the scratch project for the rest of the session.
-
-When a later session receives the scaffold in its checkout, these ignored paths must be writable without approval:
+Draft new scaffolds under `$HOME/.gtm-scratch/<repo>/workflows/`. Submit accepted tracked files through `apply_gtm_workspace_changes`. These checkout paths remain ignored and writable:
 
 ```text
 node_modules/
@@ -71,44 +92,8 @@ node_modules/
 data/
 ```
 
-The agent runs no remote Git command in sandbox mode. The host owns durable repository writes.
+The sandbox runs no remote Git command, exposes no port, and opens no custom workflow UI or Drizzle Studio.
 
-## Runtime behavior
+## Setup that remains manual
 
-Sandbox `nitro dev` writes to the same Turso database as production. Upsert by workflow row `key` keeps business rows idempotent, and `workflow_runs` records the origin and run identity.
-
-A background dev server does not survive an idle snapshot. Answer a local checkpoint or approval within the same session. Put approval workflows on Vercel when a pause must survive the session.
-
-Expose no sandbox port. Relay run and row state with:
-
-```text
-npm run gtm -- runs get <runId|runKey>
-npm run gtm -- query --sql "select * from <table> limit 20" --format markdown
-npx workflow inspect run <runId> --json
-npx workflow inspect hooks --runId <runId>
-```
-
-Drizzle Studio stays on the user's machine or the user inspects through the Turso dashboard.
-
-## Trust obligations
-
-- The sandbox holds no deployment authority or production secret beyond the exact brokering above.
-- Commit, deploy, and approval delivery remain trusted host tools.
-- The host enforces per-person approval authorization at the Slack channel. The v3 approve route accepts any holder of the run bearer.
-- The host exposes no sandbox port and adds no custom workflow UI.
-
-## Repository sync changes
-
-Update the sync script remote to:
-
-```text
-https://github.com/eliasstravik/gtm-skills.git
-```
-
-Set `EXPECTED_SKILLS` to the directories at the synced commit. At this handoff they are `gtm-workspace`, `gtm-icp`, `gtm-persona`, and `gtm-workflow`.
-
-Revise the downstream `AGENTS.md` rules that currently prohibit a database and schedules. The database is the user's Turso database and schedules are Vercel Cron on the user's project. Keep the bans on a custom UI, exposed ports, and unbrokered connector credentials. When the host chooses session-environment delivery, document that exception to the connector-token rule.
-
-## Resource note
-
-One vCPU is enough for `nitro dev`, migration checks, and small validation runs. Production workloads should use `Runs: on Vercel`.
+The host tools operate an existing project. A human still creates or selects the Vercel workflow project, installs Turso, supplies provider and Gateway credentials, creates the Vercel access token, and configures the cross-project Trusted Sources rule. These choices affect billing or grant new authority, so they are not inferred from a Slack request.
