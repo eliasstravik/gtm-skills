@@ -42,3 +42,4 @@ The deterministic grader maps each sentence in `evals.json` to repository state,
 - Hosted controls keep production run bearers, OIDC tokens, hook tokens, and webhook URLs outside both the sandbox and the visible transcript. No Vercel deploy token exists.
 - The save gate names its production deployment effect. Its approved operation applies backward-compatible migrations before the atomic `main` commit. Preview and status are read-only; real start and approval remain separately approval-gated.
 - A trusted start waits for `GET /api/deployment` to report the accepted commit and sends the same SHA to the POST run route.
+- A hosted Git deployment requires a verified commit author mapped to the Vercel owner or team; the GitHub App remains the committer.

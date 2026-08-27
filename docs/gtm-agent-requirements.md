@@ -20,6 +20,7 @@ The downstream repository owns the identity and fixed deployment values:
 
 - its agent name, model, Slack response budget, and retention settings;
 - `SLACK_CONNECTOR`, `GITHUB_CONNECTOR`, and `GTM_WORKSPACE_REPOSITORY`;
+- the verified Git commit-author name and email connected to the Vercel project owner;
 - its Turso database pair and optional workflow Gateway key/provider hosts;
 - the existing workflow production URL and `GTM_RUN_SECRET`;
 - a Vercel Trusted Sources rule that lets this Eve production project call the protected workflow production project with OIDC.
@@ -46,6 +47,15 @@ GTM_WORKFLOW_VERCEL_URL=https://<production-host>
 GTM_WORKFLOW_RUN_SECRET=<host-only production bearer>
 ```
 
+Git-deployed workflows also require:
+
+```text
+GTM_WORKSPACE_COMMIT_AUTHOR_NAME=<verified Git author name>
+GTM_WORKSPACE_COMMIT_AUTHOR_EMAIL=<verified Git author email>
+```
+
+The author must map to the Vercel project owner on Hobby, or a project team member on Pro. The GitHub App remains the committer. This keeps bot-created, user-approved commits deployable without giving Eve a Vercel token.
+
 The Turso token and workflow Gateway key stay at the sandbox firewall. The run set stays in the Eve host. Only the database URL and non-secret Gateway placeholder enter the sandbox environment. There is no Vercel deployment token.
 
 ## Save and deployment
@@ -57,7 +67,7 @@ Inside the one approval-gated write operation, the host:
 1. verifies the connected checkout and remote `main` still match the requested full commit ID;
 2. stages the accepted tracked `workflows/` tree outside the checkout;
 3. applies new committed migrations to the brokered workspace Turso database;
-4. creates the one atomic GitHub commit; and
+4. creates the one atomic GitHub commit with the configured Vercel-recognized author and the GitHub App as committer; and
 5. refreshes the checkout to the returned SHA.
 
 Migrations are backward-compatible and never run as a Vercel build side effect. If migration succeeds but commit or deployment fails, the old production code must remain valid.
@@ -96,4 +106,4 @@ The sandbox runs no remote Git command, exposes no port, and opens no custom wor
 
 ## Setup that remains manual
 
-A human initially creates or selects the Vercel workflow project, connects the workspace repository, selects the `workflows` root and `main` production branch, installs Turso, supplies provider and Gateway credentials, enables system environment variables, and configures the cross-project Trusted Sources rule. These choices affect billing or grant new authority, so they are not inferred from a Slack request.
+A human initially creates or selects the Vercel workflow project, connects the workspace repository, selects the `workflows` root and `main` production branch, supplies a verified Git author identity, installs Turso, supplies provider and Gateway credentials, enables system environment variables, and configures the cross-project Trusted Sources rule. These choices affect billing or grant new authority, so they are not inferred from a Slack request.
