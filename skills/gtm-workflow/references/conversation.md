@@ -32,6 +32,8 @@ Reply with a number, or type your answer.
 
 Keep source, schemas, configuration bodies, diffs, and complete files out of the default proposal. Name generated migration files after acceptance. Show requested technical detail without weakening a gate.
 
+When any affected workflow says `Runs: on Vercel`, the proposal must say that acceptance commits the batch to `main` and starts a production Vercel deployment. Report the immediate result as `deploying`; call it `live` only after the production deployment endpoint reports the exact returned commit SHA.
+
 A change response asks `**What would you like me to change?**`, updates the draft, reruns validation, and presents one revised proposal. Cancellation writes no tracked bytes.
 
 ## Business diagrams

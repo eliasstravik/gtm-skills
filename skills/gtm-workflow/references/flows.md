@@ -44,7 +44,7 @@ Bootstrap during the first create and keep the draft outside the repository unti
 ## Create
 
 1. Resolve workspace, owner, and kind. Read the owner's relevant ICP and persona files.
-2. Compare the headered template version before editing an existing project. Offer a v4 recopy when needed.
+2. Compare the headered template version before editing an existing project. Offer a v5 recopy when needed.
 3. Resolve where it runs. For on-demand work, recommend this computer. For scheduled or webhook work, recommend Vercel. Explain that local scheduled work runs only when invoked and model calls on Vercel use the user's budgeted Gateway key.
 4. Resolve the purpose, explicit input shape, stable row key, result columns, paid stages, adapter docs, caps, timing, approval stages, checkpoint, and external writes.
 5. When the workflow needs a provider, read [providers](providers.md), write its adapter against the user's own credential, and test it against fixtures. The skill ships no adapter catalog.
@@ -53,21 +53,21 @@ Bootstrap during the first create and keep the draft outside the repository unti
 8. Check basename-to-export, row input, reachability, caps before spend, `maxRetries = 0`, save before checkpoint, and terminal `updateRun`.
 9. Run `npm run gtm -- check`. Run `gtm run --dry-run` against the accepted input. A fresh table is not required for this dry run.
 10. Present one save proposal containing behavior, table and key, stages, dry-run output, caps, checkpoint, external writes, migration files to be generated, deployment state, and affected file groups.
-11. On acceptance, copy the draft into the workspace, run `npm ci`, then `db:generate` and `db:migrate`. Inspect the generated SQL. Save the accepted tracked bytes in one commit.
-12. If the header says `Runs: on Vercel`, follow [deploy](deploy.md). Otherwise enter the run gate. The first real run defaults to a checkpoint after three rows.
+11. On acceptance, copy the draft into the workspace, run `npm ci`, then `db:generate`. Inspect the generated SQL. For a Vercel workflow, the approval-gated save operation applies the accepted migration before its one atomic `main` commit; that commit starts production deployment. For local work, run `db:migrate` before saving.
+12. If the header says `Runs: on Vercel`, follow [deploy](deploy.md) and report the commit as deploying. Otherwise enter the run gate. The first real run defaults to a checkpoint after three rows.
 
 Cancellation before step 11 writes no tracked bytes and no migration.
 
 ## Update
 
 1. Resolve the workflow and inspect its header, table, adapter, migrations, schedule, approvals, and deployment state.
-2. Compare every headered file with v4. Include any accepted recopy in the proposal.
+2. Compare every headered file with v5. Include any accepted recopy in the proposal.
 3. Agree the business change. A run-location switch is an update to the same workflow.
 4. Change only the workflow, table, adapter, environment names, cron entry, or deployment metadata required by the request.
 5. New columns are nullable or defaulted. For a rename, plan a custom migration and hand-write `ALTER TABLE ... RENAME`. Keep schedule headers, `scheduledInput`, and cron entries aligned.
 6. Run `gtm check` and the dry run before the save proposal. Do not generate a migration yet.
-7. Present one proposal. On acceptance, run `db:generate` and `db:migrate`, inspect the SQL, and save the batch. If behavior changed, enter the checkpointed run gate.
-8. Deploy when the accepted header says `Runs: on Vercel`.
+7. Present one proposal. On acceptance, run `db:generate`, inspect the SQL, and save the batch. The approval-gated save operation applies Vercel-workflow migrations before its `main` commit; local work runs `db:migrate` before saving. If behavior changed, enter the checkpointed run gate.
+8. A `main` commit deploys when the accepted header says `Runs: on Vercel`; wait for that exact SHA before a real run.
 
 ## Inspect
 
@@ -148,7 +148,7 @@ When `GTM_SANDBOX=1`:
 1. Build a new scaffold under `$HOME/.gtm-scratch/<repo>/workflows/`. Reuse it for the session.
 2. Require `TURSO_DATABASE_URL` and `GTM_AGENT_BACKEND=api`. The runtime refuses a file database and CLI backend.
 3. Submit tracked bytes through the host approval tool. Run no `git push`, `git fetch`, `git remote`, or other remote Git command.
-4. When trusted workflow controls exist, use their read-only preview and status actions, then their separately approved deploy, start, and approval actions. They pin the connected repository's exact committed HEAD and fixed Vercel project. Keep Vercel credentials, the production run bearer, OIDC tokens, and hook tokens in the host runtime.
+4. A save containing `Runs: on Vercel` changes applies accepted migrations and commits once to `main`, which triggers the connected Vercel project. Use trusted controls for read-only preview and status, and approval-gated start and approval actions. Start waits for the exact committed HEAD. Keep the production run bearer, OIDC tokens, and hook tokens in the host runtime; there is no deploy token.
 5. Use no Studio and expose no port. Relay `gtm query --format markdown`, `gtm runs get`, `workflow inspect run`, and `workflow inspect hooks` output.
 6. Keep a paused local run and its approval in the same session because a sandbox idle snapshot stops `nitro dev`. Prefer Vercel for approval workflows that must survive.
 

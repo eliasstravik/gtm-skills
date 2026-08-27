@@ -1,4 +1,4 @@
-// gtm-lib v4
+// gtm-lib v5
 import { createHash, randomBytes } from "node:crypto";
 import { defineEventHandler } from "nitro/h3";
 import { start } from "workflow/api";
@@ -26,6 +26,20 @@ export default defineEventHandler(async (event) => {
   ].filter(Boolean);
   if (!acceptedSecrets.some((secret) => authorization === `Bearer ${secret}`)) {
     return error(401, "unauthorized", "A valid bearer is required.");
+  }
+
+  const expectedHead = event.req.headers.get("x-gtm-workspace-head");
+  const deployedHead = process.env.VERCEL_GIT_COMMIT_SHA;
+  if (
+    method === "POST" &&
+    expectedHead !== null &&
+    (!deployedHead || expectedHead !== deployedHead)
+  ) {
+    return error(
+      409,
+      "deployment_not_ready",
+      "Production is not serving the requested workspace commit.",
+    );
   }
 
   const workflowPath = event.context.params?.workflow;

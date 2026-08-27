@@ -37,7 +37,7 @@ workflows/
 ├── providers/<provider>.ts
 ├── lib/{schema,db-url,db,steps,provider,agent,approve}.ts
 ├── scripts/gtm.ts
-└── server/api/{run,runs,approve}/...
+└── server/api/{deployment,run,runs,approve}/...
 ```
 
 Git owns definitions, table declarations, adapters, and migrations. Vercel owns steps, attempts, retries, graphs, and logs. The database owns business rows, the paid-call cache and ledger, and the run index. The database does not copy a step trace. Source and deployments can roll back. Schema and data do not roll back.
@@ -48,9 +48,9 @@ Ignore `node_modules/`, `.env*` except `.env.example`, `.vercel/`, `.well-known/
 
 ## Versioned files
 
-Every `lib/*.ts`, all three route files, `scripts/gtm.ts`, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v4`. `package.json` carries `gtm.libVersion: 4`. Compare these versions before every action. Name differing files and offer a template recopy in the proposal. Compare headers, not hashes, and never recopy silently.
+Every `lib/*.ts`, all four route files, `scripts/gtm.ts`, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v5`. `package.json` carries `gtm.libVersion: 5`. Compare these versions before every action. Name differing files and offer a template recopy in the proposal. Compare headers, not hashes, and never recopy silently.
 
-A v2 project has no `lib/schema.ts` or `drizzle/`. Offer a v4 re-scaffold through update: copy the v4 files, add the pinned dependencies and baseline migrations, migrate, then recreate each workflow through create from its header and purpose. Present the full diff before saving. Keep old ignored JSON results.
+A v2 project has no `lib/schema.ts` or `drizzle/`. Offer a v5 re-scaffold through update: copy the v5 files, add the pinned dependencies and baseline migrations, migrate, then recreate each workflow through create from its header and purpose. Present the full diff before saving. Keep old ignored JSON results.
 
 ## Workflow and table contract
 
@@ -170,6 +170,8 @@ On a conflict, reconcile once against the SDK and retry one insert. A live row r
 If a local restart leaves a zombie row in `running` or `waiting`, run `npx workflow cancel <runId>`, then `npm run gtm -- runs get <runKey>`. This is the only unblock procedure.
 
 `GET /api/runs/<runId|runKey>` reconciles active rows and returns the database row. It includes the SDK result while retained. Approval uses `defineHook`; the bearer-protected approve route calls `resumeHook` directly. A timeout defaults to seven days, records a denial with comment `timeout`, and disposes the hook.
+
+`GET /api/deployment` is bearer-protected and returns the production deployment's `VERCEL_GIT_COMMIT_SHA`. Trusted starts poll it until it matches the accepted workspace commit, then send that commit in `x-gtm-workspace-head`. The POST run route returns `409 deployment_not_ready` when production is not serving that exact commit.
 
 ## Paid calls
 

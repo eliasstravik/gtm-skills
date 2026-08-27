@@ -32,6 +32,6 @@
     "typescript": "7.0.2"
   },
   "gtm": {
-    "libVersion": 4
+    "libVersion": 5
   }
 }

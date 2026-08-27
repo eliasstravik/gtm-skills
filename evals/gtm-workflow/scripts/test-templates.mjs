@@ -9,8 +9,8 @@ import { test } from "node:test";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v4 templates pass the local, approval, scheduled, webhook, and sandbox paths", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v4-"));
+test("v5 templates pass the local, approval, scheduled, webhook, and sandbox paths", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v5-"));
   let vendor;
   let server;
   context.after(async () => {
@@ -69,11 +69,13 @@ test("v4 templates pass the local, approval, scheduled, webhook, and sandbox pat
   const vendorPort = vendor.address().port;
   const nitroPort = await freePort();
   const secret = "fixture-run-secret";
+  const deploymentHead = "a".repeat(40);
   const env = {
     ...process.env,
     PATH: `${fakeDirectory}:${process.env.PATH}`,
     GTM_AGENT_BACKEND: "claude",
     GTM_RUN_SECRET: secret,
+    VERCEL_GIT_COMMIT_SHA: deploymentHead,
     MOCK_VENDOR_URL: `http://127.0.0.1:${vendorPort}`,
     GTM_BASE_URL: `http://127.0.0.1:${nitroPort}`,
     WORKFLOW_LOCAL_BASE_URL: `http://127.0.0.1:${nitroPort}`,
@@ -92,7 +94,7 @@ test("v4 templates pass the local, approval, scheduled, webhook, and sandbox pat
   await command("npm", ["run", "db:generate"], { cwd: directory, env });
   await command("npm", ["run", "db:migrate"], { cwd: directory, env });
   const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
-  assert.deepEqual(JSON.parse(lastJsonLine(check.stdout)), { ok: true, workflows: 4, libVersion: 4 });
+  assert.deepEqual(JSON.parse(lastJsonLine(check.stdout)), { ok: true, workflows: 4, libVersion: 5 });
   const scheduledNoInput = await gtmFailure(directory, env, ["run", "scheduled-proof"]);
   assert.equal(scheduledNoInput.error.code, "invalid_input");
   assert.match(scheduledNoInput.error.message, /write scheduledInput to a file/);
@@ -107,6 +109,25 @@ test("v4 templates pass the local, approval, scheduled, webhook, and sandbox pat
   server.stdout.on("data", (chunk) => (serverLog += chunk));
   server.stderr.on("data", (chunk) => (serverLog += chunk));
   await waitForOrigin(env.GTM_BASE_URL, () => serverLog);
+
+  const unauthenticatedDeployment = await fetch(`${env.GTM_BASE_URL}/api/deployment`);
+  assert.equal(unauthenticatedDeployment.status, 401);
+  const deployment = await fetch(`${env.GTM_BASE_URL}/api/deployment`, {
+    headers: { authorization: `Bearer ${secret}` },
+  });
+  assert.equal(deployment.status, 200);
+  assert.deepEqual(await deployment.json(), { head: deploymentHead });
+  const mismatchedStart = await fetch(`${env.GTM_BASE_URL}/api/run/local-proof`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${secret}`,
+      "content-type": "application/json",
+      "x-gtm-workspace-head": "b".repeat(40),
+    },
+    body: "{}",
+  });
+  assert.equal(mismatchedStart.status, 409);
+  assert.equal((await mismatchedStart.json()).error.code, "deployment_not_ready");
 
   const input = { rows: Array.from({ length: 20 }, (_, index) => ({ key: `account-${index}`, domain: `account-${index}.test` })) };
   const inputFile = join(directory, "data/input.json");
