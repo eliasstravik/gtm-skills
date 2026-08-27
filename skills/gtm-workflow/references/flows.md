@@ -53,7 +53,7 @@ Bootstrap during the first create and keep the draft outside the repository unti
 8. Check basename-to-export, row input, reachability, caps before spend, `maxRetries = 0`, save before checkpoint, and terminal `updateRun`.
 9. Run `npm run gtm -- check`. Run `gtm run --dry-run` against the accepted input. A fresh table is not required for this dry run.
 10. Present one save proposal containing behavior, table and key, stages, dry-run output, caps, checkpoint, external writes, migration files to be generated, deployment state, and affected file groups.
-11. On acceptance, copy the draft into the workspace, run `npm ci`, then `db:generate`. Inspect the generated SQL and confirm the same batch contains its `_journal.json` update and numbered snapshot. For a Vercel workflow, the approval-gated save operation applies the accepted migration, verifies its SQL hash in `__drizzle_migrations`, and only then creates its one atomic `main` commit; that commit starts production deployment. For local work, run `db:migrate` and verify the ledger hash before saving.
+11. On acceptance, copy the draft into the workspace, run `npm ci`, then `db:generate`. Inspect the generated SQL and confirm the same batch contains its `_journal.json` update plus the numbered snapshot required for schema DDL. For a Vercel workflow, the approval-gated save operation applies the accepted migration, verifies its SQL hash in `__drizzle_migrations`, and only then creates its one atomic `main` commit; that commit starts production deployment. For local work, run `db:migrate` and verify the ledger hash before saving.
 12. If the header says `Runs: on Vercel`, follow [deploy](deploy.md) and report the commit as deploying. Otherwise enter the run gate. The first real run defaults to a checkpoint after three rows.
 
 Cancellation before step 11 writes no tracked bytes and no migration.
@@ -66,7 +66,7 @@ Cancellation before step 11 writes no tracked bytes and no migration.
 4. Change only the workflow, table, adapter, environment names, cron entry, or deployment metadata required by the request.
 5. New columns are nullable or defaulted. For a rename, plan a custom migration and hand-write `ALTER TABLE ... RENAME`. Keep schedule headers, `scheduledInput`, and cron entries aligned.
 6. Run `gtm check` and the dry run before the save proposal. Do not generate a migration yet.
-7. Present one proposal. On acceptance, run `db:generate`, inspect the SQL, and save the SQL, journal, and snapshot as one batch. The approval-gated save operation applies Vercel-workflow migrations and verifies their ledger hashes before its `main` commit; local work runs `db:migrate` and verifies the ledger before saving. If behavior changed, enter the checkpointed run gate.
+7. Present one proposal. On acceptance, run `db:generate`, inspect the SQL, and save the SQL and journal together, including the numbered snapshot for schema DDL. The approval-gated save operation applies Vercel-workflow migrations and verifies their ledger hashes before its `main` commit; local work runs `db:migrate` and verifies the ledger before saving. If behavior changed, enter the checkpointed run gate.
 8. A `main` commit deploys when the accepted header says `Runs: on Vercel`; wait for that exact SHA before a real run.
 
 ## Inspect

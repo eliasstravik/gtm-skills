@@ -281,7 +281,11 @@ async function validateMigrationArtifacts() {
         2,
       );
     }
-    if (!existsSync(join(directory, "meta", `${sequence}_snapshot.json`))) {
+    const sql = await readFile(join(directory, file), "utf8");
+    const changesSchema = /\b(?:create|alter|drop)\s+(?:table|index|view|trigger)\b/i.test(
+      sql.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " "),
+    );
+    if (changesSchema && !existsSync(join(directory, "meta", `${sequence}_snapshot.json`))) {
       throw new AppError(
         "invalid_migration_artifacts",
         `${file} has no matching drizzle/meta/${sequence}_snapshot.json`,
