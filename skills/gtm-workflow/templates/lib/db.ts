@@ -1,5 +1,8 @@
 // gtm-lib v8
-import { createClient, type Client } from "@libsql/client";
+import {
+  createClient as createWebClient,
+  type Client,
+} from "@libsql/client/web";
 import {
   and,
   eq,
@@ -7,7 +10,8 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
+import type { LibSQLDatabase } from "drizzle-orm/libsql/driver-core";
+import { drizzle } from "drizzle-orm/libsql/web";
 import { getRun } from "workflow/api";
 import { getDatabaseConfig } from "./db-url";
 import {
@@ -25,7 +29,12 @@ async function getClient(): Promise<Client> {
   if (!clientPromise) {
     clientPromise = (async () => {
       const config = getDatabaseConfig();
-      const client = createClient({
+      if (config.dialect === "sqlite") {
+        throw new Error(
+          "The workflow runtime requires TURSO_DATABASE_URL; file SQLite is supported only by drizzle-kit commands.",
+        );
+      }
+      const client = createWebClient({
         url: config.url,
         authToken: config.authToken,
       });
