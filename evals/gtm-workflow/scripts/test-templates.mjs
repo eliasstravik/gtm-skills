@@ -13,6 +13,11 @@ test("v11 templates pass the deterministic workflow contract", async (context) =
   const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v11-"));
   let vendor;
   let server;
+  let releaseSlowRequest;
+  let markSlowRequestStarted;
+  const slowRequestStarted = new Promise((resolvePromise) => {
+    markSlowRequestStarted = resolvePromise;
+  });
   context.after(async () => {
     if (server) {
       try {
@@ -22,6 +27,7 @@ test("v11 templates pass the deterministic workflow contract", async (context) =
       server.stderr.destroy();
       server.unref();
     }
+    releaseSlowRequest?.();
     if (vendor) await new Promise((resolvePromise) => vendor.close(resolvePromise));
     await rm(directory, { recursive: true, force: true });
   });
@@ -73,8 +79,10 @@ test("v11 templates pass the deterministic workflow contract", async (context) =
         providerRecordId: `vendor-${vendorCalls}`,
       }),
     );
-    if (url.searchParams.get("domain") === "slow.test") setTimeout(send, 5_000);
-    else send();
+    if (url.searchParams.get("domain") === "slow.test") {
+      releaseSlowRequest = send;
+      markSlowRequestStarted();
+    } else send();
   });
   await new Promise((resolvePromise) => vendor.listen(0, "127.0.0.1", resolvePromise));
   const vendorPort = vendor.address().port;
@@ -511,7 +519,7 @@ test("v11 templates pass the deterministic workflow contract", async (context) =
   const slowInput = join(directory, "data/slow.json");
   await writeFile(slowInput, JSON.stringify({ rows: [{ key: "slow", domain: "slow.test" }] }));
   const slow = await gtm(directory, env, ["run", "slow-proof", "--input", slowInput]);
-  await waitForLedgerStatus(directory, env, slow.runKey, "pending");
+  await Promise.all([waitForLedgerStatus(directory, env, slow.runKey, "pending"), slowRequestStarted]);
   const bounded = await gtm(directory, env, ["runs", "get", slow.runKey, "--wait", "0.01"]);
   assert.equal(bounded.still_active, true);
   assert.equal(bounded.waiting_reason, "step running (slowLookup)");
@@ -520,6 +528,8 @@ test("v11 templates pass the deterministic workflow contract", async (context) =
   assert.equal(slowCancelling.finishedAt, null);
   const slowDuplicate = await gtmFailure(directory, env, ["run", "slow-proof", "--input", slowInput]);
   assert.equal(slowDuplicate.error.code, "run_in_progress");
+  releaseSlowRequest();
+  releaseSlowRequest = undefined;
   const slowCancelled = await gtm(directory, env, ["runs", "get", slow.runKey, "--wait"]);
   assert.equal(slowCancelled.status, "cancelled");
   assert.notEqual(slowCancelled.finishedAt, null);

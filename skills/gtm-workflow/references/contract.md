@@ -38,6 +38,8 @@ A v9 project lets cloud queries reuse the write credential and accepts data-chan
 
 A v10 project lacks provider discovery, bounded operator polling, row and step ledger attribution, selective reruns, command-generated diagrams, and receipt summaries. Offer the v11 recopy and its committed ledger migration through update.
 
+The v11 template pins runtime beta.46. It accepts the lazy hook-resume timing and ended-run behavior because approval state is checked in the database before every resume. The release also retains workflow VMs across attribute writes and safe boundaries with open hooks. The recovery, embedded data-directory, and engine-ceiling workarounds remain until stable 5.0.0 triggers the next review.
+
 ## Workflow and table contract
 
 Use a lowercase kebab-case filename and export its camelCase basename. Row workflows carry purpose, run location, kind, schedule when applicable, owner, ICP, providers with accepted unit cost, result table, and key meaning in the file header. Export `input`, `MAX_ROWS`, `MAX_SPEND_USD`, `COST_PER_ROW_USD`, the workflow function, and `scheduledInput` for scheduled work. The workflow takes `(arg: Input, meta: WorkflowMeta)` and assigns `arg = input.parse(arg)` immediately after `"use workflow"`; scheduled work sets `arg ??= scheduledInput` first.

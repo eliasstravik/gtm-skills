@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased, gtm-lib v11
+
+- Updated the pinned workflow runtime from beta.44 to beta.46 after the template suite passed on engine 22 and the forced webhook-resume probe passed on engine 24. The engine ceiling stays unchanged until the stable runtime declares support.
+
 ## gtm-lib v10, 2026-08-28
 
 - Cloud inspection now requires a read-only credential and rejects data-changing statements, including writes hidden behind a common table expression.

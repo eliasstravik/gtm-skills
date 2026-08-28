@@ -23,7 +23,7 @@
     "drizzle-orm": "0.45.2",
     "drizzle-zod": "0.8.3",
     "nitro": "3.0.260610-beta",
-    "workflow": "5.0.0-beta.44",
+    "workflow": "5.0.0-beta.46",
     "zod": "4.4.3"
   },
   "devDependencies": {
@@ -63,7 +63,7 @@
       "server/api/runs/[runId]/trigger.post.ts": "a6e42ed5baa4996bb1c55d86877cfe15a5a399dfee591385f5c65d38f0b4f7fa"
     },
     "validatedAgainst": {
-      "workflow": "5.0.0-beta.44",
+      "workflow": "5.0.0-beta.46",
       "nitro": "3.0.260610-beta",
       "drizzleKit": "0.31.10",
       "node": "22"
