@@ -1,4 +1,4 @@
-// gtm-lib v9
+// gtm-lib v10
 // Call agent() from inside a "use step" function; see the workflow contract for the step rules.
 import { spawn } from "node:child_process";
 import { constants } from "node:fs";
@@ -7,12 +7,19 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { generateText, gateway, jsonSchema, Output, stepCountIs } from "ai";
 import { z } from "zod";
-import { provider, type PaidCallMeta } from "./provider";
+import {
+  provider,
+  ProviderPreCallError,
+  type PaidCallMeta,
+} from "./provider";
+import { redact } from "./redact";
 
-export type AgentTools = "none" | "web";
+export type AgentTools = "none" | "web" | "host-default";
 
 export interface AgentInput<T extends z.ZodTypeAny> {
   prompt: string;
+  context?: string;
+  contextId?: string;
   schema: T;
   meta: PaidCallMeta;
   tools?: AgentTools;
@@ -20,6 +27,7 @@ export interface AgentInput<T extends z.ZodTypeAny> {
   maxUsd?: number;
   timeoutMs?: number;
   ttlMs?: number;
+  signal?: AbortSignal;
 }
 
 type Context = {
@@ -34,6 +42,7 @@ type Context = {
 type CliBackend = {
   bin: string;
   webSafe: boolean;
+  noToolsSafe: boolean;
   args: (context: Context) => string[];
   parse: (stdout: string, context: Context) => Promise<BackendResult>;
 };
@@ -48,6 +57,7 @@ const CLI: Record<string, CliBackend> = {
   claude: {
     bin: "claude",
     webSafe: true,
+    noToolsSafe: true,
     args: (context) => [
       "-p",
       context.prompt,
@@ -67,7 +77,9 @@ const CLI: Record<string, CliBackend> = {
             "--max-turns",
             "30",
           ]
-        : ["--tools", "", "--max-turns", "3"]),
+        : context.tools === "none"
+          ? ["--tools", "", "--max-turns", "3"]
+          : ["--max-turns", "30"]),
       ...(context.maxUsd
         ? ["--max-budget-usd", String(context.maxUsd)]
         : []),
@@ -90,6 +102,7 @@ const CLI: Record<string, CliBackend> = {
   codex: {
     bin: "codex",
     webSafe: false,
+    noToolsSafe: false,
     args: (context) => [
       "exec",
       "--output-schema",
@@ -110,6 +123,7 @@ const CLI: Record<string, CliBackend> = {
   cursor: {
     bin: "agent",
     webSafe: false,
+    noToolsSafe: false,
     args: (context) => [
       "-p",
       context.prompt + JSON_INSTRUCTION(context.schemaJson),
@@ -122,6 +136,7 @@ const CLI: Record<string, CliBackend> = {
   gemini: {
     bin: "gemini",
     webSafe: false,
+    noToolsSafe: false,
     args: (context) => [
       "-p",
       context.prompt + JSON_INSTRUCTION(context.schemaJson),
@@ -134,6 +149,7 @@ const CLI: Record<string, CliBackend> = {
   opencode: {
     bin: "opencode",
     webSafe: false,
+    noToolsSafe: false,
     args: (context) => [
       "run",
       "--format",
@@ -157,14 +173,27 @@ export async function agent<T extends z.ZodTypeAny>(
   input: AgentInput<T>,
 ): Promise<z.infer<T>> {
   const schemaJson = strictSchema(z.toJSONSchema(input.schema));
+  const prompt = input.context
+    ? `${input.prompt}\n\nContext${input.contextId ? ` (${input.contextId})` : ""}:\n${input.context}`
+    : input.prompt;
   const runtimeInput: RuntimeInput = {
-    prompt: input.prompt,
+    prompt,
     schemaJson,
     tools: input.tools ?? "none",
     maxUsd: input.maxUsd,
     timeoutMs: input.timeoutMs,
+    signal: input.signal,
   };
   const backend = await pickBackend();
+  if (
+    backend !== API_BACKEND &&
+    runtimeInput.tools === "none" &&
+    !CLI[backend].noToolsSafe
+  ) {
+    throw new ProviderPreCallError(
+      `${backend} cannot enforce tools: "none". Use claude or api for untrusted input, or pass tools: "host-default" only after accepting host tool access.`,
+    );
+  }
   const model =
     process.env.GTM_AGENT_MODEL ??
     (backend === API_BACKEND ? "anthropic/claude-opus-5" : "default");
@@ -172,13 +201,15 @@ export async function agent<T extends z.ZodTypeAny>(
     name: "agent",
     endpoint: `${backend}/${model}`,
     input: {
-      prompt: input.prompt,
+      prompt,
+      contextId: input.contextId ?? null,
       schema: schemaJson,
       tools: runtimeInput.tools,
     },
     schema: input.schema,
     ttlMs: input.ttlMs ?? 30 * 24 * 60 * 60 * 1_000,
     costUsd: input.maxUsd,
+    costSource: "projected",
     meta: input.meta,
     call: async () => {
       const called =
@@ -200,6 +231,7 @@ type RuntimeInput = {
   tools: AgentTools;
   maxUsd?: number;
   timeoutMs?: number;
+  signal?: AbortSignal;
 };
 
 async function pickBackend(): Promise<string> {
@@ -242,6 +274,11 @@ async function viaCli(name: string, input: RuntimeInput) {
       `${name} cannot be restricted to web tools; use claude, set GTM_AGENT_BACKEND=api, or run without web tools.`,
     );
   }
+  if (input.tools === "none" && !backend.noToolsSafe) {
+    throw new ProviderPreCallError(
+      `${name} cannot enforce tools: "none" and was stopped before spawn.`,
+    );
+  }
 
   const cwd = await mkdtemp(join(tmpdir(), "gtm-agent-"));
   try {
@@ -268,7 +305,8 @@ async function viaCli(name: string, input: RuntimeInput) {
     const stdout = await run(backend.bin, backend.args(context), {
       cwd,
       env,
-      timeoutMs: input.timeoutMs ?? 300_000,
+      timeoutMs: input.timeoutMs ?? 240_000,
+      signal: input.signal,
     });
     return await backend.parse(stdout, context);
   } finally {
@@ -278,7 +316,10 @@ async function viaCli(name: string, input: RuntimeInput) {
 
 async function viaApi(input: RuntimeInput): Promise<BackendResult> {
   const model = process.env.GTM_AGENT_MODEL ?? "anthropic/claude-opus-5";
-  const abortSignal = AbortSignal.timeout(input.timeoutMs ?? 300_000);
+  const timeoutSignal = AbortSignal.timeout(input.timeoutMs ?? 240_000);
+  const abortSignal = input.signal
+    ? AbortSignal.any([timeoutSignal, input.signal])
+    : timeoutSignal;
   const output = Output.object({ schema: jsonSchema(input.schemaJson) });
   const costs: number[] = [];
   const record = (result: { providerMetadata?: Record<string, unknown> }) => {
@@ -354,7 +395,12 @@ function finish(value: unknown, costs: number[]): BackendResult {
 function run(
   bin: string,
   args: string[],
-  options: { cwd: string; env: Record<string, string>; timeoutMs: number },
+  options: {
+    cwd: string;
+    env: Record<string, string>;
+    timeoutMs: number;
+    signal?: AbortSignal;
+  },
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, {
@@ -375,14 +421,24 @@ function run(
       reject(new Error(`${bin} timed out after ${options.timeoutMs}ms`));
     }, options.timeoutMs);
 
+    const abort = () => {
+      try {
+        process.kill(-child.pid!, "SIGKILL");
+      } catch {}
+      reject(options.signal?.reason ?? new Error(`${bin} aborted`));
+    };
+    options.signal?.addEventListener("abort", abort, { once: true });
+
     child.on("error", (error) => {
       clearTimeout(timer);
-      reject(error);
+      options.signal?.removeEventListener("abort", abort);
+      reject(new ProviderPreCallError(error.message));
     });
     child.on("close", (code) => {
       clearTimeout(timer);
+      options.signal?.removeEventListener("abort", abort);
       if (code === 0) resolve(stdout);
-      else reject(new Error(`${bin} exited ${code}: ${stderr.slice(0, 500)}`));
+      else reject(new Error(`${bin} exited ${code}: ${redact(stderr)}`));
     });
   });
 }

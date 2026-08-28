@@ -1,11 +1,41 @@
-// gtm-lib v9
+// gtm-lib v10
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "./db";
-import { enrichmentCache, enrichmentRuns } from "./schema";
+import { redact, redactedError } from "./redact";
+import {
+  enrichmentCache,
+  enrichmentRuns,
+  type CostSource,
+  type EnrichmentErrorKind,
+  type EnrichmentStatus,
+} from "./schema";
 
 export type PaidCallMeta = { runKey: string; slug: string };
+
+export class ProviderAuthError extends Error {
+  readonly providerErrorKind = "provider_auth";
+  override name = "ProviderAuthError";
+
+  constructor(message: string) {
+    super(`[provider_auth] ${message}`);
+  }
+}
+
+export class ProviderQuotaError extends Error {
+  readonly providerErrorKind = "provider_quota";
+  override name = "ProviderQuotaError";
+
+  constructor(message: string) {
+    super(`[provider_quota] ${message}`);
+  }
+}
+
+export class ProviderPreCallError extends Error {
+  readonly providerErrorKind = "pre_call";
+  override name = "ProviderPreCallError";
+}
 
 export type ProviderInput<T extends z.ZodTypeAny> = {
   name: string;
@@ -14,6 +44,7 @@ export type ProviderInput<T extends z.ZodTypeAny> = {
   schema: T;
   ttlMs: number;
   costUsd?: number;
+  costSource?: Exclude<CostSource, "reported">;
   call: () => Promise<
     | z.input<T>
     | { value: z.input<T>; raw?: unknown; costUsd?: number }
@@ -27,6 +58,7 @@ export type ProviderInput<T extends z.ZodTypeAny> = {
 export type PaidCallResult<T> = {
   value: T;
   costUsd: number;
+  costSource: CostSource;
   status: "cache_hit" | "success" | "empty";
 };
 
@@ -37,6 +69,7 @@ export async function provider<T extends z.ZodTypeAny>(
   const canonical = stableJson(input.input);
   const inputsHash = createHash("sha256").update(canonical).digest("hex");
   const now = Date.now();
+  const acceptedCostSource = input.costSource ?? "fixed";
   const cache = (
     await db
       .select()
@@ -52,11 +85,51 @@ export async function provider<T extends z.ZodTypeAny>(
   )[0];
 
   if (cache && cache.expiresAt > now) {
-    const raw = JSON.parse(cache.raw ?? cache.value);
-    const value = input.schema.parse(input.parseRaw ? input.parseRaw(raw) : raw);
-    await writeLedger(input, inputsHash, "cache_hit", 0, null);
-    return { value, costUsd: 0, status: "cache_hit" };
+    try {
+      const raw = JSON.parse(cache.raw ?? cache.value);
+      const value = input.schema.parse(input.parseRaw ? input.parseRaw(raw) : raw);
+      await insertLedger(input, {
+        inputsHash,
+        status: "cache_hit",
+        costUsd: 0,
+        costSource: acceptedCostSource,
+        error: null,
+        errorKind: null,
+      });
+      return {
+        value,
+        costUsd: 0,
+        costSource: acceptedCostSource,
+        status: "cache_hit",
+      };
+    } catch (error) {
+      await insertLedger(input, {
+        inputsHash,
+        status: "error",
+        costUsd: 0,
+        costSource: acceptedCostSource,
+        error: redact(error),
+        errorKind: "cache_parse",
+      });
+      throw redactedError(error);
+    }
   }
+
+  const ledgerId = randomUUID();
+  await db.insert(enrichmentRuns).values({
+    id: ledgerId,
+    runKey: input.meta.runKey,
+    workflow: input.meta.slug,
+    provider: input.name,
+    endpoint: input.endpoint,
+    inputsHash,
+    status: "pending",
+    costUsd: input.costUsd ?? 0,
+    costSource: acceptedCostSource,
+    error: null,
+    errorKind: null,
+    createdAt: now,
+  });
 
   try {
     const called = await input.call();
@@ -64,47 +137,70 @@ export async function provider<T extends z.ZodTypeAny>(
     const value = input.schema.parse(reported.value);
     const empty = input.isEmpty?.(value) ?? isEmpty(value);
     const costUsd = reported.costUsd ?? input.costUsd ?? 0;
-    await db
-      .insert(enrichmentCache)
-      .values({
-        provider: input.name,
-        endpoint: input.endpoint,
-        inputsHash,
-        inputs: canonical,
-        raw: JSON.stringify(reported.raw),
-        value: JSON.stringify(value),
-        expiresAt: now + input.ttlMs,
-        createdAt: now,
-      })
-      .onConflictDoUpdate({
-        target: [
-          enrichmentCache.provider,
-          enrichmentCache.endpoint,
-          enrichmentCache.inputsHash,
-        ],
-        set: {
+    const costSource: CostSource =
+      reported.costUsd === undefined ? acceptedCostSource : "reported";
+    const status = empty ? "empty" : "success";
+    const raw = JSON.stringify(reported.raw) ?? null;
+    await db.batch([
+      db
+        .insert(enrichmentCache)
+        .values({
+          provider: input.name,
+          endpoint: input.endpoint,
+          inputsHash,
           inputs: canonical,
-          raw: JSON.stringify(reported.raw),
+          raw,
           value: JSON.stringify(value),
           expiresAt: now + input.ttlMs,
           createdAt: now,
-        },
-      });
-    const status = empty ? "empty" : "success";
-    await writeLedger(input, inputsHash, status, costUsd, null);
-    return { value, costUsd, status };
+        })
+        .onConflictDoUpdate({
+          target: [
+            enrichmentCache.provider,
+            enrichmentCache.endpoint,
+            enrichmentCache.inputsHash,
+          ],
+          set: {
+            inputs: canonical,
+            raw,
+            value: JSON.stringify(value),
+            expiresAt: now + input.ttlMs,
+            createdAt: now,
+          },
+        }),
+      db
+        .update(enrichmentRuns)
+        .set({ status, costUsd, costSource, error: null, errorKind: null })
+        .where(eq(enrichmentRuns.id, ledgerId)),
+    ]);
+    return { value, costUsd, costSource, status };
   } catch (error) {
-    await writeLedger(input, inputsHash, "error", input.costUsd ?? null, message(error));
-    throw error;
+    const errorKind = classifyError(error);
+    const costUsd = errorKind === "pre_call" ? 0 : input.costUsd ?? 0;
+    await db
+      .update(enrichmentRuns)
+      .set({
+        status: "error",
+        costUsd,
+        costSource: acceptedCostSource,
+        error: redact(error),
+        errorKind,
+      })
+      .where(eq(enrichmentRuns.id, ledgerId));
+    throw redactedError(error);
   }
 }
 
-async function writeLedger(
+async function insertLedger(
   input: Pick<ProviderInput<any>, "meta" | "name" | "endpoint">,
-  inputsHash: string,
-  status: "cache_hit" | "success" | "empty" | "error",
-  costUsd: number | null,
-  error: string | null,
+  row: {
+    inputsHash: string;
+    status: EnrichmentStatus;
+    costUsd: number | null;
+    costSource: CostSource;
+    error: string | null;
+    errorKind: EnrichmentErrorKind | null;
+  },
 ) {
   const db = await getDb();
   await db.insert(enrichmentRuns).values({
@@ -113,12 +209,29 @@ async function writeLedger(
     workflow: input.meta.slug,
     provider: input.name,
     endpoint: input.endpoint,
-    inputsHash,
-    status,
-    costUsd,
-    error,
+    inputsHash: row.inputsHash,
+    status: row.status,
+    costUsd: row.costUsd,
+    costSource: row.costSource,
+    error: row.error,
+    errorKind: row.errorKind,
     createdAt: Date.now(),
   });
+}
+
+function classifyError(error: unknown): EnrichmentErrorKind {
+  const kind =
+    error && typeof error === "object"
+      ? (error as { providerErrorKind?: unknown }).providerErrorKind
+      : undefined;
+  if (
+    kind === "pre_call" ||
+    kind === "provider_auth" ||
+    kind === "provider_quota"
+  ) {
+    return kind;
+  }
+  return "call";
 }
 
 function unwrapCallResult<T>(
@@ -128,7 +241,7 @@ function unwrapCallResult<T>(
     value &&
     typeof value === "object" &&
     "value" in value &&
-    ("costUsd" in value || Object.keys(value).length <= 2)
+    ("costUsd" in value || "raw" in value)
   ) {
     const reported = value as { value: T; raw?: unknown; costUsd?: number };
     return {
@@ -155,8 +268,4 @@ function stableJson(value: unknown): string {
       .join(",")}}`;
   }
   return JSON.stringify(value);
-}
-
-function message(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

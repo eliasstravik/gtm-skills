@@ -1,16 +1,16 @@
-# GTM agent requirements for workflow v6
+# GTM agent requirements for workflow v10
 
-This is the host contract for a small Eve Slack agent that authors the v6 `gtm-workflow` project in one connected GTM workspace and runs it on Vercel. Vercel deploys the workflow project from that same repository. The sandbox never starts a real run.
+This is the host contract for a small Eve Slack agent that authors the v10 `gtm-workflow` project in one connected GTM workspace and runs it on Vercel. Vercel deploys the workflow project from that same repository. The sandbox never starts a real run.
 
 ## What belongs in the reusable gtm-agent template
 
 The template owns the mechanism:
 
 - Slack is the only channel.
-- `apply_gtm_workspace_changes` is the only authored write tool. Its request names every migration file it carries and declares whether any statement is destructive; the host refuses an undeclared `DROP`. It applies accepted workflow migrations through a write credential that exists only for that step and saves one approved atomic commit to `main`. If the commit fails after migrations applied, the result says so.
+- `apply_gtm_workspace_changes` is the only authored write tool. Its request names every migration, includes full SQL for non-additive statements, and declares `DELETE`, `UPDATE`, `RENAME`, `DROP`, and `CREATE TRIGGER` destructive. It applies accepted migrations through a write credential that exists only for that step and saves one approved atomic commit to `main`. If the commit fails after migrations applied, the result says so.
 - `operate_gtm_workflow` has read-only preview and status actions plus approval-gated start, approval, and cancel actions. Start carries the rows and projected cost the approver saw and refuses when the fresh dry run disagrees.
-- One host module dry-runs the exact workspace HEAD, waits until the protected production runtime reports that same Git SHA, starts it with an atomic SHA recheck, and strips input, hook tokens, webhook URLs, and credentials from results.
-- The sandbox remains deny-all except npm, the workspace Turso host with a read-only credential, and accepted provider hosts without credentials. It never receives the production run bearer, OIDC token, hook tokens, a Gateway key, or a database write credential. It authors, validates, dry-runs, and queries; it starts no real run.
+- One host module dry-runs the exact workspace HEAD, waits until the protected production runtime reports that same Git SHA, starts it with a required atomic SHA recheck, and strips input, public webhook URLs, and credentials from results.
+- The sandbox remains deny-all except npm, the workspace Turso host with a read-only credential, and accepted provider hosts without credentials. It never receives the production run bearer, OIDC token, a Gateway key, or a database write credential. It authors, validates, dry-runs, and queries; it starts no real run.
 
 For `Runs: on Vercel`, save and deploy are one state transition: the accepted `main` commit starts Vercel's Git deployment. A real run remains a separate approval.
 
@@ -72,7 +72,7 @@ The save proposal must state that accepting a Vercel-workflow batch commits it t
 Inside the one approval-gated write operation, the host:
 
 1. verifies the connected checkout and remote `main` still match the requested full commit ID;
-2. verifies the declared migration list matches the SQL additions and that any `DROP` is declared destructive;
+2. verifies the declared migration list matches the SQL additions, requires full SQL for non-additive changes, and checks every destructive keyword declaration;
 3. stages the accepted tracked `workflows/` tree outside the checkout;
 4. opens the write credential, applies new committed migrations to the workspace Turso database, and restores the read-only baseline;
 5. creates the one atomic GitHub commit with the configured Vercel-recognized author and the GitHub App as committer; and
@@ -84,7 +84,7 @@ Vercel's Git integration deploys the commit. `api.vercel.com` stays closed to bo
 
 ## Run control
 
-Preview runs the committed workflow's zero-spend dry run against one ignored `workflows/data/*.json` input and reports rows, stages, projected cost, caps, and checkpoint.
+Preview imports the committed workflow, validates its exported Zod input, performs the zero-spend dry run against one ignored input file, and reports parsed rows, stages, projected cost, caps, and checkpoint.
 
 Start repeats the dry run, refuses when its rows or projected cost differ from the values the approver accepted, then polls the protected `GET /api/deployment` route until it returns the requested workspace SHA. It reads the bounded ignored input and calls the production route with:
 
@@ -92,9 +92,9 @@ Start repeats the dry run, refuses when its rows or projected cost differ from t
 - a short-lived `x-vercel-trusted-oidc-idp-token` from the Eve production deployment; and
 - `x-gtm-workspace-head` carrying the same SHA.
 
-The production POST route rejects a mismatch with `409 deployment_not_ready`, closing the race between readiness polling and start. A timeout starts nothing.
+The production POST route rejects a missing header with `409 deployment_head_required` and a mismatch with `409 deployment_not_ready`, closing the race between readiness polling and start. A timeout starts nothing.
 
-Status returns the public run key and sanitized business state. Approval fetches the pending run, resolves its hook token internally, submits the accepted decision, and never returns the token. Cancel posts to the bearer-protected cancel route, reports the run as `cancelled`, and treats `409 run_not_active` as already finished.
+Status returns the public run key and sanitized business state, including `completed`, `stopped`, `timed_out`, `cancelling`, `failed`, or `cancelled`, plus stop reason, remaining keys, failed step, and cost sources. Approval fetches the pending run and submits one typed decision; the token only names that pending stage. Cancel posts to the bearer-protected route, polls through `cancelling` to `cancelled`, and treats `409 run_not_active` as already finished.
 
 ## Draft and checkout paths
 

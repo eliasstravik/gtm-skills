@@ -1,6 +1,6 @@
 ---
 name: gtm-workflow
-description: Triggers when a user wants to create, update, inspect, delete, run, approve, query, schedule, trigger, or deploy a saved GTM workflow in a GTM workspace, including typed result tables, paid provider or model calls, dry runs, checkpoints, webhooks, and Vercel Workflows. Not for creating or repairing the workspace itself, ICP or persona lifecycle work, other workflow engines, or one-off calls that are not saved as workflows.
+description: Triggers when a user wants to create, update, inspect, delete, run, approve, query, schedule, trigger, or deploy a saved GTM workflow in a GTM workspace, including typed result tables, paid provider or model calls, dry runs, checkpoints, authorized triggers, and Vercel Workflows. Not for creating or repairing the workspace itself, ICP or persona lifecycle work, other workflow engines, or one-off calls that are not saved as workflows.
 ---
 
 # GTM workflow
@@ -45,7 +45,8 @@ Report a run still active after the bounded poll so `gtm runs get` can retrieve 
 ## QC
 
 - Secrets never appear in prompts, tracked files, conversation, or command output; values move from `.env` through the shell only.
-- Compare every `// gtm-lib v9` header with the template before an action. Offer a recopy when versions differ and never apply it silently.
+- Before editing any workflow or managed library file, read the pinned runtime's bundled documentation under `workflows/node_modules/workflow/docs/`; assume prior SDK knowledge is outdated.
+- Run `gtm check` and compare every `// gtm-lib v10` header and recorded content hash before an action. Show locally modified diffs, offer a recopy, and never apply it silently.
 - Copy the versioned lib, routes, scripts, and config verbatim and edit workflow-owned tables, adapters, migrations, and workflow files instead.
 - Route every paid vendor call through `provider()` and every model call through `agent()`.
 - Use committed migrations. The project has no `db:push` command.

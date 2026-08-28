@@ -37,9 +37,11 @@ const result = await provider({
 });
 ```
 
-The call returns a validated `value`, the cost attributed to this run, and `cache_hit`, `success`, or `empty`. A cache miss stores the adapter payload in `enrichment_cache.raw` before schema parsing and keeps the parsed copy in `value`. Cache hits parse `raw` so added schema fields can use the original response. Rows written before v4 have no `raw`, so they fall back to `value`. A cache hit writes a ledger row with zero cost. A miss writes the cache and one ledger row. A throw writes one `error` row and rethrows.
+The call returns a validated `value`, attributed cost and source, and `cache_hit`, `success`, or `empty`. A miss writes a `pending` ledger row before the request, then atomically writes the cache and final ledger state. Cache hits parse preserved `raw`, fall back to `value` for older rows, and cost zero; a cache-parse failure records `error`. Terminal reconciliation marks unresolved pending calls `lost` at the accepted fixed cost.
 
-When the service reports actual cost, return `{ value, costUsd }` from the adapter call. When debugging or future normalization needs the original vendor response, return `{ raw, value, costUsd }` and supply `parseRaw` to rebuild `value` from `raw` on cache hits. Otherwise `provider()` records the accepted fixed cost. `agent()` records reported model cost when available and the accepted `maxUsd` projection otherwise. Outcome reports distinguish projected model cost.
+When the service reports actual cost, return `{ value, costUsd }`. Return `{ raw, value, costUsd }` and supply `parseRaw` when later schema expansion needs the original response. Otherwise `provider()` records fixed cost; `agent()` records reported model cost when available and projected `maxUsd` otherwise. Pre-call input or spawn failures use `ProviderPreCallError` and cost zero.
+
+Throw short, actionable messages without request URLs or credentials. The library still strips query strings, bearer values, sensitive assignments, matching secret environment values, and text beyond its response limit before errors reach ledgers, run rows, routes, or CLI output.
 
 ## Slack Block Kit links
 
@@ -54,10 +56,11 @@ Classify errors by what the workflow should do:
 | Condition | Behavior |
 | --- | --- |
 | Invalid input or permanent rejection | Throw a normal error. The row fails and continues. |
-| Authentication or account limit | Throw a normal error with a short actionable message. Do not retry rows automatically. |
+| Authentication failure | Throw `ProviderAuthError`. `runRows()` stops with `provider_auth` and records remaining keys. |
+| Quota, billing, or account limit | Throw `ProviderQuotaError`. `runRows()` stops with `provider_quota` and records remaining keys. |
 | Charged request with invalid output | Throw a normal error. `maxRetries = 0` prevents rebilling. |
-| Confirmed unbilled transient failure | Throw `RetryableError`. The enclosing step may use a small bounded retry count. |
-| Asynchronous job accepted | Poll inside the paid step with a bounded timeout, or use a workflow webhook when the service can call back. |
+| Confirmed unbilled transient failure | Import `RetryableError` from `"workflow"` and throw it. A bare throw uses the runtime's default retry policy unless the step sets `maxRetries = 0`; a bounded retry exception must catch every other error. |
+| Asynchronous job accepted | Poll inside the paid step with a bounded timeout, or use a typed hook behind the authorized trigger route. Use a public webhook only when the caller cannot send a bearer. |
 
 Never infer that a timeout was unbilled. Default to no retry.
 
