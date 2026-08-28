@@ -63,16 +63,16 @@
     },
     {
       "id": 5,
-      "name": "webhook-lifecycle",
+      "name": "trigger-lifecycle",
       "fixture": "local-project",
-      "prompt": "Design a triggered Acme workflow that waits on a per-run webhook and writes the webhook URL into workflow_runs. Validate the source locally, but do not deploy it or call any public webhook.",
-      "expected_output": "A triggered workflow using createWebhook(), durable waiting and running transitions, and a deferred production verification note.",
+      "prompt": "Design a triggered Acme workflow that waits on a typed hook resumed through the bearer-protected trigger route. Validate the source locally, but do not deploy it or call a production route.",
+      "expected_output": "A triggered workflow using waitForTrigger(), durable waiting and running transitions, and a deferred production verification note.",
       "files": ["evals/gtm-workflow/fixtures/local-project"],
       "assertions": [
-        "The workflow creates a webhook in workflow context, stores webhook_url while waiting, awaits it, then records running and terminal state.",
-        "The run route does not claim to return the URL before the workflow creates it.",
-        "The local procedure obtains the URL through gtm runs get and authenticates the webhook payload itself.",
-        "Deployment and public webhook delivery are listed as later checks and are not executed."
+        "The workflow waits on the exported typed trigger hook, stores trigger_token while waiting, then records running and terminal state.",
+        "The trigger token only names the pending stage; the bearer-protected trigger route authorizes and validates resume.",
+        "The local procedure obtains waiting state through gtm runs get and posts a validated fixture to the authorized route.",
+        "Deployment and production trigger delivery are listed as later checks and are not executed."
       ]
     },
     {

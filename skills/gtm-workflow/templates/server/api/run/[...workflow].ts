@@ -1,13 +1,15 @@
-// gtm-lib v9
+// gtm-lib v10
 import { createHash, randomBytes } from "node:crypto";
 import { defineEventHandler } from "nitro/h3";
 import { start } from "workflow/api";
 import {
   findLiveRun,
+  findScheduledRun,
   insertRun,
   reconcileRun,
   updateRunPlain,
 } from "../../../lib/db";
+import { redact } from "../../../lib/redact";
 
 export default defineEventHandler(async (event) => {
   const requestedMethod = event.req.method;
@@ -30,11 +32,14 @@ export default defineEventHandler(async (event) => {
 
   const expectedHead = event.req.headers.get("x-gtm-workspace-head");
   const deployedHead = process.env.VERCEL_GIT_COMMIT_SHA;
-  if (
-    method === "POST" &&
-    expectedHead !== null &&
-    (!deployedHead || expectedHead !== deployedHead)
-  ) {
+  if (method === "POST" && deployedHead && expectedHead === null) {
+    return error(
+      409,
+      "deployment_head_required",
+      "Production starts require the accepted workspace commit.",
+    );
+  }
+  if (method === "POST" && expectedHead !== null && expectedHead !== deployedHead) {
     return error(
       409,
       "deployment_not_ready",
@@ -60,6 +65,24 @@ export default defineEventHandler(async (event) => {
     return error(400, "invalid_checkpoint", "checkpoint must be a positive POST integer");
   }
 
+  const requestedDate = requestUrl.searchParams.get("scheduled-for");
+  if (requestedDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
+    return error(400, "invalid_scheduled_for", "scheduled-for must be YYYY-MM-DD");
+  }
+  const scheduledFor =
+    method === "GET" ? new Date().toISOString().slice(0, 10) : requestedDate;
+  if (scheduledFor) {
+    const existing = await findScheduledRun(workflowPath, scheduledFor);
+    if (existing) {
+      return error(
+        409,
+        "already_ran_today",
+        `${basename} already has a run for ${scheduledFor}`,
+        { runKey: existing.runKey, runId: existing.runId, scheduledFor },
+      );
+    }
+  }
+
   const input = stableJson(body);
   const inputHash = createHash("sha256").update(input).digest("hex");
   const runKey = randomBytes(16).toString("hex");
@@ -73,6 +96,7 @@ export default defineEventHandler(async (event) => {
     inputHash,
     status: "running" as const,
     checkpoint,
+    scheduledFor,
     startedAt: Date.now(),
   };
 
@@ -81,6 +105,17 @@ export default defineEventHandler(async (event) => {
       await insertRun(row);
       break;
     } catch (caught) {
+      if (scheduledFor) {
+        const existing = await findScheduledRun(workflowPath, scheduledFor);
+        if (existing) {
+          return error(
+            409,
+            "already_ran_today",
+            `${basename} already has a run for ${scheduledFor}`,
+            { runKey: existing.runKey, runId: existing.runId, scheduledFor },
+          );
+        }
+      }
       const existing = await findLiveRun(workflowPath, inputHash);
       if (!existing) throw caught;
       const reconciled = await reconcileRun(existing.runKey);
@@ -88,29 +123,51 @@ export default defineEventHandler(async (event) => {
       return error(
         409,
         "run_in_progress",
-        `${basename} is already running as ${existing.runKey}; wait, or cancel it and run gtm runs get ${existing.runKey} to clear`,
+        `${basename} is already running as ${existing.runKey}; inspect it before retrying`,
         { runKey: existing.runKey, runId: existing.runId },
       );
     }
   }
 
-  const meta = { runKey, slug: basename, checkpoint };
+  const meta = { runKey, slug: basename, checkpoint, scheduledFor };
+  let run;
   try {
-    const run =
+    run =
       method === "GET"
-        ? await start({ workflowId }, [null, meta])
-        : await start({ workflowId }, [body, meta]);
-    await updateRunPlain(runKey, { runId: run.runId });
-    return Response.json({ runId: run.runId, runKey, workflow: workflowPath });
+        ? await start({ workflowId }, [null, meta], {
+            attributes: runAttributes(runKey, basename, deployedHead, checkpoint),
+          })
+        : await start({ workflowId }, [body, meta], {
+            attributes: runAttributes(runKey, basename, expectedHead, checkpoint),
+          });
   } catch (caught) {
     await updateRunPlain(runKey, {
       status: "failed",
-      error: message(caught),
+      error: redact(caught),
       finishedAt: Date.now(),
     });
     throw caught;
   }
+
+  // The workflow's first library step writes the same run id. If this route
+  // write fails after start(), the live row remains closed until that step does it.
+  await updateRunPlain(runKey, { runId: run.runId }).catch(() => undefined);
+  return Response.json({ runId: run.runId, runKey, workflow: workflowPath });
 });
+
+function runAttributes(
+  runKey: string,
+  workflow: string,
+  workspaceHead: string | null | undefined,
+  checkpoint: number | null,
+) {
+  return {
+    gtmRunKey: runKey,
+    workflow,
+    workspaceHead: workspaceHead ?? "local",
+    checkpoint: checkpoint === null ? "none" : String(checkpoint),
+  };
+}
 
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
@@ -130,8 +187,4 @@ function error(
   extra: Record<string, unknown> = {},
 ) {
   return Response.json({ error: { code, message, ...extra } }, { status });
-}
-
-function message(value: unknown): string {
-  return value instanceof Error ? value.message : String(value);
 }

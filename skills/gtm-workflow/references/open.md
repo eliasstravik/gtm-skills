@@ -34,7 +34,7 @@ When the user asks for private remote access, hand the running Nitro origin to t
 2. If either value is absent, report that the project is not deployed and stop. When the user named a workflow, also require its header to say `Runs: on Vercel`; otherwise report that the workflow is not deployed and stop.
 3. Run `./node_modules/.bin/workflow inspect runs --backend vercel --project <project> --team <team> --url` with both recorded values.
 4. Open the printed URL. If it cannot be opened, say `In the Vercel project, open Observability, then Workflows.`
-5. For table inspection, use the Turso dashboard or run `npm run db:studio:cloud` on the user's computer.
+5. For table inspection, use the Turso dashboard or run `npm run db:studio:cloud` on the user's computer. Ignored `.env.turso` contains `TURSO_DATABASE_URL`, write-only `TURSO_AUTH_TOKEN` for migrations, and `TURSO_READ_ONLY_AUTH_TOKEN` for Studio and `gtm query --cloud`; inspection refuses to reuse the write token.
 
 ## Sandbox inspection
 
@@ -51,7 +51,7 @@ npm run gtm -- query --sql "select run_key, status, completed, failed, cost_usd 
 - Record the PID, command, working directory, and purpose for every server this session starts.
 - Stop and confirm exit only for server PIDs this session started. Leave matching servers from other sessions and unrelated processes running.
 - On cancellation, stop only a server this session started.
-- CLI-agent subprocesses belong to Nitro's process group and end on their own or at `timeoutMs`. Cancelling a run with `./node_modules/.bin/workflow cancel` takes effect at the next step boundary.
+- CLI-agent subprocesses belong to Nitro's process group and end on their own or at `timeoutMs`. `npm run gtm -- cancel <runKey> --wait` polls `cancelling` until the runtime confirms terminal cancellation; an adapter using the library signal may stop sooner.
 
 ## Empty workflow recovery
 

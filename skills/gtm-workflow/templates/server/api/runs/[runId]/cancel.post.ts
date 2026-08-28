@@ -1,8 +1,11 @@
-// gtm-lib v9
+// gtm-lib v10
 import { defineEventHandler } from "nitro/h3";
 import { getRun } from "workflow/api";
+import { HookNotFoundError } from "workflow/errors";
 import { z } from "zod";
+import { cancellationHook } from "../../../../lib/approve";
 import { getRunRow, reconcileRun, updateRunPlain } from "../../../../lib/db";
+import { redactValue } from "../../../../lib/redact";
 
 const decision = z.object({
   reason: z.string().max(500).nullable().default(null),
@@ -26,7 +29,7 @@ export default defineEventHandler(async (event) => {
 
   let row = await getRunRow(identifier);
   if (!row) return error(404, "not_found", `Unknown run ${identifier}`);
-  if (["running", "waiting"].includes(row.status)) {
+  if (["running", "waiting", "cancelling"].includes(row.status)) {
     row = await reconcileRun(row.runKey);
   }
   if (row.finishedAt !== null || !["running", "waiting"].includes(row.status)) {
@@ -36,27 +39,36 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  await updateRunPlain(row.runKey, {
+    status: "cancelling",
+    stopReason: parsed.data.reason ?? "operator_cancelled",
+    cancelRequestedAt: Date.now(),
+  });
+  const resumeCancellation = cancellationHook
+    .resume(`${row.workflow}.${row.runKey}.cancel`, {
+      reason: parsed.data.reason,
+    })
+    .catch((caught) => {
+      if (!HookNotFoundError.is(caught)) throw caught;
+    });
+  let cancelRun: Promise<unknown> = Promise.resolve();
   if (row.runId) {
     const run = getRun(row.runId);
     if (await run.exists) {
-      await run.cancel(
+      cancelRun = run.cancel(
         parsed.data.reason === null ? undefined : { cancelReason: parsed.data.reason },
       );
     }
   }
-  await updateRunPlain(row.runKey, {
-    status: "cancelled",
-    ...(parsed.data.reason === null ? {} : { error: `cancelled: ${parsed.data.reason}` }),
-    finishedAt: Date.now(),
-  });
+  await Promise.all([resumeCancellation, cancelRun]);
 
   const cancelled = (await getRunRow(row.runKey))!;
-  return Response.json({
+  return Response.json(redactValue({
     ...cancelled,
     input: JSON.parse(cancelled.input),
     approval: cancelled.approval ? JSON.parse(cancelled.approval) : null,
     webhook_url: cancelled.webhookUrl,
-  });
+  }));
 });
 
 function error(

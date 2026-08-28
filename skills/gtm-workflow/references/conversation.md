@@ -30,7 +30,7 @@ Use one save gate for each coherent batch of tracked changes. After acceptance, 
 Reply with a number, or type your answer.
 ```
 
-Keep source, schemas, configuration bodies, diffs, and complete files out of the default proposal. Name generated migration files after acceptance. Show requested technical detail without weakening a gate.
+Keep source, schemas, configuration bodies, diffs, and complete files out of the default proposal, except that any migration beyond additive `CREATE TABLE` or `ADD COLUMN` must show its full SQL. Name generated migration files after acceptance. Show requested technical detail without weakening a gate.
 
 When any affected workflow says `Runs: on Vercel`, the proposal must say that acceptance commits the batch to `main` and starts a production Vercel deployment. Report the immediate result as `deploying`; call it `live` only after the production deployment endpoint reports the exact returned commit SHA.
 
@@ -44,12 +44,14 @@ Add a short caption with the trigger, inputs or changes, saved result, and parti
 
 ## Outcome reports
 
-Lead completion with the business result and `<n> completed, <m> failed`. Follow with rows written, table name, cache hits, vendor cost, model cost, external systems changed, and delivery state. Say when a model cost is the accepted projection because the backend did not report billing.
+Lead completion with the business result and `<n> completed, <m> failed`. Follow with rows written, table, cache hits, vendor and model cost, `reported | fixed | projected` cost sources, external systems changed, and delivery state. A projected cost is the accepted ceiling because the backend did not report billing.
 
 At a checkpoint, report `<n> rows done, <m> failed, $<x> spent, $<y> projected for the remaining rows`, the table inspection command, and the exact approval command. Ask for approval before resuming the same run.
 
-For a cancelled run, say `<workflow> was cancelled as <runKey>` with rows saved, spend so far, and that no further spend occurs after the current step.
+Use `completed` only when all accepted work ended normally. Say `stopped` for operator denial, provider authentication or quota hold, or a spend-cap stop; include `stop_reason` and `remaining_keys`. Say `timed out` for an expired approval and `failed at <failed_step>` when step identity is available.
+
+While cancellation is pending, say `<workflow> is cancelling as <runKey>` and that the duplicate guard remains closed. At terminal state, say `<workflow> was cancelled as <runKey>` with rows saved and ledger spend; an already-issued request may have completed before the runtime suspension point.
 
 For a duplicate run, say `<workflow> is already running as <runKey>`. Offer inspection first. If the operator wants to abandon a zombie run, give the one recovery sequence: cancel the SDK run, then reconcile with `gtm runs get`.
 
-Keep ports, process controls, SDK run IDs, project identifiers, environment names, branch names, token counts, and telemetry in internal diagnostics unless the user requests them or they safely disambiguate an action. Keep production bearers, OIDC tokens, hook tokens, and per-run webhook URLs out of messages and tool results. Run keys may appear when needed for inspection or duplicate recovery. Describe clean persistence as `saved to history`.
+Keep ports, process controls, SDK run IDs, project identifiers, environment names, branch names, token counts, and telemetry in internal diagnostics unless requested or needed to disambiguate an action. Keep production bearers, OIDC tokens, and public per-run webhook URLs out of messages and tool results. Approval and trigger tokens merely name the pending stage; trusted controls may still resolve them internally to keep the operator interaction concise. Run keys may appear for inspection or duplicate recovery. Describe clean persistence as `saved to history`.

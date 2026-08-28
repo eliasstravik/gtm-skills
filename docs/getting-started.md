@@ -1,6 +1,6 @@
 # Getting started: build your GTM foundation
 
-GTM Skills gives your AI agent four focused Lifecycle SOPs that share one Git-backed source of truth. This guide takes you from installation to a GTM workspace with its first ICP, persona, and reusable workflow, without requiring you to write code.
+GTM Skills gives your AI agent four focused Lifecycle SOPs that share one Git-backed source of truth. This guide takes you from installation to a GTM workspace with its first ICP, persona, and reusable workflow: the agent writes the code, and you review one diff and one dry run.
 
 ## 1. Check the prerequisites
 

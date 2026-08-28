@@ -2,219 +2,136 @@
 
 Use this contract for every workflow action.
 
-## Contents
-
-- [Workspace and ownership](#workspace-and-ownership)
-- [Project shape and state](#project-shape-and-state)
-- [Versioned files](#versioned-files)
-- [Workflow and table contract](#workflow-and-table-contract)
-- [Runtime and run identity](#runtime-and-run-identity)
-- [Paid calls](#paid-calls)
-- [Environment](#environment)
-- [House rules](#house-rules)
-- [Safety and persistence](#safety-and-persistence)
-
 ## Workspace and ownership
 
-Resolve the workspace in this order: a repository named in the request, the connected repository, then canonical repositories under `~/.gtm/` whose root has `ORG.md`. If several remain, ask which one to use and list its display name and path. If none exists, stop before writes and hand creation or connection to `gtm-workspace`.
+Resolve the workspace in this order: a repository named in the request, the connected repository, then canonical repositories under `~/.gtm/` whose root has `ORG.md`. If several remain, ask which one to use. If none exists, stop before writes and hand creation or connection to `gtm-workspace`.
 
-A named organization node wins. Otherwise use root unless the workflow belongs to exactly one suborganization. The project always lives at workspace root. Root workflows use `workflows/workflows/<slug>.ts`. Suborganization workflows use `workflows/workflows/<suborg-path>/<slug>.ts`, with physical `suborgs/` segments omitted.
-
-Before acting, state `Using GTM workspace: <display name> | <N> workflows visible`.
+A named organization node wins. Otherwise use root unless the workflow belongs to exactly one suborganization. The project always lives at workspace root. Root workflows use `workflows/workflows/<slug>.ts`; suborganization paths omit physical `suborgs/` segments. Before acting, state `Using GTM workspace: <display name> | <N> workflows visible`.
 
 ## Project shape and state
 
 ```text
 workflows/
-├── .env.example
-├── package.json
-├── package-lock.json
-├── nitro.config.ts
-├── drizzle.config.ts
+├── package.json, nitro.config.ts, drizzle.config.ts
 ├── drizzle/
 ├── workflows/<owner-path>/<slug>.ts
 ├── db/tables/<table>.ts
 ├── providers/<provider>.ts
-├── lib/{schema,db-url,db,steps,provider,agent,approve}.ts
-├── scripts/gtm.ts
-└── server/api/{deployment,run,runs,runs/[runId]/cancel,approve}/...
+├── lib/{schema,db-url,db,steps,provider,agent,approve,rows,redact,migration-ledger}.ts
+├── scripts/{gtm,migrate-cloud,verify-migrations}.ts
+└── server/api/{deployment,run,runs,runs/[runId]/{cancel,trigger},approve}/...
 ```
 
-Git owns definitions, table declarations, adapters, and migrations. Vercel owns steps, attempts, retries, graphs, and logs. The database owns business rows, the paid-call cache and ledger, and the run index. The database does not copy a step trace. Source and deployments can roll back. Schema and data do not roll back.
-
-The three fixed tables are `enrichment_cache`, `enrichment_runs`, and `workflow_runs`. A workflow declares its own result table. There is no shared entity or CRM schema.
+Git owns definitions, typed tables, adapters, and migrations. Vercel owns retained execution state, attempts, graphs, and logs. The database owns business rows, the paid-call cache and ledger, and the durable run index. Source can roll back; schema and data do not. The fixed tables are `enrichment_cache`, `enrichment_runs`, and `workflow_runs`; each workflow declares its own result table.
 
 Ignore `node_modules/`, `.env*` except `.env.example`, `.vercel/`, `.well-known/`, `.workflow-data/`, `.nitro/`, `.output/`, `.swc/`, and `data/`. Track `drizzle/`.
 
 ## Versioned files
 
-Every `lib/*.ts`, all five route files, `scripts/gtm.ts`, `scripts/migrate-cloud.ts`, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v9`. `package.json` carries `gtm.libVersion: 9`. Compare these versions before every action. Name differing files and offer a template recopy in the proposal. Compare headers, not hashes, and never recopy silently.
+Every `lib/*.ts`, API route, managed script, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v10`. `package.json` carries `gtm.libVersion: 10`, SHA-256 entries under `gtm.libHashes`, and pinned versions under `gtm.validatedAgainst`. Run `gtm check` before every action: distinguish an old header from a locally modified hash, show the diff of a modified managed file before offering a recopy, and never overwrite it silently.
 
-A v2 project has no `lib/schema.ts` or `drizzle/`. Offer a v9 re-scaffold through update: copy the v9 files, add the pinned dependencies and baseline migrations, migrate, then recreate each workflow through create from its header and purpose. Present the full diff before saving. Keep old ignored JSON results.
+A v2 project has no fixed schema or migrations; offer a v10 re-scaffold through update, preserve ignored results, present the full diff, and migrate after acceptance. A v5 project lacks cancellation. A v6 project combines web research and structured answering incorrectly. A v8 project cannot preserve original provider responses and does not trust the ledger for totals. Offer the v10 recopy and its committed fixed-table migration.
 
-A v5 project lacks the cancel route and the `gtm cancel` command. A v6 project answers Gateway web searches in the same model step as the search, so the evidence never reaches the structured result. A v8 project cannot preserve original vendor responses, contains the web-client-only local runtime regression, and trusts workflow cost estimates instead of its paid-call ledger. Offer the v9 recopy through update: copy the versioned files verbatim and set `gtm.libVersion: 9`. It changes no table, migration, or workflow file.
+A v9 project lets cloud queries reuse the write credential and accepts data-changing CTEs. A v9 project cannot guarantee `tools: "none"` on every local model backend. A v9 cancellation closes the run row before the runtime confirms its in-flight step stopped. A v9 route can lose the SDK run id and reopen the duplicate guard while an orphan is live. A v9 model cache ignores accepted ICP and persona content. A v9 project can persist and return credentials embedded in errors. A v9 ledger starts after the paid call and cannot distinguish reported, fixed, and projected costs. A v9 command allowlist can preapprove real spend and mutation. A v9 approval route duplicates hook schema, uses an internal import, and leaves decided hooks reusable. A v9 local restart can recover and repeat a paid step before the documented zombie procedure runs. A v9 production route accepts starts that do not prove the workspace commit. Offer the v10 recopy through update, show every locally modified managed-file diff, and apply its committed migration with `db:migrate` and `db:verify`.
 
 ## Workflow and table contract
 
-Use a lowercase kebab-case filename and export its camelCase basename. Row-producing workflows have this header:
+Use a lowercase kebab-case filename and export its camelCase basename. Row workflows carry purpose, run location, kind, schedule when applicable, owner, ICP, providers with accepted unit cost, result table, and key meaning in the file header. Export `input`, `MAX_ROWS`, `MAX_SPEND_USD`, `COST_PER_ROW_USD`, the workflow function, and `scheduledInput` for scheduled work. The workflow takes `(arg: Input, meta: WorkflowMeta)` and assigns `arg = input.parse(arg)` immediately after `"use workflow"`; scheduled work sets `arg ??= scheduledInput` first.
 
-```ts
-/**
- * <One sentence stating the workflow purpose.>
- * Runs: on this computer | on Vercel
- * Kind: on-demand | scheduled | triggered
- * Schedule: <UTC cron expression>              // scheduled only
- * Owner: <organization node> | ICP: <ICP name>
- * Providers: <adapter name + endpoint + row cost, or none>
- * Table: <snake_case table> | key: <what key holds>
- */
-```
-
-Export `input`, `MAX_ROWS`, `MAX_SPEND_USD`, `COST_PER_ROW_USD`, the workflow function, and `scheduledInput` for scheduled work. Every workflow accepts `(arg: Input, meta: WorkflowMeta)` and assigns `arg = input.parse(arg)` immediately after `"use workflow"`; this runtime parse is what applies Zod defaults and rejects malformed route input. A scheduled workflow puts `arg ??= scheduledInput` first, then parses it.
-
-Declare each result table in `db/tables/<snake_case>.ts`. Export one `sqliteTable` whose SQL name matches the basename. It has `key: text("key").primaryKey()` and `updatedAt: integer("updated_at").notNull()`. New columns on an existing table are nullable or defaulted. Input schemas that select existing rows include `key`.
-
-The model-facing schema comes from `createInsertSchema(table).pick(...)` inside the step that calls `agent()`. Ask the model only for business columns of type text, integer, or real. Add `key` and `updatedAt` before `upsertRows()`. A save step writes each successful row before the checkpoint can pause the run.
+Declare each result table in `db/tables/<snake_case>.ts` with `key: text("key").primaryKey()` and `updatedAt: integer("updated_at").notNull()`. New columns are nullable or defaulted. `upsertRows()` updates only properties present in each row, so disjoint enrichments do not erase each other. Derive model-facing business fields with `createInsertSchema(table).pick(...)` inside the paid step, then add `key` and `updatedAt` in the save step.
 
 Use this shape and keep business names specific:
+
+```ts
+// db/tables/accounts.ts
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+export const accounts = sqliteTable("accounts", {
+  key: text("key").primaryKey(), score: integer("score"), reason: text("reason"),
+  updatedAt: integer("updated_at").notNull(),
+});
+```
 
 ```ts
 import { z } from "zod";
 import { createInsertSchema } from "drizzle-zod";
 import { accounts } from "../db/tables/accounts";
 import { agent } from "../lib/agent";
-import { checkpoint, type WorkflowMeta } from "../lib/approve";
+import type { WorkflowMeta } from "../lib/approve";
 import { upsertRows } from "../lib/db";
-import { updateRun } from "../lib/steps";
-
-export const input = z.object({
-  rows: z.array(z.object({ key: z.string(), domain: z.string() })),
-});
+import { runRows } from "../lib/rows";
+export const input = z.object({ rows: z.array(z.object({ key: z.string(), domain: z.string() })) });
 type Input = z.infer<typeof input>;
-
-export const MAX_ROWS = 100;
-export const MAX_SPEND_USD = 10;
-export const COST_PER_ROW_USD = 0.1;
-
-async function enrichAccount(row: Input["rows"][number], meta: WorkflowMeta) {
+export const MAX_ROWS = 100, MAX_SPEND_USD = 10, COST_PER_ROW_USD = 0.1;
+const acceptedIcp = "<resolved accepted ICP and persona text>";
+async function enrichAccount(row: Input["rows"][number], meta: WorkflowMeta, signal: AbortSignal) {
   "use step";
-  const rowSchema = createInsertSchema(accounts).pick({ score: true, reason: true });
-  try {
-    const result = await agent({
-      prompt: `Score ${row.domain} against the accepted ICP.`,
-      schema: rowSchema,
-      tools: "none",
-      maxUsd: COST_PER_ROW_USD,
-      meta,
-    });
-    return { ok: true, key: row.key, result, costUsd: COST_PER_ROW_USD } as const;
-  } catch (error) {
-    return {
-      ok: false,
-      key: row.key,
-      error: String(error),
-      costUsd: COST_PER_ROW_USD,
-    } as const;
-  }
+  const schema = createInsertSchema(accounts).pick({ score: true, reason: true });
+  const value = await agent({ prompt: `Score ${row.domain}.`, context: acceptedIcp,
+    contextId: "icps/accepted.md", schema, tools: "none", maxUsd: COST_PER_ROW_USD, meta, signal });
+  return { key: row.key, value };
 }
 enrichAccount.maxRetries = 0;
-
 async function saveAccount(row: Record<string, unknown>) {
   "use step";
-  await upsertRows(accounts, [row]);
+  await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]);
 }
-
 export async function findAccounts(arg: Input, meta: WorkflowMeta) {
   "use workflow";
   arg = input.parse(arg);
-  const projected = arg.rows.length * COST_PER_ROW_USD;
-  if (arg.rows.length > MAX_ROWS || projected > MAX_SPEND_USD) {
-    throw new Error("Accepted workflow limits exceeded");
-  }
-  const completed: string[] = [];
-  const failed: { key: string; error: string }[] = [];
-  let spentUsd = 0;
-  for (const row of arg.rows) {
-    const outcome = await enrichAccount(row, meta);
-    spentUsd += outcome.costUsd;
-    if (outcome.ok) {
-      await saveAccount({ key: outcome.key, ...outcome.result, updatedAt: Date.now() });
-      completed.push(outcome.key);
-    } else failed.push({ key: outcome.key, error: outcome.error });
-    if (completed.length + failed.length === meta.checkpoint) {
-      const decision = await checkpoint(meta, {
-        completed: completed.length,
-        failed: failed.length,
-        spentUsd,
-        projectedRemainingUsd:
-          (arg.rows.length - completed.length - failed.length) * COST_PER_ROW_USD,
-        table: "accounts",
-      });
-      if (!decision.approved) break;
-    }
-  }
-  await updateRun(meta.runKey, {
-    status: "completed",
-    completed: completed.length,
-    failed: failed.length,
-    cost_usd: spentUsd,
-    finished: true,
-  });
-  return { completed, failed };
+  return runRows({ rows: arg.rows, meta, table: { name: "accounts", save: saveAccount },
+    rowStep: enrichAccount, caps: { maxRows: MAX_ROWS, maxSpendUsd: MAX_SPEND_USD,
+      costPerRowUsd: COST_PER_ROW_USD } });
 }
 ```
 
+`runRows()` owns cap-before-spend, ledger-based mid-run caps, per-row isolation, save-before-checkpoint, success/empty/failed counts, held-run stops, remaining keys, terminal status, and cost bookkeeping.
+
 ## Runtime and run identity
 
-`POST /api/run/<path>` starts explicit input. `GET /api/run/<path>` starts scheduled input with `null` as the first workflow argument. The route creates a random `runKey`, hashes stable JSON input, inserts `workflow_runs`, then calls `start()`. A partial unique index on `(path, input_hash)` while `finished_at` is null admits one live matching run.
+`POST /api/run/<path>` starts explicit input. `GET /api/run/<path>` starts `scheduledInput`. The route inserts a random run key and stable input hash before `start()`. A partial unique index on `(path, input_hash)` while `finished_at` is null admits one live matching run.
 
-On a conflict, reconcile once against the SDK and retry one insert. A live row returns 409 with its run key. A row without `run_id` stays live for 120 seconds, then reconciles to `failed` with `start not recorded`. A missing retained SDK run becomes `failed` with `run state expired`.
+The workflow's first library step self-registers the SDK run id and run URL; the route writes the same id best-effort and attaches searchable run-key, workflow, commit, and checkpoint attributes at start. On conflict, reconcile once and retry one insert. A row still missing `run_id` after ten minutes is re-read before it can become `failed` with `start not recorded`.
 
-If a local restart leaves a zombie row in `running` or `waiting`, run `npx workflow cancel <runId>`, then `npm run gtm -- runs get <runKey>`. This is the only unblock procedure.
+Local development sets `WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS=0`, so restart does not re-enqueue a pending paid step. For a zombie `running`, `waiting`, or `cancelling` row, run `npx workflow cancel <runId>`, then `npm run gtm -- runs get <runKey>`.
 
-`GET /api/runs/<runId|runKey>` reconciles active rows and returns the database row. It includes the SDK result while retained. Approval uses `defineHook`; the bearer-protected approve route calls `resumeHook` directly. A timeout defaults to seven days, records a denial with comment `timeout`, and disposes the hook.
+`GET /api/runs/<runId|runKey>` reconciles active rows and returns the durable row, cost sources, remaining keys, failed step, run URL, and SDK result while retained. Approval and trigger routes are bearer-protected and resume exported typed hooks. Approval rejects stale decisions with `409 approval_not_pending`; denial ends `stopped`, timeout ends `timed_out`, and resolved hooks are disposed.
 
-`POST /api/runs/<runId|runKey>/cancel` is bearer-protected. It reconciles the row, cancels the retained SDK run with an optional `reason`, records `cancelled` with `finished_at`, and returns the row. A finished run answers `409 run_not_active`. A pending approval hook cannot resume after cancellation; the approve route answers `404`. Cancellation takes effect at the next step boundary and does not recall spend already made.
+Cancellation first records non-terminal `cancelling` without `finished_at`, requests SDK cancellation, and signals an in-flight adapter when it honors `AbortSignal`. The live index stays closed until reconciliation sees SDK `cancelled`; saved rows and prior spend remain.
 
-`GET /api/deployment` is bearer-protected and returns the production deployment's `VERCEL_GIT_COMMIT_SHA`. Trusted starts poll it until it matches the accepted workspace commit, then send that commit in `x-gtm-workspace-head`. The POST run route returns `409 deployment_not_ready` when production is not serving that exact commit.
+When `VERCEL_GIT_COMMIT_SHA` exists, production POST starts require `x-gtm-workspace-head`: absence returns `deployment_head_required`, mismatch returns `deployment_not_ready`. The laptop CLI sends clean, pushed `origin/main` automatically for the recorded production URL and refuses dirty or unpushed work.
+
+Scheduled starts persist the UTC `scheduled_for` date under a unique `(path, scheduled_for)` index, so a second delivery returns `already_ran_today` after or during the first run. Recover a missed day with reviewed `scheduledInput` and `--scheduled-for YYYY-MM-DD`; deduplicate downstream delivery by that date. Triggered row handlers skip a key whose `updated_at` is newer than the trigger event.
+
+The platform documentation states that retained run state lasts one day, seven days, or thirty days by plan; the database remains the durable record. A start body is practically limited by the platform's 4.5 MB function request cap. A run is limited to 25,000 events and 10,000 steps, with replay slowing beyond roughly 2,000 events, so split inputs above about 300 rows into child workflows by batch and attach the parent run id as an attribute.
 
 ## Paid calls
 
-Every paid vendor call goes through `provider()` inside an operator-named step. Every model call goes through `agent()`, which uses the same cache and ledger. Each call writes one `enrichment_runs` row. Cache hits cost zero. A backend that reports no model cost records the accepted `maxUsd` projection. Progress and terminal run costs are derived from this ledger; workflow-supplied cost fields are compatibility inputs, not the authoritative total.
+Every paid vendor call goes through `provider()` and every model call through `agent()` inside an operator-named step. Before a cache-miss call, the library writes `pending`; afterward it atomically writes the cache and updates the ledger to `success`, `empty`, or `error`. Terminal reconciliation turns abandoned pending rows into `lost`. Cache hits cost zero, cache parse failures record `error`, and pre-call failures cost zero. `cost_source` distinguishes `reported`, `fixed`, and `projected`; totals include pending and lost fixed cost.
 
-Adapter input is canonical and visible in the cache, so it contains no credential. Paid steps set `maxRetries = 0`. A step may use bounded retries only when it catches every other error and rethrows `RetryableError` solely when the provider confirms the failed attempt was not billed.
-
-See [providers](providers.md) before writing or changing an adapter.
+Adapter inputs are canonical and contain no credential. Pass accepted ICP and persona text to `agent({ context, contextId })`; both affect its cache key. For untrusted row or provider content, `claude` and `api` enforce `tools: "none"`; other local backends must fail before spawn unless the operator explicitly accepts `tools: "host-default"`. Paid steps set `maxRetries = 0`; bounded retries may rethrow only `RetryableError` after confirming the attempt was not billed. See [providers](providers.md).
 
 ## Environment
 
-`TURSO_DATABASE_URL` absent or empty selects `file:./data/gtm.db`; `TURSO_AUTH_TOKEN` empty means absent. A non-file URL selects the Turso dialect. There is no `DATABASE_URL`.
-
-`.env.local` must not exist in `workflows/`. Nitro would load it after `.env` and point local runs at the cloud database while local database commands still used the file. Refuse local start or reuse until it is removed.
-
-`GTM_SANDBOX=1` is the sole sandbox signal. It refuses file URLs, requires `GTM_AGENT_BACKEND=api`, offers no Studio or exposed port, performs no remote Git command, and hands tracked writes to the host approval tool. The sandbox starts no real run: it authors, validates, dry-runs, and queries with a read-only database credential, and accepted migrations apply only inside the host's approval-gated save. Real runs, approvals, and cancellations go through the host's trusted controls against the Vercel deployment. Use the Turso dashboard, `gtm query`, and the trusted status action for sandbox inspection.
+Absent `TURSO_DATABASE_URL` selects `file:./data/gtm.db`; empty tokens mean absent. `.env.local` is forbidden because Nitro could point local runs at the cloud database while local commands use the file. `GTM_SANDBOX=1` requires a remote database and `GTM_AGENT_BACKEND=api`; the sandbox authors, validates, dry-runs, and queries with read-only authority but starts no real run.
 
 ## House rules
 
 | Rule | Required behavior |
 | --- | --- |
-| Business stages define the graph | Give each operator stage one named `"use step"` function and call it directly from the workflow body. |
-| Reachability controls bundles | Workflow-body and module-scope executable code reference only `zod`, `workflow`, `lib/approve`, `lib/steps`, and local step functions. Imports may name drivers, tables, adapters, `agent()`, and `provider()` only when every runtime reference to them stays inside a step body. |
-| Rows have identity | Every result row has a stable `key`; reruns upsert by it. |
-| Tables are declared | Schema changes are table files plus `db:generate` and `db:migrate`, never runtime DDL. |
-| Paid calls use one funnel | Use `provider()` for vendors and `agent()` for models. |
-| Caps precede spend | Reject row or projected-cost excess before the first paid step. |
-| Rows fail independently | Catch row errors inside the row step and continue. |
-| Checkpoints save first | Save the row that reaches the checkpoint before calling `checkpoint()`. |
-| Bookkeeping is explicit | Call terminal `updateRun()` before returning. It aliases the named `recordWorkflowProgressAndStatus` library step. |
-| Scheduled delivery deduplicates | Include the SDK run id and UTC date in delivery payloads. |
+| Business stages define the graph | Give each operator stage one named `"use step"` function. |
+| Reachability controls bundles | Workflow and module-scope executable code use only the allowed workflow helpers and local steps. |
+| Rows have identity | Every result row has a stable `key`; reruns merge by it. |
+| Tables are declared | Schema changes use table files and committed migrations, never runtime DDL. |
+| Paid calls use one funnel | Use `provider()` and `agent()` only inside paid steps with retry policy. |
+| Row bookkeeping is centralized | Use `runRows()`; non-row workflows end with `updateRun()`. |
+| Scheduled delivery deduplicates | Use `scheduled_for`, never the SDK run id, as the delivery key. |
+
+`gtm check` uses the TypeScript compiler API to enforce paid-step retry policy, table keys and timestamps, deterministic workflow bodies, terminal bookkeeping, and allowed module-scope execution. It also validates migrations, managed-file headers and hashes, and warns when installed runtime versions differ from the validated pins.
 
 ## Safety and persistence
 
-Run `npm run gtm -- run <slug> --input <file> --dry-run` before every real run. Gate the real run with rows, stages, projected cost, caps, external writes, and checkpoint position. The first real run of new or changed on-demand work uses `--checkpoint 3` unless the user accepts the full scope. Scheduled runs never checkpoint and rely on caps.
+Run `gtm run --dry-run` before every real run. It imports the workflow without starting it, validates the exported Zod input, counts only parsed `rows`, and checks caps; it does not check table existence or credentials. Gate the real run with rows, stages, projected cost, caps, external writes, and checkpoint position.
 
-Use committed migrations only. Every generated migration includes `drizzle/<sequence>_<name>.sql` and its entry in `drizzle/meta/_journal.json`; schema migrations also include `drizzle/meta/<sequence>_snapshot.json`, while a custom data-only migration may legitimately have no snapshot. Never add migration SQL by hand without registering it in the journal, and never omit the generated snapshot for schema DDL; `gtm check` and the hosted save reject those orphan artifacts. A rename uses `npm run db:generate -- --custom --name <rename-name>` and a hand-written `ALTER TABLE ... RENAME` statement. A drop needs the delete gate and a migration. Nothing runs a migration as a build side effect. A hosted save names every migration file it applies and declares whether any statement drops a table or column; the host refuses an undeclared or unregistered migration and verifies each accepted SQL hash exists in `__drizzle_migrations` before committing.
+Use committed migrations only. `gtm check` rejects orphan artifacts and flags `DELETE`, `UPDATE`, `RENAME`, `DROP`, and `CREATE TRIGGER` for explicit destructive review. Use expand/contract for renames: add a compatible column, backfill in a separately reviewed migration, switch code, and drop only after the old deployment is gone. Show full SQL for anything beyond additive `CREATE TABLE` or `ADD COLUMN`, apply with `db:migrate`, and run `db:verify`; nothing migrates as a build side effect.
 
-Stop a live run with `npm run gtm -- cancel <runId|runKey>` or the trusted cancel action. Report that cancellation stops at the next step boundary, keeps rows already saved, and does not refund spend.
-
-Secrets stay out of prompts, tracked files, step input and output, ledgers, comments, and command output. Values move through ignored environment files or shell input. Treat hook tokens and per-run webhook URLs as unsafe to share even though the approve route also requires the bearer.
+Secrets stay out of prompts, tracked files, step input and output, ledgers, comments, and command output; the library defensively redacts error paths. If a user pastes a credential into the conversation, treat it as compromised: help rotate it and store the replacement through the environment. Approval and trigger tokens only name a pending stage; the route bearer authorizes the action. A public per-run webhook URL remains a capability and must not be shared.
