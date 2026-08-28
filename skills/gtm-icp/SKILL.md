@@ -13,6 +13,17 @@ Apply this Lifecycle SOP when the requested outcome creates, updates, repairs, o
 
 Own node-local, freeform Markdown ICPs at `icps/<icp-slug>/ICP.md` across creation, refinement, deletion, and repo-wide ICP integrity repair. Read legacy `icps/<icp-slug>.md` artifacts without requiring migration. Do not author persona or member files, manage the workspace lifecycle, or classify/research accounts against saved ICPs.
 
+**Contract**
+
+| Field | Public contract |
+| --- | --- |
+| Reads | Accepted ICP facts and uncertainty, the root-to-owner `ORG.md` chain, owner-local ICPs, and safe supplied sources |
+| Writes | Only the selected owner's canonical ICP path, or scoped ICP repairs during doctor |
+| Outputs | An accepted node-owned ICP and qualified label, a complete health report, or a scoped handoff |
+| Approval | The user accepts the complete bytes and exact path operation before any durable write or deletion |
+| Persists | Accepted ICP files in `main` Git history; no hidden coordination state |
+| Handoff | `gtm-workspace` for repository structure or connections, `gtm-persona` for buyers, and `gtm-workflow` for saved operational work |
+
 ## Inputs
 
 Use the user's accepted ICP facts and uncertainty, the hosting environment's connected-repo and durable-write declarations, the root-to-owner `ORG.md` chain, owner-local ICPs, and safe supplied sources.

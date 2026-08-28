@@ -13,6 +13,17 @@ Apply this Lifecycle SOP when a request creates, updates, inspects, deletes, run
 
 Own the root `workflows/` Nitro project, its managed workflows, typed tables, migrations, paid-call cache and ledger, local or Vercel runtime, native inspection tools, and deployment metadata. `gtm-workspace`, `gtm-icp`, and `gtm-persona` own their respective lifecycles.
 
+**Contract**
+
+| Field | Public contract |
+| --- | --- |
+| Reads | Accepted intent, workspace ownership and context files, current workflow code, supplied rows, environment-held credentials, caps, and deployment metadata |
+| Writes | The root workflow project, workflow-owned tables and adapters, committed migrations, and database rows created by accepted runs |
+| Outputs | An accepted workflow change, validation or deployment state, inspection result, or database-backed run outcome |
+| Approval | The user accepts tracked changes, production effect, real spend, external writes, checkpoint continuation, destruction, and credential entry |
+| Persists | Source and migrations in `main` Git history; results, cache, ledger, and run index in the database; retained execution traces in the runtime |
+| Handoff | `gtm-workspace` for repository structure or connections, `gtm-icp` for market definitions, and `gtm-persona` for buyer definitions |
+
 ## Inputs
 
 Use the accepted intent, resolved GTM workspace and owner, relevant ICP and persona files, current workflow project, supplied rows, provider documentation and credentials available through the environment, accepted caps, and deployment metadata.
