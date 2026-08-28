@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SKILLS_ROOT = REPO_ROOT / "skills"
 EVALS_ROOT = REPO_ROOT / "evals"
 NAME_LINE = re.compile(r"^name:\s*([^#]+?)\s*$", re.MULTILINE)
+SHARED_EVAL_DIRS = {"routing"}
 
 
 def fail(errors: list[str], message: str) -> None:
@@ -84,6 +85,8 @@ def main() -> int:
         }
         for eval_name in sorted(eval_names):
             if eval_name.startswith("_"):
+                continue
+            if eval_name in SHARED_EVAL_DIRS:
                 continue
             eval_dir = EVALS_ROOT / eval_name
             if eval_name not in skill_names:

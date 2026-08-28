@@ -22,6 +22,7 @@ Reply with a number, or type your answer.
 7. Unless `GTM_SANDBOX=1`, run `npm run db:studio`, report its URL, and name the workflow result table. Studio is a viewer and is local only.
 8. Report both URLs and whether the server remains running. State that open started no workflow and made no paid call.
 
+<!-- TEMPORARY: waits on workflow@5.0.0: replace the internal manifest request when a public manifest command is available. -->
 The embedded UI sends `POST /_workflow/api/rpc` with `Content-Type: application/cbor`. Its CBOR body encodes `{"method":"fetchWorkflowsManifest","params":{"worldEnv":{}}}`.
 
 ## Private remote access
@@ -57,6 +58,7 @@ npm run gtm -- query --sql "select run_key, status, completed, failed, cost_usd 
 
 For `Runs visible, Workflows empty`:
 
+<!-- TEMPORARY: waits on workflow@5.0.0: remove the legacy data-directory override after local state resolves without it. -->
 1. Confirm the `dev` script sets `WORKFLOW_EMBEDDED_DATA_DIR` to `node_modules/.nitro/workflow`.
 2. Confirm `node_modules/.nitro/workflow/manifest.json` lists the expected workflows with their `workflows/` definition paths.
 3. Restart the owned Nitro process.

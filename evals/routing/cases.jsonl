@@ -1,0 +1,32 @@
+{"prompt":"Create a saved workflow that scores account rows in our GTM workspace.","expected":"gtm-workflow","tier":"core"}
+{"prompt":"Update the saved account-scoring workflow without changing its spending cap.","expected":"gtm-workflow","tier":"core"}
+{"prompt":"Inspect the saved workflows and show their recent run outcomes.","expected":"gtm-workflow","tier":"core"}
+{"prompt":"Delete the obsolete pipeline-watch workflow after showing the change.","expected":"gtm-workflow","tier":"core"}
+{"prompt":"Run the saved account-scoring workflow for these rows.","expected":"gtm-workflow","tier":"core"}
+{"prompt":"Schedule the saved pipeline-watch workflow for every weekday.","expected":"gtm-workflow","tier":"core"}
+{"prompt":"Deploy the approved workflow and verify its hosted route.","expected":"gtm-workflow","tier":"core"}
+{"prompt":"Help me manage our saved GTM workflow. I am not sure whether to create, inspect, or run it.","expected":"gtm-workflow","tier":"core"}
+{"prompt":"Define a new ideal customer profile in our connected GTM workspace.","expected":"gtm-icp","tier":"core"}
+{"prompt":"Refine the enterprise ICP and keep the rest of the file unchanged.","expected":"gtm-icp","tier":"core"}
+{"prompt":"Delete the obsolete regional ICP from its organization node.","expected":"gtm-icp","tier":"core"}
+{"prompt":"Doctor the ICP files with invalid names and empty content.","expected":"gtm-icp","tier":"core"}
+{"prompt":"Create a buyer persona in our connected GTM workspace.","expected":"gtm-persona","tier":"core"}
+{"prompt":"Update the operations leader persona's authority boundary.","expected":"gtm-persona","tier":"core"}
+{"prompt":"Remove the obsolete stakeholder persona from the regional organization.","expected":"gtm-persona","tier":"core"}
+{"prompt":"Doctor the persona library without changing any ICP files.","expected":"gtm-persona","tier":"core"}
+{"prompt":"Create a new GTM workspace repository for our company context.","expected":"gtm-workspace","tier":"core"}
+{"prompt":"Import this existing company-notes folder as a GTM workspace.","expected":"gtm-workspace","tier":"core"}
+{"prompt":"Repair the GTM workspace because its organization files are missing.","expected":"gtm-workspace","tier":"core"}
+{"prompt":"Delete the old local GTM workspace after confirming the exact folder.","expected":"gtm-workspace","tier":"core"}
+{"prompt":"Create this automation in another workflow engine, outside the saved GTM workflow system.","expected":"none","tier":"core"}
+{"prompt":"Run one provider call for this account. Do not save it as a workflow.","expected":"none","tier":"core"}
+{"prompt":"Segment these accounts against an existing ICP without changing the ICP file.","expected":"none","tier":"core"}
+{"prompt":"Explain what a buyer persona is without accessing a GTM workspace.","expected":"none","tier":"core"}
+{"prompt":"Approve the waiting checkpoint in the saved workflow run.","expected":"gtm-workflow","tier":"hard"}
+{"prompt":"Query the retained results from last week's saved workflow run.","expected":"gtm-workflow","tier":"hard"}
+{"prompt":"Trigger the saved regional workflow for this accepted event.","expected":"gtm-workflow","tier":"hard"}
+{"prompt":"Validate the GTM workspace layout but leave its ICPs and personas alone.","expected":"gtm-workspace","tier":"hard"}
+{"prompt":"Our ideal-customer definitions are a mess and I do not know whether to add or repair one.","expected":"gtm-icp","tier":"hard"}
+{"prompt":"Walk me through the available actions for the saved stakeholder persona library.","expected":"gtm-persona","tier":"hard"}
+{"prompt":"Fix an ordinary repository automation file that is not a saved GTM workflow.","expected":"none","tier":"hard"}
+{"prompt":"Compare workflow engines for a small team. Do not create or run anything.","expected":"none","tier":"hard"}

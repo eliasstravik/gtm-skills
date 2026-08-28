@@ -157,6 +157,8 @@ When `GTM_SANDBOX=1`:
 
 ## Recovery
 
+<!-- TEMPORARY: waits on workflow@5.0.0: remove the recovery override after restart cannot re-enqueue a pending paid step. -->
+
 | Failure | Required response |
 | --- | --- |
 | `.env.local` exists | Stop local server start or reuse. Name the file and explain that it would select the cloud database. |
