@@ -1,16 +1,50 @@
 <p align="center"><img src="https://img.shields.io/badge/GTM%20Skills-Open%20source%20skills%20for%20GTM-2ea44f?style=flat-square&labelColor=24292f" alt="GTM Skills: open source skills for GTM" /></p>
 
-<h3 align="center">Build and maintain a shared GTM workspace</h3>
+<h3 align="center">Own the GTM data, the spend, and the code that runs</h3>
 
-<p align="center">GTM Skills gives your team four open source Lifecycle SOPs for maintaining one Git-backed GTM workspace, its ICPs and personas, and the reusable workflows they support.</p>
+<p align="center">GTM Skills keeps accepted organization facts, market definitions, buyer definitions, workflow code, and workflow results under one contract.</p>
+
+## Four guarantees you can inspect
+
+1. **Results land in a typed table you own.** Each workflow declares its result table and commits every schema change as a migration. Query business rows and the paid-call ledger with the same read-only command.
+2. **Every paid call is cached and costed.** Provider and model calls pass through one content-addressed cache and write one per-run ledger entry. An unchanged rerun records `cache_hit` at `$0`.
+3. **The preview costs nothing, then the real run stops after three rows.** The dry run validates input, rows, stages, projected cost, and caps without calling a paid service. The first accepted run saves three rows and pauses that same run for inspection.
+4. **Production runs the reviewed commit.** A production start waits for the deployed commit to match the accepted workspace commit and refuses a missing or different commit.
+
+For an `account-scoring` workflow whose `account_scores.key` is the company domain, this command joins owned result rows to the latest run's paid-call ledger. It has no table or workflow placeholders:
+
+```sh
+npm run gtm -- query --sql "
+SELECT scores.key AS domain, calls.status, calls.cost_usd
+FROM account_scores AS scores
+JOIN enrichment_cache AS cached
+  ON json_extract(cached.inputs, '$.domain') = scores.key
+JOIN enrichment_runs AS calls
+  ON calls.provider = cached.provider
+ AND calls.endpoint = cached.endpoint
+ AND calls.inputs_hash = cached.inputs_hash
+WHERE calls.run_key = (
+  SELECT run_key
+  FROM workflow_runs
+  WHERE workflow = 'account-scoring'
+  ORDER BY started_at DESC
+  LIMIT 1
+)
+ORDER BY scores.key
+" --format markdown
+```
+
+An unchanged rerun produces ledger rows like this:
+
+| domain | status | cost_usd |
+| --- | --- | ---: |
+| northstar.example | cache_hit | 0 |
 
 <p align="center"><img src="assets/gtm-skills-flow.svg" width="88%" alt="GTM Skills turns a shared GTM workspace into grounded ICPs, personas, and workflows" /></p>
 
 <p align="center"><a href="https://github.com/eliasstravik/gtm-skills/blob/main/docs/getting-started.md"><img src="assets/buttons/install-gtm-skills.svg" alt="Install GTM Skills" /></a>&nbsp;&nbsp;<a href="https://cal.com/stravik/demo?projects=GTM%20Skills" target="_blank" rel="noopener noreferrer"><img src="assets/buttons/book-a-demo.svg" alt="Book a demo" /></a></p>
 
-<p align="center"><sub>✓&nbsp;100%&nbsp;free&nbsp;and&nbsp;open&nbsp;source &nbsp; ✓&nbsp;Four&nbsp;GTM&nbsp;skills,&nbsp;one&nbsp;install &nbsp; ✓&nbsp;Git-backed&nbsp;shared&nbsp;context</sub></p>
-
-<p align="center"><small>⭐ Used by top GTM teams</small></p>
+<p align="center"><sub>✓&nbsp;100%&nbsp;free&nbsp;and&nbsp;open&nbsp;source &nbsp; ✓&nbsp;One&nbsp;shared&nbsp;workspace &nbsp; ✓&nbsp;Typed&nbsp;results&nbsp;and&nbsp;costs</sub></p>
 
 <br />
 
@@ -18,51 +52,44 @@
 
 The GTM workspace records durable facts about the business and its team. ICPs define the companies each organization serves, personas define the buyers and stakeholders it needs to understand, and saved workflows turn that context into repeatable work. Every durable change is previewed in full, accepted explicitly, and saved to history.
 
-## Choose between repeated prompts, disconnected templates, custom agents, or one coherent foundation
+## Compare concrete behavior
 
 | | **GTM Skills** | Repeated prompts | Standalone templates | Custom agents |
 |---|:---:|:---:|:---:|:---:|
-| **Four ready-made GTM skills** | ✅ | ❌ | ❌ | ❌ |
-| **Shared Git-backed GTM workspace** | ✅ | ❌ | ❌ | ❌ |
-| **Organization lifecycle management** | ✅ | ❌ | ❌ | ❌ |
-| **ICP and persona lifecycle management** | ✅ | ❌ | ❌ | ❌ |
-| **Local and Vercel workflow lifecycle management** | ✅ | ❌ | ❌ | ❌ |
-| **Typed workflow result tables and migrations** | ✅ | ❌ | ❌ | ❌ |
-| **Dry runs, checkpoints, approvals, schedules, and webhooks** | ✅ | ❌ | ❌ | ❌ |
-| **Cached provider and model calls with a cost ledger** | ✅ | ❌ | ❌ | ❌ |
-| **Node-local organization support** | ✅ | ❌ | ❌ | ❌ |
-| **Review-before-write workflows** | ✅ | ❌ | ❌ | ❌ |
+| **Accepted facts and definitions live in one Git repository** | ✅ | ❌ | ❌ | ❌ |
+| **Root and nested organizations own separate ICP and persona files** | ✅ | ❌ | ❌ | ❌ |
+| **The agent previews complete durable changes before writing** | ✅ | ❌ | ❌ | ❌ |
+| **Every result table has types, a stable key, and committed migrations** | ✅ | ❌ | ❌ | ❌ |
+| **Every paid call passes through one content-addressed cache** | ✅ | ❌ | ❌ | ❌ |
+| **Every paid call writes status and cost to a per-run ledger** | ✅ | ❌ | ❌ | ❌ |
+| **A dry run validates input and caps without paid calls** | ✅ | ❌ | ❌ | ❌ |
+| **The first real run saves three rows before pausing for review** | ✅ | ❌ | ❌ | ❌ |
+| **Production refuses to run a commit other than the accepted commit** | ✅ | ❌ | ❌ | ❌ |
+| **The same workflow file runs locally or in a hosted deployment** | ✅ | ❌ | ❌ | ❌ |
 
 Keep durable GTM knowledge and reusable automations in one repository. Each SOP reads only the artifacts visible to the selected organization node and preserves accepted durable changes in history.
 
-## Organize the business. Define the market. Describe the buyer. Run the work.
+## How the four skills fit together
 
-### 🏗️ Build the shared GTM workspace
+The four skills are one chain of ownership, not four disconnected prompts. They resolve the same organization node, use the same review-before-write rule, and save accepted durable changes to the same Git history.
 
-Create or import an organization repository, add members and recursively nested suborganizations, update stored facts, and repair structural or Git problems.
+| Skill | Owns | Hands off |
+| --- | --- | --- |
+| `gtm-workspace` | Organization structure, members, repository health, and connections | The selected organization node and its visible files |
+| `gtm-icp` | The companies that node serves, including disqualifiers and uncertainty | An accepted market definition at a stable path |
+| `gtm-persona` | The buyers and stakeholders that node needs to understand | An accepted buyer definition at a stable path |
+| `gtm-workflow` | Typed workflow code, migrations, runs, results, cache entries, and costs | Database-backed outcomes tied to the accepted workspace context |
 
-### 📈 Define ideal customer profiles
-
-Create, refine, delete, or doctor the ICPs that each organization or business unit owns, without routing into persona or account-workflow changes.
-
-### 👥 Define buyer and stakeholder personas
-
-Create, refine, delete, or doctor personas with clear responsibilities, influence, authority boundaries, disqualifiers, and open questions, without routing into ICP or lead-workflow changes.
-
-### ⚙️ Build and run reusable GTM workflows
-
-Create, update, inspect, delete, or run a saved workflow. Each workflow declares a typed result table, commits its database migrations, and upserts rows by a stable key. The same TypeScript file runs on your computer with a local SQLite database or on Vercel with Turso.
-
-Before a real run, the agent reports rows, stages, projected cost, and caps without calling a provider or model. A checkpoint pauses the real run after the first saved rows so you can inspect them in Drizzle Studio and approve the rest of the same run. Provider and model calls share a cache and cost ledger, so unchanged reruns reuse prior results. Workflows can also wait for approval, run on a schedule, or resume from a per-run webhook.
+Project records: [versions and compatibility](VERSIONS.md) · [changelog](CHANGELOG.md) · [security policy](SECURITY.md) · [contribution rules](CONTRIBUTING.md)
 
 ## Build your GTM foundation in four steps
 
 <table>
 <tr>
-<td align="center" valign="top" width="25%"><h3>1️⃣</h3><b>Install GTM Skills</b><br /><sub>Run <code>npx skills add eliasstravik/gtm-skills -g</code> to install all four skills.</sub></td>
-<td align="center" valign="top" width="25%"><h3>2️⃣</h3><b>Build your GTM workspace</b><br /><sub>Run <code>/gtm-workspace</code> to create or import the organization repository and add the members and business units it owns.</sub></td>
-<td align="center" valign="top" width="25%"><h3>3️⃣</h3><b>Define the market and buyer</b><br /><sub>Run <code>/gtm-icp</code> and <code>/gtm-persona</code> to create the definitions each organization needs.</sub></td>
-<td align="center" valign="top" width="25%"><h3>4️⃣</h3><b>Build your first workflow</b><br /><sub>Run <code>/gtm-workflow</code>, declare its table and caps, review a zero-spend dry run, then inspect the first saved rows at a checkpoint.</sub></td>
+<td align="center" valign="top" width="25%"><h3>1</h3><b>Install GTM Skills</b><br /><sub>Run <code>npx skills add eliasstravik/gtm-skills -g</code> to install all four skills.</sub></td>
+<td align="center" valign="top" width="25%"><h3>2</h3><b>Build your GTM workspace</b><br /><sub>Run <code>/gtm-workspace</code> to create or import the organization repository and add the members and business units it owns.</sub></td>
+<td align="center" valign="top" width="25%"><h3>3</h3><b>Define the market and buyer</b><br /><sub>Run <code>/gtm-icp</code> and <code>/gtm-persona</code> to create the definitions each organization needs.</sub></td>
+<td align="center" valign="top" width="25%"><h3>4</h3><b>Build your first workflow</b><br /><sub>Run <code>/gtm-workflow</code>, declare its table and caps, review a zero-spend dry run, then inspect the first saved rows at a checkpoint.</sub></td>
 </tr>
 </table>
 
@@ -81,9 +108,9 @@ Before a real run, the agent reports rows, stages, projected cost, and caps with
 
 ## Get your questions answered
 
-### Do I need to know how to code?
+### Do I need to write the workflow code myself?
 
-No code is required to run the guided skills. You need `npx`, an AI agent that loads installed skills, and Git for the GTM workspace repository.
+No. The agent writes the workflow code and migrations. You review the complete tracked diff, the zero-spend dry run, and the first three saved rows. You need `npx`, an AI agent that loads installed skills, and Git for the GTM workspace repository.
 
 ### What gets installed?
 
@@ -111,6 +138,4 @@ GTM Skills is free, open source, and MIT licensed. Your AI or model provider may
 
 <p align="center"><a href="https://github.com/eliasstravik/gtm-skills/blob/main/docs/getting-started.md"><img src="assets/buttons/install-gtm-skills.svg" alt="Install GTM Skills" /></a>&nbsp;&nbsp;<a href="https://cal.com/stravik/demo?projects=GTM%20Skills" target="_blank" rel="noopener noreferrer"><img src="assets/buttons/book-a-demo.svg" alt="Book a demo" /></a></p>
 
-<p align="center"><sub>✓&nbsp;100%&nbsp;free&nbsp;and&nbsp;open&nbsp;source &nbsp; ✓&nbsp;Four&nbsp;GTM&nbsp;skills,&nbsp;one&nbsp;install &nbsp; ✓&nbsp;Git-backed&nbsp;shared&nbsp;context</sub></p>
-
-<p align="center"><small>⭐ Used by top GTM teams</small></p>
+<p align="center"><sub>✓&nbsp;100%&nbsp;free&nbsp;and&nbsp;open&nbsp;source &nbsp; ✓&nbsp;One&nbsp;shared&nbsp;workspace &nbsp; ✓&nbsp;Typed&nbsp;results&nbsp;and&nbsp;costs</sub></p>

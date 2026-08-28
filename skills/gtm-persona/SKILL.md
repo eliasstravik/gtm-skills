@@ -13,6 +13,17 @@ Apply this Lifecycle SOP when the requested outcome creates, updates, repairs, o
 
 Own node-local, freeform Markdown personas at `personas/<persona-slug>/PERSONA.md` across creation, refinement, deletion, and repo-wide persona integrity repair. Read legacy `personas/<persona-slug>.md` artifacts without requiring migration. Do not author ICP or member files, manage the workspace lifecycle, or classify/research leads against saved personas.
 
+**Contract**
+
+| Field | Public contract |
+| --- | --- |
+| Reads | Accepted persona facts and uncertainty, the root-to-owner `ORG.md` chain, owner-local personas, and safe supplied sources |
+| Writes | Only the selected owner's canonical persona path, or scoped persona repairs during doctor |
+| Outputs | An accepted node-owned persona and qualified label, a complete health report, or a scoped handoff |
+| Approval | The user accepts the complete bytes and exact path operation before any durable write or deletion |
+| Persists | Accepted persona files in `main` Git history; no hidden coordination state |
+| Handoff | `gtm-workspace` for repository structure or connections, `gtm-icp` for markets, and `gtm-workflow` for saved operational work |
+
 ## Inputs
 
 Use the user's accepted persona facts and uncertainty, the hosting environment's connected-repo and durable-write declarations, the root-to-owner `ORG.md` chain, owner-local personas, and safe supplied sources.

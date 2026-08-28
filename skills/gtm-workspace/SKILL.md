@@ -13,6 +13,17 @@ Apply this Lifecycle SOP when the requested outcome creates, imports, maintains,
 
 Own the plain-Markdown workspace at `~/.gtm/<org-slug>/` across creation, import, organization and member maintenance, legacy-shape migration, structural or Git repair, and deletion. Preserve node-owned ICP and persona artifacts without authoring or validating their contents.
 
+**Contract**
+
+| Field | Public contract |
+| --- | --- |
+| Reads | The user's accepted organization facts, repository connection rules, valid local workspaces, and safe supplied sources |
+| Writes | Workspace contract files, organization nodes, member files, repository configuration, and accepted structural repairs |
+| Outputs | The requested workspace state and path summary, a complete health report, or a fixed-connection refusal |
+| Approval | The user accepts every durable change and any whole-workspace deletion before it happens |
+| Persists | Accepted workspace files and configuration in `main` Git history; no hidden coordination state |
+| Handoff | `gtm-icp` for market definitions, `gtm-persona` for buyer definitions, and `gtm-workflow` for saved workflows |
+
 ## Inputs
 
 Use the user's request and accepted facts, the hosting environment's repo connection and durable-write declarations, valid local workspaces, and safe supplied sources.
