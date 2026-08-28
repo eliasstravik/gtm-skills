@@ -1,6 +1,6 @@
 ---
 name: gtm-workflow
-description: Triggers when a user wants to create, update, inspect, delete, run, approve, query, schedule, trigger, or deploy a saved GTM workflow in a GTM workspace, including typed result tables, paid provider or model calls, dry runs, checkpoints, authorized triggers, and Vercel Workflows. Not for creating or repairing the workspace itself, ICP or persona lifecycle work, other workflow engines, or one-off calls that are not saved as workflows.
+description: Triggers when a user wants to create, update, inspect, delete, run, approve, query, schedule, trigger, or deploy a saved GTM workflow in a GTM workspace, including typed result tables, paid provider or model calls, dry runs, checkpoints, authorized triggers, and hosted workflows. Not for creating or repairing the workspace itself, ICP or persona lifecycle work, other workflow engines, or one-off calls that are not saved as workflows.
 ---
 
 # GTM workflow

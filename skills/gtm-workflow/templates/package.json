@@ -33,6 +33,11 @@
     "typescript": "7.0.2"
   },
   "gtm": {
+    "temporary": [
+      "TEMPORARY: waits on workflow@5.0.0: raise the Node engine ceiling after the stable runtime supports Node 24.",
+      "TEMPORARY: waits on workflow@5.0.0: remove the legacy embedded data-directory override after local state resolves without it.",
+      "TEMPORARY: waits on workflow@5.0.0: remove the recovery override after restart cannot re-enqueue a pending paid step."
+    ],
     "libVersion": 10,
     "libHashes": {
       "drizzle.config.ts": "c524efaaaf88e6fc1f91739d424b9e8f4cca653a756a427cb7102d0a873a8bb2",
