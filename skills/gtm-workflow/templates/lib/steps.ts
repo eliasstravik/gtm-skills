@@ -1,7 +1,7 @@
-// gtm-lib v10
+// gtm-lib v11
 import { and, eq, or, sql } from "drizzle-orm";
 import { getWorkflowMetadata } from "workflow";
-import { getDb, updateRunPlain } from "./db";
+import { getDb, getRunLedgerSummary, updateRunPlain } from "./db";
 import { redact, redactValue } from "./redact";
 import { enrichmentRuns, type WorkflowStatus } from "./schema";
 
@@ -102,6 +102,11 @@ export async function getActualRunCostUsd(runKey: string): Promise<number> {
       .where(eq(enrichmentRuns.runKey, runKey))
   )[0];
   return Number(row?.costUsd ?? 0);
+}
+
+export async function getRunReceipt(runKey: string) {
+  "use step";
+  return getRunLedgerSummary(runKey);
 }
 
 export async function getHeldRunReason(

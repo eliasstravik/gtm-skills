@@ -1,4 +1,4 @@
-// gtm-lib v10
+// gtm-lib v11
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
@@ -12,7 +12,12 @@ import {
   type EnrichmentStatus,
 } from "./schema";
 
-export type PaidCallMeta = { runKey: string; slug: string };
+export type PaidCallMeta = {
+  runKey: string;
+  slug: string;
+  rowKey?: string;
+  step?: string;
+};
 
 export class ProviderAuthError extends Error {
   readonly providerErrorKind = "provider_auth";
@@ -120,6 +125,8 @@ export async function provider<T extends z.ZodTypeAny>(
     id: ledgerId,
     runKey: input.meta.runKey,
     workflow: input.meta.slug,
+    rowKey: input.meta.rowKey ?? null,
+    step: input.meta.step ?? null,
     provider: input.name,
     endpoint: input.endpoint,
     inputsHash,
@@ -207,6 +214,8 @@ async function insertLedger(
     id: randomUUID(),
     runKey: input.meta.runKey,
     workflow: input.meta.slug,
+    rowKey: input.meta.rowKey ?? null,
+    step: input.meta.step ?? null,
     provider: input.name,
     endpoint: input.endpoint,
     inputsHash: row.inputsHash,

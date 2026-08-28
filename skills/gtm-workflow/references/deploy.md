@@ -51,7 +51,7 @@ The run route returns `409 deployment_not_ready` if production changed between t
 1. Start the first real run with a checkpoint after three rows through the trusted start action, or use the CLI against the production URL after its exact commit is live.
 2. Query the first rows and inspect the run.
 3. Ask for checkpoint approval and resume the same run. The trusted control resolves the hook token internally and never returns it.
-4. Stop a live run with the trusted cancel action or `npm run gtm -- cancel <runKey> --wait`; it is approval-gated, polls through `cancelling`, and reports terminal `cancelled`.
+4. Stop a live run with the trusted cancel action or `npm run gtm -- cancel <runKey> --wait 30`; it is approval-gated, polls through `cancelling`, and reports terminal `cancelled`.
 5. Require a terminal `workflow_runs` row, expected business rows, and a visible run in Vercel Observability.
 6. For a scheduled workflow, invoke its GET route once with `CRON_SECRET`; a second GET for the same UTC date must return `already_ran_today`, even after completion. Verify a missed-date catch-up with reviewed input and `--scheduled-for`.
 7. For a triggered workflow, require `runs get` to show a pending trigger, POST one fixture payload to the bearer-protected trigger route, and require completion. Use a public webhook only when the caller cannot send the bearer, and validate its payload.

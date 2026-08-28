@@ -1,8 +1,8 @@
-// gtm-lib v10
+// gtm-lib v11
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { readFile, readdir } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
@@ -11,6 +11,18 @@ import { executeReadOnly } from "../lib/db";
 import { redact, redactValue } from "../lib/redact";
 
 type Flags = Record<string, string | boolean>;
+type ProviderListRow = {
+  name: string;
+  endpoints: string[];
+  cost_per_request: string;
+  cache_ttl: string;
+  environment: { name: string; set: boolean }[];
+  mode: string;
+  fixture_covered: boolean;
+  workflows: string[];
+};
+type DiagramStatus = "done" | "failed" | "active" | "pending";
+type DiagramOverlay = Map<string, { status: DiagramStatus; costUsd: number }>;
 
 class AppError extends Error {
   constructor(
@@ -37,13 +49,15 @@ async function main() {
   const [command, ...rest] = process.argv.slice(2);
   if (command === "run") return run(rest);
   if (command === "runs" && rest[0] === "get") return runsGet(rest.slice(1));
+  if (command === "providers" && rest[0] === "list") return providersList(rest.slice(1));
+  if (command === "diagram") return diagram(rest);
   if (command === "approve") return approve(rest);
   if (command === "cancel") return cancel(rest);
   if (command === "query") return query(rest);
   if (command === "check") return check();
   throw new AppError(
     "invalid_command",
-    "Use run, runs get, approve, cancel, query, or check.",
+    "Use run, runs get, providers list, diagram, approve, cancel, query, or check.",
     2,
   );
 }
@@ -51,11 +65,21 @@ async function main() {
 async function run(args: string[]) {
   const { positionals, flags } = parseArgs(args);
   const slug = positionals[0];
-  const inputPath = stringFlag(flags, "input");
-  if (!slug) throw new AppError("invalid_input", "run requires <slug> --input <file>", 2);
+  let inputPath = stringFlag(flags, "input");
+  const sourceRun = stringFlag(flags, "rows-from-run");
+  if (!slug) throw new AppError("invalid_input", "run requires <slug> and an input source", 2);
+  if (inputPath && sourceRun) {
+    throw new AppError("invalid_input", "Use either --input or --rows-from-run, not both.", 2);
+  }
+  if (flags.only !== undefined && !sourceRun) {
+    throw new AppError("invalid_input", "--only requires --rows-from-run", 2);
+  }
   const workflow = await findWorkflow(slug, stringFlag(flags, "url"));
   const source = await readFile(workflow, "utf8");
   const kind = header(source, "Kind");
+  if (sourceRun) {
+    inputPath = await writeRowsFromRunInput(slug, sourceRun, stringFlag(flags, "only") ?? "failed", flags);
+  }
   if (!inputPath) {
     throw new AppError(
       "invalid_input",
@@ -79,9 +103,7 @@ async function run(args: string[]) {
   const costPerRowUsd = loaded.costPerRowUsd;
   const maxSpendUsd = loaded.maxSpendUsd;
   const projectedCostUsd = rows * costPerRowUsd;
-  const stages = [...source.matchAll(/async function\s+([A-Za-z0-9_$]+)\s*\([^)]*\)\s*\{\s*["']use step["']/g)].map(
-    (match) => match[1],
-  );
+  const stages = stepNames(source);
   const withinCaps = rows <= maxRows && projectedCostUsd <= maxSpendUsd;
   const dryRun = {
     workflow: slug,
@@ -92,6 +114,7 @@ async function run(args: string[]) {
     projectedCostUsd,
     maxSpendUsd,
     withinCaps,
+    ...(sourceRun ? { rowsFromRun: sourceRun, only: stringFlag(flags, "only") ?? "failed", inputFile: relative(root, inputPath) } : {}),
   };
   if (flags["dry-run"]) {
     print(dryRun);
@@ -124,7 +147,7 @@ async function run(args: string[]) {
     body: JSON.stringify(body),
   });
   if (!flags.wait) return print(started);
-  print(await poll(origin, started.runKey ?? started.runId));
+  print(await runSummary(await poll(origin, started.runKey ?? started.runId, waitSeconds(flags))));
 }
 
 async function runsGet(args: string[]) {
@@ -132,12 +155,20 @@ async function runsGet(args: string[]) {
   const identifier = positionals[0];
   if (!identifier) throw new AppError("invalid_run", "runs get requires a run id or run key", 2);
   const origin = await resolveOrigin(undefined, flags);
-  const result = flags.wait
-    ? await poll(origin, identifier)
+  let result = flags.wait
+    ? await poll(origin, identifier, waitSeconds(flags))
     : await request(new URL(`/api/runs/${encodeURIComponent(identifier)}`, origin), {
         headers: authHeaders(),
       });
-  print(result);
+  result = await runSummary(withRunState(result, false));
+  if (flags.failed) {
+    await configureReadOnly(flags);
+    result.failed_rows = await failedRunRows(result.runKey);
+  }
+  const format = stringFlag(flags, "format") ?? "json";
+  if (format === "json") return print(result);
+  if (format === "markdown") return process.stdout.write(`${runMarkdown(result)}\n`);
+  throw new AppError("invalid_format", "format must be json or markdown", 2);
 }
 
 async function approve(args: string[]) {
@@ -161,16 +192,7 @@ async function approve(args: string[]) {
   });
   if (!flags.wait) return print({ approved: Boolean(flags.yes) });
 
-  while (true) {
-    const row = await request(new URL(`/api/runs/${encodeURIComponent(runKey)}`, origin), {
-      headers: authHeaders(),
-    });
-    const pendingToken = row.approval?.token;
-    if (terminal(row.status) || (row.status === "waiting" && pendingToken !== token)) {
-      return print(withOperatorHint(row));
-    }
-    await delay(500);
-  }
+  print(await runSummary(await poll(origin, runKey, waitSeconds(flags), token)));
 }
 
 async function cancel(args: string[]) {
@@ -184,29 +206,88 @@ async function cancel(args: string[]) {
     body: JSON.stringify({ reason: stringFlag(flags, "reason") ?? null }),
   });
   if (!flags.wait) return print(row);
-  print(await poll(origin, row.runKey ?? identifier));
+  print(await runSummary(await poll(origin, row.runKey ?? identifier, waitSeconds(flags))));
+}
+
+async function providersList(args: string[]) {
+  const { positionals, flags } = parseArgs(args);
+  const directory = join(root, "providers");
+  const fixtureDirectory = join(directory, "__fixtures__");
+  const fixtures = existsSync(fixtureDirectory)
+    ? await walk(fixtureDirectory, () => true)
+    : [];
+  const workflows = await Promise.all(
+    (await workflowFiles()).map(async (file) => ({ file, source: await readFile(file, "utf8") })),
+  );
+  const adapters = existsSync(directory)
+    ? await walk(directory, (file) => file.endsWith(".ts") && !file.includes(`${sep}__fixtures__${sep}`))
+    : [];
+  const keywords = positionals.map((value) => value.toLowerCase());
+  const rows: ProviderListRow[] = [];
+  for (const file of adapters) {
+    const source = await readFile(file, "utf8");
+    const name = basename(file, ".ts");
+    const endpoints = listHeader(source, "Endpoints", /endpoint\s*:\s*["']([^"']+)["']/g);
+    const envNames = listHeader(source, "Environment", /process\.env\.([A-Z][A-Z0-9_]*)/g);
+    const row = {
+      name,
+      endpoints,
+      cost_per_request: headerValue(source, "Cost per request") ?? headerValue(source, "Cost") ?? "not documented",
+      cache_ttl: headerValue(source, "Cache TTL") ?? "not documented",
+      environment: envNames.map((envName) => ({
+        name: envName,
+        set: typeof process.env[envName] === "string" && process.env[envName]!.length > 0,
+      })),
+      mode: headerValue(source, "Mode") ?? "not documented",
+      fixture_covered: fixtures.some((fixture) => relative(fixtureDirectory, fixture).toLowerCase().includes(name.toLowerCase())),
+      workflows: workflows
+        .filter(({ source: workflowSource }) => workflowImportsProvider(workflowSource, name))
+        .map(({ file: workflowFile }) => workflowPath(workflowFile)),
+    };
+    const haystack = `${name}\n${source}`.toLowerCase();
+    if (keywords.every((keyword) => haystack.includes(keyword))) rows.push(row);
+  }
+  rows.sort((left, right) => left.name.localeCompare(right.name));
+  const format = stringFlag(flags, "format") ?? "table";
+  if (format === "json") return print(rows);
+  if (format === "table") {
+    return process.stdout.write(`${toMarkdown(rows.map((row) => ({
+      adapter: row.name,
+      endpoints: row.endpoints.join(", "),
+      cost: row.cost_per_request,
+      cache_ttl: row.cache_ttl,
+      environment: row.environment.map(({ name, set }) => `${name}=${set ? "set" : "unset"}`).join(", "),
+      fixtures: row.fixture_covered ? "yes" : "no",
+      workflows: row.workflows.join(", ") || "none",
+      mode: row.mode,
+    })))}\n`);
+  }
+  throw new AppError("invalid_format", "format must be table or json", 2);
+}
+
+async function diagram(args: string[]) {
+  const { positionals, flags } = parseArgs(args);
+  const slug = positionals[0];
+  if (!slug) throw new AppError("invalid_workflow", "diagram requires <slug>", 2);
+  const workflow = await findWorkflow(slug, stringFlag(flags, "url"));
+  const stages = stepNames(await readFile(workflow, "utf8"));
+  const runKey = stringFlag(flags, "run");
+  let overlay: DiagramOverlay | undefined;
+  if (runKey) {
+    await configureReadOnly(flags);
+    overlay = await diagramOverlay(slug, runKey, stages);
+  }
+  const format = stringFlag(flags, "format") ?? "mermaid";
+  if (format === "mermaid") return process.stdout.write(`${mermaidDiagram(stages, overlay)}\n`);
+  if (format === "ascii") return process.stdout.write(`${asciiDiagram(stages, overlay)}\n`);
+  throw new AppError("invalid_format", "format must be mermaid or ascii", 2);
 }
 
 async function query(args: string[]) {
   const { flags } = parseArgs(args);
   const statement = stringFlag(flags, "sql");
   if (!statement) throw new AppError("invalid_query", "query requires --sql", 2);
-  if (flags.cloud) {
-    if (!existsSync(join(root, ".env.turso"))) {
-      throw new AppError("missing_cloud_env", ".env.turso is required with --cloud", 2);
-    }
-    const values = parseEnv(await readFile(join(root, ".env.turso"), "utf8"));
-    const readOnlyToken = values.TURSO_READ_ONLY_AUTH_TOKEN?.trim();
-    if (!readOnlyToken) {
-      throw new AppError(
-        "missing_read_only_token",
-        "TURSO_READ_ONLY_AUTH_TOKEN is required for query --cloud; the write token is never used.",
-        2,
-      );
-    }
-    process.env.TURSO_DATABASE_URL = values.TURSO_DATABASE_URL;
-    process.env.TURSO_AUTH_TOKEN = readOnlyToken;
-  }
+  await configureReadOnly(flags);
   const rows = await executeReadOnly(statement);
   const format = stringFlag(flags, "format") ?? "json";
   if (format === "json") return print(rows);
@@ -505,25 +586,57 @@ async function validateMigrationArtifacts() {
   }
 }
 
-async function poll(origin: string, identifier: string) {
+async function poll(
+  origin: string,
+  identifier: string,
+  seconds: number,
+  previousApprovalToken?: string,
+) {
+  const deadline = Date.now() + seconds * 1_000;
   while (true) {
     const row = await request(new URL(`/api/runs/${encodeURIComponent(identifier)}`, origin), {
       headers: authHeaders(),
     });
-    if (terminal(row.status) || row.status === "waiting") return withOperatorHint(row);
+    const newApproval = row.status === "waiting" && (
+      previousApprovalToken === undefined || row.approval?.token !== previousApprovalToken
+    );
+    if (terminal(row.status) || newApproval) return withRunState(row, false);
+    if (Date.now() >= deadline) return withRunState(row, true);
     await delay(500);
   }
 }
 
-function withOperatorHint(row: any) {
-  if (row.status !== "waiting") return row;
+function withRunState(row: any, stillActive: boolean) {
+  const waitingReason = waitingReasonFor(row);
+  const state = {
+    ...row,
+    still_active: stillActive || !terminal(row.status),
+    ...(waitingReason ? { waiting_reason: waitingReason } : {}),
+  };
+  if (row.status !== "waiting") return state;
   if (row.approval?.token) {
     return {
-      ...row,
-      operatorCommand: `npm run gtm -- approve ${row.approval.token} --yes --wait`,
+      ...state,
+      operatorCommand: `npm run gtm -- approve ${row.approval.token} --yes --wait 30`,
     };
   }
-  return row;
+  return state;
+}
+
+function waitingReasonFor(row: any): string | undefined {
+  if (row.status === "cancelling") return "cancelling";
+  if (row.status === "running") {
+    const step = row.ledger_summary?.activeStep ?? row.failedStep ?? row.failed_step;
+    return step ? `step running (${step})` : "step running";
+  }
+  if (row.status !== "waiting") return undefined;
+  const stage = row.approval?.stage;
+  if (stage === "checkpoint") {
+    return `checkpoint pending after ${Number(row.completed ?? 0) + Number(row.failed ?? 0)} rows`;
+  }
+  if (stage) return `approval pending (stage ${stage})`;
+  if (row.trigger_token ?? row.triggerToken) return "step running (wait for trigger)";
+  return "step running";
 }
 
 async function request(url: URL, init: RequestInit) {
@@ -610,6 +723,192 @@ async function walk(directory: string, accept: (file: string) => boolean): Promi
   return found.sort();
 }
 
+async function writeRowsFromRunInput(
+  slug: string,
+  identifier: string,
+  only: string,
+  flags: Flags,
+) {
+  if (!new Set(["failed", "empty", "remaining", "all"]).has(only)) {
+    throw new AppError("invalid_selection", "--only must be failed, empty, remaining, or all", 2);
+  }
+  await configureReadOnly(flags);
+  const source = (
+    await executeReadOnly(
+      `select run_key, workflow, input, status, remaining_keys from workflow_runs where run_key = ${sqlLiteral(identifier)} or run_id = ${sqlLiteral(identifier)} limit 1`,
+    )
+  )[0];
+  if (!source) throw new AppError("not_found", `Unknown run ${identifier}`, 6);
+  if (source.workflow !== slug) {
+    throw new AppError(
+      "workflow_mismatch",
+      `Run ${identifier} belongs to ${String(source.workflow)}, not ${slug}`,
+      2,
+    );
+  }
+  const body = JSON.parse(String(source.input));
+  if (!Array.isArray(body?.rows)) {
+    throw new AppError("invalid_source_run", `Run ${identifier} has no rows input`, 2);
+  }
+  let keys: string[];
+  if (only === "all") {
+    keys = body.rows.flatMap((row: any) => typeof row?.key === "string" ? [row.key] : []);
+  } else if (only === "remaining") {
+    if (source.status !== "stopped") {
+      throw new AppError("invalid_source_run", "--only remaining requires a stopped source run", 2);
+    }
+    keys = JSON.parse(String(source.remaining_keys ?? "[]"));
+  } else {
+    const status = only === "failed" ? "error" : "empty";
+    const rows = await executeReadOnly(
+      `select distinct row_key from enrichment_runs where run_key = ${sqlLiteral(String(source.run_key))} and status = ${sqlLiteral(status)} and row_key is not null order by created_at, row_key`,
+    );
+    keys = rows.map((row) => String(row.row_key));
+  }
+  const selected = new Set(keys);
+  const rows = body.rows.filter((row: any) => typeof row?.key === "string" && selected.has(row.key));
+  if (rows.length !== selected.size) {
+    throw new AppError(
+      "missing_source_rows",
+      `The source input is missing ${selected.size - rows.length} selected row keys`,
+      2,
+    );
+  }
+  const safeRunKey = String(source.run_key).replace(/[^A-Za-z0-9._-]/g, "_");
+  const directory = join(root, "data", "reruns");
+  const path = join(directory, `${slug}-${safeRunKey}-${only}.json`);
+  await mkdir(directory, { recursive: true });
+  await writeFile(path, `${JSON.stringify({ ...body, rows }, null, 2)}\n`, { mode: 0o600 });
+  return path;
+}
+
+async function failedRunRows(runKey: string) {
+  return executeReadOnly(
+    `select er.row_key as key, coalesce(er.step, wr.failed_step) as step, er.provider, er.endpoint, er.error from enrichment_runs er join workflow_runs wr on wr.run_key = er.run_key where er.run_key = ${sqlLiteral(runKey)} and er.status = 'error' order by er.created_at, er.id`,
+  );
+}
+
+async function configureReadOnly(flags: Flags) {
+  let databaseUrl = process.env.TURSO_DATABASE_URL?.trim();
+  let readOnlyToken = process.env.TURSO_READ_ONLY_AUTH_TOKEN?.trim();
+  if (flags.cloud) {
+    const path = join(root, ".env.turso");
+    if (!existsSync(path)) {
+      throw new AppError("missing_cloud_env", ".env.turso is required with --cloud", 2);
+    }
+    const values = parseEnv(await readFile(path, "utf8"));
+    databaseUrl = values.TURSO_DATABASE_URL?.trim();
+    readOnlyToken = values.TURSO_READ_ONLY_AUTH_TOKEN?.trim();
+  }
+  if (flags.cloud && !databaseUrl) {
+    throw new AppError("missing_cloud_url", "TURSO_DATABASE_URL is required with --cloud", 2);
+  }
+  if (!databaseUrl || databaseUrl.startsWith("file:")) return;
+  if (!readOnlyToken) {
+    throw new AppError(
+      "missing_read_only_token",
+      "TURSO_READ_ONLY_AUTH_TOKEN is required for remote read-only commands; the write token is never used.",
+      2,
+    );
+  }
+  process.env.TURSO_DATABASE_URL = databaseUrl;
+  process.env.TURSO_AUTH_TOKEN = readOnlyToken;
+}
+
+function sqlLiteral(value: string) {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
+function headerValue(source: string, name: string) {
+  return source.match(new RegExp(`^\\s*\\*\\s+${name}:\\s*(.+)$`, "mi"))?.[1].trim();
+}
+
+function listHeader(source: string, name: string, fallback: RegExp) {
+  const documented = headerValue(source, name) ?? (name === "Environment" ? headerValue(source, "Env") : undefined);
+  const values = documented
+    ? documented.split(",").map((value) => value.trim()).filter(Boolean)
+    : [...source.matchAll(fallback)].map((match) => match[1]);
+  return [...new Set(values)].sort();
+}
+
+function workflowImportsProvider(source: string, name: string) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`from\\s+["'][^"']*\\/providers\\/${escaped}(?:\\.ts)?["']`).test(source);
+}
+
+function stepNames(source: string) {
+  return [...source.matchAll(/async function\s+([A-Za-z0-9_$]+)\s*\([^)]*\)\s*\{\s*["']use step["']/g)].map(
+    (match) => match[1],
+  );
+}
+
+async function diagramOverlay(slug: string, runKey: string, stages: string[]): Promise<DiagramOverlay> {
+  const run = (
+    await executeReadOnly(
+      `select run_key, workflow, status, failed_step from workflow_runs where run_key = ${sqlLiteral(runKey)} or run_id = ${sqlLiteral(runKey)} limit 1`,
+    )
+  )[0];
+  if (!run) throw new AppError("not_found", `Unknown run ${runKey}`, 6);
+  if (run.workflow !== slug) {
+    throw new AppError("workflow_mismatch", `Run ${runKey} belongs to ${String(run.workflow)}, not ${slug}`, 2);
+  }
+  const ledger = await executeReadOnly(
+    `select step, status, coalesce(sum(cost_usd), 0) as cost_usd from enrichment_runs where run_key = ${sqlLiteral(String(run.run_key))} and step is not null group by step, status order by step, status`,
+  );
+  const byStep = new Map<string, { statuses: Set<string>; costUsd: number }>();
+  for (const row of ledger) {
+    const name = String(row.step);
+    const current = byStep.get(name) ?? { statuses: new Set<string>(), costUsd: 0 };
+    current.statuses.add(String(row.status));
+    current.costUsd += Number(row.cost_usd ?? 0);
+    byStep.set(name, current);
+  }
+  const failedIndex = stages.indexOf(String(run.failed_step ?? ""));
+  const overlay: DiagramOverlay = new Map();
+  for (const [index, stage] of stages.entries()) {
+    const ledgerStep = byStep.get(stage);
+    let status: DiagramStatus = "pending";
+    if (ledgerStep?.statuses.has("error") || ledgerStep?.statuses.has("lost") || index === failedIndex) status = "failed";
+    else if (run.status === "completed") status = "done";
+    else if (ledgerStep?.statuses.has("pending")) status = "active";
+    else if (ledgerStep || failedIndex > index) status = "done";
+    else if (["running", "waiting", "cancelling"].includes(String(run.status)) && index === 0) status = "active";
+    overlay.set(stage, { status, costUsd: ledgerStep?.costUsd ?? -1 });
+  }
+  return overlay;
+}
+
+function mermaidDiagram(stages: string[], overlay?: DiagramOverlay) {
+  const lines = ["flowchart TD", '  rows["Rows"]'];
+  stages.forEach((stage, index) => lines.push(`  step${index}["${diagramLabel(stage, overlay)}"]`));
+  if (stages.length > 0) {
+    lines.push("  rows --> step0");
+    for (let index = 1; index < stages.length; index += 1) lines.push(`  step${index - 1} --> step${index}`);
+    lines.push(`  step${stages.length - 1} -. "next row" .-> step0`);
+  }
+  return lines.join("\n");
+}
+
+function asciiDiagram(stages: string[], overlay?: DiagramOverlay) {
+  const lines = ["Rows"];
+  for (const stage of stages) lines.push("  |", "  v", diagramLabel(stage, overlay));
+  if (stages.length > 0) lines.push(`  +-- next row --> ${humanize(stages[0])}`);
+  return lines.join("\n");
+}
+
+function diagramLabel(stage: string, overlay?: DiagramOverlay) {
+  const item = overlay?.get(stage);
+  const marker = item
+    ? { done: "[x]", failed: "[!]", active: "[~]", pending: "[ ]" }[item.status]
+    : "";
+  const cost = item && item.costUsd >= 0 ? ` ($${item.costUsd.toFixed(2)})` : "";
+  return `${marker ? `${marker} ` : ""}${humanize(stage)}${cost}`;
+}
+
+function humanize(value: string) {
+  return value.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").toLowerCase();
+}
+
 function workflowPath(file: string) {
   return relative(join(root, "workflows"), file).slice(0, -3).split(sep).join("/");
 }
@@ -645,6 +944,97 @@ async function loadWorkflow(file: string, body: unknown) {
     costPerRowUsd: Number(loaded.COST_PER_ROW_USD),
     maxSpendUsd: Number(loaded.MAX_SPEND_USD),
   };
+}
+
+async function runSummary(row: any) {
+  const ledger = row.ledger_summary ?? {};
+  const resultCounts = row.result?.counts;
+  const success = Number(resultCounts?.success ?? ledger.success ?? 0);
+  const empty = Number(resultCounts?.empty ?? ledger.empty ?? 0);
+  const foundTotal = success + empty;
+  const hitRate = foundTotal === 0 ? 0 : Math.round((success / foundTotal) * 100);
+  const actualCostUsd = Number(row.costUsd ?? row.cost_usd ?? 0);
+  let estimatedCostUsd: number | null = null;
+  try {
+    const workflow = (await workflowFiles()).find(
+      (file) => workflowPath(file) === row.path || basename(file, ".ts") === row.workflow,
+    );
+    if (workflow && row.input) {
+      const loaded = await loadWorkflow(workflow, row.input);
+      const rows = Array.isArray(loaded.input?.rows) ? loaded.input.rows.length : 1;
+      estimatedCostUsd = rows * loaded.costPerRowUsd;
+    }
+  } catch {
+    estimatedCostUsd = null;
+  }
+  const differenceReason = costDifferenceReason(row, estimatedCostUsd, actualCostUsd);
+  return {
+    ...row,
+    receipt: {
+      success,
+      empty,
+      hit_rate: { found: success, total: foundTotal, percent: hitRate },
+      cache_hits: Number(ledger.cacheHits ?? 0),
+      estimated_cost_usd: estimatedCostUsd,
+      actual_cost_usd: actualCostUsd,
+      cost_sources: row.cost_sources ?? ledger.costSources ?? [],
+      ...(differenceReason ? { estimate_difference_reason: differenceReason } : {}),
+    },
+  };
+}
+
+function costDifferenceReason(row: any, estimated: number | null, actual: number) {
+  if (!terminal(row.status) || estimated === null || estimated <= 0 || Math.abs(actual - estimated) / estimated <= 0.2) {
+    return undefined;
+  }
+  if (Number(row.ledger_summary?.cacheHits ?? 0) > 0) return "cache hits cost $0";
+  if (row.status !== "completed") return "the run stopped before full scope completed";
+  if (
+    actual < estimated &&
+    (row.cost_sources ?? []).some((source: any) => source.source === "reported")
+  ) {
+    return "reported cost was lower than the fixed estimate";
+  }
+  return actual < estimated
+    ? "actual cost was lower than the fixed estimate"
+    : "actual cost exceeded the fixed estimate";
+}
+
+function runMarkdown(row: any) {
+  const receipt = row.receipt;
+  const sources = (receipt.cost_sources as any[]).length
+    ? (receipt.cost_sources as any[])
+        .map((source) => `${source.source} $${Number(source.costUsd ?? source.cost_usd ?? 0).toFixed(2)}`)
+        .join(", ")
+    : "none $0.00";
+  const lines = [
+    `${row.workflow} ${row.runKey}: ${row.status}`,
+    `Rows: ${Number(row.completed ?? 0)} completed, ${Number(row.failed ?? 0)} failed, ${receipt.empty} empty`,
+    `Hit rate: found ${receipt.hit_rate.found} of ${receipt.hit_rate.total} (${receipt.hit_rate.percent}%)`,
+    `Cost: $${receipt.actual_cost_usd.toFixed(2)} actual${receipt.estimated_cost_usd === null ? "" : ` versus $${receipt.estimated_cost_usd.toFixed(2)} estimated`}; ${sources}; ${receipt.cache_hits} cache hits`,
+  ];
+  if (receipt.estimate_difference_reason) lines.push(`Difference: ${receipt.estimate_difference_reason}`);
+  if (row.stopReason ?? row.stop_reason) lines.push(`Stop reason: ${row.stopReason ?? row.stop_reason}`);
+  if (row.waiting_reason) lines.push(`Waiting: ${row.waiting_reason}`);
+  lines.push(`Next: \`${nextRunCommand(row)}\``);
+  if (Array.isArray(row.failed_rows)) {
+    lines.push("", "Failed calls", "", toMarkdown(row.failed_rows));
+  }
+  return lines.join("\n");
+}
+
+function nextRunCommand(row: any) {
+  if (row.approval?.token) return `npm run gtm -- approve ${row.approval.token} --yes --wait 30`;
+  if (["running", "cancelling"].includes(row.status)) {
+    return `npm run gtm -- runs get ${row.runKey} --wait 30 --format markdown`;
+  }
+  if ((row.stopReason ?? row.stop_reason) && (row.remaining_keys?.length ?? 0) > 0) {
+    return `npm run gtm -- run ${row.workflow} --rows-from-run ${row.runKey} --only remaining --dry-run`;
+  }
+  if (Number(row.failed ?? 0) > 0) {
+    return `npm run gtm -- runs get ${row.runKey} --failed --format markdown`;
+  }
+  return `npm run gtm -- diagram ${row.workflow} --run ${row.runKey}`;
 }
 
 async function deploymentHead(workflow: string, origin: string): Promise<string | undefined> {
@@ -710,6 +1100,15 @@ function parseArgs(args: string[]) {
 
 function stringFlag(flags: Flags, name: string) {
   return typeof flags[name] === "string" ? flags[name] : undefined;
+}
+
+function waitSeconds(flags: Flags) {
+  const raw = flags.wait === true ? "30" : stringFlag(flags, "wait");
+  const seconds = Number(raw);
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    throw new AppError("invalid_wait", "--wait requires a non-negative number of seconds", 2);
+  }
+  return seconds;
 }
 
 function terminal(status: string) {

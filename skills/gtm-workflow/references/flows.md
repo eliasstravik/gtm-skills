@@ -44,10 +44,10 @@ Bootstrap during the first create and keep the draft outside the repository unti
 ## Create
 
 1. Resolve workspace, owner, and kind. Read the owner's relevant ICP and persona files.
-2. Run `gtm check` before editing an existing project. Offer a v10 recopy when headers or content hashes differ; show the diff for every locally modified managed file first.
+2. Run `gtm check` before editing an existing project. Offer a v11 recopy when headers or content hashes differ; show the diff for every locally modified managed file first.
 3. Resolve where it runs. For on-demand work, recommend this computer. For scheduled or triggered work, recommend Vercel. In a sandbox, recommend Vercel for every workflow because the sandbox never starts a real run. Explain that local scheduled work runs only when invoked and hosted model calls use the user's budgeted key.
 4. Resolve the purpose, explicit input shape, stable row key, result columns, paid stages, adapter docs, caps, timing, approval stages, checkpoint, and external writes.
-5. When the workflow needs a provider, read [providers](providers.md), write its adapter against the user's own credential, and test it against fixtures. The skill ships no adapter catalog.
+5. When the workflow needs a provider, read [providers](providers.md) and run `npm run gtm -- providers list [keywords] --format json` before writing an adapter. Reuse a matching endpoint. List first before saying a capability is missing. Write a new adapter against the user's own credential only when no listed contract matches, then test it against fixtures.
 6. Declare the result table, derive the model-facing business schema inside the agent step, and load the owner's accepted ICP and persona text into `context` with stable file paths in `contextId`. Add `key` and `updatedAt` only when saving.
 7. Write row work with `runRows()`. Add `scheduledInput` and matching cron entry for scheduled work. For triggered work, prefer `waitForTrigger()` plus the bearer-protected trigger route; use a public webhook only when the caller cannot send a bearer, and validate its payload in the workflow.
 8. Run `npm run gtm -- check`; it enforces export, input, compiler-level workflow, paid-step retry, table, bookkeeping, migration, version, and content-hash rules.
@@ -61,7 +61,7 @@ Cancellation before step 11 writes no tracked bytes and no migration.
 ## Update
 
 1. Resolve the workflow and inspect its header, table, adapter, migrations, schedule, approvals, and deployment state.
-2. Compare every managed file with v10 by header and recorded hash. Show locally modified diffs and include any accepted recopy in the proposal.
+2. Compare every managed file with v11 by header and recorded hash. Show locally modified diffs and include any accepted recopy in the proposal.
 3. Agree the business change. A run-location switch is an update to the same workflow.
 4. Change only the workflow, table, adapter, accepted ICP/persona context, environment names, cron entry, or deployment metadata required by the request. Reload context text so its changed content invalidates the model cache.
 5. New columns are nullable or defaulted. Use expand/contract for a rename: add, backfill, switch code, then drop after the old deployment is gone. Keep schedule headers, `scheduledInput`, and cron entries aligned.
@@ -75,7 +75,7 @@ Inspection is read-only.
 
 Scan canonical definitions under `workflows/**/*.ts`.
 
-For one workflow, report purpose, location, kind, schedule, table and key meaning, adapter names, caps, approvals, checkpoint use, recent `workflow_runs`, paid-call totals and cache hits from `enrichment_runs`, and deployment state. Use `npm run gtm -- query` for database facts and the Workflow CLI for step history.
+For one workflow, report purpose, location, kind, schedule, table and key meaning, adapter names, caps, approvals, checkpoint use, recent `workflow_runs`, paid-call totals and cache hits from `enrichment_runs`, and deployment state. Use `npm run gtm -- query` for database facts and the Workflow CLI for step history. For an audit, read [the review checklist](review-checklist.md), report findings by severity, and map every `gtm check` failure to MUST FIX.
 
 For all workflows, also report:
 
@@ -86,9 +86,9 @@ For all workflows, also report:
 
 Do not run migration generation as an inspection check.
 
-For `show me the workflow`, render one Mermaid node per operator-named step in workflow order and show the row-loop edge. Hide schemas, database writes, model settings, bookkeeping, and telemetry.
+For `show me the workflow`, run `npm run gtm -- diagram <slug> --format mermaid`. Add `--run <runKey>` when the operator wants status and spend overlaid. Relay the command output instead of drawing a separate graph.
 
-For a run, use `npm run gtm -- runs get <runId|runKey>` and `gtm query` for its row, ledger entries, and business rows. Results stay in the database and are not copied to JSON.
+For a run, use `npm run gtm -- runs get <runId|runKey> --format markdown`. Add `--failed` for the failed row key, step, provider, endpoint, and redacted error. Results stay in the database and are not copied to ad hoc JSON files.
 
 ## Delete
 
@@ -101,7 +101,7 @@ For a run, use `npm run gtm -- runs get <runId|runKey>` and `gtm query` for its 
 
 ## Run
 
-1. Resolve the workflow and explicit `--input` file. A scheduled workflow also requires `--input`; write `scheduledInput` to an ignored file for a manual run.
+1. Resolve the workflow and either an explicit `--input` file or `--rows-from-run <runKey> --only failed|empty|remaining|all`. A scheduled workflow also requires `--input`; write `scheduledInput` to an ignored file for a manual run.
 2. Refuse `--checkpoint` for scheduled work. Refuse local start or server reuse while `.env.local` exists.
 3. For local work, start or reuse the server through [open](open.md). For Vercel, use the recorded production URL through the trusted workflow control when it is available.
 4. Run the dry run locally, or call the trusted workflow control's preview action when the sandbox cannot hold the production bearer:
@@ -121,28 +121,28 @@ npm run gtm -- run <slug> --input <file> --dry-run
 1. Run with a checkpoint after 3 rows (Recommended)
 2. Run the full accepted scope
 3. Cancel
+4. Trim scope to fit the cap
 
 Reply with a number, or type your answer.
 ```
 
-Omit option 1 for scheduled work. If the user chooses full scope, start without a checkpoint.
+Show option 4 only when the projection exceeds `MAX_SPEND_USD` or the operator's stated budget. Propose first N rows or a filter on the input, write the trimmed input, rerun the dry run, and ask again. Omit option 1 for scheduled work. If the user chooses full scope, start without a checkpoint.
 
-7. Start with `npm run gtm -- run <slug> --input <file> --checkpoint 3 --wait`, or use the trusted workflow control's approved start action for Vercel. The action returns on start; inspect the run until it reaches a terminal state or a wait.
-8. At a checkpoint or approval, report saved rows, failures, ledger spend and cost sources, remaining projection, table, and exact inspection command. Ask the user to approve, deny, or comment. Continue the same run with `npm run gtm -- approve <token> --yes --wait`, or the trusted workflow control's approved decision action, only after their answer. The token names the pending stage; the bearer authorizes it.
+7. Start with `npm run gtm -- run <slug> --input <file> --checkpoint 3 --wait 30`, or use the trusted workflow control's approved start action for Vercel. A bounded wait returns the latest row with `still_active: true`; check `status` before treating the run as finished.
+8. At a checkpoint or approval, report saved rows, failures, hit rate, estimate versus actual, ledger spend and cost sources, remaining projection, table, and exact inspection command. Ask the user to approve, deny, or comment. Continue the same run with `npm run gtm -- approve <token> --yes --wait 30`, or the trusted workflow control's approved decision action, only after their answer. The token names the pending stage; the bearer authorizes it.
 9. If start returns `run_in_progress`, report the existing run key and do not retry. Inspect it. Use the cancel and reconcile recovery only when the operator chooses to abandon it.
-10. To stop a live run, use `npm run gtm -- cancel <runKey> --wait` or the trusted approval-gated cancel action. Poll through `cancelling`; the duplicate guard stays closed until terminal `cancelled`. Saved rows and prior spend remain.
-11. Report the honest terminal state: `completed`, `stopped`, `timed_out`, `failed`, or `cancelled`; include stop reason, remaining keys, failed step, rows written, cache hits, cost-source breakdown, and external changes.
+10. To stop a live run, use `npm run gtm -- cancel <runKey> --wait 30` or the trusted approval-gated cancel action. Poll through `cancelling`; the duplicate guard stays closed until terminal `cancelled`. Saved rows and prior spend remain.
+11. Report the honest terminal state: `completed`, `stopped`, `timed_out`, `failed`, or `cancelled`; include stop reason, remaining keys, failed step, rows written, hit rate, estimate versus actual with the reported reason when the difference exceeds 20%, cache hits, cost-source breakdown, and external changes.
 
 For a missed scheduled day, write `scheduledInput` to an ignored file, dry-run it, then use `--scheduled-for <YYYY-MM-DD>` through the same run gate. A second start for that workflow and date returns `already_ran_today`.
 
-Row selection composes two commands:
+Rerun selected rows from durable run history:
 
 ```text
-npm run gtm -- query --sql "select * from <table> where ..." --format json > data/rows.json
-npm run gtm -- run <slug> --input data/rows.json --dry-run
+npm run gtm -- run <slug> --rows-from-run <runKey> --only failed --dry-run
 ```
 
-Use `--cloud` on query when selecting from Turso. There is no run filter flag.
+Use `empty` for empty ledger outcomes, `remaining` for keys recorded by a stopped run, or `all` for the prior scope. The command writes the selection under ignored `data/reruns/`, then follows the same dry-run and run gates as `--input`. Add `--cloud` for Turso; the command requires `TURSO_READ_ONLY_AUTH_TOKEN` and never substitutes the write token.
 
 ## Sandbox branches
 

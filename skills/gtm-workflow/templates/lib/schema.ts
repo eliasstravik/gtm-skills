@@ -1,4 +1,4 @@
-// gtm-lib v10
+// gtm-lib v11
 import { sql } from "drizzle-orm";
 import {
   index,
@@ -58,6 +58,8 @@ export const enrichmentRuns = sqliteTable(
     id: text("id").primaryKey(),
     runKey: text("run_key").notNull(),
     workflow: text("workflow").notNull(),
+    rowKey: text("row_key"),
+    step: text("step"),
     provider: text("provider").notNull(),
     endpoint: text("endpoint").notNull(),
     inputsHash: text("inputs_hash").notNull(),

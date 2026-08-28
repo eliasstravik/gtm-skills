@@ -52,7 +52,7 @@ npm run gtm -- query --sql "select run_key, status, completed, failed, cost_usd 
 - Record the PID, command, working directory, and purpose for every server this session starts.
 - Stop and confirm exit only for server PIDs this session started. Leave matching servers from other sessions and unrelated processes running.
 - On cancellation, stop only a server this session started.
-- CLI-agent subprocesses belong to Nitro's process group and end on their own or at `timeoutMs`. `npm run gtm -- cancel <runKey> --wait` polls `cancelling` until the runtime confirms terminal cancellation; an adapter using the library signal may stop sooner.
+- CLI-agent subprocesses belong to Nitro's process group and end on their own or at `timeoutMs`. `npm run gtm -- cancel <runKey> --wait 30` polls `cancelling` until the bound; an adapter using the library signal may stop sooner.
 
 ## Empty workflow recovery
 

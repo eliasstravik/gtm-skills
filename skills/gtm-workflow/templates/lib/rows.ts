@@ -1,4 +1,4 @@
-// gtm-lib v10
+// gtm-lib v11
 import {
   cancellationHook,
   cancellationToken,
@@ -76,8 +76,13 @@ export async function runRows<TRow extends { key: string }>(input: {
     for (let index = 0; index < input.rows.length; index += 1) {
       const row = input.rows[index];
       try {
+        const rowMeta = {
+          ...input.meta,
+          rowKey: row.key,
+          step: input.rowStep.name || "rowStep",
+        };
         const outcome = await Promise.race([
-          input.rowStep(row, input.meta, controller.signal).then((value) => ({
+          input.rowStep(row, rowMeta, controller.signal).then((value) => ({
             cancelled: false as const,
             value,
           })),
@@ -131,6 +136,7 @@ export async function runRows<TRow extends { key: string }>(input: {
           completed: completed.length,
           failed: failed.length,
           spentUsd,
+          projectedSpentUsd: processed * input.caps.costPerRowUsd,
           projectedRemainingUsd:
             (input.rows.length - processed) * input.caps.costPerRowUsd,
           table: input.table.name,

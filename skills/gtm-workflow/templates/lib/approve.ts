@@ -1,8 +1,9 @@
-// gtm-lib v10
+// gtm-lib v11
 import { defineHook, sleep } from "workflow";
 import { z } from "zod";
 import {
   getActualRunCostUsd,
+  getRunReceipt,
   recordWorkflowProgressAndStatus,
 } from "./steps";
 
@@ -24,6 +25,8 @@ export type WorkflowMeta = {
   slug: string;
   checkpoint: number | null;
   scheduledFor?: string | null;
+  rowKey?: string;
+  step?: string;
 };
 
 export type ApprovalResult = {
@@ -91,8 +94,9 @@ export async function checkpoint(
   state: {
     completed: number;
     failed: number;
-    /** Retained for v8 workflow compatibility; v10 reads actual spend from the ledger. */
+    /** Retained for v8 workflow compatibility; v11 reads actual spend from the ledger. */
     spentUsd: number;
+    projectedSpentUsd: number;
     projectedRemainingUsd: number;
     table: string;
   },
@@ -102,6 +106,19 @@ export async function checkpoint(
   }
   const done = state.completed + state.failed;
   const spentUsd = await getActualRunCostUsd(meta.runKey);
+  const receipt = await getRunReceipt(meta.runKey);
+  const foundTotal = receipt.success + receipt.empty;
+  const hitRate = foundTotal === 0 ? 0 : Math.round((receipt.success / foundTotal) * 100);
+  const difference = estimateDifference(
+    state.projectedSpentUsd,
+    spentUsd,
+    receipt.cacheHits,
+  );
+  const sources = receipt.costSources.length
+    ? receipt.costSources
+        .map(({ source, costUsd }) => `${source} $${costUsd.toFixed(2)}`)
+        .join(", ")
+    : "none $0.00";
   await recordWorkflowProgressAndStatus(meta.runKey, {
     completed: state.completed,
     failed: state.failed,
@@ -111,8 +128,18 @@ export async function checkpoint(
   return approve({
     stage: "checkpoint",
     meta,
-    summary: `${done} rows done, ${state.failed} failed, $${spentUsd.toFixed(2)} spent, $${state.projectedRemainingUsd.toFixed(2)} projected for the remaining rows; open ${state.table} in Studio`,
+    summary: `${done} rows done, ${state.failed} failed; found ${receipt.success} of ${foundTotal} (${hitRate}%); estimate $${state.projectedSpentUsd.toFixed(2)} versus actual $${spentUsd.toFixed(2)}${difference}; cost sources ${sources}; $${state.projectedRemainingUsd.toFixed(2)} projected for the remaining rows; open ${state.table} in Studio`,
   });
+}
+
+function estimateDifference(estimated: number, actual: number, cacheHits: number) {
+  if (estimated <= 0 || Math.abs(actual - estimated) / estimated <= 0.2) return "";
+  const reason = cacheHits > 0
+    ? " because cache hits cost $0"
+    : actual < estimated
+      ? " because reported cost was lower than the fixed estimate"
+      : " because actual provider cost exceeded the fixed estimate";
+  return ` (${reason.trim()})`;
 }
 
 export async function waitForTrigger(

@@ -30,7 +30,7 @@ For a host with `PreToolUse` command hooks, attach it to Bash in the user's sett
 }
 ```
 
-The hook allows `gtm check`, `gtm query`, `gtm runs get`, `gtm run ... --dry-run`, `workflow inspect`, `workflow validate`, `db:generate`, `db:verify`, and both Studio commands. Everything else asks.
+The hook allows `gtm check`, `gtm query`, `gtm runs get`, `gtm providers list`, `gtm diagram`, `gtm run ... --dry-run`, `workflow inspect`, `workflow validate`, `db:generate`, `db:verify`, and both Studio commands. Everything else asks.
 
 ## Prefix-only hosts
 

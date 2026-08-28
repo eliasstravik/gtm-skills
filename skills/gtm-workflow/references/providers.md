@@ -17,6 +17,21 @@ Document these facts in the adapter header:
 - whether an empty response has a provider-specific meaning;
 - whether the endpoint is synchronous, polled, or resumed by webhook.
 
+Use these exact header labels so `gtm providers list` can index the adapter:
+
+```ts
+/**
+ * Provider: company-data
+ * Endpoints: organization-lookup-v1
+ * Environment: COMPANY_DATA_API_KEY
+ * Cost per request: $0.02 fixed
+ * Cache TTL: 30 days
+ * Mode: synchronous
+ */
+```
+
+Run `npm run gtm -- providers list [keywords] --format json` before adding an adapter. Reuse a listed endpoint when its contract matches. The command reports environment names and set/unset state, never values, plus fixture coverage and importing workflows.
+
 Mirror environment variable names empty into `.env.example`. Keep values in ignored `.env`, Vercel environment variables, or host-brokered headers. Adapter input never contains a credential because canonical input is stored in `enrichment_cache.inputs` and can be queried.
 
 ## Calling through the funnel
