@@ -32,6 +32,8 @@ export function classify(command) {
     const args = argv.slice(4);
     if (args[0] === "check" || args[0] === "query") return "allow";
     if (args[0] === "runs" && args[1] === "get") return "allow";
+    if (args[0] === "providers" && args[1] === "list") return "allow";
+    if (args[0] === "diagram") return "allow";
     if (args[0] === "run" && args.includes("--dry-run")) return "allow";
     return "ask";
   }

@@ -1,4 +1,4 @@
-// gtm-lib v10
+// gtm-lib v11
 import {
   createClient as createWebClient,
   type Client,
@@ -203,6 +203,83 @@ export async function getRunCostSources(runKey: string) {
     .from(enrichmentRuns)
     .where(eq(enrichmentRuns.runKey, runKey))
     .groupBy(enrichmentRuns.costSource);
+}
+
+export type RunLedgerSummary = {
+  success: number;
+  empty: number;
+  failed: number;
+  cacheHits: number;
+  pending: number;
+  lost: number;
+  activeStep: string | null;
+  costSources: { source: string; calls: number; costUsd: number }[];
+};
+
+export async function getRunLedgerSummary(runKey: string): Promise<RunLedgerSummary> {
+  const db = await getDb();
+  const rows = await db
+    .select({
+      rowKey: enrichmentRuns.rowKey,
+      step: enrichmentRuns.step,
+      status: enrichmentRuns.status,
+      source: enrichmentRuns.costSource,
+      costUsd: enrichmentRuns.costUsd,
+    })
+    .from(enrichmentRuns)
+    .where(eq(enrichmentRuns.runKey, runKey));
+
+  const keyed = new Map<string, Set<string>>();
+  const unkeyed: Record<string, number> = {};
+  const costSources = new Map<string, { calls: number; costUsd: number }>();
+  let cacheHits = 0;
+  let pending = 0;
+  let lost = 0;
+  let activeStep: string | null = null;
+  for (const row of rows) {
+    if (row.rowKey) {
+      const statuses = keyed.get(row.rowKey) ?? new Set<string>();
+      statuses.add(row.status);
+      keyed.set(row.rowKey, statuses);
+    } else {
+      unkeyed[row.status] = (unkeyed[row.status] ?? 0) + 1;
+    }
+    if (row.status === "cache_hit") cacheHits += 1;
+    if (row.status === "pending") {
+      pending += 1;
+      activeStep ??= row.step;
+    }
+    if (row.status === "lost") lost += 1;
+    const source = costSources.get(row.source) ?? { calls: 0, costUsd: 0 };
+    source.calls += 1;
+    source.costUsd += Number(row.costUsd ?? 0);
+    costSources.set(row.source, source);
+  }
+
+  let success = 0;
+  let empty = 0;
+  let failed = 0;
+  for (const statuses of keyed.values()) {
+    if (statuses.has("error") || statuses.has("lost")) failed += 1;
+    else if (statuses.has("success") || statuses.has("cache_hit")) success += 1;
+    else if (statuses.has("empty")) empty += 1;
+  }
+  success += (unkeyed.success ?? 0) + (unkeyed.cache_hit ?? 0);
+  empty += unkeyed.empty ?? 0;
+  failed += (unkeyed.error ?? 0) + (unkeyed.lost ?? 0);
+
+  return {
+    success,
+    empty,
+    failed,
+    cacheHits,
+    pending,
+    lost,
+    activeStep,
+    costSources: [...costSources]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([source, values]) => ({ source, ...values })),
+  };
 }
 
 export async function reconcileRun(runKey: string): Promise<WorkflowRunRow> {

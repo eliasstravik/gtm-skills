@@ -9,8 +9,8 @@ import { test } from "node:test";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v10 templates pass the deterministic workflow contract", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v10-"));
+test("v11 templates pass the deterministic workflow contract", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v11-"));
   let vendor;
   let server;
   context.after(async () => {
@@ -36,7 +36,11 @@ test("v10 templates pass the deterministic workflow contract", async (context) =
   await rename(join(directory, "vercelignore"), join(directory, ".vercelignore"));
   await mkdir(join(directory, "workflows"), { recursive: true });
   await mkdir(join(directory, "db/tables"), { recursive: true });
+  await mkdir(join(directory, "providers/__fixtures__/mock-data"), { recursive: true });
   await writeFile(join(directory, "db/tables/accounts.ts"), accountsTable);
+  await writeFile(join(directory, "providers/mock-data.ts"), mockDataAdapter);
+  await writeFile(join(directory, "providers/unused-data.ts"), unusedDataAdapter);
+  await writeFile(join(directory, "providers/__fixtures__/mock-data/success.json"), '{"company":"fixture.test"}\n');
   await writeFile(join(directory, "workflows/local-proof.ts"), localWorkflow);
   await writeFile(join(directory, "workflows/approval-proof.ts"), approvalWorkflow);
   await writeFile(join(directory, "workflows/scheduled-proof.ts"), scheduledWorkflow);
@@ -45,6 +49,7 @@ test("v10 templates pass the deterministic workflow contract", async (context) =
   await writeFile(join(directory, "workflows/error-proof.ts"), errorWorkflow);
   await writeFile(join(directory, "workflows/spend-proof.ts"), spendWorkflow);
   await writeFile(join(directory, "workflows/held-proof.ts"), heldWorkflow);
+  await writeFile(join(directory, "workflows/row-error-proof.ts"), rowErrorWorkflow);
   await writeFile(join(directory, "vercel.json"), JSON.stringify({ crons: [{ path: "/api/run/scheduled-proof", schedule: "0 9 * * *" }] }));
 
   const fakeDirectory = join(directory, "fake-bin");
@@ -103,8 +108,20 @@ test("v10 templates pass the deterministic workflow contract", async (context) =
   const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
   const checked = JSON.parse(lastJsonLine(check.stdout));
   assert.equal(checked.ok, true);
-  assert.equal(checked.workflows, 8);
-  assert.equal(checked.libVersion, 10);
+  assert.equal(checked.workflows, 9);
+  assert.equal(checked.libVersion, 11);
+  const providers = await gtm(directory, env, ["providers", "list", "organization", "--format", "json"]);
+  assert.deepEqual(providers, [{
+    name: "mock-data",
+    endpoints: ["organization-lookup-v1"],
+    cost_per_request: "$0.02 fixed",
+    cache_ttl: "24 hours",
+    environment: [{ name: "MOCK_VENDOR_URL", set: true }],
+    mode: "synchronous",
+    fixture_covered: true,
+    workflows: ["local-proof"],
+  }]);
+  assert.doesNotMatch(JSON.stringify(providers), /credential-to-redact/);
   await command("npm", ["run", "db:verify"], { cwd: directory, env });
   const migrationPath = join(directory, "drizzle/0002_abandoned_quentin_quire.sql");
   const migrationSource = await readFile(migrationPath, "utf8");
@@ -226,6 +243,9 @@ test("v10 templates pass the deterministic workflow contract", async (context) =
   ]);
   assert.equal(paused.status, "waiting");
   assert.equal(paused.completed, 3);
+  assert.equal(paused.waiting_reason, "checkpoint pending after 3 rows");
+  assert.match(paused.approval.summary, /found 3 of 3 \(100%\)/);
+  assert.match(paused.approval.summary, /estimate \$0\.30 versus actual \$0\.09/);
   assert.equal(typeof paused.runId, "string");
   assert.equal(typeof paused.runUrl, "string");
   assert.equal((await tableRows(directory, env, "accounts")).length, 3);
@@ -300,6 +320,34 @@ test("v10 templates pass the deterministic workflow contract", async (context) =
     { provider: "agent", cost_source: "reported" },
     { provider: "mock-data", cost_source: "fixed" },
   ]);
+  assert.deepEqual(completed.receipt.hit_rate, { found: 20, total: 20, percent: 100 });
+  assert.equal(completed.receipt.estimated_cost_usd, 2);
+  assert.equal(completed.receipt.estimate_difference_reason, "reported cost was lower than the fixed estimate");
+  const markdownReceipt = await command("npm", ["run", "gtm", "--", "runs", "get", completed.runKey, "--format", "markdown"], { cwd: directory, env });
+  assert.match(markdownReceipt.stdout, /Rows: 20 completed, 0 failed, 0 empty/);
+  assert.match(markdownReceipt.stdout, /Hit rate: found 20 of 20 \(100%\)/);
+  assert.match(markdownReceipt.stdout, /fixed \$0\.40, reported \$0\.20/);
+
+  const plainDiagram = await command("npm", ["run", "gtm", "--", "diagram", "local-proof"], { cwd: directory, env });
+  assert.equal(plainDiagram.stdout.slice(plainDiagram.stdout.indexOf("flowchart")).trim(), [
+    "flowchart TD",
+    '  rows["Rows"]',
+    '  step0["enrich account"]',
+    '  step1["save account"]',
+    "  rows --> step0",
+    "  step0 --> step1",
+    '  step1 -. "next row" .-> step0',
+  ].join("\n"));
+  const runDiagram = await command("npm", ["run", "gtm", "--", "diagram", "local-proof", "--run", completed.runKey], { cwd: directory, env });
+  assert.equal(runDiagram.stdout.slice(runDiagram.stdout.indexOf("flowchart")).trim(), [
+    "flowchart TD",
+    '  rows["Rows"]',
+    '  step0["[x] enrich account ($0.60)"]',
+    '  step1["[x] save account"]',
+    "  rows --> step0",
+    "  step0 --> step1",
+    '  step1 -. "next row" .-> step0',
+  ].join("\n"));
 
   const beforeCapCalls = vendorCalls;
   const capResponse = await httpJson(`${env.GTM_BASE_URL}/api/run/local-proof`, {
@@ -327,7 +375,31 @@ test("v10 templates pass the deterministic workflow contract", async (context) =
   assert.deepEqual(heldDone.remaining_keys, ["held-2", "held-3", "held-4"]);
   assert.equal((await sqlRows(directory, env, `select * from enrichment_runs where run_key = '${heldDone.runKey}'`)).length, 2);
 
+  const rowErrorInput = join(directory, "data/row-errors.json");
+  await writeFile(rowErrorInput, JSON.stringify({ rows: [
+    { key: "ok", fail: false },
+    { key: "bad-one", fail: true },
+    { key: "bad-two", fail: true },
+  ] }));
+  const rowErrors = await gtm(directory, env, ["run", "row-error-proof", "--input", rowErrorInput, "--wait", "30"]);
+  assert.equal(rowErrors.failed, 2);
+  const failedRows = await gtm(directory, env, ["runs", "get", rowErrors.runKey, "--failed"]);
+  assert.deepEqual(failedRows.failed_rows.map((row) => ({ key: row.key, step: row.step })), [
+    { key: "bad-one", step: "lookupRow" },
+    { key: "bad-two", step: "lookupRow" },
+  ]);
+  const failedDryRun = await gtm(directory, env, [
+    "run", "row-error-proof", "--rows-from-run", rowErrors.runKey, "--only", "failed", "--dry-run",
+  ]);
+  assert.equal(failedDryRun.rows, 2);
+  assert.match(failedDryRun.inputFile, /^data\/reruns\//);
+  const failedRerun = await gtm(directory, env, [
+    "run", "row-error-proof", "--rows-from-run", rowErrors.runKey, "--only", "failed", "--wait", "30",
+  ]);
+  assert.equal((await sqlRows(directory, env, `select * from enrichment_runs where run_key = '${failedRerun.runKey}'`)).length, 2);
+
   const denied = await startAndWait(directory, env, "approval-proof", { case: "deny" });
+  assert.equal(denied.waiting_reason, "approval pending (stage outreach)");
   const hooks = await command("npx", ["workflow", "inspect", "hooks", "--runId", denied.runId], { cwd: directory, env });
   assert.match(hooks.stdout, /hookId/);
   const deniedDone = await gtm(directory, env, ["approve", denied.approval.token, "--no", "--wait"]);
@@ -440,6 +512,9 @@ test("v10 templates pass the deterministic workflow contract", async (context) =
   await writeFile(slowInput, JSON.stringify({ rows: [{ key: "slow", domain: "slow.test" }] }));
   const slow = await gtm(directory, env, ["run", "slow-proof", "--input", slowInput]);
   await waitForLedgerStatus(directory, env, slow.runKey, "pending");
+  const bounded = await gtm(directory, env, ["runs", "get", slow.runKey, "--wait", "0.01"]);
+  assert.equal(bounded.still_active, true);
+  assert.equal(bounded.waiting_reason, "step running (slowLookup)");
   const slowCancelling = await gtm(directory, env, ["cancel", slow.runKey, "--reason", "fixture cancellation"]);
   assert.equal(slowCancelling.status, "cancelling");
   assert.equal(slowCancelling.finishedAt, null);
@@ -700,7 +775,10 @@ async function assertCommandPermissions(repo) {
     ["npm run gtm -- check", "allow"],
     ["npm run gtm -- query --sql 'SELECT 1'", "allow"],
     ["npm run gtm -- runs get abc", "allow"],
+    ["npm run gtm -- providers list lookup", "allow"],
+    ["npm run gtm -- diagram proof --run abc", "allow"],
     ["npm run gtm -- run proof --input rows.json --dry-run", "allow"],
+    ["npm run gtm -- run proof --rows-from-run abc --only failed --dry-run", "allow"],
     ["npx workflow inspect runs", "allow"],
     ["npm run db:studio:cloud", "allow"],
     ["npm run gtm -- run proof --input rows.json", "ask"],
@@ -730,7 +808,7 @@ async function assertCheckRules(directory, env) {
   await expectCheckViolation(tablePath, (source) => source.replaceAll(".primaryKey()", ""), "invalid_result_table", directory, env);
   await expectCheckViolation(migrationPath, (source) => `${source}\nDELETE FROM workflow_runs;\n`, "destructive_migration", directory, env);
   await expectCheckViolation(migrationPath, (source) => `${source}\nALTER TABLE workflow_runs RENAME TO old_workflow_runs;\n`, "destructive_migration", directory, env);
-  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v10\n", "// gtm-lib v10\n\n"), "lib_modified", directory, env);
+  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v11\n", "// gtm-lib v11\n\n"), "lib_modified", directory, env);
 }
 
 async function assertDirtyProductionStartRefused(directory, env, inputFile, nitroPort) {
@@ -827,6 +905,31 @@ function lastJsonLine(text) {
     .find((line) => line.trim().startsWith("{" ) || line.trim().startsWith("["));
 }
 
+const mockDataAdapter = `/**
+ * Provider: mock-data
+ * Endpoints: organization-lookup-v1
+ * Environment: MOCK_VENDOR_URL
+ * Cost per request: $0.02 fixed
+ * Cache TTL: 24 hours
+ * Mode: synchronous
+ */
+export async function lookupOrganization(domain, signal) {
+  const response = await fetch(process.env.MOCK_VENDOR_URL + "?domain=" + encodeURIComponent(domain), { signal });
+  return response.json();
+}
+`;
+
+const unusedDataAdapter = `/**
+ * Provider: unused-data
+ * Endpoints: person-search-v2
+ * Environment: UNUSED_DATA_TOKEN
+ * Cost per request: $0.04 fixed
+ * Cache TTL: 7 days
+ * Mode: polled
+ */
+export async function searchPeople() { return []; }
+`;
+
 const accountsTable = `import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 export const accounts = sqliteTable("accounts", {
   key: text("key").primaryKey(),
@@ -865,6 +968,7 @@ import type { WorkflowMeta } from "../lib/approve";
 import { upsertRows } from "../lib/db";
 import { provider } from "../lib/provider";
 import { runRows } from "../lib/rows";
+import { lookupOrganization } from "../providers/mock-data";
 
 export const input = z.object({ rows: z.array(z.object({ key: z.string(), domain: z.string() })) });
 type Input = z.infer<typeof input>;
@@ -882,8 +986,7 @@ async function enrichAccount(row: Input["rows"][number], meta: WorkflowMeta, sig
     ttlMs: 86400000,
     costUsd: 0.02,
     call: async () => {
-      const response = await fetch(process.env.MOCK_VENDOR_URL + "?domain=" + encodeURIComponent(row.domain), { signal });
-      const raw = await response.json();
+      const raw = await lookupOrganization(row.domain, signal);
       return { raw, value: raw };
     },
     parseRaw: (raw) => raw,
@@ -1135,5 +1238,41 @@ export async function heldProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
   arg = input.parse(arg);
   return runRows({ rows: arg.rows, meta, table: { name: "accounts", save: saveHeld }, rowStep: heldLookup, caps: { maxRows: MAX_ROWS, maxSpendUsd: MAX_SPEND_USD, costPerRowUsd: COST_PER_ROW_USD } });
+}
+`;
+
+const rowErrorWorkflow = `/**
+ * Proves failed-row inspection and reruns.
+ * Runs: on this computer
+ * Kind: on-demand
+ * Owner: Fixture | ICP: Fixture
+ * Providers: row-errors lookup $0.01 per row
+ * Table: accounts | key: fixture row id
+ */
+import { z } from "zod";
+import { accounts } from "../db/tables/accounts";
+import type { WorkflowMeta } from "../lib/approve";
+import { upsertRows } from "../lib/db";
+import { provider } from "../lib/provider";
+import { runRows } from "../lib/rows";
+export const input = z.object({ rows: z.array(z.object({ key: z.string(), fail: z.boolean() })) });
+type Input = z.infer<typeof input>;
+export const MAX_ROWS = 5;
+export const MAX_SPEND_USD = 1;
+export const COST_PER_ROW_USD = 0.01;
+async function lookupRow(row: Input["rows"][number], meta: WorkflowMeta) {
+  "use step";
+  const result = await provider({
+    name: "row-errors", endpoint: "lookup", input: { key: row.key }, schema: z.object({ company: z.string() }), ttlMs: 1000, costUsd: 0.01,
+    call: async () => { if (row.fail) throw new Error("fixture row failed"); return { company: row.key }; }, meta,
+  });
+  return { key: row.key, value: { company: result.value.company, score: 1, reason: "row error proof" } };
+}
+lookupRow.maxRetries = 0;
+async function saveRow(row: Record<string, unknown>) { "use step"; await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]); }
+export async function rowErrorProof(arg: Input, meta: WorkflowMeta) {
+  "use workflow";
+  arg = input.parse(arg);
+  return runRows({ rows: arg.rows, meta, table: { name: "accounts", save: saveRow }, rowStep: lookupRow, caps: { maxRows: MAX_ROWS, maxSpendUsd: MAX_SPEND_USD, costPerRowUsd: COST_PER_ROW_USD } });
 }
 `;

@@ -38,15 +38,32 @@ A change response asks `**What would you like me to change?**`, updates the draf
 
 ## Business diagrams
 
-For `show me the workflow`, render one Mermaid node per named business step in workflow order. Split the same camelCase names into spaced labels and show the row-loop edge. Show a branch only for a user choice or materially different outcome. Hide schemas, storage writes, model settings, process state, and telemetry.
+For `show me the workflow`, run `npm run gtm -- diagram <slug> --format mermaid` and relay it. Use `--run <runKey>` to add `[x]` done, `[!]` failed, `[~]` active, `[ ]` not reached, and paid-step cost. Hide schemas, storage writes, model settings, and telemetry.
 
 Add a short caption with the trigger, inputs or changes, saved result, and partial-failure behavior. Provide technical control flow only when requested.
 
 ## Outcome reports
 
-Lead completion with the business result and `<n> completed, <m> failed`. Follow with rows written, table, cache hits, vendor and model cost, `reported | fixed | projected` cost sources, external systems changed, and delivery state. A projected cost is the accepted ceiling because the backend did not report billing.
+Lead completion with the business result and `<n> completed, <m> failed`. Follow with `found <success> of <success + empty> (<hit-rate>%)`, rows written, table, cache hits, estimate versus actual, vendor and model cost, `reported | fixed | projected` cost sources, external systems changed, and delivery state. When estimate and actual differ by more than 20%, give one reason: cache hits, lower reported cost, or early stop. A projected cost is the accepted ceiling because the backend did not report billing.
 
-At a checkpoint, report `<n> rows done, <m> failed, $<x> spent, $<y> projected for the remaining rows`, the table inspection command, and the exact approval command. Ask for approval before resuming the same run.
+At a checkpoint, report `<n> rows done, <m> failed, found <x> of <y> (<z>%), $<a> estimated versus $<b> actual, <cost-source breakdown>, $<c> projected for the remaining rows`, the table inspection command, and the exact approval command. Ask for approval before resuming the same run.
+
+When projected spend exceeds the workflow cap or the operator's stated budget, use this gate verbatim:
+
+```text
+**Would you like to run this scope?**
+
+<dry-run output, external writes, checkpoint position, and exceeded cap>
+
+1. Run with a checkpoint after 3 rows (Recommended)
+2. Run the full accepted scope
+3. Cancel
+4. Trim scope to fit the cap
+
+Reply with a number, or type your answer.
+```
+
+If the operator chooses 4, propose first N rows or a filter, rerun the dry run, then present the gate again.
 
 Use `completed` only when all accepted work ended normally. Say `stopped` for operator denial, provider authentication or quota hold, or a spend-cap stop; include `stop_reason` and `remaining_keys`. Say `timed out` for an expired approval and `failed at <failed_step>` when step identity is available.
 

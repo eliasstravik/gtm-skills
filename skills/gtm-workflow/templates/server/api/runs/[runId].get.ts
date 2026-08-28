@@ -1,8 +1,13 @@
-// gtm-lib v10
+// gtm-lib v11
 import { defineEventHandler } from "nitro/h3";
 import { getRun } from "workflow/api";
 import { WorkflowRunFailedError } from "workflow/errors";
-import { getRunCostSources, getRunRow, reconcileRun } from "../../../lib/db";
+import {
+  getRunCostSources,
+  getRunLedgerSummary,
+  getRunRow,
+  reconcileRun,
+} from "../../../lib/db";
 import { redact, redactValue } from "../../../lib/redact";
 
 export default defineEventHandler(async (event) => {
@@ -42,6 +47,7 @@ export default defineEventHandler(async (event) => {
     webhook_url: row.webhookUrl,
     trigger_token: row.triggerToken,
     cost_sources: await getRunCostSources(row.runKey),
+    ledger_summary: await getRunLedgerSummary(row.runKey),
   };
   if (["completed", "stopped", "timed_out"].includes(row.status) && row.runId) {
     const run = getRun(row.runId);
