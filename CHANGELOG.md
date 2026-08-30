@@ -2,6 +2,7 @@
 
 ## Unreleased, gtm-lib v11
 
+- GTM workspace creation can now skip member onboarding and continue directly to the sharing choice.
 - Updated the pinned workflow runtime from beta.44 to beta.46 after the template suite passed on engine 22 and the forced webhook-resume probe passed on engine 24. The engine ceiling stays unchanged until the stable runtime declares support.
 
 ## gtm-lib v10, 2026-08-28

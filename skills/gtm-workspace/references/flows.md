@@ -110,7 +110,17 @@ Write nothing, draft nothing, and research nothing for the refused request; do n
    > Example (fictional): `Brightpath Enterprise — parent: Brightpath Analytics — https://enterprise.brightpath.example — LinkedIn: https://linkedin.example/company/brightpath-enterprise`
 
    Parse the one freeform dump into the existing proposed nested set. If any names are missing, ask one recovery turn beginning exactly `**What are the missing names for these suborganizations?**` and place only the necessary record-identifying context below it. Do not conduct per-field interviews. Begin the cleaned-set operations proposal exactly `Here is the proposed suborganization set:` and accept it. Show every recursive destination with repeated literal segments such as `suborgs/<suborg-slug>/suborgs/<suborg-slug>/ORG.md`. Then research and run the artifact accept loop for each `ORG.md`; offer a numbered choice between reviewing one at a time `(Recommended)` or one batch. Begin a batch artifact proposal exactly `Here is the complete proposed suborganization batch:`. Create no empty directories.
-10. Collect the operator only after the suborganization set is final. With no saved suborganizations, ask exactly:
+10. After the suborganization set is final, ask exactly:
+
+   > **Would you like to add members to this GTM workspace?**
+   >
+   > 1. Yes. (Recommended)
+   > 2. No.
+   >
+   > Reply with a number, or type your answer.
+
+   If the user chooses Yes, continue through the existing operator and additional-member flow. If the user chooses No, skip all member intake, research, drafts, and writes, then continue directly to the sharing decision.
+11. Collect the operator only after the suborganization set is final. With no saved suborganizations, ask exactly:
 
    > **What is your full name, email address, role, and any social profiles such as LinkedIn?**
    >
@@ -119,15 +129,15 @@ Write nothing, draft nothing, and research nothing for the refused request; do n
    > Example (fictional): `Jordan Lee — jordan@brightpath.example — Head of Sales — LinkedIn: https://linkedin.example/in/jordan-lee`
 
    When saved suborganizations exist, instead ask exactly `**What is your full name, email address, role, any social profiles such as LinkedIn, and which suborganizations you work with?**` with the same guidance and fictional example, then list every valid suborganization by exact display name and full path immediately below it. The operator's member record is root-owned; affiliations are optional, so do not infer one or follow up when omitted. If required operator data is missing, use exactly one applicable recovery question and request nothing else: `**What is your full name?**`, `**What is your email address?**`, or `**What are your full name and email address?**`.
-11. Continue operator intake with exactly:
+12. Continue operator intake with exactly:
 
    > **Are there any other links, files, or folders you'd like me to research for this member's context?**
    >
    > Example (fictional): `https://brightpath.example/team/jordan`, `/path/to/Jordan Lee resume.pdf`, or `/path/to/interview-notes/`. You can paste several items or say `none`.
 
    Do not follow up for an omitted role, social profile, affiliation, or source. Apply link safety and research readable user-supplied paths. Begin the draft turn exactly `Here is the complete proposed \`members/<member-slug>/MEMBER.md\`:`. Include only known optional fields. After acceptance, set repo-local git name/email to the accepted operator, write the member, and save it to history.
-12. Ask about more members: done `(Recommended)`, add one, or add in bulk. For one additional member, use `**What is this member's full name, email address, role, and any social profiles such as LinkedIn?**` when there are no saved suborganizations. When saved suborganizations exist, use exactly `**What is this member's full name, email address, role, any social profiles such as LinkedIn, which organization should own their member record, and which other suborganizations they work with?**` and list root plus every recursively discovered suborganization by exact display name and full path immediately below it. Say the role, social profiles, owner beyond the recommended root, and additional affiliations are optional. If required data is missing, use exactly one applicable recovery question and request nothing else: `**What is this member's full name?**`, `**What is this member's email address?**`, or `**What are this member's full name and email address?**`. Then use the same exact other-sources question and example from step 11. Begin the draft turn with the complete node-relative destination, ending in `members/<member-slug>/MEMBER.md`. Never add a separate owner or affiliation turn, infer an affiliation, or omit repeated `suborgs/<suborg-slug>/` segments from a nested destination.
-13. For bulk members, ask exactly:
+13. Ask about more members: done `(Recommended)`, add one, or add in bulk. For one additional member, use `**What is this member's full name, email address, role, and any social profiles such as LinkedIn?**` when there are no saved suborganizations. When saved suborganizations exist, use exactly `**What is this member's full name, email address, role, any social profiles such as LinkedIn, which organization should own their member record, and which other suborganizations they work with?**` and list root plus every recursively discovered suborganization by exact display name and full path immediately below it. Say the role, social profiles, owner beyond the recommended root, and additional affiliations are optional. If required data is missing, use exactly one applicable recovery question and request nothing else: `**What is this member's full name?**`, `**What is this member's email address?**`, or `**What are this member's full name and email address?**`. Then use the same exact other-sources question and example from step 12. Begin the draft turn with the complete node-relative destination, ending in `members/<member-slug>/MEMBER.md`. Never add a separate owner or affiliation turn, infer an affiliation, or omit repeated `suborgs/<suborg-slug>/` segments from a nested destination.
+14. For bulk members, ask exactly:
 
    > **Which members would you like to add?**
    >
@@ -136,7 +146,7 @@ Write nothing, draft nothing, and research nothing for the refused request; do n
    > Example (fictional): `Jordan Lee — jordan@brightpath.example — Head of Sales — LinkedIn: https://linkedin.example/in/jordan-lee`
 
    When saved suborganizations exist, append their exact display names and full paths and ask for each member's owning organization and any additional affiliations in this same dump; an omitted owner defaults to root and omitted affiliations remain `none`, with no follow-up. Parse the dump into the existing proposed set. Ask at most one recovery turn for missing required values, using exactly one applicable opening and necessary record-identifying context below it: `**What are the missing full names for these members?**`, `**What are the missing email addresses for these members?**`, or `**What are the missing full names and email addresses for these members?**`. Do not conduct per-field, per-member owner, or affiliation interviews. Begin the cleaned-set operations proposal exactly `Here is the proposed members set:` and show each full node-relative `members/<member-slug>/MEMBER.md` destination. After it is accepted, preserve the existing one-at-a-time `(Recommended)` or batch artifact review; begin a batch artifact proposal exactly `Here is the complete proposed members batch:`. Save each accepted `MEMBER.md` as its own artifact and history entry.
-14. Ask the sharing decision exactly as follows:
+15. Ask the sharing decision exactly as follows:
 
    > **How would you like to use this GTM workspace repository?**
    >
@@ -146,7 +156,7 @@ Write nothing, draft nothing, and research nothing for the refused request; do n
    2. Make it multiplayer through a private GitHub repository.
 
    Keep the required reply line. For multiplayer, check `gh` is installed and authenticated. Guide install or login in single-question steps when needed. Ask the owning GitHub account/organization, propose the repo name, confirm it, create a private repo, and push `main`. At every step include `Cancel and stay local for now` as an option. Never imply local mode lacks history or GitHub sharing is public.
-15. Close with a tree-style list of files created, explain they are saved to history, and state whether the workspace stays on this computer or is shared privately with the team. Do not lead with branch, remote, or push details. Then add a short `Recommended next step` paragraph using only the explicit capability/skill catalog supplied by the hosting environment. Normalize only these exact workflow IDs and choose the first listed below that is available, regardless of conversational hints:
+16. Close with a tree-style list of files created, explain they are saved to history, and state whether the workspace stays on this computer or is shared privately with the team. Do not lead with branch, remote, or push details. Then add a short `Recommended next step` paragraph using only the explicit capability/skill catalog supplied by the hosting environment. Normalize only these exact workflow IDs and choose the first listed below that is available, regardless of conversational hints:
 
    1. `gtm-icp` → `Define the ideal customer profile for <saved organization display name>.`
    2. `gtm-persona` → `Define the buyer personas for <saved organization display name>.`
