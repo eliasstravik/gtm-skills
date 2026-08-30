@@ -82,7 +82,7 @@ Run:
 /gtm-persona
 ```
 
-Choose the organization node that owns the buyer or stakeholder definition. Capture responsibilities, buying influence, authority boundaries, disqualifiers, and honest open questions, then review the complete persona before saving it. ICP authoring and lead research, segmentation, or scoring remain separate workflows.
+Choose the organization node that owns the buyer or stakeholder definition. Set desired or accepted criteria for full name, education, estimated followers, experience, languages, location, network size, and professional profile. Add responsibilities, buying influence, authority boundaries, disqualifiers, and honest open questions when useful, then review the complete persona before saving it. ICP authoring and lead research, segmentation, or scoring remain separate workflows.
 
 ## 6. Build your first workflow
 

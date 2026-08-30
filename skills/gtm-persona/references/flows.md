@@ -21,10 +21,10 @@ Reply with a number, or type your answer.
 
 1. Resolve the workspace and create owner. Make the owner choice before reading any persona.
 2. Read the root-to-owner `ORG.md` chain and only owner-local personas, then state the context line.
-3. Extract supplied facts before asking anything. Ask one freeform question at a time only for facts needed to make the persona matchable: display name, responsibilities and scope, buying context or influence, authority boundaries, disqualifiers, and material unknowns.
-4. Apply link safety to supplied sources. Research is optional.
+3. Extract supplied facts before asking anything. Ask one freeform question at a time only for the display name, desired or accepted person-data criteria, responsibilities and scope, buying context or influence, authority boundaries, disqualifiers, and material unknowns needed to make the persona matchable.
+4. Apply link safety to supplied sources. Research every field in `person-data.md` when safe sources are available, but persist only criteria the user supplies or accepts. Organization and member facts do not establish persona criteria.
 5. Compare only owner-local personas for material overlap. If a near-duplicate exists, explain it and ask whether to update the existing persona `(Recommended)` or continue with a distinct definition.
-6. Draft `personas/<slug>/PERSONA.md` from accepted or safely sourced facts. Preserve uncertainty, authority limits, and disqualifiers; omit unsupported and empty sections.
+6. Draft `personas/<slug>/PERSONA.md` from `templates/persona.md`. Keep all eight shared fields in order, use `Unknown` for unresolved criteria, and preserve uncertainty, authority limits, and disqualifiers in optional sections. Omit empty optional sections.
 7. Begin the proposal turn with `**Would you like to save this proposal?**`; place the required context line and any overlap explanation below that question when they share the turn, then show the exact target and complete Markdown through the accept/change/cancel loop.
 8. After acceptance, create only the needed `personas/<slug>/` directory and `PERSONA.md`, persist the accepted change, and close with path, owner, qualified label, factual summary, and “saved to history.”
 
@@ -32,7 +32,7 @@ Reply with a number, or type your answer.
 
 1. Resolve the workspace and target under the artifact-reading node rule, then state the context line with the owning node's display name, never the repo root's name for a suborganization target.
 2. If several personas are visible and none was named, list only those visible personas and ask which one to update.
-3. Read the target and `ORG.md` chain. Gather only the requested change and preserve unrelated facts and freeform headings.
+3. Read the target and `ORG.md` chain. Gather only the requested change and preserve unrelated facts and freeform headings. For a full research refresh, apply every field in `person-data.md`, keep unresolved shared fields visible as `Unknown`, preserve accepted criteria that new evidence does not disprove, and persist only criteria the user supplies or accepts.
 4. Begin the proposal turn with `**Would you like to save this proposal?**`, then preview the path plus complete before and after Markdown through the accept loop.
 5. After acceptance, write exactly the after bytes, persist only that persona, and close with the qualified label, exact change summary, and “saved to history.”
 

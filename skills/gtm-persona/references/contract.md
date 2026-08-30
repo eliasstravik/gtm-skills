@@ -14,7 +14,7 @@ Before acting or judging, state `Using GTM workspace: <target display name> — 
 
 ## Artifact contract
 
-Store every new persona at `<target-node>/personas/<lowercase-kebab-slug>/PERSONA.md`. The directory slug is its identity; `PERSONA.md` starts with the display-name H1, then only flat H2 sections carrying accepted facts. Omit empty sections and TODO/TBD placeholders. The bundled template suggests a draft shape but does not define validity.
+Store every new persona at `<target-node>/personas/<lowercase-kebab-slug>/PERSONA.md`. The directory slug is its identity; `PERSONA.md` starts with the display-name H1. Every new or fully researched `PERSONA.md` follows the shared [person-data research contract](../../gtm-workspace/references/person-data.md), using its eight fields for desired or accepted person criteria. Keep unresolved shared fields visible as `Unknown`. Optional flat H2 sections may follow when they carry accepted responsibilities, buying context, authority boundaries, disqualifiers, uncertainty, or other notes. Omit empty optional sections and TODO/TBD placeholders. Existing free-form personas remain valid, and the bundled template does not define validity.
 
 Existing flat `<target-node>/personas/<lowercase-kebab-slug>.md` files remain valid legacy artifacts. Update and delete them in place, include them in visibility and overlap checks, and never require bulk migration. If canonical and legacy artifacts resolve to the same slug, treat the collision as a doctor defect and preserve facts through one accepted resolution.
 
