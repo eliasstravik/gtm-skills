@@ -4,7 +4,7 @@ This table is the public version record for the installable skills. Version `1.0
 
 | Skill | Skill version | Last behavior change | Purpose | Shipped library | Exercised loaders | Checked |
 | --- | --- | --- | --- | --- | --- | --- |
-| `gtm-workspace` | 1.0.0 | 2026-08-24 | Creates, imports, maintains, and repairs the shared organization workspace | None | Shared `.agents/skills` loader; project `.claude/skills` loader | 2026-08-28 |
+| `gtm-workspace` | 1.1.0 | 2026-08-30 | Creates, imports, maintains, and repairs the shared organization workspace | None | Shared `.agents/skills` loader; project `.claude/skills` loader | 2026-08-30 |
 | `gtm-icp` | 1.0.0 | 2026-08-13 | Owns node-local ideal customer profile creation, revision, deletion, and repair | None | Shared `.agents/skills` loader; project `.claude/skills` loader | 2026-08-28 |
 | `gtm-persona` | 1.0.0 | 2026-08-13 | Owns node-local buyer and stakeholder persona creation, revision, deletion, and repair | None | Shared `.agents/skills` loader; project `.claude/skills` loader | 2026-08-28 |
 | `gtm-workflow` | 1.0.0 | 2026-08-28 | Authors and runs typed, migrated workflows with cache, cost, approval, and deployment controls | `gtm-lib` v10 | Shared `.agents/skills` loader; project `.claude/skills` loader | 2026-08-28 |
