@@ -43,7 +43,7 @@ Use this contract when creating, importing, updating, deleting, or doctoring a G
 
 Keep content factual, flat, and small. Research may use model knowledge, public sources, or user-supplied files and folders, but the user's accept/iterate/cancel loop decides what becomes durable.
 
-`ORG.md` starts with the display-name H1 and normally uses `## Overview`, `## Products & Services`, `## Links`, and `## Notes`. Omit empty sections and add another flat H2 only when the available facts make it useful. `## Links` holds plain public URLs with readable labels.
+`ORG.md` starts with the display-name H1. Every new or fully researched `ORG.md` follows the [company-data research contract](company-data.md), using its 13 fields for sourced organization facts. Keep unresolved fields visible as `Unknown`. Optional `## Links` and `## Notes` sections may follow; omit them when empty. `## Links` holds plain public URLs with readable labels.
 
 `MEMBER.md` starts with the full-name H1. `## Identity` contains `- Email:` and, when known, `- Role:` and `- Suborganizations:`. `## Links` and `## Notes` are optional. Never infer a member's email.
 
