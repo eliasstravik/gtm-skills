@@ -23,10 +23,10 @@ Reply with a number, or type your answer.
 
 1. Resolve the workspace and create owner. Make the owner choice before reading any ICP.
 2. Read the root-to-owner `ORG.md` chain and only owner-local ICPs. Put the context line below the next bold question instead of sending it first.
-3. Extract supplied facts before asking anything. Ask one freeform question at a time only for facts needed to make the ICP matchable: display name, account traits, fit signals or buying context, disqualifiers, and material unknowns.
-4. Apply link safety to supplied sources. Research is optional.
+3. Extract supplied facts before asking anything. Ask one freeform question at a time only for facts needed to make the ICP matchable: display name, desired or accepted company-data criteria, fit signals or buying context, disqualifiers, and material unknowns.
+4. Apply link safety to supplied sources. Research every field in the shared `company-data.md` when safe sources are available. Treat sources as evidence for criteria the user may accept, not permission to infer criteria from organization facts.
 5. Compare only owner-local ICPs for material overlap. If a near-duplicate exists, explain it and ask whether to update the existing ICP `(Recommended)` or continue with a distinct definition.
-6. Draft `icps/<slug>/ICP.md` from accepted or safely sourced facts. Preserve uncertainty and disqualifiers; omit unsupported and empty sections.
+6. Draft `icps/<slug>/ICP.md` from `templates/icp.md` using accepted or safely sourced criteria. Keep all 13 company-data fields in order and write `Unknown` for unresolved criteria. Preserve uncertainty and disqualifiers; omit only unsupported optional sections after `## Company data`.
 7. Begin the proposal turn with `**Would you like to save this proposal?**`; place the required context line and any overlap explanation below that question when they share the turn, then show the exact target and complete Markdown through the accept/change/cancel loop.
 8. After acceptance, create only the needed `icps/<slug>/` directory and `ICP.md`, persist the accepted change, and close with path, owner, qualified label, factual summary, and “saved to history.”
 
@@ -34,7 +34,7 @@ Reply with a number, or type your answer.
 
 1. Resolve the workspace and target under the artifact-reading node rule, then state the context line with the owning node's display name, never the repo root's name for a suborganization target.
 2. If several ICPs are visible and none was named, list only those visible ICPs and ask which one to update.
-3. Read the target and `ORG.md` chain. Gather only the requested change and preserve unrelated facts and freeform headings.
+3. Read the target and `ORG.md` chain. Gather only the requested change and preserve unrelated facts and freeform headings. For a full research refresh, apply all 13 fields from the shared `company-data.md`, research them from safe supplied sources, preserve accepted criteria that new evidence does not disprove, and keep unresolved criteria visible as `Unknown`. A narrower refresh changes only the scope the user requested.
 4. Begin the proposal turn with `**Would you like to save this proposal?**`, then preview the path plus complete before and after Markdown through the accept loop.
 5. After acceptance, write exactly the after bytes, persist only that ICP, and close with the qualified label, exact change summary, and “saved to history.”
 

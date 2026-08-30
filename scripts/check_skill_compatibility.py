@@ -18,6 +18,27 @@ CONTRACT_FIELDS = ("Reads", "Writes", "Outputs", "Approval", "Persists", "Handof
 FRONTMATTER = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
 FIELD = re.compile(r"^(?P<key>[A-Za-z][A-Za-z0-9_-]*):\s*(?P<value>.+?)\s*$")
 LINK = re.compile(r"!?\[[^\]]*\]\((?P<target>[^)]+)\)")
+COMPANY_DATA_FIELDS = (
+    "Business types",
+    "Industries",
+    "Subindustries",
+    "Revenue streams",
+    "Annual revenue",
+    "Company size",
+    "Company type",
+    "Description",
+    "Domain",
+    "Employees",
+    "Location",
+    "Products and services",
+    "Tech stack",
+)
+COMPANY_DATA_FILES = (
+    Path("gtm-workspace/references/company-data.md"),
+    Path("gtm-workspace/templates/AGENTS.md"),
+    Path("gtm-workspace/templates/org.md"),
+    Path("gtm-icp/templates/icp.md"),
+)
 
 
 def parse_frontmatter(skill_md: Path, errors: list[str]) -> dict[str, str]:
@@ -88,6 +109,76 @@ def check_skill(skill_dir: Path, errors: list[str]) -> None:
     check_links(skill_md, errors)
 
 
+def company_data_fields(path: Path) -> tuple[str, ...]:
+    text = path.read_text()
+    if path.name != "company-data.md":
+        section = re.search(
+            r"^## Company data(?: contract)?\n(?P<body>.*?)(?=^## |\Z)",
+            text,
+            re.DOTALL | re.MULTILINE,
+        )
+        if not section:
+            return ()
+        text = section.group("body")
+    if path.name in {"org.md", "icp.md"}:
+        matches = re.findall(r"^- \*\*(.+?):\*\*", text, re.MULTILINE)
+    else:
+        matches = re.findall(r"^\d+\. \*\*(.+?)\*\*(?::|$)", text, re.MULTILINE)
+    return tuple(matches)
+
+
+def check_company_data_contract(skills_root: Path, errors: list[str]) -> None:
+    for relative in COMPANY_DATA_FILES:
+        path = skills_root / relative
+        if not path.is_file():
+            errors.append(f"{path}: missing company-data contract file")
+            continue
+        fields = company_data_fields(path)
+        if fields != COMPANY_DATA_FIELDS:
+            errors.append(
+                f"{path}: company-data fields are {fields!r}; expected {COMPANY_DATA_FIELDS!r}"
+            )
+
+    required_template_fragments = (
+        "**Estimated:**",
+        "**Lower bound:**",
+        "**Upper bound:**",
+        "**City:**",
+        "**Country:**",
+        "**Country code:**",
+        "**Headquarters:**",
+        "**Postal code:**",
+        "**Region:**",
+        "**State or province:**",
+        "**Categories:**",
+        "**Products:**",
+        "**Vendors:**",
+    )
+    for relative in (Path("gtm-workspace/templates/org.md"), Path("gtm-icp/templates/icp.md")):
+        path = skills_root / relative
+        if not path.is_file():
+            continue
+        text = path.read_text()
+        for fragment in required_template_fragments:
+            if fragment not in text:
+                errors.append(f"{path}: company-data template is missing {fragment}")
+        if text.count("**Estimated:**") != 2:
+            errors.append(f"{path}: annual revenue and employees must each track estimated status")
+
+    pointer_checks = {
+        Path("gtm-workspace/SKILL.md"): "references/company-data.md",
+        Path("gtm-workspace/references/contract.md"): "(company-data.md)",
+        Path("gtm-workspace/references/flows.md"): "company-data.md",
+        Path("gtm-icp/SKILL.md"): "../gtm-workspace/references/company-data.md",
+        Path("gtm-icp/references/contract.md"): "../../gtm-workspace/references/company-data.md",
+        Path("gtm-icp/references/flows.md"): "company-data.md",
+    }
+    for relative, pointer in pointer_checks.items():
+        path = skills_root / relative
+        if not path.is_file() or pointer not in path.read_text():
+            errors.append(f"{path}: missing company-data contract pointer {pointer!r}")
+
+
 def main() -> int:
     errors: list[str] = []
     skill_dirs = sorted(path for path in SKILLS_ROOT.iterdir() if path.is_dir())
@@ -96,6 +187,7 @@ def main() -> int:
 
     for skill_dir in skill_dirs:
         check_skill(skill_dir, errors)
+    check_company_data_contract(SKILLS_ROOT, errors)
 
     with tempfile.TemporaryDirectory(prefix="gtm-skill-loaders-") as temporary:
         install_root = Path(temporary)
@@ -103,7 +195,10 @@ def main() -> int:
             for skill_dir in skill_dirs:
                 installed = install_root / loader_root / skill_dir.name
                 shutil.copytree(skill_dir, installed)
+            for skill_dir in skill_dirs:
+                installed = install_root / loader_root / skill_dir.name
                 check_skill(installed, errors)
+            check_company_data_contract(install_root / loader_root, errors)
 
     if errors:
         print("Skill compatibility check failed:")
