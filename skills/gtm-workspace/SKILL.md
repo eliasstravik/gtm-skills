@@ -11,7 +11,7 @@ Apply this Lifecycle SOP when the requested outcome creates, imports, maintains,
 
 ## Scope
 
-Own the plain-Markdown workspace at `~/.gtm/<org-slug>/` across creation, import, organization and member maintenance, legacy-shape migration, structural or Git repair, and deletion. Create and fully research `ORG.md` artifacts with the shared company-data contract. Preserve node-owned ICP and persona artifacts without authoring or validating their contents.
+Own the plain-Markdown workspace at `~/.gtm/<org-slug>/` across creation, import, organization and member maintenance, legacy-shape migration, structural or Git repair, and deletion. Create and fully research `ORG.md` artifacts with the shared company-data contract and `MEMBER.md` artifacts with the shared person-data contract. Preserve node-owned ICP and persona artifacts without authoring or validating their contents.
 
 **Contract**
 
@@ -57,6 +57,7 @@ If a required reference is unavailable, use `templates/AGENTS.md` as the minimum
 - Begin each question-bearing message with its single bold question without `AskUserQuestion`; place status, context, guidance, examples, and numbered choices below it, mark at most one choice `(Recommended)`, and end discrete choices exactly `Reply with a number, or type your answer.`
 - Preview every durable workspace action before writing, apply exactly the accepted proposal, and preserve compatibility with the workspace contract. Use folder, history, and private-sharing language by default; keep branch, remote, upstream, and command details internal unless a problem requires them or the user asks.
 - Keep all 13 company-data fields in the required order for every new or fully researched `ORG.md`; preserve uncertainty and write `Unknown` instead of inventing or dropping unresolved facts.
+- Keep all eight person-data fields in the required order for every new or fully researched `MEMBER.md`; retain the required supplied email outside that contract, preserve uncertainty, and write `Unknown` instead of inventing or dropping unresolved facts.
 - Keep accepted changes on `main`, stage only accepted paths, inspect the staged diff, and describe a verified durable result as “saved to history.”
 - Close only after every selected-flow completion criterion in `references/flows.md` is satisfied.
 
@@ -64,5 +65,6 @@ If a required reference is unavailable, use `templates/AGENTS.md` as the minimum
 
 - Read [the workspace contract](references/contract.md) for every flow; it defines storage, content, link safety, doctor checks, and persistence.
 - Read [the company-data research contract](references/company-data.md) before creating or fully researching an `ORG.md`; it defines the ordered fields, value shapes, uncertainty rules, and shared ICP semantics.
+- Read [the person-data research contract](references/person-data.md) before creating or fully researching a `MEMBER.md`; it defines the ordered fields, value shapes, uncertainty rules, supplied-email boundary, and shared persona semantics.
 - Read [the guided flows](references/flows.md) after selecting the Procedure row; it defines question order, acceptance, recovery, and closure.
 - Render [templates](templates/) when creating or restoring contract files, replacing placeholders and omitting empty optional fields or sections.

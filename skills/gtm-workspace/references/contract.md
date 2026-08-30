@@ -33,7 +33,7 @@ Use this contract when creating, importing, updating, deleting, or doctoring a G
 - Any organization node may carry `icps/` and `personas/`. The workspace root alone may carry `workflows/`, a `gtm-workflow`-owned Node project; a suborganization's workflow lives at root `workflows/workflows/<suborg-path>/<slug>.ts`. New ICP and persona artifacts use `icps/<slug>/ICP.md` and `personas/<slug>/PERSONA.md`; existing flat `<slug>.md` artifacts remain compatible without migration. Artifact lifecycles belong to `gtm-icp`, `gtm-persona`, and `gtm-workflow`; `gtm-workspace` validates placement but not content.
 - A member belongs to one owning organization node and lives directly below it at `members/<member-slug>/MEMBER.md`. Move the directory to change ownership; never duplicate a record implicitly.
 - The H1 of every `ORG.md` and `MEMBER.md` is its display name.
-- `MEMBER.md` contains a non-empty `- Email:` line. Role and `Suborganizations:` are optional facts, not required guesses. A `Suborganizations:` value records additional affiliations; the file path remains the ownership source of truth.
+- `MEMBER.md` contains a non-empty `- Email:` line supplied by the user or stated directly by a source. Role and `Suborganizations:` are optional facts, not required guesses. A `Suborganizations:` value records additional affiliations; the file path remains the ownership source of truth.
 - Tracked content contains no machine state: no hidden coordination state, caches, generated indexes, run outputs, or logs. The workflow project's exact dependency pins and lockfile are authored content. Workflow working state is permitted only when gitignored and untracked.
 - Repos contain no empty directories or placeholder files. Omit unknown sections or leave a short factual note; never write TODO/TBD-only artifacts.
 - Everything stays on `main`. Accepted changes are committed; history is the undo mechanism.
@@ -45,7 +45,7 @@ Keep content factual, flat, and small. Research may use model knowledge, public 
 
 `ORG.md` starts with the display-name H1. Every new or fully researched `ORG.md` follows the [company-data research contract](company-data.md), using its 13 fields for sourced organization facts. Keep unresolved fields visible as `Unknown`. Optional `## Links` and `## Notes` sections may follow; omit them when empty. `## Links` holds plain public URLs with readable labels.
 
-`MEMBER.md` starts with the full-name H1. `## Identity` contains `- Email:` and, when known, `- Role:` and `- Suborganizations:`. `## Links` and `## Notes` are optional. Never infer a member's email.
+`MEMBER.md` starts with the full-name H1. `## Identity` contains the required supplied `- Email:` identifier and, when known, `- Role:` and `- Suborganizations:`. Every new or fully researched `MEMBER.md` follows the shared [person-data research contract](person-data.md), using its eight fields for sourced person facts. Keep unresolved shared fields visible as `Unknown`. Optional `## Links` and `## Notes` sections may follow; omit them when empty. Never infer a member's email.
 
 ## Legacy compatibility and migration
 

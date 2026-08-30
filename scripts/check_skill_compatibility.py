@@ -39,6 +39,22 @@ COMPANY_DATA_FILES = (
     Path("gtm-workspace/templates/org.md"),
     Path("gtm-icp/templates/icp.md"),
 )
+PERSON_DATA_FIELDS = (
+    "Full name",
+    "Education",
+    "Estimated followers",
+    "Experience",
+    "Languages",
+    "Location",
+    "Network size",
+    "Professional profile",
+)
+PERSON_DATA_FILES = (
+    Path("gtm-workspace/references/person-data.md"),
+    Path("gtm-workspace/templates/AGENTS.md"),
+    Path("gtm-workspace/templates/MEMBER.md"),
+    Path("gtm-persona/templates/persona.md"),
+)
 
 
 def parse_frontmatter(skill_md: Path, errors: list[str]) -> dict[str, str]:
@@ -179,6 +195,98 @@ def check_company_data_contract(skills_root: Path, errors: list[str]) -> None:
             errors.append(f"{path}: missing company-data contract pointer {pointer!r}")
 
 
+def person_data_fields(path: Path) -> tuple[str, ...]:
+    text = path.read_text()
+    if path.name != "person-data.md":
+        section = re.search(
+            r"^## Person data(?: contract)?\n(?P<body>.*?)(?=^## |\Z)",
+            text,
+            re.DOTALL | re.MULTILINE,
+        )
+        if not section:
+            return ()
+        text = section.group("body")
+    if path.name.lower() in {"member.md", "persona.md"}:
+        matches = re.findall(r"^- \*\*(.+?):\*\*", text, re.MULTILINE)
+    else:
+        matches = re.findall(r"^\d+\. \*\*(.+?)\*\*(?::|$)", text, re.MULTILINE)
+    return tuple(matches)
+
+
+def check_person_data_contract(skills_root: Path, errors: list[str]) -> None:
+    for relative in PERSON_DATA_FILES:
+        path = skills_root / relative
+        if not path.is_file():
+            errors.append(f"{path}: missing person-data contract file")
+            continue
+        fields = person_data_fields(path)
+        if fields != PERSON_DATA_FIELDS:
+            errors.append(
+                f"{path}: person-data fields are {fields!r}; expected {PERSON_DATA_FIELDS!r}"
+            )
+
+    required_template_fragments = (
+        "**Activities:**",
+        "**Degree:**",
+        "**Description:**",
+        "**Field of study:**",
+        "**School name:**",
+        "**Company name:**",
+        "**Employment type:**",
+        "**Experience description:**",
+        "**Current-role status:**",
+        "**Job title:**",
+        "**Display location:**",
+        "**Seniority:**",
+        "**Years of experience:**",
+        "**About:**",
+        "**Headline:**",
+    )
+    for relative in (
+        Path("gtm-workspace/templates/MEMBER.md"),
+        Path("gtm-persona/templates/persona.md"),
+    ):
+        path = skills_root / relative
+        if not path.is_file():
+            continue
+        text = path.read_text()
+        for fragment in required_template_fragments:
+            if fragment not in text:
+                errors.append(f"{path}: person-data template is missing {fragment}")
+        for repeated in (
+            "**End date:**",
+            "**Start date:**",
+            "**City:**",
+            "**Country:**",
+            "**Region:**",
+            "**State:**",
+        ):
+            if text.count(repeated) != 2:
+                errors.append(
+                    f"{path}: education/experience or nested/top-level location must each include {repeated}"
+                )
+
+    member_template = skills_root / "gtm-workspace/templates/MEMBER.md"
+    if member_template.is_file() and "- Email:" not in member_template.read_text():
+        errors.append(f"{member_template}: member template is missing its Email identifier")
+    persona_template = skills_root / "gtm-persona/templates/persona.md"
+    if persona_template.is_file() and "Email" in persona_template.read_text():
+        errors.append(f"{persona_template}: persona template must not include Email")
+
+    pointer_checks = {
+        Path("gtm-workspace/SKILL.md"): "references/person-data.md",
+        Path("gtm-workspace/references/contract.md"): "(person-data.md)",
+        Path("gtm-workspace/references/flows.md"): "person-data.md",
+        Path("gtm-persona/SKILL.md"): "../gtm-workspace/references/person-data.md",
+        Path("gtm-persona/references/contract.md"): "../../gtm-workspace/references/person-data.md",
+        Path("gtm-persona/references/flows.md"): "person-data.md",
+    }
+    for relative, pointer in pointer_checks.items():
+        path = skills_root / relative
+        if not path.is_file() or pointer not in path.read_text():
+            errors.append(f"{path}: missing person-data contract pointer {pointer!r}")
+
+
 def main() -> int:
     errors: list[str] = []
     skill_dirs = sorted(path for path in SKILLS_ROOT.iterdir() if path.is_dir())
@@ -188,6 +296,7 @@ def main() -> int:
     for skill_dir in skill_dirs:
         check_skill(skill_dir, errors)
     check_company_data_contract(SKILLS_ROOT, errors)
+    check_person_data_contract(SKILLS_ROOT, errors)
 
     with tempfile.TemporaryDirectory(prefix="gtm-skill-loaders-") as temporary:
         install_root = Path(temporary)
@@ -199,6 +308,7 @@ def main() -> int:
                 installed = install_root / loader_root / skill_dir.name
                 check_skill(installed, errors)
             check_company_data_contract(install_root / loader_root, errors)
+            check_person_data_contract(install_root / loader_root, errors)
 
     if errors:
         print("Skill compatibility check failed:")

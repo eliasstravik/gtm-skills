@@ -2,6 +2,7 @@
 
 ## Unreleased, gtm-lib v11
 
+- New and fully researched member and persona artifacts now use the same eight-field person-data contract. Member email remains a separate supplied identifier and is never inferred.
 - New and fully researched organization and ICP artifacts now use the same 13-field company-data contract, with explicit unknowns and separate employee-range, employee-count, location, and tech-stack shapes.
 - GTM workspace creation can now skip member onboarding and continue directly to the sharing choice.
 - Updated the pinned workflow runtime from beta.44 to beta.46 after the template suite passed on engine 22 and the forced webhook-resume probe passed on engine 24. The engine ceiling stays unchanged until the stable runtime declares support.
