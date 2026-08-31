@@ -1,6 +1,8 @@
-# GTM agent requirements for workflow v10
+# GTM agent requirements for workflow v11
 
-This is the host contract for a small Eve Slack agent that authors the v10 `gtm-workflow` project in one connected GTM workspace and runs it on Vercel. Vercel deploys the workflow project from that same repository. The sandbox never starts a real run.
+This is the host contract for a small Eve Slack agent that authors the v11 `gtm-workflow` project in one connected GTM workspace and runs it on Vercel. Vercel deploys the workflow project from that same repository. The sandbox never starts a real run.
+
+This contract tracks the workflow library major version: refresh it in the same reviewed change as every `gtm-lib` bump, so it never describes a project shape the skill no longer authors.
 
 ## What belongs in the reusable gtm-agent template
 
