@@ -26,4 +26,4 @@ Redaction is a fallback, not a storage mechanism for secrets. Adapters should th
 
 ## Supported versions
 
-The current skill and workflow-library versions are listed in [VERSIONS.md](VERSIONS.md). Security fixes target the current release. Upgrade older workflow projects through the skill's reviewed recopy and migration path.
+The current project version and workflow library generation are listed in [VERSIONS.md](VERSIONS.md). Security fixes target the current release. Upgrade older workflow projects through the skill's reviewed recopy and migration path.
