@@ -9,8 +9,8 @@ import { test } from "node:test";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v12 templates pass the deterministic workflow contract", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v12-"));
+test("v13 templates pass the deterministic workflow contract", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v13-"));
   let vendor;
   let server;
   let releaseSlowRequest;
@@ -117,7 +117,7 @@ test("v12 templates pass the deterministic workflow contract", async (context) =
   const checked = JSON.parse(lastJsonLine(check.stdout));
   assert.equal(checked.ok, true);
   assert.equal(checked.workflows, 9);
-  assert.equal(checked.libVersion, 12);
+  assert.equal(checked.libVersion, 13);
   const providers = await gtm(directory, env, ["providers", "list", "organization", "--format", "json"]);
   assert.deepEqual(providers, [{
     name: "mock-data",
@@ -818,7 +818,9 @@ async function assertCheckRules(directory, env) {
   await expectCheckViolation(tablePath, (source) => source.replaceAll(".primaryKey()", ""), "invalid_result_table", directory, env);
   await expectCheckViolation(migrationPath, (source) => `${source}\nDELETE FROM workflow_runs;\n`, "destructive_migration", directory, env);
   await expectCheckViolation(migrationPath, (source) => `${source}\nALTER TABLE workflow_runs RENAME TO old_workflow_runs;\n`, "destructive_migration", directory, env);
-  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v12\n", "// gtm-lib v12\n\n"), "lib_modified", directory, env);
+  await expectCheckViolation(migrationPath, (source) => `${source}\n-- gtm: destructive accepted\nDROP TABLE IF EXISTS gtm_check_probe;\n`, "destructive_migration", directory, env);
+  await expectCheckPasses(migrationPath, (source) => `-- gtm: destructive accepted\n${source}\nDROP TABLE IF EXISTS gtm_check_probe;\n`, directory, env);
+  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v13\n", "// gtm-lib v13\n\n"), "lib_modified", directory, env);
 }
 
 async function assertDirtyProductionStartRefused(directory, env, inputFile, nitroPort) {
@@ -840,6 +842,17 @@ async function assertDirtyProductionStartRefused(directory, env, inputFile, nitr
   delete cleanEnv.VERCEL_GIT_COMMIT_SHA;
   const refused = await gtmFailure(directory, cleanEnv, ["run", "local-proof", "--input", inputFile]);
   assert.equal(refused.error.code, "deployment_workspace_dirty");
+}
+
+async function expectCheckPasses(path, mutate, directory, env) {
+  const source = await readFile(path, "utf8");
+  await writeFile(path, mutate(source));
+  try {
+    const result = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
+    assert.equal(JSON.parse(lastJsonLine(result.stdout)).ok, true, `${relative(directory, path)} should pass check`);
+  } finally {
+    await writeFile(path, source);
+  }
 }
 
 async function expectCheckViolation(path, mutate, code, directory, env) {
