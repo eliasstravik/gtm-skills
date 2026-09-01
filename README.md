@@ -67,18 +67,18 @@ The GTM workspace records durable facts about the business and its team. ICPs de
 | **Production refuses to run a commit other than the accepted commit** | ✅ | ❌ | ❌ | ❌ |
 | **The same workflow file runs locally or in a hosted deployment** | ✅ | ❌ | ❌ | ❌ |
 
-Keep durable GTM knowledge and reusable automations in one repository. Each SOP reads only the artifacts visible to the selected organization node and preserves accepted durable changes in history.
+Keep durable GTM knowledge and reusable automations in one repository. Each skill reads only the artifacts visible to the selected organization node and preserves accepted durable changes in history.
 
 ## How the five skills fit together
 
-Four lifecycle skills form one chain of durable ownership; one domain skill performs bounded in-session work from their shared facts. They resolve the same organization node, while durable changes use the same review-before-write rule and Git history.
+Four Lifecycle Skills form one chain of durable ownership; one Task Skill performs bounded in-session work from their shared facts. They resolve the same organization node, while durable changes use the same review-before-write rule and Git history.
 
 | Skill | Owns | Hands off |
 | --- | --- | --- |
 | `gtm-workspace` | Organization structure, members, repository health, and connections | The selected organization node and its visible files |
 | `gtm-icp` | The companies that node serves, including disqualifiers and uncertainty | An accepted market definition at a stable path |
 | `gtm-persona` | The buyers and stakeholders that node needs to understand | An accepted buyer definition at a stable path |
-| `gtm-qualify` | In-session person-to-persona and company-to-ICP fit qualification | Per-row fit verdicts in the conversation |
+| `gtm-qualify-prospects` | In-session person-to-persona and company-to-ICP fit qualification | Per-row fit verdicts in the conversation |
 | `gtm-workflow` | Typed workflow code, migrations, runs, results, cache entries, and costs | Database-backed outcomes tied to the accepted workspace context |
 
 Project records: [versions and compatibility](VERSIONS.md) · [changelog](CHANGELOG.md) · [security policy](SECURITY.md) · [contribution rules](CONTRIBUTING.md)
@@ -115,7 +115,7 @@ No. The agent writes the workflow code and migrations. You review the complete t
 
 ### What gets installed?
 
-The install command adds GTM Workspace, GTM ICP, GTM Persona, GTM Qualify, and GTM Workflow. Run `/gtm-workspace` first, use `/gtm-icp` and `/gtm-persona` for the definitions your organization owns, `/gtm-qualify` for bounded in-session fit checks, and `/gtm-workflow` for reusable automations.
+The install command adds GTM Workspace, GTM ICP, GTM Persona, GTM Qualify Prospects, and GTM Workflow. Run `/gtm-workspace` first, use `/gtm-icp` and `/gtm-persona` for the definitions your organization owns, `/gtm-qualify-prospects` for bounded in-session fit checks, and `/gtm-workflow` for reusable automations.
 
 ### What does GTM Workspace store?
 

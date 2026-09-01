@@ -1,6 +1,6 @@
 # Getting started: build your GTM foundation
 
-GTM Skills gives your AI agent five focused SOPs—four lifecycle skills and one domain skill—that share one Git-backed source of truth. This guide takes you from installation to a GTM workspace with its first ICP, persona, and reusable workflow: the agent writes the code, and you review one diff and one dry run.
+GTM Skills gives your AI agent five focused skills: four Lifecycle Skills and one Task Skill. They share one Git-backed source of truth. This guide takes you from installation to a GTM workspace with its first ICP, persona, and reusable workflow: the agent writes the code, and you review one diff and one dry run.
 
 ## 1. Check the prerequisites
 
@@ -19,7 +19,7 @@ Install all five skills globally:
 npx skills add eliasstravik/gtm-skills -g
 ```
 
-Your agent can now use GTM Workspace, GTM ICP, GTM Persona, GTM Qualify, and GTM Workflow.
+Your agent can now use GTM Workspace, GTM ICP, GTM Persona, GTM Qualify Prospects, and GTM Workflow.
 
 ## 3. Build your GTM workspace
 
@@ -137,7 +137,7 @@ Use the same five skills as the organization evolves:
 - Run `/gtm-workspace` to update organization facts or members, add suborganizations, or validate and repair the repository.
 - Run `/gtm-icp` to create, refine, delete, or doctor an ICP.
 - Run `/gtm-persona` to create, refine, delete, or doctor a persona.
-- Run `/gtm-qualify` to qualify supplied people against saved personas and companies against saved ICPs in-session.
+- Run `/gtm-qualify-prospects` to qualify supplied people against saved personas and companies against saved ICPs in-session.
 - Run `/gtm-workflow` to create, update, inspect, delete, or run a saved workflow.
 
 Every accepted change is saved to Git history so it can be reviewed and recovered.

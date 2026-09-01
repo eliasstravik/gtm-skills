@@ -14,19 +14,28 @@ Work moves between the execution modes in one direction. A method is proven in-s
 
 Knowledge crosses that boundary only at authoring time: the agent compiles a skill's method and the accepted workspace-artifact text into the workflow's committed `agent()` prompts (accepted ICP or persona text passed as `agent({ context, contextId })`, the `contextId` naming its source artifact). A workflow never loads, resolves, or fetches skill content at run time — a production run resolves no knowledge outside its reviewed commit. When the source method or artifact later changes, deployed workflows deliberately keep the text they were compiled with until a session recompiles them as a reviewed change.
 
-## Two skill species
+## Skill types
 
-- A **lifecycle skill** (`gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-workflow`) owns the full lifecycle of a durable artifact or project and carries the full SOP contract: trigger, scope, contract table, approval gates, and handoffs. Add one only when a genuinely new durable artifact type needs an owner.
-- A **domain skill** (future `gtm-*` work skills such as lead scoring or sequencing) does GTM work in a session using the facts layer. It never owns durable artifacts and never embeds its own runners, provider adapters, tables, caches, or ledgers; saved execution belongs to `gtm-workflow`.
+| Type | Owns | Naming rule | Example |
+| --- | --- | --- | --- |
+| Artifact Skill | One output's required contents and acceptance criteria | Bare noun | `gtm-report` |
+| Process Skill | A recurring, cross-step process | Gerund | `gtm-reporting` |
+| Lifecycle Skill | One entity across creation, maintenance, and retirement | Bare noun naming the entity; never `-management` | `gtm-workspace` |
+| Task Skill | One bounded action | Imperative verb-noun | `gtm-qualify-prospects` |
+| Policy Skill | Declarative constraints, taste, or quality bars | Bare noun or plural | `gtm-writing` |
 
-A domain skill is admitted when both hold: **generic** (no company-specific substance; the vendor swap test below applies to companies too) and **grounded** (the method consumes workspace artifacts or workflow result tables, not free-floating prompting).
+Classify a skill by what it owns, not by incidental verbs in its prose. A Task Skill's noun takes the number the task operates on per invocation: one CRM becomes `gtm-clean-crm`, while a batch of rows becomes `gtm-qualify-prospects`. A Task Skill does its task in session when viable. When the task recurs or runs at volume, it builds a workflow through `gtm-workflow` and still does the task. Where that boundary sits is a property of the task, not a different type.
 
-Domain skill anatomy:
+The current Lifecycle Skills are `gtm-workspace`, `gtm-icp`, `gtm-persona`, and `gtm-workflow`. Each owns the full lifecycle of a durable artifact or project and carries the full Skill contract: trigger, scope, contract table, approval gates, and handoffs. Add a Lifecycle Skill only when a genuinely new durable artifact type needs an owner. The current Task Skill is `gtm-qualify-prospects`.
 
-- One light `SKILL.md` wrapper written for interactive session use; it does not need the lifecycle contract table.
-- A standard graduation clause: when the work becomes recurring or at-volume, hand off to `gtm-workflow` and compile the method into the workflow's committed prompts.
-- `references/method.md` — the medium-neutral method: criteria, steps, and quality bars with no interaction assumptions — is split out of the wrapper at first graduation, not before. After the split the wrapper keeps zero method content, so the method has exactly one source.
-- Session paid calls: any skill session, lifecycle research included, makes paid calls only with explicit human approval per call, or one exact-scope gate per batch that names the entities, provider capability, call count, effect, and the cost the session can state (unit and total, or credits) or explicitly states that cost is not stateable from the session's tooling. Credentials remain under the secrets rules below. Recurring or at-volume spend graduates to a workflow, where every paid call is cached and ledgered.
+Non-lifecycle skills, primarily Task Skills, are admitted when both conditions hold: **generic** means no company-specific substance, with the vendor swap test below applying to companies too; **grounded** means the method consumes workspace artifacts or workflow result tables rather than free-floating prompting. They do not own durable artifacts or embed their own runners, provider adapters, tables, caches, or ledgers. Saved execution belongs to `gtm-workflow`.
+
+Non-lifecycle skill anatomy:
+
+- One light `SKILL.md` wrapper written for interactive session use; it does not need the Lifecycle Skill contract table.
+- A standard graduation clause: when the work becomes recurring or at volume, hand off to `gtm-workflow` and compile the method into the workflow's committed prompts.
+- `references/method.md` holds the medium-neutral method: criteria, steps, and quality bars with no interaction assumptions. Split it out of the wrapper at first graduation, not before. After the split, the wrapper keeps zero method content, so the method has exactly one source.
+- Any skill session, including Lifecycle Skill research, makes paid calls only with explicit human approval per call, or one exact-scope gate per batch that names the entities, provider capability, call count, effect, and the cost the session can state (unit and total, or credits) or explicitly states that cost is not stateable from the session's tooling. Credentials remain under the secrets rules below. Recurring or at-volume spend graduates to a workflow, where every paid call is cached and ledgered.
 
 ## Hard rejects
 
