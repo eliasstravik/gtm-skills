@@ -1,13 +1,13 @@
 ---
-name: gtm-qualify
-description: Triggers when a user asks to qualify, score, or fit-check supplied leads, accounts, contacts, people, or companies against a connected GTM workspace's saved ICPs or personas, including "is X a fit for us" requests. Not for creating or editing ICPs or personas, saved or scheduled scoring at volume (use gtm-workflow), intent or engagement scoring, or workspace repair.
+name: gtm-qualify-prospects
+description: Triggers when a user asks to qualify, score, or fit-check supplied leads, accounts, contacts, people, or companies in either supported mode, people against a connected GTM workspace's saved personas or companies against its saved ICPs. Includes "is X a fit for us" requests. Not for creating or editing ICPs or personas, saved or scheduled scoring at volume (use gtm-workflow), intent or engagement scoring, or workspace repair.
 ---
 
-# GTM Qualify
+# GTM Qualify Prospects
 
 ## Trigger
 
-Apply this Task SOP when the user supplies one or more people or companies to qualify against the connected workspace's saved personas or ICPs.
+Apply this Task Skill when the user supplies one or more people or companies to qualify against the connected workspace's saved personas or ICPs.
 
 ## Scope
 
@@ -18,7 +18,7 @@ Own one bounded, in-session qualification action in two strictly separated modes
 | Field | Public contract |
 | --- | --- |
 | Reads | Supplied identifiers and rows, visible ICP and persona files, the shared company/person data contracts, free public research scoped to matched-artifact criteria, and gate-approved paid identity and enrichment calls |
-| Writes | Nothing; any post-SOP file the user requests is ordinary session work outside this contract, and never a file inside the workspace repo |
+| Writes | Nothing; any post-skill file the user requests is ordinary session work outside this contract, and never a file inside the workspace repo |
 | Outputs | Per-row fit verdicts (reasoning ending in a band sentence; confidence · verdict · score) in the conversation; reasoning-only rows for Insufficient Data and No Matching Persona/ICP |
 | Approval | Exact-scope gates per batch of paid calls — identity, then enrichment — each naming entities, capability, call count, effect, and stateable cost or not-stateable |
 | Persists | Nothing; results live in the conversation |

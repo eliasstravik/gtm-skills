@@ -2,9 +2,9 @@
 
 ## Unreleased, gtm-lib v11
 
-- Added `gtm-qualify`, the first domain skill, for bounded in-session qualification of people against personas and companies against ICPs with strict mode separation and no writes. Its authoring-time invariant places the numeric band mapping once, in Procedure.
+- Renamed the bounded qualification skill to `gtm-qualify-prospects` and classified it as the first Task Skill. It qualifies people against personas and companies against ICPs in session, with strict mode separation and no writes. Its authoring-time invariant places the numeric band mapping once, in Procedure.
 - Session paid calls now allow exact-scope batch approval that states entities, capability, call count, effect, and stateable cost or explicitly says cost is not stateable; recurring or at-volume spend still graduates to `gtm-workflow`.
-- ICP and persona descriptions now route saved-artifact qualification and scoring to `gtm-qualify`.
+- ICP and persona descriptions now route saved-artifact qualification and scoring to `gtm-qualify-prospects`.
 - New and fully researched member and persona artifacts now use the same eight-field person-data contract. Member email remains a separate supplied identifier and is never inferred.
 - New and fully researched organization and ICP artifacts now use the same 13-field company-data contract, with explicit unknowns and separate employee-range, employee-count, location, and tech-stack shapes.
 - GTM workspace creation can now skip member onboarding and continue directly to the sharing choice.
