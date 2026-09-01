@@ -56,7 +56,7 @@ For every vendor mention outside a skill file, replace the vendor mentally with 
 
 - Keep the change inside one declared scope and update the public contract when reads, writes, outputs, approvals, persistence, or handoffs change.
 - Add or update deterministic checks for changed behavior. Tests must not use live credentials, paid calls, or production endpoints.
-- Update [VERSIONS.md](VERSIONS.md) and [CHANGELOG.md](CHANGELOG.md) when behavior changes. A workflow-library bump also requires the release tag described in `VERSIONS.md`.
+- Update [VERSIONS.md](VERSIONS.md) and [CHANGELOG.md](CHANGELOG.md) when behavior changes. Every release requires the project tag described in `VERSIONS.md`; a managed workflow-file change also bumps the library generation.
 - Run `python3 scripts/check_repo_layout.py` and `python3 scripts/check_skill_compatibility.py`. When workflow files change, also run `node --test evals/gtm-workflow/scripts/test-templates.mjs`.
 - Review the staged diff for secret values, unrelated files, remote-code execution, and missing human gates.
 

@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased, gtm-lib v11
+## 0.1.0, 2026-09-01
+
+First release under one project version. Earlier per-skill versions and `gtm-lib-v<generation>` tags are superseded; this release ships workflow library generation 11.
 
 - Renamed the bounded qualification skill to `gtm-qualify-prospects` and classified it as the first Task Skill. It qualifies people against personas and companies against ICPs in session, with strict mode separation and no writes. Its authoring-time invariant places the numeric band mapping once, in Procedure.
 - Session paid calls now allow exact-scope batch approval that states entities, capability, call count, effect, and stateable cost or explicitly says cost is not stateable; recurring or at-volume spend still graduates to `gtm-workflow`.
@@ -10,7 +12,7 @@
 - GTM workspace creation can now skip member onboarding and continue directly to the sharing choice.
 - Updated the pinned workflow runtime from beta.44 to beta.46 after the template suite passed on engine 22 and the forced webhook-resume probe passed on engine 24. The engine ceiling stays unchanged until the stable runtime declares support.
 
-## gtm-lib v10, 2026-08-28
+## Before 0.1.0: gtm-lib v10, 2026-08-28
 
 - Cloud inspection now requires a read-only credential and rejects data-changing statements, including writes hidden behind a common table expression.
 - Untrusted workflow content reaches only model backends that can disable tools. Accepted ICP and persona content now participates in the model cache key.
@@ -21,17 +23,18 @@
 - Production starts require the exact accepted workspace commit. Missing, dirty, unpushed, or mismatched commits stop before a real run.
 - Shared row execution now owns spend caps, checkpoint behavior, per-row failures, honest terminal states, remaining keys, and final bookkeeping.
 
-## gtm-lib v9, 2026-08-27
+## Before 0.1.0: gtm-lib v9, 2026-08-27
 
 - Preserved original provider responses for cache reparsing.
 - Restored the local workflow runtime and made the paid-call ledger authoritative for run totals.
 
 ## Upgrade notes for older projects
 
-| Installed library | User-visible reason to upgrade to v10 |
+| Installed library generation | User-visible reason to upgrade to generation 11 |
 | --- | --- |
 | v2 | No fixed workflow schema or committed migration path |
 | v5 | No supported run cancellation |
 | v6 | Web research evidence can be separated from the structured answer that needs it |
 | v8 | Cached provider responses cannot be reparsed from the original payload, and run totals can diverge from the ledger |
 | v9 | Read-only inspection, tool isolation, duplicate-run protection, context-aware caching, redaction, cost attribution, approval reuse, restart safety, and exact-commit starts are incomplete |
+| v10 | No provider discovery, bounded operator polling, row and step ledger attribution, selective reruns, command-generated diagrams, or receipt summaries |
