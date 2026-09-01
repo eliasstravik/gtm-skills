@@ -9,8 +9,8 @@ import { test } from "node:test";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v11 templates pass the deterministic workflow contract", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v11-"));
+test("v12 templates pass the deterministic workflow contract", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v12-"));
   let vendor;
   let server;
   let releaseSlowRequest;
@@ -117,7 +117,7 @@ test("v11 templates pass the deterministic workflow contract", async (context) =
   const checked = JSON.parse(lastJsonLine(check.stdout));
   assert.equal(checked.ok, true);
   assert.equal(checked.workflows, 9);
-  assert.equal(checked.libVersion, 11);
+  assert.equal(checked.libVersion, 12);
   const providers = await gtm(directory, env, ["providers", "list", "organization", "--format", "json"]);
   assert.deepEqual(providers, [{
     name: "mock-data",
@@ -818,7 +818,7 @@ async function assertCheckRules(directory, env) {
   await expectCheckViolation(tablePath, (source) => source.replaceAll(".primaryKey()", ""), "invalid_result_table", directory, env);
   await expectCheckViolation(migrationPath, (source) => `${source}\nDELETE FROM workflow_runs;\n`, "destructive_migration", directory, env);
   await expectCheckViolation(migrationPath, (source) => `${source}\nALTER TABLE workflow_runs RENAME TO old_workflow_runs;\n`, "destructive_migration", directory, env);
-  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v11\n", "// gtm-lib v11\n\n"), "lib_modified", directory, env);
+  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v12\n", "// gtm-lib v12\n\n"), "lib_modified", directory, env);
 }
 
 async function assertDirtyProductionStartRefused(directory, env, inputFile, nitroPort) {
@@ -1004,7 +1004,8 @@ async function enrichAccount(row: Input["rows"][number], meta: WorkflowMeta, sig
   });
   const rowSchema = createInsertSchema(accounts).pick({ score: true, reason: true });
   const scored = await agent({
-    prompt: "Score " + vendor.value.company,
+    // A template literal in a step before the exported workflow guards the check scanner.
+    prompt: \`Score \${vendor.value.company}\`,
     context: "Accepted ICP: fixture companies.",
     contextId: "icps/fixture.md",
     schema: rowSchema,

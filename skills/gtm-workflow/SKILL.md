@@ -57,7 +57,7 @@ Report a run still active after the bounded poll so `gtm runs get` can retrieve 
 
 - Secrets never appear in prompts, tracked files, conversation, or command output; values move from `.env` through the shell only.
 - Before editing any workflow or managed library file, read the pinned runtime's bundled documentation under `workflows/node_modules/workflow/docs/`; assume prior SDK knowledge is outdated.
-- Run `gtm check` and compare every `// gtm-lib v11` header and recorded content hash before an action. Show locally modified diffs, offer a recopy, and never apply it silently.
+- Run `gtm check` and compare every `// gtm-lib v12` header and recorded content hash before an action. Show locally modified diffs, offer a recopy, and never apply it silently.
 - Copy the versioned lib, routes, scripts, and config verbatim and edit workflow-owned tables, adapters, migrations, and workflow files instead.
 - Route every paid vendor call through `provider()` and every model call through `agent()`.
 - Use committed migrations. The project has no `db:push` command.
