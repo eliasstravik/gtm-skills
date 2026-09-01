@@ -69,15 +69,16 @@ The GTM workspace records durable facts about the business and its team. ICPs de
 
 Keep durable GTM knowledge and reusable automations in one repository. Each SOP reads only the artifacts visible to the selected organization node and preserves accepted durable changes in history.
 
-## How the four skills fit together
+## How the five skills fit together
 
-The four skills are one chain of ownership, not four disconnected prompts. They resolve the same organization node, use the same review-before-write rule, and save accepted durable changes to the same Git history.
+Four lifecycle skills form one chain of durable ownership; one domain skill performs bounded in-session work from their shared facts. They resolve the same organization node, while durable changes use the same review-before-write rule and Git history.
 
 | Skill | Owns | Hands off |
 | --- | --- | --- |
 | `gtm-workspace` | Organization structure, members, repository health, and connections | The selected organization node and its visible files |
 | `gtm-icp` | The companies that node serves, including disqualifiers and uncertainty | An accepted market definition at a stable path |
 | `gtm-persona` | The buyers and stakeholders that node needs to understand | An accepted buyer definition at a stable path |
+| `gtm-qualify` | In-session person-to-persona and company-to-ICP fit qualification | Per-row fit verdicts in the conversation |
 | `gtm-workflow` | Typed workflow code, migrations, runs, results, cache entries, and costs | Database-backed outcomes tied to the accepted workspace context |
 
 Project records: [versions and compatibility](VERSIONS.md) · [changelog](CHANGELOG.md) · [security policy](SECURITY.md) · [contribution rules](CONTRIBUTING.md)
@@ -86,7 +87,7 @@ Project records: [versions and compatibility](VERSIONS.md) · [changelog](CHANGE
 
 <table>
 <tr>
-<td align="center" valign="top" width="25%"><h3>1</h3><b>Install GTM Skills</b><br /><sub>Run <code>npx skills add eliasstravik/gtm-skills -g</code> to install all four skills.</sub></td>
+<td align="center" valign="top" width="25%"><h3>1</h3><b>Install GTM Skills</b><br /><sub>Run <code>npx skills add eliasstravik/gtm-skills -g</code> to install all five skills.</sub></td>
 <td align="center" valign="top" width="25%"><h3>2</h3><b>Build your GTM workspace</b><br /><sub>Run <code>/gtm-workspace</code> to create or import the organization repository and add the members and business units it owns.</sub></td>
 <td align="center" valign="top" width="25%"><h3>3</h3><b>Define the market and buyer</b><br /><sub>Run <code>/gtm-icp</code> and <code>/gtm-persona</code> to create the definitions each organization needs.</sub></td>
 <td align="center" valign="top" width="25%"><h3>4</h3><b>Build your first workflow</b><br /><sub>Run <code>/gtm-workflow</code>, declare its table and caps, review a zero-spend dry run, then inspect the first saved rows at a checkpoint.</sub></td>
@@ -97,7 +98,7 @@ Project records: [versions and compatibility](VERSIONS.md) · [changelog](CHANGE
 
 <table>
 <tr>
-<td align="center" valign="top" width="50%"><h3>Self-serve</h3><sub>For GTM builders and teams using AI agents</sub><br /><h2>Free</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Four installable GTM skills<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Git-backed GTM workspace<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Persona lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Local and Vercel workflows<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Guided previews, caps, and history</div></td>
+<td align="center" valign="top" width="50%"><h3>Self-serve</h3><sub>For GTM builders and teams using AI agents</sub><br /><h2>Free</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Five installable GTM skills<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Git-backed GTM workspace<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Persona lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Local and Vercel workflows<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Guided previews, caps, and history</div></td>
 <td align="center" valign="top" width="50%"><h3>Done-with-you</h3><sub>Hands-on setup and rollout for your GTM team</sub><br /><h2>Let's talk</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Everything in self-serve<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Full GTM Skills setup<br />&nbsp;&nbsp;&nbsp;✓&nbsp; GTM workspace repository configuration<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP, persona, and workflow design<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Team rollout, training, and best practices<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Ongoing maintenance and upgrades<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Dedicated Slack channel support</div></td>
 </tr>
 <tr>
@@ -114,7 +115,7 @@ No. The agent writes the workflow code and migrations. You review the complete t
 
 ### What gets installed?
 
-The install command adds GTM Workspace, GTM ICP, GTM Persona, and GTM Workflow. Run `/gtm-workspace` first, use `/gtm-icp` and `/gtm-persona` for the definitions your organization owns, then use `/gtm-workflow` for reusable automations.
+The install command adds GTM Workspace, GTM ICP, GTM Persona, GTM Qualify, and GTM Workflow. Run `/gtm-workspace` first, use `/gtm-icp` and `/gtm-persona` for the definitions your organization owns, `/gtm-qualify` for bounded in-session fit checks, and `/gtm-workflow` for reusable automations.
 
 ### What does GTM Workspace store?
 
