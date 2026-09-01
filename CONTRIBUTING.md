@@ -26,7 +26,7 @@ Domain skill anatomy:
 - One light `SKILL.md` wrapper written for interactive session use; it does not need the lifecycle contract table.
 - A standard graduation clause: when the work becomes recurring or at-volume, hand off to `gtm-workflow` and compile the method into the workflow's committed prompts.
 - `references/method.md` — the medium-neutral method: criteria, steps, and quality bars with no interaction assumptions — is split out of the wrapper at first graduation, not before. After the split the wrapper keeps zero method content, so the method has exactly one source.
-- Session paid calls: any skill session, lifecycle research included, makes a one-off paid probe only with explicit human approval per call and credentials under the secrets rules below. Recurring or at-volume spend graduates to a workflow, where every paid call is cached and ledgered.
+- Session paid calls: any skill session, lifecycle research included, makes paid calls only with explicit human approval per call, or one exact-scope gate per batch that names the entities, provider capability, call count, effect, and the cost the session can state (unit and total, or credits) or explicitly states that cost is not stateable from the session's tooling. Credentials remain under the secrets rules below. Recurring or at-volume spend graduates to a workflow, where every paid call is cached and ledgered.
 
 ## Hard rejects
 
