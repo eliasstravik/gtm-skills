@@ -1,4 +1,4 @@
-// gtm-lib v11
+// gtm-lib v12
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -449,12 +449,55 @@ async function validateTableSources() {
 
 type CompilerToken = { kind: SyntaxKind; text: string; value: string; start: number; end: number };
 
+/** Token kinds after which a slash is division rather than a regular expression. */
+const EXPRESSION_END_KINDS = new Set<SyntaxKind>([
+  SyntaxKind.Identifier,
+  SyntaxKind.NumericLiteral,
+  SyntaxKind.BigIntLiteral,
+  SyntaxKind.StringLiteral,
+  SyntaxKind.NoSubstitutionTemplateLiteral,
+  SyntaxKind.TemplateTail,
+  SyntaxKind.RegularExpressionLiteral,
+  SyntaxKind.CloseParenToken,
+  SyntaxKind.CloseBracketToken,
+  SyntaxKind.CloseBraceToken,
+  SyntaxKind.ThisKeyword,
+  SyntaxKind.TrueKeyword,
+  SyntaxKind.FalseKeyword,
+  SyntaxKind.NullKeyword,
+  SyntaxKind.PlusPlusToken,
+  SyntaxKind.MinusMinusToken,
+]);
+
 function compilerTokens(source: string): CompilerToken[] {
   const scanner = createScanner(true, LanguageVariant.Standard, source);
   const tokens: CompilerToken[] = [];
+  // Brace depth inside each open template substitution, innermost last. A
+  // closing brace at depth zero ends the substitution and must be rescanned as
+  // a template middle or tail; otherwise its brace desynchronizes every
+  // function body that follows it.
+  const substitutions: number[] = [];
   while (true) {
-    const kind = scanner.scan();
+    let kind = scanner.scan();
     if (kind === SyntaxKind.EndOfFile) break;
+    const previous = tokens[tokens.length - 1]?.kind;
+    if (
+      (kind === SyntaxKind.SlashToken || kind === SyntaxKind.SlashEqualsToken) &&
+      (previous === undefined || !EXPRESSION_END_KINDS.has(previous))
+    ) {
+      kind = scanner.reScanSlashToken();
+    }
+    const substitution = substitutions.length - 1;
+    if (kind === SyntaxKind.CloseBraceToken && substitution >= 0 && substitutions[substitution] === 0) {
+      kind = scanner.reScanTemplateToken(false);
+      if (kind === SyntaxKind.TemplateTail) substitutions.pop();
+    } else if (kind === SyntaxKind.TemplateHead) {
+      substitutions.push(0);
+    } else if (kind === SyntaxKind.OpenBraceToken && substitution >= 0) {
+      substitutions[substitution] += 1;
+    } else if (kind === SyntaxKind.CloseBraceToken && substitution >= 0) {
+      substitutions[substitution] -= 1;
+    }
     tokens.push({
       kind,
       text: scanner.getTokenText(),

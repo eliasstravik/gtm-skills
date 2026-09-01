@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1, 2026-09-01
+
+Workflow library generation 12.
+
+- Fixed `gtm check` misreading template literals and regular expressions inside function bodies. A workflow whose steps used `${...}` before the exported workflow function failed with a false `invalid_export`; the scanner now rescans template and slash tokens. Existing projects take the generation 12 recopy; no schema change is required.
+
 ## 0.1.0, 2026-09-01
 
 First release under one project version. Earlier per-skill versions and `gtm-lib-v<generation>` tags are superseded; this release ships workflow library generation 11.
@@ -30,7 +36,7 @@ First release under one project version. Earlier per-skill versions and `gtm-lib
 
 ## Upgrade notes for older projects
 
-| Installed library generation | User-visible reason to upgrade to generation 11 |
+| Installed library generation | User-visible reason to upgrade to generation 12 |
 | --- | --- |
 | v2 | No fixed workflow schema or committed migration path |
 | v5 | No supported run cancellation |
@@ -38,3 +44,4 @@ First release under one project version. Earlier per-skill versions and `gtm-lib
 | v8 | Cached provider responses cannot be reparsed from the original payload, and run totals can diverge from the ledger |
 | v9 | Read-only inspection, tool isolation, duplicate-run protection, context-aware caching, redaction, cost attribution, approval reuse, restart safety, and exact-commit starts are incomplete |
 | v10 | No provider discovery, bounded operator polling, row and step ledger attribution, selective reruns, command-generated diagrams, or receipt summaries |
+| v11 | `gtm check` rejects valid workflows that use template literals in a step before the exported function |

@@ -1,4 +1,4 @@
-// gtm-lib v11
+// gtm-lib v12
 import { defineHook, sleep } from "workflow";
 import { z } from "zod";
 import {
@@ -94,7 +94,7 @@ export async function checkpoint(
   state: {
     completed: number;
     failed: number;
-    /** Retained for v8 workflow compatibility; v11 reads actual spend from the ledger. */
+    /** Retained for v8 workflow compatibility; the current library reads actual spend from the ledger. */
     spentUsd: number;
     projectedSpentUsd: number;
     projectedRemainingUsd: number;
