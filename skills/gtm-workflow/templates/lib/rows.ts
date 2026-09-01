@@ -1,4 +1,4 @@
-// gtm-lib v12
+// gtm-lib v13
 import {
   cancellationHook,
   cancellationToken,

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2, 2026-09-01
+
+Workflow library generation 13.
+
+- `gtm check` now accepts a destructive migration whose first line is `-- gtm: destructive accepted`, so a drop accepted through the delete flow no longer fails every later check. Unmarked destructive SQL is still rejected, and the hosted save still requires the destructive declaration in its approval request.
+
 ## 0.1.1, 2026-09-01
 
 Workflow library generation 12.
@@ -36,7 +42,7 @@ First release under one project version. Earlier per-skill versions and `gtm-lib
 
 ## Upgrade notes for older projects
 
-| Installed library generation | User-visible reason to upgrade to generation 12 |
+| Installed library generation | User-visible reason to upgrade to generation 13 |
 | --- | --- |
 | v2 | No fixed workflow schema or committed migration path |
 | v5 | No supported run cancellation |
@@ -45,3 +51,4 @@ First release under one project version. Earlier per-skill versions and `gtm-lib
 | v9 | Read-only inspection, tool isolation, duplicate-run protection, context-aware caching, redaction, cost attribution, approval reuse, restart safety, and exact-commit starts are incomplete |
 | v10 | No provider discovery, bounded operator polling, row and step ledger attribution, selective reruns, command-generated diagrams, or receipt summaries |
 | v11 | `gtm check` rejects valid workflows that use template literals in a step before the exported function |
+| v12 | `gtm check` rejects an accepted drop migration forever, so a project with a deleted table cannot pass its own check |

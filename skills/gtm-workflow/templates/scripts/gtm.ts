@@ -1,4 +1,4 @@
-// gtm-lib v12
+// gtm-lib v13
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -352,6 +352,10 @@ async function check() {
   print({ ok: true, workflows: workflows.length, libVersion: expectedVersion, warnings });
 }
 
+/** First line an explicitly accepted destructive migration must carry. */
+const DESTRUCTIVE_ACCEPTANCE_LINE = "-- gtm: destructive accepted";
+const DESTRUCTIVE_ACCEPTANCE_PATTERN = /^-- gtm: destructive accepted\b/;
+
 function validateWorkflowSource(file: string, source: string, exportName: string) {
   const path = relative(root, file);
   const tokens = compilerTokens(source);
@@ -605,14 +609,15 @@ async function validateMigrationArtifacts() {
       );
     }
     const sql = await readFile(join(directory, file), "utf8");
+    const accepted = DESTRUCTIVE_ACCEPTANCE_PATTERN.test(sql);
     const visibleSql = sql.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ");
     const destructive = visibleSql.match(
       /\b(?:delete|update|rename|drop)\b|\bcreate\s+trigger\b/i,
     );
-    if (destructive) {
+    if (destructive && !accepted) {
       throw new AppError(
         "destructive_migration",
-        `${file} contains destructive SQL (${destructive[0].toUpperCase()})`,
+        `${file} contains destructive SQL (${destructive[0].toUpperCase()}); after the separate destructive choice is accepted, make its first line "${DESTRUCTIVE_ACCEPTANCE_LINE}"`,
         2,
       );
     }

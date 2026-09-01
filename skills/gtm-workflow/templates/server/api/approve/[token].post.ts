@@ -1,4 +1,4 @@
-// gtm-lib v12
+// gtm-lib v13
 import { defineEventHandler } from "nitro/h3";
 import { HookNotFoundError } from "workflow/errors";
 import { approvalDecision, approvalHook } from "../../../lib/approve";

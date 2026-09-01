@@ -44,7 +44,7 @@ Bootstrap during the first create and keep the draft outside the repository unti
 ## Create
 
 1. Resolve workspace, owner, and kind. Read the owner's relevant ICP and persona files.
-2. Run `gtm check` before editing an existing project. Offer a v12 recopy when headers or content hashes differ; show the diff for every locally modified managed file first.
+2. Run `gtm check` before editing an existing project. Offer a v13 recopy when headers or content hashes differ; show the diff for every locally modified managed file first.
 3. Resolve where it runs. For on-demand work, recommend this computer. For scheduled or triggered work, recommend Vercel. In a sandbox, recommend Vercel for every workflow because the sandbox never starts a real run. Explain that local scheduled work runs only when invoked and hosted model calls use the user's budgeted key.
 4. Resolve the purpose, explicit input shape, stable row key, result columns, paid stages, adapter docs, caps, timing, approval stages, checkpoint, and external writes.
 5. When the workflow needs a provider, read [providers](providers.md) and run `npm run gtm -- providers list [keywords] --format json` before writing an adapter. Reuse a matching endpoint. List first before saying a capability is missing. Write a new adapter against the user's own credential only when no listed contract matches, then test it against fixtures.
@@ -61,7 +61,7 @@ Cancellation before step 11 writes no tracked bytes and no migration.
 ## Update
 
 1. Resolve the workflow and inspect its header, table, adapter, migrations, schedule, approvals, and deployment state.
-2. Compare every managed file with v12 by header and recorded hash. Show locally modified diffs and include any accepted recopy in the proposal.
+2. Compare every managed file with v13 by header and recorded hash. Show locally modified diffs and include any accepted recopy in the proposal.
 3. Agree the business change. A run-location switch is an update to the same workflow.
 4. Change only the workflow, table, adapter, accepted ICP/persona context, environment names, cron entry, or deployment metadata required by the request. Reload context text so its changed content invalidates the model cache.
 5. New columns are nullable or defaulted. Use expand/contract for a rename: add, backfill, switch code, then drop after the old deployment is gone. Keep schedule headers, `scheduledInput`, and cron entries aligned.
@@ -95,7 +95,7 @@ For a run, use `npm run gtm -- runs get <runId|runKey> --format markdown`. Add `
 1. Resolve the workflow and inspect its schedule, table, rows, adapter sharing, deployment state, and history recovery.
 2. Preview removal of the workflow file and matching cron entry. Keep its result table and rows by default.
 3. If the user also wants the table removed, show the row count and require a separate destructive choice. The accepted drop uses a generated migration and never `db:push` or force.
-4. Present the deletion proposal. On acceptance, remove only selected files and cron entries. Generate and apply a drop migration only when separately accepted.
+4. Present the deletion proposal. On acceptance, remove only selected files and cron entries. Generate and apply a drop migration only when separately accepted, and make its first line `-- gtm: destructive accepted` so `gtm check` records that acceptance.
 5. Remove empty nested workflow directories and an empty `vercel.json`. Keep shared adapters, fixed tables, the deployment project, and unrelated workflows.
 6. Validate, save, and report what remains and how history restores source deletion. Schema and data do not roll back with source.
 
