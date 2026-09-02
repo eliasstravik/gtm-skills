@@ -36,7 +36,8 @@ The agent owns the selected lifecycle flow. The user accepts durable changes and
 
 | Condition | Owned flow |
 | --- | --- |
-| A fixed-connection deployment receives create, import, sharing setup, whole-workspace deletion, or another connection-changing request | Refuse and redirect through the surface-refusal flow; perform nothing for that request |
+| A fixed-connection deployment receives import, sharing setup, whole-workspace deletion, a create for a repo other than the connected one, or another connection-changing request | Refuse and redirect through the surface-refusal flow; perform nothing for that request |
+| Create is requested on a fixed-connection deployment whose connected repo has no root `ORG.md` or legacy `org.md` | Guide the create flow with its connected-repo substitutions; the first saved change writes `ORG.md` together with the contract files |
 | No lifecycle verb is clear | Guide the lifecycle menu and retain ownership of the selected flow |
 | Create is requested | Guide a new workspace from intake through accepted artifacts, history, optional sharing, and summary |
 | Import is requested | Guide a local copy or GitHub clone through inventory, accepted conversion, history, optional sharing, and summary |
@@ -46,7 +47,7 @@ The agent owns the selected lifecycle flow. The user accepts durable changes and
 
 ## Outputs
 
-Produce the requested workspace state and a path-based summary, or a complete health report for doctor. A refused fixed-connection operation produces only the prescribed explanation and CLI redirect.
+Produce the requested workspace state and a path-based summary, or a complete health report for doctor. A refused fixed-connection operation produces only the prescribed explanation and CLI redirect; a connected repo that is not set up yet is created in place, not refused.
 
 ## Exceptions
 
