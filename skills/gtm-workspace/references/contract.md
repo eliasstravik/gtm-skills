@@ -87,6 +87,8 @@ Every accepted durable change ends saved to history on `main`: previewed before 
 
 The background git ritual below is the default mechanism. A hosting environment may declare a different durable-write mechanism for its connected repo; that declaration replaces only the mechanism. Every guarantee above still applies, and any approval step the environment adds comes after the accept loop, never instead of it. Never name, assume, or work around a specific hosted mechanism; follow the environment's own instructions for how a durable write happens. If the environment's mechanism cannot durably perform an accepted operation, stop, explain in plain English what could not be saved, and offer completing it from a keyboard; never report an unsaved change as saved.
 
+A connected repo whose root has neither `ORG.md` nor legacy `org.md` is not yet a canonical workspace. Its first saved change writes root `ORG.md` together with the contract files (`AGENTS.md`, `CLAUDE.md`, `.gitignore`) in one history entry; a hosting environment may refuse every other write until root `ORG.md` exists. Files outside the contract that the repo already carries, such as a README, are left untouched.
+
 ## Background git ritual (default mechanism)
 
 Run this after each accepted write or in-repo deletion when no environment-declared mechanism applies:
