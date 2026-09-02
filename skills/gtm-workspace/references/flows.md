@@ -7,7 +7,7 @@ Use the matched flow from `SKILL.md`. Keep ownership through completion; these u
 - [Interaction protocol](#interaction-protocol)
 - [Guided menu](#guided-menu)
 - [Surface refusal](#surface-refusal)
-- [Create](#create-keyboard-surfaces-only)
+- [Create](#create)
 - [Import](#import-keyboard-surfaces-only)
 - [Update](#update)
 - [Delete](#delete)
@@ -19,7 +19,7 @@ Use the matched flow from `SKILL.md`. Keep ownership through completion; these u
 - Ask exactly one question per message. Begin the message with that clear bold question; put status, context, guidance, examples, and options below it.
 - Format every discrete choice as a numbered list, mark at most one option `(Recommended)`, and end exactly `Reply with a number, or type your answer.`
 - Show what is possible before asking the user to choose. Use everyday terms; say “saved to history,” not commit, SHA, rebase, branch, or upstream unless explaining a problem makes a term unavoidable.
-- Resolve the connected GTM workspace repo first: a repo explicitly named in the request, else the repo the hosting environment declares as connected, else canonical repos under `~/.gtm/` whose root contains `ORG.md`. If several valid repos exist and none was named, list their display names and paths as numbered options. Treat roots with only legacy `org.md` as migration candidates, not canonical repos. Do not save a preferred repo. If update, delete, or doctor has no repo to use, explain that; on a keyboard surface offer create/import through the guided menu, and on a fixed-connection surface use the surface refusal.
+- Resolve the connected GTM workspace repo first: a repo explicitly named in the request, else the repo the hosting environment declares as connected, else canonical repos under `~/.gtm/` whose root contains `ORG.md`. If several valid repos exist and none was named, list their display names and paths as numbered options. Treat roots with only legacy `org.md` as migration candidates, not canonical repos. Do not save a preferred repo. If update, delete, or doctor has no repo to use, explain that; on a keyboard surface offer create/import through the guided menu. On a fixed-connection surface, a connected repo whose root has neither `ORG.md` nor legacy `org.md` is not set up yet: offer create for that connected repo; otherwise use the surface refusal.
 - Discover organization nodes recursively from the root through repeated `suborgs/<suborg-slug>/` segments. Display each node with its full repository-relative path, and resolve every member relative to its owning node; never collapse same-named nodes or members from different branches.
 - Never repeat or open an unsafe link. Follow `contract.md` link safety and continue using a plain-language source label.
 - Research may combine model knowledge, fetched public sources, and supplied files/folders. Apply `company-data.md` whenever creating or fully researching an `ORG.md`, and apply `person-data.md` whenever creating or fully researching a `MEMBER.md`. Research each shared field when safe sources are available, keep unresolved fields visible as `Unknown`, and separate sourced facts from uncertain inferences. Use only a member email the user supplies or a source states directly.
@@ -55,15 +55,17 @@ Then explain:
 
 ## Surface refusal
 
-Create, import, sharing setup, and whole-repo deletion change which repo is connected, not just its contents, so they need a human at a keyboard. When one is requested while the repo connection is fixed by the deployment, refuse in one short message and perform nothing for that request:
+Creating a different repo, import, sharing setup, and whole-repo deletion change which repo is connected, not just its contents, so they need a human at a keyboard. When one is requested while the repo connection is fixed by the deployment, refuse in one short message and perform nothing for that request:
 
-- Why: this deployment's repo connection is part of its configuration, so a conversation here cannot create, replace, or remove it.
-- What to do: run gtm-workspace from Claude Code or Codex CLI at a keyboard to create or import a context, set up sharing, or delete a whole context.
+- Why: this deployment's repo connection is part of its configuration, so a conversation here cannot create a different one, replace it, or remove it.
+- What to do: run gtm-workspace from Claude Code or Codex CLI at a keyboard to create a different context, import one, set up sharing, or delete a whole context.
 - What happens after: once a repo is connected to this deployment, updating, deleting content, and doctoring all work right here.
 
-Write nothing, draft nothing, and research nothing for the refused request; do not produce carry-over artifacts in chat. Every other flow proceeds on any surface with a connected repo.
+Write nothing, draft nothing, and research nothing for the refused request; do not produce carry-over artifacts in chat. A create request for the connected repo itself, when that repo is not set up yet, is not a connection change: run [Create](#create) with its connected-repo substitutions instead of refusing. Every other flow proceeds on any surface with a connected repo.
 
-## Create (keyboard surfaces only)
+## Create
+
+On a fixed-connection surface whose connected repo has no root `ORG.md` or legacy `org.md`, run this flow for that repo with these connected-repo substitutions and no others: skip step 1; in step 2 do not create `~/.gtm/` and use the org slug only for display, because the target is the connected checkout; skip step 3; in step 5 open the proposal exactly `Here is the complete proposed \`ORG.md\`:` because the destination is the connected repository root; in step 6 do not create a repo, initialize git, or set an identity, and instead save `ORG.md` together with `AGENTS.md`, `CLAUDE.md`, and `.gitignore` rendered from the templates as one durable change through the environment's declared mechanism; save every later accepted artifact the same way; in step 12 do not set repo-local git identity for the operator; skip step 15 because the deployment already shares the repo; in step 16 say the workspace is saved in the connected repository instead of describing local or shared mode. Every question, proposal opening, accept loop, research rule, and completion criterion stays exactly as written.
 
 1. Check that git is installed before touching the target. If missing, explain it is the history tool this context needs and offer one guided install path appropriate to the operating system `(Recommended)` plus cancel; execute only the chosen path, then recheck.
 2. Treat every value inside an `Example (fictional)` below as presentation only. Never extract, research, preview, or save it unless the user independently supplies the same value. Create `~/.gtm/` when absent, then start root intake with exactly this one identity-and-primary-links question:
