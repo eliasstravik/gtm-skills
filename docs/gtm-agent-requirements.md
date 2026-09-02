@@ -114,6 +114,19 @@ data/
 
 The sandbox runs no remote Git command, exposes no port, starts no local workflow server or real run, and opens no custom workflow UI or Drizzle Studio.
 
+## Workspace set-up from the hosted surface
+
+A connected repository may start with only a README: `main` exists with at least one commit, and the root has neither `ORG.md` nor legacy `org.md`. The host treats this as "not set up yet", not as a configuration error.
+
+The host must:
+
+1. hydrate and verify that checkout exactly as it would a populated one, so the agent can read it and the skill can see that the organization file is missing;
+2. refuse every `apply_gtm_workspace_changes` request against that checkout unless its manifest writes root `ORG.md`, so the first saved change is the scaffold;
+3. declare in its standing instructions which Create steps the environment answers: git is present, the checkout is the target with no local collision check, no git init or repo-local identity is set, the sharing question is skipped, and the first save carries `ORG.md` with `AGENTS.md`, `CLAUDE.md`, and `.gitignore` from the skill templates;
+4. keep refusing creation of a different repository, import, sharing setup, and whole-repository deletion exactly as before.
+
+The README and any other file outside the workspace path contract stay untouched. The write tool, approval order, credential brokering, and commit path do not change.
+
 ## Setup that remains manual
 
-A human initially creates or selects the Vercel workflow project, connects the workspace repository, selects the `workflows` root and `main` production branch, supplies a verified Git author identity, installs Turso, supplies provider and Gateway credentials, enables system environment variables, and configures the cross-project Trusted Sources rule. These choices affect billing or grant new authority, so they are not inferred from a Slack request.
+A human initially creates the workspace repository on GitHub (a new repository with "Add a README file" is enough), creates or selects the Vercel workflow project, connects the workspace repository, selects the `workflows` root and `main` production branch, supplies a verified Git author identity, installs Turso, supplies provider and Gateway credentials, enables system environment variables, and configures the cross-project Trusted Sources rule. These choices affect billing or grant new authority, so they are not inferred from a Slack request.
