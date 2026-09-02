@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0, 2026-09-02
+
+Workflow library generation 13, unchanged.
+
+- `gtm-workspace` now creates a workspace in place on a hosted surface when the connected repository has no root `ORG.md` or legacy `org.md`, for example a repository created on GitHub with only a README. The Create flow runs with connected-repo substitutions: no git check, no local collision check, no git init or identity, no sharing question, and the first saved change writes `ORG.md` together with the contract files. The surface refusal now covers only connection changes: creating a different repository, import, sharing setup, and whole-repository deletion.
+- Documented the host contract hosted deployments must satisfy.
+
 ## 0.1.2, 2026-09-01
 
 Workflow library generation 13.
