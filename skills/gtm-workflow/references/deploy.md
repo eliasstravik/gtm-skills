@@ -17,6 +17,8 @@ Offer a saved-but-not-deployed option only by keeping the draft outside the repo
 
 In a sandbox, submit the accepted tracked batch through `apply_gtm_workspace_changes`. The request names every migration file it carries, includes the generated journal plus any schema snapshot, and declares whether any statement drops a table or column. The tool stages the accepted workflow tree, applies its new migrations through a write credential that exists only for that step, verifies their hashes in the ledger, then atomically commits to `main`. It never receives a Vercel token and never opens `api.vercel.com`.
 
+Build the save manifest from the final payload: exactly one `write` entry for every path in `additions` and one `delete` entry for every path in `deletions`, with no duplicates or extra paths. Include migration SQL, journals, and snapshots in this same mapping. If the host rejects the request before approval, correct the reported missing, extra, or mismatched entries and resubmit the complete request for approval. A rejected request has saved nothing.
+
 On a laptop, place these three non-empty values in ignored `.env.turso`: `TURSO_DATABASE_URL`, the write-only `TURSO_AUTH_TOKEN` used by `db:migrate:cloud`, and `TURSO_READ_ONLY_AUTH_TOKEN` used by `gtm query --cloud` and `db:studio:cloud`. Neither inspection command may fall back to the write token. Run the cloud migration; its credential preflight, exit status, and ledger verification must all pass before committing and pushing the accepted batch to `main`.
 
 ## Git-connected project setup

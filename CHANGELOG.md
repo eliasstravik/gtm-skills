@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1, 2026-09-05
+
+Workflow library generation 13, unchanged.
+
+- Hosted workflow saves now explicitly construct the manifest from the final write/delete payload, including migration files. Rejected requests are corrected and resubmitted for approval.
+- The host contract requires validation before human approval and again before execution. Valid resubmissions still require approval.
+- Validation uses offline repository and compatibility checks. Skill evals were not run for this release.
+
 ## 0.2.0, 2026-09-02
 
 Workflow library generation 13, unchanged.
