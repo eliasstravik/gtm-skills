@@ -70,7 +70,7 @@ The read-only Turso token stays at the sandbox firewall for every session; the w
 
 ## Save and deployment
 
-The save proposal must state that accepting a Vercel-workflow batch commits it to `main` and starts production deployment.
+The save `summary` for a Vercel-workflow batch ends its workflow description with `Saving this also puts it live in production.`; the host contract no longer requires "commits to `main` and starts production deployment" wording in the summary.
 
 Inside the one approval-gated write operation, the host:
 
@@ -98,6 +98,19 @@ Start repeats the dry run, refuses when its rows or projected cost differ from t
 The production POST route rejects a missing header with `409 deployment_head_required` and a mismatch with `409 deployment_not_ready`, closing the race between readiness polling and start. A timeout starts nothing.
 
 Status returns the public run key and sanitized business state, including `completed`, `stopped`, `timed_out`, `cancelling`, `failed`, or `cancelled`, plus stop reason, remaining keys, failed step, and cost sources. Approval fetches the pending run and submits one typed decision; the token only names that pending stage. Cancel posts to the bearer-protected route, polls through `cancelling` to `cancelled`, and treats `409 run_not_active` as already finished.
+
+## Conversation contract for hosted surfaces
+
+The skills read the environment's standing instructions to decide how approval works. A hosted surface with a native approval control must satisfy all of the following, so that the vendored skill files work unchanged.
+
+1. The host declares to the skills that it provides a native approval control and that this control is the accept step. Host instructions must not require a numbered accept before the write tool.
+2. The approval message renders only the tool's `summary`, with Approve and Cancel controls, in one Slack message. It never renders file content, the manifest, or the raw tool input, in blocks or in fallback text. `summary` may be up to 2,500 characters and must name every artifact created, changed, or removed and any destructive effect in words; the skill splits larger proposals into parts whose first line is `For <root display name> (part <i> of <N>):`.
+3. The host declares the approval-text limit (2,500 characters) to the skills in its standing instructions so the split rule can apply, and declares that approval text is plain text: newlines allowed, no Markdown emphasis, headings, fences, tables, or arrows.
+4. The host verifies deterministically, before requesting human approval, that `summary` ends with the closing line required for the action, and denies with an actionable one-sentence reason otherwise. The required lines are: save `Approve to save, or Cancel and tell me what to change.`; run start `Approve to run, or Cancel and tell me what to change.`; checkpoint continue `Approve to continue the run, or Cancel to leave it paused and tell me what to do.`; stop a paused run `Approve to stop the run here, or Cancel to leave it paused.`; cancel a live run `Approve to stop the run, or Cancel to leave it running.` The host never appends or alters the summary text, and `summary` is the entire approval surface: the skill writes no proposal message before the tool call because text written in the same turn as a tool call is not delivered.
+5. The sentence about hosted deployment reads `Saving this also puts it live in production.`
+6. The host reports success in the skills' closing shape (what was created, changed, or removed, then `Saved.`, then `It will be live in production in a few minutes; ask me to check.` for a hosted workflow) and adds no commit URL, path list, or repository reference. Failure and unknown-outcome reports stay as today, with precise wording.
+7. Denial returns control to the agent with nothing written, and the agent asks `**What would you like me to change?**`.
+8. Any Slack response budget is a host setting and does not change the skill text.
 
 ## Draft and checkout paths
 

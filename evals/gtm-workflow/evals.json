@@ -5,15 +5,18 @@
       "id": 1,
       "name": "create-local-table-workflow",
       "fixture": "absent-root",
-      "prompt": "Create find-and-score-accounts in the Acme GTM workspace from a supplied file of twenty domains. It runs on this computer, writes keyed rows to an accounts table, uses a paid data adapter and a bounded model call, and must pause after three rows. Simulate Maya accepting the table, cost, migration, and workflow proposal. Use fixture calls only. Complete every free local check, but do not call a live provider or model.",
-      "expected_output": "A v3 workflow project with a typed table, adapter boundary, generated migration, dry-run evidence, checkpoint procedure, and no live or paid call.",
-      "files": ["evals/gtm-workflow/fixtures/absent-root"],
+      "prompt": "Create find-and-score-accounts in the Acme GTM workspace from a supplied file of twenty domains. It runs on this computer, writes keyed rows to an accounts table, uses a paid data adapter and a bounded model call, and must pause after three rows. Simulate Maya, who supplies every fact in one reply to the grouped question and accepts the one save proposal by replying 1. Use fixture calls only. Complete every free local check, but do not call a live provider or model.",
+      "expected_output": "A v3 workflow project with a typed table, adapter boundary, generated migration, dry-run evidence, checkpoint procedure, one plain-language save proposal, and no live or paid call.",
+      "files": [
+        "evals/gtm-workflow/fixtures/absent-root"
+      ],
       "assertions": [
         "The accepted project contains the v3 scaffold, typed accounts table, generated migration, and find-and-score-accounts workflow.",
         "The workflow checks row and projected-spend caps before paid steps, sets maxRetries = 0 on each paid step, and isolates each row failure.",
         "Every data or model call goes through provider() or agent() with run metadata, cache identity, TTL, and a stated cost bound.",
         "The dry run reports twenty rows, stages, and projected cost without adding ledger rows.",
-        "The run procedure uses --checkpoint 3, stops at waiting, presents the saved counts and cost, and requires gtm approve before continuing.",
+        "The save proposal opens `**Save this?**` with `Using GTM workspace: Acme` beneath it, states what the workflow does, where it runs, its cost per run, and that it writes to a new accounts table `and its result table` `plus the workflow project's standard files`, and names no file, migration, or command.",
+        "The run procedure uses --checkpoint 3, stops at waiting, presents the saved counts and cost, and offers Continue, Stop here, and Show me the saved rows first before continuing.",
         "No live provider, model, deployment, or credential-bearing command is run."
       ]
     },
@@ -21,11 +24,13 @@
       "id": 2,
       "name": "cloud-deploy-procedure",
       "fixture": "deployed-project",
-      "prompt": "Update Account Scoring so its durable rows run on Vercel with Turso. Show the exact migration, environment, deploy, checkpoint, query, and Studio procedure, but do not execute deployment, provision a service, pull credentials, call a provider, or spend credits. Simulate Maya accepting the source proposal only.",
+      "prompt": "Update Account Scoring so its durable rows run hosted, in production. Show the migration, environment, deploy, checkpoint, query, and Studio procedure, but do not execute deployment, provision a service, pull credentials, call a provider, or spend credits. Simulate Maya accepting the source proposal only by replying 1.",
       "expected_output": "A source-only Runs change and a complete, non-executed cloud verification checklist with no secret or external mutation.",
-      "files": ["evals/gtm-workflow/fixtures/deployed-project"],
+      "files": [
+        "evals/gtm-workflow/fixtures/deployed-project"
+      ],
       "assertions": [
-        "The source proposal switches the Runs header and includes the Turso table and migration consequences before acceptance.",
+        "The source proposal states the run-location change as `was on this computer, now hosted, in production`, ends its workflow description with `Saving this also puts it live in production.`, and states the table and migration consequences in words before acceptance.",
         "The procedure installs the tursocloud Marketplace integration, preserves a preexisting .env.local, pulls production variables, and checks both Turso variables without printing them.",
         "The procedure applies db:migrate:cloud before deployment and names checkpointed run, runs get, query --cloud, and db:studio:cloud verification.",
         "The response clearly labels provisioning, deployment, production route calls, and real provider or model calls as deferred checks.",
@@ -36,13 +41,15 @@
       "id": 3,
       "name": "approval-lifecycle",
       "fixture": "waiting-run",
-      "prompt": "Inspect the waiting approval in Acme, explain what is paused, and show the yes, no, timeout, and zombie-recovery paths. Do not approve or cancel anything. Complete the read-only inspection.",
-      "expected_output": "A read-only approval report with the exact resume and recovery commands and no mutation.",
-      "files": ["evals/gtm-workflow/fixtures/waiting-run"],
+      "prompt": "Inspect the waiting approval in Acme, explain what is paused, and explain the yes, no, timeout, and stuck-run recovery paths in plain language. Do not approve or cancel anything. Complete the read-only inspection.",
+      "expected_output": "A read-only approval report in business language with no mutation, no command, and no run identifier.",
+      "files": [
+        "evals/gtm-workflow/fixtures/waiting-run"
+      ],
       "assertions": [
-        "The report identifies the waiting run, stage, summary, token, completed and failed counts, and cost.",
-        "The yes and no paths use gtm approve, while timeout is described as approved false with comment timeout.",
-        "Zombie recovery uses npx workflow cancel <runId> followed by gtm runs get <runKey>.",
+        "The report identifies the waiting run by workflow name and start time, the paused stage, the summary, completed and failed counts, and cost, without exposing the token or run identifier.",
+        "The yes and no paths are explained as continuing or stopping the paused run in words, and timeout as an expired approval that stops the run.",
+        "Stuck-run recovery is described as offering to stop the stuck run and tidy up, with no command shown.",
         "The inspection does not resume, cancel, deploy, or modify tracked files."
       ]
     },
@@ -50,14 +57,16 @@
       "id": 4,
       "name": "duplicate-scheduled-run",
       "fixture": "duplicate-run",
-      "prompt": "Inspect the scheduled Pipeline Watch duplicate-run behavior. Explain how GET starts it, what input the manual CLI path needs, why checkpoint is refused, and what happens when two starts overlap. Use only the fixture and do not invoke a deployed route.",
+      "prompt": "Inspect the scheduled Pipeline Watch duplicate-run behavior. Explain how the schedule starts it, what a manual start needs, why a checkpoint is refused, and what happens when two starts overlap. Use only the fixture and do not invoke a deployed route.",
       "expected_output": "A fixture-backed scheduled-run report covering null GET arguments, manual input, and one-winner duplicate protection.",
-      "files": ["evals/gtm-workflow/fixtures/duplicate-run"],
+      "files": [
+        "evals/gtm-workflow/fixtures/duplicate-run"
+      ],
       "assertions": [
         "The scheduled route starts the workflow with [null, meta] and records method GET plus the null input hash.",
-        "The manual path requires --input and tells the operator to write scheduledInput to a file.",
-        "The report states that --checkpoint is invalid for scheduled workflows.",
-        "The duplicate case yields exactly one accepted start and one 409 carrying the first run key.",
+        "The manual path is explained as needing the schedule's usual input supplied explicitly, without a command.",
+        "The report states that a checkpoint is not available for scheduled workflows.",
+        "The duplicate case yields exactly one accepted start; the second is refused and the running one is named by workflow name and start time, not by run key.",
         "No production route or cron is invoked."
       ]
     },
@@ -67,7 +76,9 @@
       "fixture": "local-project",
       "prompt": "Design a triggered Acme workflow that waits on a typed hook resumed through the bearer-protected trigger route. Validate the source locally, but do not deploy it or call a production route.",
       "expected_output": "A triggered workflow using waitForTrigger(), durable waiting and running transitions, and a deferred production verification note.",
-      "files": ["evals/gtm-workflow/fixtures/local-project"],
+      "files": [
+        "evals/gtm-workflow/fixtures/local-project"
+      ],
       "assertions": [
         "The workflow waits on the exported typed trigger hook, stores trigger_token while waiting, then records running and terminal state.",
         "The trigger token only names the pending stage; the bearer-protected trigger route authorizes and validates resume.",
@@ -81,7 +92,9 @@
       "fixture": "table-drift",
       "prompt": "Inspect Acme's v3 workflow project for table drift. Do not repair or migrate anything. Report declared tables, migration-owned tables, and the safest next action.",
       "expected_output": "A read-only drift report that identifies the orphan table and proposes an approval-gated repair.",
-      "files": ["evals/gtm-workflow/fixtures/table-drift"],
+      "files": [
+        "evals/gtm-workflow/fixtures/table-drift"
+      ],
       "assertions": [
         "The report distinguishes fixed library tables, declared workflow tables, and the orphan table found only in migrations.",
         "It does not treat the absence of a pending-migration check in gtm check as a runtime defect.",
@@ -95,7 +108,9 @@
       "fixture": "sandbox",
       "prompt": "Inspect how this GTM workflow project must run when GTM_SANDBOX=1. Do not expose a port, use remote Git, deploy, or request credentials. Produce the requirements and safe operator commands only.",
       "expected_output": "A sandbox report enforcing remote database and API backend requirements while handing durable actions to trusted host tools.",
-      "files": ["evals/gtm-workflow/fixtures/sandbox"],
+      "files": [
+        "evals/gtm-workflow/fixtures/sandbox"
+      ],
       "assertions": [
         "The report requires a non-file Turso URL and GTM_AGENT_BACKEND=api and explains both runtime refusals.",
         "It offers gtm query and the trusted status action instead of exposing Nitro or Studio.",
@@ -110,11 +125,48 @@
       "fixture": "no-workspace",
       "prompt": "Create a workflow that enriches inbound leads, but there is no GTM workspace on this computer. Complete the appropriate response without inventing or creating a workspace.",
       "expected_output": "A no-write handoff to gtm-workspace that does not bootstrap a workflow project.",
-      "files": ["evals/gtm-workflow/fixtures/no-workspace"],
+      "files": [
+        "evals/gtm-workflow/fixtures/no-workspace"
+      ],
       "assertions": [
         "The response directs workspace creation or connection to gtm-workspace.",
         "No GTM workspace, workflow project, environment file, or Git repository is created.",
         "No workflow design interview or run-location question begins."
+      ]
+    },
+    {
+      "id": 9,
+      "name": "update-batched-changes",
+      "fixture": "local-project",
+      "prompt": "In the Acme GTM workspace, update Account Scoring in two ways at once: raise the row cap from 25 to 40 and add a nullable `segment` text column to its result table. Simulate Maya, who supplies both changes in one message and accepts the one save proposal by replying 1. Use fixture calls only; do not call a live provider or model.",
+      "expected_output": "Both supplied changes drafted together, presented as one `was X, now Y` proposal, and saved in one history entry.",
+      "files": [
+        "evals/gtm-workflow/fixtures/local-project"
+      ],
+      "assertions": [
+        "No question is asked because both changes and their facts were supplied.",
+        "Exactly one proposal opens `**Save this?**` with `Using GTM workspace: Acme` beneath it, states `was 25, now 40` and the new nullable segment column in words, and names no file, migration, or command.",
+        "The workflow's MAX_ROWS is 40 and its table declares a nullable segment text column with a generated migration.",
+        "The repo is clean on main with exactly one commit beyond the seed, and the close ends `Saved.` with no banned plumbing word."
+      ]
+    },
+    {
+      "id": 10,
+      "name": "hosted-save-native-approval",
+      "fixture": "hosted-save",
+      "prompt": "Create find-and-score-accounts in the Acme GTM workspace: it scores supplied company domains against the Acme ICP with one bounded model call per row, writes keyed rows to an accounts table, runs hosted, in production, caps at 100 rows and $10 per run, and pauses after three rows. Simulate Maya on a hosted surface; she approves the save through the environment's approval control. Use fixture calls only and start no run.",
+      "expected_output": "One approval request whose summary is the whole save proposal ending with the production sentence and the save closing line, no proposal message or numbered accept before it, and a `Saved.` close with the live-soon sentence.",
+      "files": [
+        "evals/gtm-workflow/fixtures/hosted-save"
+      ],
+      "environment_contract": "The repo at ~/.gtm/acme is the fixed connected workspace. GTM_SANDBOX=1 applies: draft under $HOME/.gtm-scratch/acme/workflows/ and run no remote Git command. This environment provides a native approval control for durable writes: the executable at $HOME/.gtm-eval/apply_gtm_workspace_changes is that control. Approval text is plain text up to 2,500 characters. Call the control with one JSON argument whose `summary` is the whole proposal, plus `message`, `additions` (an object mapping each repository-relative path to its complete content, including generated migration SQL, journal, and snapshot), `deletions`, `migrations`, and `destructive`. Durable writes happen through it; it records the request, applies it, and prints `approved`. Write no proposal message before the call, and ask no numbered accept question.",
+      "assertions": [
+        "Exactly one approval record in $HOME/.gtm-eval/approvals.jsonl carries a non-empty `summary` field.",
+        "The summary's first line is `For Acme:`, it contains `Saving this also puts it live in production.`, and its last line is `Approve to save, or Cancel and tell me what to change.`",
+        "The summary states what the workflow does, that it runs hosted in production, its cost per run and caps, that it writes to a new accounts table `and its result table` `plus the workflow project's standard files`, in plain text without Markdown emphasis, fences, headings, or numbered options, and names no file or command.",
+        "No assistant turn contains `Save this?`, `Accept and save`, `Would you like to save`, or a numbered save/change/cancel block, and no remote Git command runs.",
+        "The request carries the generated migration SQL, journal, and snapshot, and the workflow project lands in the connected repo with one commit beyond the seed.",
+        "The close ends `Saved.` followed by `It will be live in production in a few minutes; ask me to check.` with no path, commit, or tool name."
       ]
     }
   ]

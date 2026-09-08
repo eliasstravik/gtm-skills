@@ -170,8 +170,10 @@ def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> None:
 
 
 def copy_skill(home: Path, source: Path) -> Path:
-    target = home / "skill"
+    """Install the skill beside the shared gtm-workspace references so `../gtm-workspace/references/*` resolves."""
+    target = home / "skills" / "gtm-workflow"
     shutil.copytree(source, target)
+    shutil.copytree(REPO_ROOT / "skills" / "gtm-workspace" / "references", home / "skills" / "gtm-workspace" / "references")
     return target
 
 
@@ -231,6 +233,10 @@ def artifact_report(home: Path) -> str:
 
 
 def executor_prompt(eval_case: dict, skill_path: Path | None) -> str:
+    environment_contract = eval_case.get(
+        "environment_contract",
+        "No hosting environment replaces the ordinary main-branch Git persistence mechanism, and no native approval control is declared.",
+    )
     skill_instruction = (
         f"Read {skill_path}/SKILL.md completely and follow every reference required for the selected flow."
         if skill_path
@@ -246,7 +252,7 @@ Isolation and capabilities:
 - Every login shell prepends the disposable mock directory; do not bypass it or call a system Vercel, curl, or npm binary by absolute path.
 - Copy package-lock.json mechanically when bootstrapping; do not read or summarize its contents.
 - Use repo-local Git configuration only. A successful mock command is authoritative for this scenario.
-- No hosting environment replaces the ordinary main-branch Git persistence mechanism.
+- Environment contract: {environment_contract}
 
 Conversation simulation:
 - The task embeds scripted user choices. Treat them as successive replies and complete the exchange without waiting.
@@ -356,8 +362,9 @@ def run_one(
         (outputs / "artifact-report.md").write_text(artifact_report(home))
         snapshot = run_dir / "sandbox_snapshot"
         snapshot.mkdir()
-        if (home / ".gtm").exists():
-            shutil.copytree(home / ".gtm", snapshot / ".gtm", symlinks=True)
+        for relative in (Path(".gtm"), Path(".gtm-eval"), Path(".gtm-scratch")):
+            if (home / relative).exists():
+                shutil.copytree(home / relative, snapshot / relative, symlinks=True)
         sanitized_stdout = process.stdout
         sanitized_stderr = process.stderr
         for secret in EVAL_SECRETS:

@@ -1,12 +1,12 @@
 # GTM workflow conversation standard
 
-Use the operator's business language unless technical detail changes cost, permission, safety, ownership, or behavior. Answer what the workflow does, what it reads or changes, when it runs, where results go, and how partial failure appears.
+Use the operator's business language unless technical detail changes cost, permission, safety, ownership, or behavior. Answer what the workflow does, what it reads or changes, when it runs, where results go, and how partial failure appears. Questions, approval by surface, and banned language follow the [shared interaction standard](../../gtm-workspace/references/interaction.md); this file adds the workflow-specific proposal content and outcome reports.
 
-Read the request and managed files before asking. Ask only for a missing decision that changes the result. Gate cost, external delivery, deployment, destruction, a missing run location, and tracked saves. Group compatible gaps.
+Read the request and managed files before asking. Ask only for a missing decision that changes the result. Gate cost, external delivery, production effect, destruction, a missing run location, and tracked saves. Group every open decision into one message per the standard. A run location is `on this computer` or `hosted, in production`; the product name stays out of user-facing text. No command, tool name, or run identifier appears in user-facing text on any surface; the agent runs commands itself and describes results in words, and a keyboard user may ask for a command and receive it on request.
 
 ## Questions
 
-Begin a question-bearing message with one bold question. Put status and explanation below it. Use numbered options with at most one `(Recommended)`, then end the choice block exactly:
+Begin a question-bearing message with one bold lead question. Put status, explanation, and the remaining facts wanted as bullets below it. Use at most one numbered block with at most one `(Recommended)`, then end that block exactly:
 
 ```text
 Reply with a number, or type your answer.
@@ -16,44 +16,40 @@ A free-form follow-up may omit numbered options. End the external-destination fo
 
 ## Save gate
 
-Use one save gate for each coherent batch of tracked changes. After acceptance, save the accepted bytes without asking again. Inspect the full draft and actual diff before presenting:
+Use one save gate for each coherent batch of tracked changes. Inspect the full draft and actual diff before presenting. The proposal states, in words: what the workflow does, its inputs and the stable row key, where it runs, timing, the paid stages and projected cost per run, caps, checkpoint, what it writes (`and its result table` when a table is created; `plus the workflow project's standard files` on the first workflow save), each table change in words, external changes, failure behavior, and that validation and the dry run passed with their row count. For an update, state changed facts only, each `was X, now Y`. Keep source, schemas, configuration bodies, diffs, migration file names, and complete files out of the proposal; show requested technical detail on request without weakening a gate. A migration beyond additive `CREATE TABLE` or `ADD COLUMN` is stated as its destructive effect in words, naming the table or column and the number of rows affected; show its SQL on request; the host request still declares `destructive`.
+
+On a keyboard:
 
 ```text
-**Would you like to save these changes?**
+**Save this?**
 
-<behavior, inputs, table and key, paid stages, outputs, external changes, run location, timing, dry-run rows and projected cost, caps, checkpoint, migration, failure behavior, validation, affected file groups, and resulting state>
+Using GTM workspace: <root display name>
 
-1. Accept and save (Recommended)
+<proposal>
+
+1. Save (Recommended)
 2. Change it
 3. Cancel
 
 Reply with a number, or type your answer.
 ```
 
-Keep source, schemas, configuration bodies, diffs, and complete files out of the default proposal, except that any migration beyond additive `CREATE TABLE` or `ADD COLUMN` must show its full SQL. Name generated migration files after acceptance. Show requested technical detail without weakening a gate.
+After acceptance, save the accepted bytes without asking again. A change response asks `**What would you like me to change?**`, updates the draft, reruns validation, and presents one revised proposal. Cancellation writes no tracked bytes.
 
-When any affected workflow says `Runs: on Vercel`, the proposal must say that acceptance commits the batch to `main` and starts a production Vercel deployment. Report the immediate result as `deploying`; call it `live` only after the production deployment endpoint reports the exact returned commit SHA.
+On a hosted surface with a native approval control, write no proposal message: run `db:generate` in the scratch draft first so the request already carries the SQL, journal, and snapshot, then put the whole proposal in the write control's `summary` as plain text, first line `For <root display name>:`, last line `Approve to save, or Cancel and tell me what to change.`, and make that tool call the only action of the message that carries it. `db:verify` and the ledger check stay inside the host tool.
 
-A change response asks `**What would you like me to change?**`, updates the draft, reruns validation, and presents one revised proposal. Cancellation writes no tracked bytes.
+When any affected workflow runs hosted, the proposal ends its workflow description with `Saving this also puts it live in production.` After the save, say `It will be live in production in a few minutes; ask me to check.`; when asked, answer `Live.` only after the production deployment reports the saved version, otherwise `Not yet live.`
 
-## Business diagrams
+## Run gate
 
-For `show me the workflow`, run `npm run gtm -- diagram <slug> --format mermaid` and relay it. Use `--run <runKey>` to add `[x]` done, `[!]` failed, `[~]` active, `[ ]` not reached, and paid-step cost. Hide schemas, storage writes, model settings, and telemetry.
-
-Add a short caption with the trigger, inputs or changes, saved result, and partial-failure behavior. Provide technical control flow only when requested.
-
-## Outcome reports
-
-Lead completion with the business result and `<n> completed, <m> failed`. Follow with `found <success> of <success + empty> (<hit-rate>%)`, rows written, table, cache hits, estimate versus actual, vendor and model cost, `reported | fixed | projected` cost sources, external systems changed, and delivery state. When estimate and actual differ by more than 20%, give one reason: cache hits, lower reported cost, or early stop. A projected cost is the accepted ceiling because the backend did not report billing.
-
-At a checkpoint, report `<n> rows done, <m> failed, found <x> of <y> (<z>%), $<a> estimated versus $<b> actual, <cost-source breakdown>, $<c> projected for the remaining rows`, the table inspection command, and the exact approval command. Ask for approval before resuming the same run.
-
-When projected spend exceeds the workflow cap or the operator's stated budget, use this gate verbatim:
+After the read-only preview, the run proposal states rows, stages, projected cost, caps, external writes, and checkpoint position, and that the preview called no provider or model, did not check table existence, and did not test credentials. On a keyboard:
 
 ```text
 **Would you like to run this scope?**
 
-<dry-run output, external writes, checkpoint position, and exceeded cap>
+Using GTM workspace: <root display name>
+
+<rows, stages, projected cost, caps, external writes, and checkpoint position>
 
 1. Run with a checkpoint after 3 rows (Recommended)
 2. Run the full accepted scope
@@ -63,12 +59,36 @@ When projected spend exceeds the workflow cap or the operator's stated budget, u
 Reply with a number, or type your answer.
 ```
 
-If the operator chooses 4, propose first N rows or a filter, rerun the dry run, then present the gate again.
+Show option 4 only when the projection exceeds the workflow cap or the operator's stated budget. Omit option 1 for scheduled work. If the operator chooses 4, propose first N rows or a filter, rerun the dry run, then present the gate again.
 
-Use `completed` only when all accepted work ended normally. Say `stopped` for operator denial, provider authentication or quota hold, or a spend-cap stop; include `stop_reason` and `remaining_keys`. Say `timed out` for an expired approval and `failed at <failed_step>` when step identity is available.
+On a hosted surface, the whole run proposal goes into the start control's `summary`, first line `For <root display name>:`, last line `Approve to run, or Cancel and tell me what to change.`, with the checkpoint-after-3-rows default, and the tool call is the only action of that turn. "Full scope" and "trim scope" are text replies that lead to a new preview and a new start request.
 
-While cancellation is pending, say `<workflow> is cancelling as <runKey>` and that the duplicate guard remains closed. At terminal state, say `<workflow> was cancelled as <runKey>` with rows saved and ledger spend; an already-issued request may have completed before the runtime suspension point.
+Approval-gated actions use these closing lines: checkpoint continue `Approve to continue the run, or Cancel to leave it paused and tell me what to do.`; stop a paused run `Approve to stop the run here, or Cancel to leave it paused.`; cancel a live run `Approve to stop the run, or Cancel to leave it running.`
 
-For a duplicate run, say `<workflow> is already running as <runKey>`. Offer inspection first. If the operator wants to abandon a zombie run, give the one recovery sequence: cancel the SDK run, then reconcile with `gtm runs get`.
+## Business diagrams
 
-Keep ports, process controls, SDK run IDs, project identifiers, environment names, branch names, token counts, and telemetry in internal diagnostics unless requested or needed to disambiguate an action. Keep production bearers, OIDC tokens, and public per-run webhook URLs out of messages and tool results. Approval and trigger tokens merely name the pending stage; trusted controls may still resolve them internally to keep the operator interaction concise. Run keys may appear for inspection or duplicate recovery. Describe clean persistence as `saved to history`.
+For `show me the workflow`, generate the business diagram and relay it. When the operator wants status and spend overlaid, add `[x]` done, `[!]` failed, `[~]` active, `[ ]` not reached, and paid-step cost from the run they name by workflow name and time. Hide schemas, storage writes, model settings, and telemetry.
+
+Add a short caption with the trigger, inputs or changes, saved result, and partial-failure behavior. Provide technical control flow only when requested.
+
+## Outcome reports
+
+Lead completion with the business result and `<n> completed, <m> failed`. Follow with `found <success> of <success + empty> (<hit-rate>%)`, rows written, table, cache hits, estimate versus actual, vendor and model cost, `reported | fixed | projected` cost sources, external systems changed, and delivery state. When estimate and actual differ by more than 20%, give one reason: cache hits, lower reported cost, or early stop. A projected cost is the accepted ceiling because the backend did not report billing.
+
+At a checkpoint, report `<n> rows done, <m> failed, found <x> of <y> (<z>%), $<a> estimated versus $<b> actual, <cost-source breakdown>, $<c> projected for the remaining rows`. On a hosted surface that report, ending `Cancel, then ask me to show the saved rows before deciding`, is the `summary` of the approve action with its closing line, and no text precedes it. On a keyboard it is a text report followed by:
+
+```text
+1. Continue (Recommended)
+2. Stop here
+3. Show me the saved rows first
+
+Reply with a number, or type your answer.
+```
+
+Use `completed` only when all accepted work ended normally. Say `stopped` for operator denial, provider authentication or quota hold, or a spend-cap stop; include the stop reason and how many rows remain. Say `timed out` for an expired approval and `failed at <stage>` when step identity is available.
+
+While cancellation is pending, say `<workflow> is cancelling` and that a second start is held until it finishes. At terminal state, say `<workflow> was cancelled` with rows saved and spend so far; an already-issued request may have completed before the runtime suspension point.
+
+For a duplicate run, say `<workflow> is already running`, naming it by workflow name and start time. Offer to show its progress first. If the operator wants to abandon a stuck run, offer to stop the stuck run and tidy up, then do both. A user refers to a run by workflow name and time ("the account-scoring run from this morning"); the agent resolves the run internally.
+
+Keep ports, process controls, run identifiers, project identifiers, environment names, branch names, token counts, and telemetry in internal diagnostics unless requested or needed to disambiguate an action. Keep production bearers, OIDC tokens, and public per-run webhook URLs out of messages and tool results. Approval and trigger tokens merely name the pending stage; trusted controls may still resolve them internally to keep the operator interaction concise. Close with `Saved.`

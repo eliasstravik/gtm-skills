@@ -24,6 +24,7 @@ HOSTED_CONNECTED_EVALS = {
     "hosted-update-proceeds",
     "hosted-save-failure-recovery",
 }
+HOSTED_NORTHWIND_EVALS = HOSTED_CONNECTED_EVALS | {"hosted-native-approval-update"}
 
 
 def digest_tree(root: Path) -> str:
@@ -64,6 +65,7 @@ def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> str | None:
 
     existing = {
         "update-a-member": ("ember-health", "Morgan Vale", "morgan@ember-health.example"),
+        "batch-add-members": ("ember-health", "Morgan Vale", "morgan@ember-health.example"),
         "delete-a-suborg": ("northstar-group", "Amina Yusuf", "amina@northstar-group.example"),
         "doctor-broken-repo": ("atlas-labs", "Sam Rivera", "sam@atlas-labs.example"),
         "doctor-root-workflow-project": ("solstice-freight", "Noor Haddad", "noor@solstice-freight.example"),
@@ -95,7 +97,7 @@ def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> str | None:
             run_git(repo, "remote", "add", "origin", str(remote), env=env)
             run_git(repo, "push", "-u", "origin", "main", env=env)
 
-    if eval_case["name"] in HOSTED_CONNECTED_EVALS:
+    if eval_case["name"] in HOSTED_NORTHWIND_EVALS:
         repo = home / ".gtm" / "northwind-gtm"
         run_git(repo, "init", "-b", "main", env=env)
         run_git(repo, "config", "--local", "user.name", "GTM Workspace", env=env)
@@ -157,6 +159,10 @@ def executor_prompt(eval_case: dict, configuration: str, skill_path: Path | None
         if skill_path
         else "No skill is available. Do not search for or read any SKILL.md. Solve the task from the user request alone."
     )
+    environment_contract = eval_case.get(
+        "environment_contract",
+        "No environment-declared connected repo, native approval control, or replacement durable-write mechanism exists in this run unless the task says otherwise.",
+    )
     if "available_gtm_workflows" in eval_case:
         workflows = eval_case["available_gtm_workflows"]
         rendered_workflows = "\n".join(f"- `{workflow}`" for workflow in workflows) or "- (empty)"
@@ -181,7 +187,8 @@ Security and isolation:
 Interactive simulation:
 - The task below embeds a persona and scripted choices because no human can answer during this run.
 - Drive the flow to completion by treating those scripted facts as the user's successive replies. Do not stop to wait for input.
-- Preserve the actual conversational behavior in $HOME/eval-output/conversation.md as alternating `## Assistant` and `## User` turns. Each assistant turn may ask only one question.
+- Preserve the actual conversational behavior in $HOME/eval-output/conversation.md as alternating `## Assistant` and `## User` turns. Each question-bearing assistant turn is one grouped message: one bold lead question first, the remaining facts wanted as bullets, and at most one numbered block.
+- Environment contract: {environment_contract}
 - Perform the resulting filesystem and git actions for real inside HOME.
 - Save a concise closing user-facing answer to $HOME/eval-output/final.md.
 - Do not put evaluation commentary in those output files.
@@ -250,11 +257,11 @@ def run_one(eval_case: dict, configuration: str, iteration: Path, baseline_skill
 
         snapshot = run_dir / "sandbox_snapshot"
         snapshot.mkdir()
-        for relative in [Path(".gtm"), Path("source"), Path("remotes")]:
+        for relative in [Path(".gtm"), Path("source"), Path("remotes"), Path(".gtm-eval")]:
             source = home / relative
             if source.exists():
                 shutil.copytree(source, snapshot / relative, symlinks=True)
-        ignored_roots = {".codex", "skill"}
+        ignored_roots = {".codex", "skill", ".gtm-eval"}
         home_inventory = sorted(
             str(path.relative_to(home))
             for path in home.rglob("*")
@@ -341,6 +348,8 @@ def main() -> None:
             "assertions": eval_case["assertions"],
             "allowed_example_values": eval_case.get("allowed_example_values", []),
         }
+        if "environment_contract" in eval_case:
+            metadata["environment_contract"] = eval_case["environment_contract"]
         if "available_gtm_workflows" in eval_case:
             metadata["available_gtm_workflows"] = eval_case["available_gtm_workflows"]
         (eval_dir / "eval_metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")

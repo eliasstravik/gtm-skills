@@ -50,7 +50,7 @@ An unchanged rerun produces ledger rows like this:
 
 ## Keep organization, market, buyer, and workflow knowledge in one place
 
-The GTM workspace records durable facts about the business and its team. ICPs define the companies each organization serves, personas define the buyers and stakeholders it needs to understand, and saved workflows turn that context into repeatable work. Every durable change is previewed in full, accepted explicitly, and saved to history.
+The GTM workspace records durable facts about the business and its team. ICPs define the companies each organization serves, personas define the buyers and stakeholders it needs to understand, and saved workflows turn that context into repeatable work. Every durable change is proposed as a short plain-language summary, accepted explicitly with one approval, and saved.
 
 ## Compare concrete behavior
 
@@ -58,7 +58,7 @@ The GTM workspace records durable facts about the business and its team. ICPs de
 |---|:---:|:---:|:---:|:---:|
 | **Accepted facts and definitions live in one Git repository** | ✅ | ❌ | ❌ | ❌ |
 | **Root and nested organizations own separate ICP and persona files** | ✅ | ❌ | ❌ | ❌ |
-| **The agent previews complete durable changes before writing** | ✅ | ❌ | ❌ | ❌ |
+| **The agent describes every durable change in plain language and asks for one approval before writing** | ✅ | ❌ | ❌ | ❌ |
 | **Every result table has types, a stable key, and committed migrations** | ✅ | ❌ | ❌ | ❌ |
 | **Every paid call passes through one content-addressed cache** | ✅ | ❌ | ❌ | ❌ |
 | **Every paid call writes status and cost to a per-run ledger** | ✅ | ❌ | ❌ | ❌ |
@@ -71,7 +71,7 @@ Keep durable GTM knowledge and reusable automations in one repository. Each skil
 
 ## How the five skills fit together
 
-Four Lifecycle Skills form one chain of durable ownership; one Task Skill performs bounded in-session work from their shared facts. They resolve the same organization node, while durable changes use the same review-before-write rule and Git history.
+Four Lifecycle Skills form one chain of durable ownership; one Task Skill performs bounded in-session work from their shared facts. They resolve the same organization node, while durable changes use the same describe-before-write rule and Git history.
 
 | Skill | Owns | Hands off |
 | --- | --- | --- |
@@ -98,7 +98,7 @@ Project records: [versions and compatibility](VERSIONS.md) · [changelog](CHANGE
 
 <table>
 <tr>
-<td align="center" valign="top" width="50%"><h3>Self-serve</h3><sub>For GTM builders and teams using AI agents</sub><br /><h2>Free</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Five installable GTM skills<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Git-backed GTM workspace<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Persona lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Local and Vercel workflows<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Guided previews, caps, and history</div></td>
+<td align="center" valign="top" width="50%"><h3>Self-serve</h3><sub>For GTM builders and teams using AI agents</sub><br /><h2>Free</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Five installable GTM skills<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Git-backed GTM workspace<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Persona lifecycle management<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Local and Vercel workflows<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Plain-language proposals, caps, and history</div></td>
 <td align="center" valign="top" width="50%"><h3>Done-with-you</h3><sub>Hands-on setup and rollout for your GTM team</sub><br /><h2>Let's talk</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Everything in self-serve<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Full GTM Skills setup<br />&nbsp;&nbsp;&nbsp;✓&nbsp; GTM workspace repository configuration<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP, persona, and workflow design<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Team rollout, training, and best practices<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Ongoing maintenance and upgrades<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Dedicated Slack channel support</div></td>
 </tr>
 <tr>
@@ -111,7 +111,7 @@ Project records: [versions and compatibility](VERSIONS.md) · [changelog](CHANGE
 
 ### Do I need to write the workflow code myself?
 
-No. The agent writes the workflow code and migrations. You review the complete tracked diff, the zero-spend dry run, and the first three saved rows. You need `npx`, an AI agent that loads installed skills, and Git for the GTM workspace repository.
+No. The agent writes the workflow code and migrations. You review a plain-language summary of what the workflow does, writes, and costs, the zero-spend dry run, and the first three saved rows; the full code is shown when you ask. You need `npx`, an AI agent that loads installed skills, and Git for the GTM workspace repository.
 
 ### What gets installed?
 

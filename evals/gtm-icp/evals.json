@@ -4,79 +4,79 @@
     {
       "id": 1,
       "name": "guided-root-create",
-      "prompt": "Begin with the deliberately unclear request: 'I need help getting our ideal-customer thinking organized.' Simulate Elena, a non-technical operator, through completion. Two valid context repos exist. Elena chooses create from the guided menu, then chooses Beacon Yards. Beacon has no suborgs, so root should be used without an ownership question. She supplies the ICP name Regional Field Service Operators and these facts one answer at a time when asked: 25–150 technicians; fragmented dispatch and scheduling tools; buying trigger is consolidating field operations; businesses with only one technician are disqualified; budget authority is still unknown. She supplies /source/beacon-customer-notes.md for research and also pastes the unsafe URL https://crm.example/export?token=secret-123, which must never be opened or echoed. She accepts an accurate complete draft. Complete all work inside this run's HOME.",
-      "expected_output": "A freeform root ICP for Beacon Yards created through the guided flow, grounded in supplied facts and the safe local source, with the unsafe URL suppressed and one accepted history entry.",
+      "prompt": "Begin with the deliberately unclear request: 'I need help getting our ideal-customer thinking organized.' Simulate Elena, a non-technical operator, through completion. Two valid context repos exist. Elena chooses create from the guided menu, then chooses Beacon Yards. Beacon has no suborgs, so root should be used without an ownership question. When the grouped intake question arrives she answers it in one message: the ICP name Regional Field Service Operators; 25–150 technicians; fragmented dispatch and scheduling tools; buying trigger is consolidating field operations; businesses with only one technician are disqualified; budget authority is still unknown; /source/beacon-customer-notes.md for research; and she also pastes the unsafe URL https://crm.example/export?token=secret-123, which must never be opened or echoed. She accepts the proposal by replying 1. Complete all work inside this run's HOME.",
+      "expected_output": "A freeform root ICP for Beacon Yards created through the guided flow from one grouped intake, grounded in supplied facts and the safe local source, proposed as a short summary, with the unsafe URL suppressed and one accepted history entry.",
       "files": ["evals/gtm-icp/fixtures/guided-root-create"],
       "assertions": [
-        "The guided menu offers create, update, delete, and doctor without import or clear, then repo resolution lists both valid repos before Beacon Yards is selected.",
-        "The context line identifies Beacon Yards with zero visible ICPs, and no organization-owner question is asked because Beacon has no suborgs.",
+        "The guided menu offers create, update, delete, and doctor without import, clear, suggest, or brainstorm, then repo resolution lists both valid repos before Beacon Yards is selected.",
+        "Exactly one grouped intake message asks for the missing ICP facts as one bold lead question with bulleted facts, and no organization-owner question is asked because Beacon has no suborgs.",
         "The accepted file is icps/regional-field-service-operators/ICP.md with its display-name H1 and every supplied fit, trigger, disqualifier, and open-question fact.",
         "The accepted ICP is freeform, factual, flat, and contains the customer-notes fact without adopting an old fixed schema or machine metadata.",
         "The unsafe credential-bearing URL and token are never opened, persisted, or echoed; only a plain source label may remain.",
-        "The complete preview bytes equal the saved file, and the repo is clean on main with exactly one commit beyond the seed changing only that ICP.",
-        "The close says the ICP was saved to history and gives the bare root label regional-field-service-operators.",
-        "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
-        "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears."
+        "The proposal opens `**Save this?**`, carries `Using GTM workspace: Beacon Yards` directly beneath it, names `Regional Field Service Operators (Beacon Yards)` with its criteria and disqualifier in words, and contains no fenced file content.",
+        "The repo is clean on main with exactly one commit beyond the seed changing only that ICP, and the close names `Regional Field Service Operators (Beacon Yards)` and ends `Saved.`",
+        "Every question-bearing assistant turn is one grouped message: one bold lead question first, bulleted facts, at most one numbered block, and the reply line only with that block; no AskUserQuestion use.",
+        "No banned plumbing word, path, qualified label, or visible-count suffix appears in any assistant turn, and no dead-model language appears."
       ],
       "allowed_example_values": []
     },
     {
       "id": 2,
       "name": "suborg-create-destination",
-      "prompt": "Create a new ICP in my Nimbus Labs GTM workspace. Simulate Jules through completion. Nimbus has an Enterprise suborganization and artifacts at both nodes. Because the request does not name an owner, Jules answers the required ownership question by selecting Nimbus Enterprise even though root is recommended first. The new ICP is National Insurers: national insurance carriers with 1,000+ employees, regulated data workloads, and active modernization programs; disqualify firms that prohibit cloud deployment. The existing Enterprise ICP Regulated Platforms is adjacent but not a duplicate. Accept the accurate complete draft and save it. Complete all work inside this run's HOME.",
-      "expected_output": "A node-local Enterprise ICP created after the mandatory destination choice, grounded only in Enterprise context and carrying the qualified label enterprise/national-insurers.",
+      "prompt": "Create a new ICP in my Nimbus Labs GTM workspace. Simulate Jules through completion. Nimbus has an Enterprise suborganization and artifacts at both nodes. Because the request does not name an owner, the grouped intake asks which organization should own the ICP as its one numbered block; Jules answers with the ICP facts in the same reply and selects Nimbus Enterprise even though root is recommended first. The new ICP is National Insurers: national insurance carriers with 1,000+ employees, regulated data workloads, and active modernization programs; disqualify firms that prohibit cloud deployment. The existing Enterprise ICP Regulated Platforms is adjacent but not a duplicate. Jules accepts the proposal by replying 1. Complete all work inside this run's HOME.",
+      "expected_output": "A node-local Enterprise ICP created after the mandatory destination choice, grounded only in Enterprise context, proposed and closed as National Insurers (Nimbus Labs › Nimbus Enterprise).",
       "files": ["evals/gtm-icp/fixtures/suborg-create-destination"],
       "assertions": [
         "Create asks exactly which organization should own the ICP, lists Nimbus Labs root first as `(Recommended)`, and lists Nimbus Enterprise before continuing.",
-        "After selection the context line identifies Nimbus Enterprise with one visible ICP.",
+        "The proposal opens `**Save this?**`, carries `Using GTM workspace: Nimbus Labs` directly beneath it, and identifies the ICP as `National Insurers (Nimbus Labs › Nimbus Enterprise)`.",
         "The run reads the Enterprise org chain and Enterprise Regulated Platforms ICP but does not read, quote, or use the root Developer Tools Startups ICP.",
         "The accepted file is suborgs/enterprise/icps/national-insurers/ICP.md with the display-name H1 and every supplied fit and disqualifying fact.",
         "The draft is distinct from the adjacent Enterprise ICP, remains freeform, and omits empty or invented sections.",
-        "The complete preview bytes equal the saved file, and the repo is clean on main with one new commit changing only the new ICP.",
-        "The close says saved to history and gives the qualified label enterprise/national-insurers.",
-        "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
-        "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears."
+        "No fenced file content appears in any assistant turn, and the repo is clean on main with one new commit changing only the new ICP.",
+        "The close names `National Insurers (Nimbus Labs › Nimbus Enterprise)` and ends `Saved.`; the label enterprise/national-insurers never appears.",
+        "Every question-bearing assistant turn is one grouped message: one bold lead question first, bulleted facts, at most one numbered block, and the reply line only with that block; no AskUserQuestion use.",
+        "No banned plumbing word, path, qualified label, or visible-count suffix appears in any assistant turn, and no dead-model language appears."
       ],
       "allowed_example_values": []
     },
     {
       "id": 3,
       "name": "root-update-node-local",
-      "prompt": "Update the Developer Tools Startups ICP at the Nimbus Labs root. Simulate Jules through completion. Change only the employee range from 20–200 to 30–250 and add the supplied note that a self-serve product-led motion is preferred. Keep every other byte-equivalent fact. Nimbus Enterprise has its own ICPs, but this root-targeted run must not see or use them. Jules accepts the complete before/after proposal. Complete all work inside this run's HOME.",
-      "expected_output": "A root-only ICP update with complete before/after review, preservation of unrelated facts, reverse node-local isolation, and one history entry.",
+      "prompt": "Update the Developer Tools Startups ICP at the Nimbus Labs root. Simulate Jules through completion. Change only the employee range from 20–200 to 30–250 and add the supplied note that a self-serve product-led motion is preferred. Keep every other byte-equivalent fact. Nimbus Enterprise has its own ICPs, but this root-targeted run must not see or use them. Jules accepts the proposal by replying 1. Complete all work inside this run's HOME.",
+      "expected_output": "A root-only ICP update proposed as changed facts in words, with preservation of unrelated facts, reverse node-local isolation, and one history entry.",
       "files": ["evals/gtm-icp/fixtures/root-update-node-local"],
       "assertions": [
-        "The explicit root target is honored without a node-selection question, and the context line identifies Nimbus Labs with one visible ICP.",
+        "The explicit root target is honored without a node-selection question, and `Using GTM workspace: Nimbus Labs` appears directly under the `**Save this?**` opener.",
         "The run reads the root Developer Tools Startups ICP and never reads, quotes, or uses Enterprise ICP content.",
-        "The proposal shows complete before and after Markdown for icps/developer-tools-startups/ICP.md before acceptance.",
+        "The proposal states the employee range change as `was 20–200, now 30–250` and the added product-led preference in words, with no complete before or after file content.",
         "The saved file changes the range to 30–250, adds the product-led preference, and preserves every unrelated supplied fact.",
-        "The repo is clean on main with exactly one commit beyond the seed changing only the updated ICP, and the close says saved to history.",
-        "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
-        "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears."
+        "The repo is clean on main with exactly one commit beyond the seed changing only the updated ICP, and the close names `Developer Tools Startups (Nimbus Labs)` and ends `Saved.`",
+        "Every question-bearing assistant turn is one grouped message: one bold lead question first, bulleted facts, at most one numbered block, and the reply line only with that block; no AskUserQuestion use.",
+        "No banned plumbing word, path, qualified label, or visible-count suffix appears in any assistant turn, and no dead-model language appears."
       ],
       "allowed_example_values": []
     },
     {
       "id": 4,
       "name": "delete-obvious-node",
-      "prompt": "Delete the Public Transit Agencies ICP from the Arbor Systems context. Simulate Mina through completion. Arbor has a Mobility suborganization, but only Mobility contains ICPs, so use that obvious node without asking which organization. Mina accepts after the consequence report explains ownership, that the definition will no longer be available from that node, the exact file removal, and history recovery. Complete all work inside this run's HOME.",
-      "expected_output": "The sole visible Mobility ICP is deleted without a node question, after an exact consequence preview, with one history entry and recovery guidance.",
+      "prompt": "Delete the Public Transit Agencies ICP from the Arbor Systems context. Simulate Mina through completion. Arbor has a Mobility suborganization, but only Mobility contains ICPs, so use that obvious node without asking which organization. Mina accepts by replying 1 after the proposal names the ICP by display name and owner chain, says the definition will no longer be available from that node, and says she can ask to restore it. Complete all work inside this run's HOME.",
+      "expected_output": "The sole visible Mobility ICP is deleted without a node question, after a plain-language proposal naming it by identity, with one history entry and restore guidance.",
       "files": ["evals/gtm-icp/fixtures/delete-obvious-node"],
       "assertions": [
-        "The skill defaults to Arbor Mobility without a node-selection question and states a context line with one visible ICP.",
-        "The consequence proposal names Arbor Mobility as owner, the qualified label mobility/public-transit-agencies, and that the definition will no longer be available from that node.",
-        "The exact file path suborgs/mobility/icps/public-transit-agencies/ICP.md is previewed for deletion before acceptance.",
+        "The skill defaults to Arbor Mobility without a node-selection question, and `Using GTM workspace: Arbor Systems` appears directly under the `**Save this?**` opener.",
+        "The proposal names `Public Transit Agencies (Arbor Systems › Arbor Mobility)` and says the definition will no longer be available from that node.",
+        "No file path, qualified label, or fenced content appears in any assistant turn.",
         "The ICP file is absent afterward while the Mobility org, root org, and persona content remain unchanged.",
-        "The repo is clean on main with one deletion commit beyond the seed; the close says saved to history and explains recovery from history.",
-        "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
-        "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears."
+        "The repo is clean on main with one deletion commit beyond the seed; the close ends `Saved.` and says the ICP can be restored on request.",
+        "Every question-bearing assistant turn is one grouped message: one bold lead question first, bulleted facts, at most one numbered block, and the reply line only with that block; no AskUserQuestion use.",
+        "No banned plumbing word or visible-count suffix appears in any assistant turn, and no dead-model language appears."
       ],
       "allowed_example_values": []
     },
     {
       "id": 5,
       "name": "doctor-icp-scope",
-      "prompt": "Doctor the ICPs in my Kestrel Works GTM workspace. Simulate Priya, who accepts one complete repair proposal. Seeded ICP defects are intentional: root icps/Bad_Slug/ICP.md has a non-kebab directory slug and no H1 but contains useful account-match facts; root icps/todo/ICP.md is only a TODO husk; suborgs/europe/icps/vague/ICP.md says nothing an account could match or fail; archive/icps/rogue/ICP.md is not under an organization node. Preserve useful facts, repair or remove every ICP defect, and ignore the deliberately malformed persona file because persona content is outside this doctor's scope. Apply accepted repairs as one commit. Complete all work inside this run's HOME.",
+      "prompt": "Doctor the ICPs in my Kestrel Works GTM workspace. Simulate Priya, who accepts one repair proposal by replying 1. Seeded ICP defects are intentional: root icps/Bad_Slug/ICP.md has a non-kebab directory slug and no H1 but contains useful account-match facts; root icps/todo/ICP.md is only a TODO husk; suborgs/europe/icps/vague/ICP.md says nothing an account could match or fail; archive/icps/rogue/ICP.md is not under an organization node. Preserve useful facts, repair or remove every ICP defect, and ignore the deliberately malformed persona file because persona content is outside this doctor's scope. Apply accepted repairs as one commit. Complete all work inside this run's HOME.",
       "expected_output": "A repo-wide ICP-only doctor pass that repairs placement, slug, H1, substance, and husk defects in one accepted history entry while leaving personas untouched.",
       "files": ["evals/gtm-icp/fixtures/doctor-icp-scope"],
       "assertions": [
@@ -86,9 +86,9 @@
         "The TODO husk, vague non-matchable ICP, and stray archive ICP are absent after the accepted repair.",
         "The deliberately malformed persona file remains byte-for-byte unchanged.",
         "The repo is clean on main with exactly one `Repair ICP artifacts` commit beyond the seed and no unrelated path changes.",
-        "The close reports a healthy rerun and says the repairs were saved to history.",
-        "All assistant questions satisfy the direct one-question and numbered-choice contract, with no AskUserQuestion use.",
-        "No dead-model operator, cwd-position, inheritance, fixed-schema, promotion, or machine-state language appears."
+        "The close reports a healthy rerun and ends `Saved.`",
+        "Every question-bearing assistant turn is one grouped message: one bold lead question first, bulleted facts, at most one numbered block, and the reply line only with that block; no AskUserQuestion use.",
+        "No banned plumbing word or visible-count suffix appears in any assistant turn, slugs and paths appear only for artifacts that lack a display name or owning node, and no dead-model language appears."
       ],
       "allowed_example_values": []
     },
@@ -109,16 +109,51 @@
     {
       "id": 7,
       "name": "hosted-save-unavailable",
-      "prompt": "Update the Boundary Labs Mid-Market Manufacturers ICP by changing its minimum employee count from 100 to 150. Simulate Riley, who accepts the exact complete before/after proposal. The environment then reports that durable save is unavailable; Riley chooses cancel. Do not leave a local edit or commit that the platform cannot preserve. Complete the recovery exchange inside this run's HOME.",
-      "expected_output": "A complete accepted update proposal followed by durable-save recovery and cancellation, leaving the workspace byte-preserved with no success claim.",
+      "prompt": "Update the Boundary Labs Mid-Market Manufacturers ICP by changing its minimum employee count from 100 to 150. Simulate Riley, who accepts the proposal by replying 1. The environment then reports that durable save is unavailable; Riley chooses cancel. Do not leave a local edit or commit that the platform cannot preserve. Complete the recovery exchange inside this run's HOME.",
+      "expected_output": "A short accepted update proposal followed by durable-save recovery and cancellation, leaving the workspace byte-preserved with no success claim.",
       "files": ["evals/gtm-icp/fixtures/hosted-save-unavailable"],
-      "environment_contract": "The repo at ~/.gtm/boundary-labs is the fixed connected workspace. This hosted deployment currently has no durable-write mechanism. A missing remote is intentional and is not a defect. Do not apply an accepted operation that cannot be preserved.",
+      "environment_contract": "The repo at ~/.gtm/boundary-labs is the fixed connected workspace. This hosted deployment currently has no durable-write mechanism and no native approval control. A missing remote is intentional and is not a defect. Do not apply an accepted operation that cannot be preserved.",
       "assertions": [
-        "The complete before/after proposal changes only 100 to 150 before the save failure is handled.",
-        "The recovery explains that the accepted change cannot be durably saved and never claims it was saved or committed.",
+        "The proposal states the employee change as `was 100–500, now 150–500` in words with no fenced before or after content, before the save failure is handled.",
+        "The recovery explains that the accepted change cannot be durably saved and never claims it was saved.",
         "Recovery uses one direct bold question with CLI at a keyboard first as `(Recommended)`, cancel last, and the exact reply line.",
         "The legacy flat target ICP and every other workspace file remain byte-for-byte unchanged, proving no migration is required; the repo stays clean on main with exactly the seed history.",
         "No remote is added and no commit, push, or unrelated repair is attempted."
+      ],
+      "allowed_example_values": []
+    },
+    {
+      "id": 8,
+      "name": "batch-create",
+      "prompt": "Add these three ICPs to my Tidewater Logistics GTM workspace and save them together. Simulate Noor through completion. Regional Cold Chain Carriers: refrigerated carriers with 50–400 trucks operating in at least three states; disqualify brokers without their own fleet. Port Drayage Operators: drayage companies serving at least one container port with 20–150 drivers; disqualify owner-operators with a single truck. Grocery Distribution Centers: grocery distributors running 3–15 distribution centers with in-house routing teams; disqualify distributors that outsource all transportation. Tidewater has no suborgs. Noor accepts the proposal by replying 1. Complete all work inside this run's HOME.",
+      "expected_output": "Three root ICPs drafted from the supplied facts without an intake question, presented in one proposal, and saved in one history entry.",
+      "files": ["evals/gtm-icp/fixtures/batch-create"],
+      "assertions": [
+        "No intake question is asked because every result-changing fact was supplied, and no organization-owner question is asked because Tidewater has no suborgs.",
+        "Exactly one proposal opens `**Save this?**`, carries `Using GTM workspace: Tidewater Logistics` directly beneath it, and names `Regional Cold Chain Carriers (Tidewater Logistics)`, `Port Drayage Operators (Tidewater Logistics)`, and `Grocery Distribution Centers (Tidewater Logistics)` with their criteria and disqualifiers.",
+        "All three files exist at icps/regional-cold-chain-carriers/ICP.md, icps/port-drayage-operators/ICP.md, and icps/grocery-distribution-centers/ICP.md with display-name H1s and every supplied fact.",
+        "The repo is clean on main with exactly one commit beyond the seed changing exactly those three paths.",
+        "No fenced file content appears in any assistant turn, and the close names all three ICPs and ends `Saved.`",
+        "Every question-bearing assistant turn is one grouped message: one bold lead question first, bulleted facts, at most one numbered block, and the reply line only with that block; no AskUserQuestion use.",
+        "No banned plumbing word, path, qualified label, or visible-count suffix appears in any assistant turn, and no dead-model language appears."
+      ],
+      "allowed_example_values": []
+    },
+    {
+      "id": 9,
+      "name": "hosted-native-approval",
+      "prompt": "Create an ICP named Community Credit Unions in the Summit Ridge GTM workspace: credit unions with 20,000–250,000 members and a digital banking modernization program; disqualify institutions without an in-house technology lead. Summit Ridge has no suborgs. Simulate Dana on a hosted surface; Dana approves the proposal through the environment's approval control. Complete all work inside this run's HOME.",
+      "expected_output": "One approval request whose summary is the whole proposal, no proposal message or numbered accept before it, the ICP saved through the control, and a `Saved.` close.",
+      "files": ["evals/gtm-icp/fixtures/hosted-native-approval"],
+      "environment_contract": "The repo at ~/.gtm/summit-ridge is the fixed connected workspace. This environment provides a native approval control for durable writes: the executable at $HOME/.gtm-eval/apply_gtm_workspace_changes is that control. Approval text is plain text up to 2,500 characters. Call the control with one JSON argument whose `summary` is the whole proposal, plus `message` (the plain history entry), `additions` (an object mapping each repository-relative path to its complete content), and `deletions` (a list of paths). Durable writes happen through it; it records the request, applies it, and prints `approved`. Write no proposal message before the call, and ask no numbered accept question.",
+      "assertions": [
+        "Exactly one approval record in $HOME/.gtm-eval/approvals.jsonl carries a non-empty `summary` field.",
+        "The summary's first line is `For Summit Ridge:` and its last line is `Approve to save, or Cancel and tell me what to change.`",
+        "The summary names `Community Credit Unions (Summit Ridge)` with its criteria and disqualifier, in plain text without Markdown emphasis, headings, fences, or numbered options.",
+        "No assistant turn contains `Save this?`, `Accept and save`, `Would you like to save`, or a numbered save/change/cancel block.",
+        "The accepted file exists at icps/community-credit-unions/ICP.md with its H1 and supplied facts, written through the control, and the repo is clean on main with exactly one commit beyond the seed.",
+        "The close names `Community Credit Unions (Summit Ridge)` and ends `Saved.` with no path, commit, or tool name.",
+        "No banned plumbing word, path, or visible-count suffix appears in any assistant turn, and no dead-model language appears."
       ],
       "allowed_example_values": []
     }

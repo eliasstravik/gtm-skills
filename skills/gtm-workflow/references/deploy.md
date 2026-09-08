@@ -4,18 +4,18 @@ Use this flow for accepted workflow bytes that say `Runs: on Vercel`. The workfl
 
 ## One save-and-deploy gate
 
-There is no separate deployment action. The save proposal must say plainly that accepting the workflow commit writes to `main` and therefore starts a production Vercel deployment. It must include validation, dry-run scope, migrations, affected files, and the resulting live state.
+There is no separate deployment action. The save proposal ends its workflow description with `Saving this also puts it live in production.` It states, in words, what the workflow does, where it runs, what it costs per run, what it writes, each table change, the dry-run scope, and that validation passed; it names no files, migrations, or commands.
 
 Offer a saved-but-not-deployed option only by keeping the draft outside the repository. Do not commit a Vercel workflow draft to another branch or add a second deployment repository.
 
 ## Before the commit
 
 1. Run `npm run gtm -- check` and the accepted production input through `gtm run --dry-run`.
-2. Generate committed migrations only after acceptance. Inspect the SQL and require its journal entry plus numbered snapshot when schema DDL needs one. Show the full SQL for anything beyond additive `CREATE TABLE` or `ADD COLUMN`; declare `DELETE`, `UPDATE`, `RENAME`, `DROP`, and `CREATE TRIGGER` destructive. Use expand/contract instead of an in-place rename.
+2. On a keyboard, generate committed migrations only after acceptance; on a hosted surface, generate them in the scratch draft before the request so the request already carries the SQL, journal, and snapshot. Inspect the SQL and require its journal entry plus numbered snapshot when schema DDL needs one. State each table change in words in the proposal and any destructive effect with the number of rows affected; show SQL on request; declare `DELETE`, `UPDATE`, `RENAME`, `DROP`, and `CREATE TRIGGER` destructive in the host request. Use expand/contract instead of an in-place rename.
 3. Apply new committed migrations to the workspace Turso database inside the approval-gated save operation, then verify every accepted SQL SHA-256 hash exists in `__drizzle_migrations` before creating the Git commit. A successful command without the ledger entries is a failed save. Migrations must be backward-compatible because an applied migration can outlive a failed commit or deployment. Nothing runs migration as a build side effect.
 4. Require the connected workflow project to expose Vercel system environment variables so `VERCEL_GIT_COMMIT_SHA` is available at runtime.
 
-In a sandbox, submit the accepted tracked batch through `apply_gtm_workspace_changes`. The request names every migration file it carries, includes the generated journal plus any schema snapshot, and declares whether any statement drops a table or column. The tool stages the accepted workflow tree, applies its new migrations through a write credential that exists only for that step, verifies their hashes in the ledger, then atomically commits to `main`. It never receives a Vercel token and never opens `api.vercel.com`.
+In a sandbox, submit the tracked batch through the environment's native approval control; its approval text is the whole proposal per the shared interaction standard, and the tool call is the only action of the message that carries it. The request names every migration file it carries, includes the generated journal plus any schema snapshot, and declares whether any statement drops a table or column. The tool stages the accepted workflow tree, applies its new migrations through a write credential that exists only for that step, verifies their hashes in the ledger, then atomically commits to `main`. It never receives a Vercel token and never opens `api.vercel.com`.
 
 Build the save manifest from the final payload: exactly one `write` entry for every path in `additions` and one `delete` entry for every path in `deletions`, with no duplicates or extra paths. Include migration SQL, journals, and snapshots in this same mapping. If the host rejects the request before approval, correct the reported missing, extra, or mismatched entries and resubmit the complete request for approval. A rejected request has saved nothing.
 
@@ -39,7 +39,7 @@ Do not configure a Vercel deploy token in Eve. Do not give the sandbox Vercel CL
 
 ## Wait for the exact commit
 
-After the save tool returns the new commit SHA, production is deploying, not yet live. A trusted workflow start control must:
+After the save tool returns the new commit SHA, production is not yet live; tell the user `It will be live in production in a few minutes; ask me to check.` A trusted workflow start control must:
 
 1. repeat the zero-spend dry run against that exact committed checkout;
 2. poll the bearer-protected `GET /api/deployment` route with Eve's short-lived OIDC identity until it returns that exact SHA;
@@ -60,7 +60,7 @@ The run route returns `409 deployment_not_ready` if production changed between t
 
 ## Live state
 
-`Deploying` means the accepted `main` commit exists but the production deployment endpoint does not yet report that SHA. `Live` means the exact SHA is in production, its migration has applied, and verification reached the expected database and workflow state. A draft outside Git is neither saved nor live.
+`Not yet live.` means the accepted `main` commit exists but the production deployment endpoint does not yet report that SHA. `Live.` means the exact SHA is in production, its migration has applied, and verification reached the expected database and workflow state; answer with one of those two words when the user asks. A draft outside Git is neither saved nor live.
 
 The platform documentation sets the lowest-plan function cap at 300 seconds; `agent()` defaults below it at 240 seconds. Retained execution is temporary, while `workflow_runs`, the paid ledger, and business tables are the durable record; see the contract for plan retention, request-body, event, step, and child-workflow batching limits.
 

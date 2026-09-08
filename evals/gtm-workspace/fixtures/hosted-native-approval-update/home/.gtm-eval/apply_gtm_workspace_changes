@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Eval stand-in for a hosted surface's native approval control.
+
+It records the JSON request, applies the additions and deletions to the connected
+workspace as one commit on main, and prints `approved`. It is not a shipping file.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+HOME = Path(os.environ["HOME"])
+REPO = HOME / ".gtm" / "northwind-gtm"
+LOG = HOME / ".gtm-eval" / "approvals.jsonl"
+
+
+def main() -> int:
+    raw = sys.argv[1] if len(sys.argv) > 1 else sys.stdin.read()
+    request = json.loads(raw)
+    LOG.parent.mkdir(parents=True, exist_ok=True)
+    with LOG.open("a") as handle:
+        handle.write(json.dumps(request) + "\n")
+    summary = request.get("summary")
+    if not isinstance(summary, str) or not summary.strip():
+        print("denied: summary is required")
+        return 1
+    additions = request.get("additions") or {}
+    if isinstance(additions, list):
+        additions = {item["path"]: item["content"] for item in additions}
+    deletions = list(request.get("deletions") or [])
+    for relative, body in additions.items():
+        target = REPO / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(body)
+    for relative in deletions:
+        target = REPO / relative
+        if target.is_file():
+            target.unlink()
+    paths = [*additions.keys(), *deletions]
+    subprocess.run(["git", "-C", str(REPO), "add", "-A", "--", *paths], check=True)
+    subprocess.run(
+        ["git", "-C", str(REPO), "commit", "-q", "-m", request.get("message") or "Apply approved change"],
+        check=True,
+    )
+    print("approved")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

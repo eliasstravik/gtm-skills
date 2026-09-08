@@ -4,7 +4,7 @@ Use the matched flow from `SKILL.md`. Keep ownership through completion; these u
 
 ## Contents
 
-- [Interaction protocol](#interaction-protocol)
+- [Workspace rules](#workspace-rules)
 - [Guided menu](#guided-menu)
 - [Surface refusal](#surface-refusal)
 - [Create](#create)
@@ -14,25 +14,15 @@ Use the matched flow from `SKILL.md`. Keep ownership through completion; these u
 - [Doctor](#doctor)
 - [Git problem patterns](#git-problem-patterns)
 
-## Interaction protocol
+## Workspace rules
 
-- Ask exactly one question per message. Begin the message with that clear bold question; put status, context, guidance, examples, and options below it.
-- Format every discrete choice as a numbered list, mark at most one option `(Recommended)`, and end exactly `Reply with a number, or type your answer.`
-- Show what is possible before asking the user to choose. Use everyday terms; say “saved to history,” not commit, SHA, rebase, branch, or upstream unless explaining a problem makes a term unavoidable.
-- Resolve the connected GTM workspace repo first: a repo explicitly named in the request, else the repo the hosting environment declares as connected, else canonical repos under `~/.gtm/` whose root contains `ORG.md`. If several valid repos exist and none was named, list their display names and paths as numbered options. Treat roots with only legacy `org.md` as migration candidates, not canonical repos. Do not save a preferred repo. If update, delete, or doctor has no repo to use, explain that; on a keyboard surface offer create/import through the guided menu. On a fixed-connection surface, a connected repo whose root has neither `ORG.md` nor legacy `org.md` is not set up yet: offer create for that connected repo; otherwise use the surface refusal.
-- Discover organization nodes recursively from the root through repeated `suborgs/<suborg-slug>/` segments. Display each node with its full repository-relative path, and resolve every member relative to its owning node; never collapse same-named nodes or members from different branches.
+- Every user-facing message follows the [shared interaction standard](interaction.md): grouped questions, one plain-language proposal per batch, approval by surface, and a `Saved.` close. The rules below are the workspace-specific ones that remain.
+- Resolve the connected GTM workspace repo first: a repo explicitly named in the request, else the repo the hosting environment declares as connected, else canonical repos under `~/.gtm/` whose root contains `ORG.md`. If several valid repos exist and none was named, list their display names as numbered options. Treat roots with only legacy `org.md` as migration candidates, not canonical repos. Do not save a preferred repo. If update, delete, or doctor has no repo to use, explain that; on a keyboard surface offer create/import through the guided menu. On a fixed-connection surface, a connected repo whose root has neither `ORG.md` nor legacy `org.md` is not set up yet: offer create for that connected repo; otherwise use the surface refusal.
+- Discover organization nodes recursively from the root through repeated `suborgs/<suborg-slug>/` segments. Display each node by its display name plus owner chain, `Enterprise (Nimbus Labs)`, and each member the same way, `Jordan Lee (Nimbus Labs › Enterprise)`; paths stay internal. Resolve every member relative to its owning node; never collapse same-named nodes or members from different branches.
 - Never repeat or open an unsafe link. Follow `contract.md` link safety and continue using a plain-language source label.
 - Research may combine model knowledge, fetched public sources, and supplied files/folders. Apply `company-data.md` whenever creating or fully researching an `ORG.md`, and apply `person-data.md` whenever creating or fully researching a `MEMBER.md`. Research each shared field when safe sources are available, keep unresolved fields visible as `Unknown`, and separate sourced facts from uncertain inferences. Use only a member email the user supplies or a source states directly.
-- Before any durable change, show the complete proposed user-authored workspace content when its substance needs review and list exact folder or file actions in plain language. Implementation files under `workflows/` belong to `gtm-workflow`; hand them off instead of printing code, schemas, tests, config bodies, diffs, or ignore-file contents here. Ask:
-
-  1. Accept and save (Recommended)
-  2. Change it
-  3. Cancel
-
-  `Reply with a number, or type your answer.`
-
-- If the user chooses change, ask `What would you like me to change?`, revise, and show the complete proposal with the same choice. Repeat until accepted or cancelled. Cancellation writes nothing from that proposal.
-- After acceptance, write exactly the accepted proposal and run the background git ritual in `contract.md`. Close every completed flow with a plain-language account of folders or files changed, saved history, private sharing, or a clean bill of health. Keep branch, remote, upstream, commit, and command details optional.
+- Implementation files under `workflows/` belong to `gtm-workflow`; hand them off instead of describing code, schemas, tests, config bodies, diffs, or ignore-file contents here.
+- After acceptance, write exactly the accepted proposal and run the background git ritual in `contract.md`. Close per the standard: what was created, changed, or removed, by identity, then `Saved.` Only import, sharing setup, whole-workspace deletion, and git-problem recovery may name GitHub, the repository, or the folder.
 - Surface every git problem as a plain-English explanation followed by numbered options, with exactly one `(Recommended)` and the required reply line. Never force, branch, use a worktree, change global git config, or discard work.
 
 ## Guided menu
@@ -65,90 +55,28 @@ Write nothing, draft nothing, and research nothing for the refused request; do n
 
 ## Create
 
-On a fixed-connection surface whose connected repo has no root `ORG.md` or legacy `org.md`, run this flow for that repo with these connected-repo substitutions and no others: skip step 1; in step 2 do not create `~/.gtm/` and use the org slug only for display, because the target is the connected checkout; skip step 3; in step 5 open the proposal exactly `Here is the complete proposed \`ORG.md\`:` because the destination is the connected repository root; in step 6 do not create a repo, initialize git, or set an identity, and instead save `ORG.md` together with `AGENTS.md`, `CLAUDE.md`, and `.gitignore` rendered from the templates as one durable change through the environment's declared mechanism; save every later accepted artifact the same way; in step 12 do not set repo-local git identity for the operator; skip step 15 because the deployment already shares the repo; in step 16 say the workspace is saved in the connected repository instead of describing local or shared mode. Every question, proposal opening, accept loop, research rule, and completion criterion stays exactly as written.
+Create is one grouped intake, one research pass, one proposal, and one save.
+
+On a fixed-connection surface whose connected repo has no root `ORG.md` or legacy `org.md`, run this flow for that repo with these connected-repo substitutions and no others: skip the git check in step 1; the connected checkout is the target, so create no `~/.gtm/` directory and run no collision check in step 2; the first proposal in step 3 carries the root organization `plus the workspace's standard setup files` and any supplied suborganizations and members, and is saved through the environment's declared mechanism; in step 4 do not initialize a repo or set a repo-local identity; skip the sharing step 5 because the deployment already shares the repo; in step 6 say the workspace is saved in the connected repository instead of describing local or shared mode. Every question, research rule, and completion criterion stays as written.
 
 1. Check that git is installed before touching the target. If missing, explain it is the history tool this context needs and offer one guided install path appropriate to the operating system `(Recommended)` plus cancel; execute only the chosen path, then recheck.
-2. Treat every value inside an `Example (fictional)` below as presentation only. Never extract, research, preview, or save it unless the user independently supplies the same value. Create `~/.gtm/` when absent, then start root intake with exactly this one identity-and-primary-links question:
+2. Treat every value inside an `Example (fictional)` below as presentation only. Never extract, research, or save it unless the user independently supplies the same value. Create `~/.gtm/` when absent, then send exactly this one intake message; it carries no context line because no workspace is resolved yet:
 
    > **What is the organization's name, website, and any social profiles such as LinkedIn?**
    >
-   > Share whatever you have in one message. The website and social profiles are optional.
+   > Share whatever you have in one message. Only the organization name is required. Example (fictional): `Brightpath Analytics — https://brightpath.example — LinkedIn: https://linkedin.example/company/brightpath-analytics`
    >
-   > Example (fictional): `Brightpath Analytics — https://brightpath.example — LinkedIn: https://linkedin.example/company/brightpath-analytics`
+   > - Other links, files, or folders I should research. Example (fictional): `https://docs.brightpath.example`, `/path/to/Brightpath sales deck.pdf`, or `/path/to/customer-interviews/`
+   > - Suborganizations, if distinct businesses need their own GTM context: name, parent, website, links. Example (fictional): `Brightpath Enterprise — parent: Brightpath Analytics — https://enterprise.brightpath.example — LinkedIn: https://linkedin.example/company/brightpath-enterprise`
+   > - You: full name, email, role, social profiles, and which suborganizations you work with. Example (fictional): `Jordan Lee — jordan@brightpath.example — Head of Sales — LinkedIn: https://linkedin.example/in/jordan-lee`
+   > - Other members: the same details for each, and which organization they belong to if not the main one.
 
-   Extract the display name first. If it is missing, ask exactly `**What is the organization's name?**` and request nothing else. Derive the lowercase kebab-case slug from the accepted name and check `~/.gtm/<org-slug>`. Apply link safety before opening any user-supplied URL.
-3. If the path exists, offer: open the existing context `(Recommended)`, choose another slug, or cancel. Never merge or overwrite implicitly.
-4. Continue root intake with exactly this sources question:
+   Extract the display name first, then every supplied suborganization, the operator, and every other member. Members default to the root organization with no follow-up; omitted roles, social profiles, affiliations, and sources need no follow-up. Recommend suborganizations only when distinct businesses would make shared GTM context misleading, and say so in the proposal rather than asking. Derive the lowercase kebab-case slug from the accepted name and check `~/.gtm/<org-slug>`; if the path exists, offer: open the existing context `(Recommended)`, choose another slug, or cancel, and never merge or overwrite implicitly. Apply link safety before opening any user-supplied URL.
 
-   > **Are there any other links, files, or folders you'd like me to research for this context?**
-   >
-   > Example (fictional): `https://docs.brightpath.example`, `/path/to/Brightpath sales deck.pdf`, or `/path/to/customer-interviews/`. You can paste several items or say `none`.
-
-   Accept URLs and readable local paths together. Classify each supplied item, apply link safety to every URL before opening it, and research readable supplied paths. A missing optional primary link or `none` requires no follow-up.
-5. Research every field in `company-data.md` from the user-supplied sources and safe public facts. Draft `ORG.md` from `templates/org.md`, preserve source limits, and write `Unknown` for every unresolved field. Begin the proposal turn exactly `Here is the complete proposed \`~/.gtm/<org-slug>/ORG.md\`:` and run the accept loop on the complete draft. No other assistant turn may occur between the sources answer and this proposal.
-6. On first acceptance, create the repo; copy `templates/AGENTS.md`, `templates/CLAUDE.md`, and `templates/gitignore` to `AGENTS.md`, `CLAUDE.md`, and `.gitignore`; write accepted `ORG.md`; initialize git on `main`; set only repo-local identity to `GTM Workspace <gtm@local>`; and save the accepted scaffold to history. The `ORG.md` acceptance authorizes these boilerplate files.
-7. Decide the suborganization recommendation from GTM diversity, not headcount alone. Recommend no suborganizations when the same ICP and offering can share context; recommend yes only when distinct businesses would make shared GTM workspace misleading. Ask: no suborganizations / add one / add in bulk, marking the contextual recommendation. Finish the entire accepted suborganization stage before collecting the operator or any other member.
-8. For one suborganization, begin with exactly:
-
-   > **What is the suborganization's name, website, and any social profiles?**
-   >
-   > Share whatever you have in one message. The website and social profiles are optional.
-   >
-   > Example (fictional): `Brightpath Enterprise — https://enterprise.brightpath.example — LinkedIn: https://linkedin.example/company/brightpath-enterprise`
-
-   If its display name is missing, ask exactly `**What is the suborganization's name?**` and request nothing else. Then ask exactly:
-
-   > **Are there any other links, files, or folders you'd like me to research for this suborganization's context?**
-   >
-   > Example (fictional): `https://enterprise.brightpath.example/docs`, `/path/to/Brightpath Enterprise deck.pdf`, or `/path/to/enterprise-interviews/`. You can paste several items or say `none`.
-
-   Once the name is accepted, `this suborganization` may be replaced by its exact display name in that bold question. Apply the same optional-field, local-path, research, and link-safety rules as root intake. Begin its draft turn exactly `Here is the complete proposed \`suborgs/<suborg-slug>/ORG.md\`:` for a direct child; recursively nested paths repeat `suborgs/<suborg-slug>/`. Preview and accept it, then write that one artifact and save it to history. Preserve contextual recommendations and nesting rules.
-9. For bulk suborganizations, ask exactly:
-
-   > **Which suborganizations would you like to add?**
-   >
-   > Paste their names, parent relationships, websites, social profiles, and any other links, files, or folders in one message. Include whatever you have; only each suborganization's name is required.
-   >
-   > Example (fictional): `Brightpath Enterprise — parent: Brightpath Analytics — https://enterprise.brightpath.example — LinkedIn: https://linkedin.example/company/brightpath-enterprise`
-
-   Parse the one freeform dump into the existing proposed nested set. If any names are missing, ask one recovery turn beginning exactly `**What are the missing names for these suborganizations?**` and place only the necessary record-identifying context below it. Do not conduct per-field interviews. Begin the cleaned-set operations proposal exactly `Here is the proposed suborganization set:` and accept it. Show every recursive destination with repeated literal segments such as `suborgs/<suborg-slug>/suborgs/<suborg-slug>/ORG.md`. Then research and run the artifact accept loop for each `ORG.md`; offer a numbered choice between reviewing one at a time `(Recommended)` or one batch. Begin a batch artifact proposal exactly `Here is the complete proposed suborganization batch:`. Create no empty directories.
-10. After the suborganization set is final, ask exactly:
-
-   > **Would you like to add members to this GTM workspace?**
-   >
-   > 1. Yes. (Recommended)
-   > 2. No.
-   >
-   > Reply with a number, or type your answer.
-
-   If the user chooses Yes, continue through the existing operator and additional-member flow. If the user chooses No, skip all member intake, research, drafts, and writes, then continue directly to the sharing decision.
-11. Collect the operator only after the suborganization set is final. With no saved suborganizations, ask exactly:
-
-   > **What is your full name, email address, role, and any social profiles such as LinkedIn?**
-   >
-   > Share whatever you have in one message. Your role and social profiles are optional.
-   >
-   > Example (fictional): `Jordan Lee — jordan@brightpath.example — Head of Sales — LinkedIn: https://linkedin.example/in/jordan-lee`
-
-   When saved suborganizations exist, instead ask exactly `**What is your full name, email address, role, any social profiles such as LinkedIn, and which suborganizations you work with?**` with the same guidance and fictional example, then list every valid suborganization by exact display name and full path immediately below it. The operator's member record is root-owned; affiliations are optional, so do not infer one or follow up when omitted. If required operator data is missing, use exactly one applicable recovery question and request nothing else: `**What is your full name?**`, `**What is your email address?**`, or `**What are your full name and email address?**`.
-12. Continue operator intake with exactly:
-
-   > **Are there any other links, files, or folders you'd like me to research for this member's context?**
-   >
-   > Example (fictional): `https://brightpath.example/team/jordan`, `/path/to/Jordan Lee resume.pdf`, or `/path/to/interview-notes/`. You can paste several items or say `none`.
-
-   Do not follow up for an omitted role, social profile, affiliation, or source. Apply link safety, then research every field in `person-data.md` from the supplied sources and safe public facts. Draft `MEMBER.md` from `templates/MEMBER.md`, preserve source limits, and write `Unknown` for every unresolved shared field. Begin the draft turn exactly `Here is the complete proposed \`members/<member-slug>/MEMBER.md\`:`. Include only known optional metadata outside the shared fields. After acceptance, set repo-local git name/email to the accepted operator, write the member, and save it to history.
-13. Ask about more members: done `(Recommended)`, add one, or add in bulk. For one additional member, use `**What is this member's full name, email address, role, and any social profiles such as LinkedIn?**` when there are no saved suborganizations. When saved suborganizations exist, use exactly `**What is this member's full name, email address, role, any social profiles such as LinkedIn, which organization should own their member record, and which other suborganizations they work with?**` and list root plus every recursively discovered suborganization by exact display name and full path immediately below it. Say the role, social profiles, owner beyond the recommended root, and additional affiliations are optional. If required data is missing, use exactly one applicable recovery question and request nothing else: `**What is this member's full name?**`, `**What is this member's email address?**`, or `**What are this member's full name and email address?**`. Then use the same exact other-sources question and example from step 12. Research and draft the member with the same `person-data.md`, uncertainty, template, and optional-metadata rules as step 12. Begin the draft turn with the complete node-relative destination, ending in `members/<member-slug>/MEMBER.md`. Never add a separate owner or affiliation turn, infer an affiliation, or omit repeated `suborgs/<suborg-slug>/` segments from a nested destination.
-14. For bulk members, ask exactly:
-
-   > **Which members would you like to add?**
-   >
-   > Paste each member's full name, email address, role, social profiles, and any other links, files, or folders in one message. Include whatever you have; only full names and email addresses are required.
-   >
-   > Example (fictional): `Jordan Lee — jordan@brightpath.example — Head of Sales — LinkedIn: https://linkedin.example/in/jordan-lee`
-
-   When saved suborganizations exist, append their exact display names and full paths and ask for each member's owning organization and any additional affiliations in this same dump; an omitted owner defaults to root and omitted affiliations remain `none`, with no follow-up. Parse the dump into the existing proposed set. Ask at most one recovery turn for missing required values, using exactly one applicable opening and necessary record-identifying context below it: `**What are the missing full names for these members?**`, `**What are the missing email addresses for these members?**`, or `**What are the missing full names and email addresses for these members?**`. Do not conduct per-field, per-member owner, or affiliation interviews. Begin the cleaned-set operations proposal exactly `Here is the proposed members set:` and show each full node-relative `members/<member-slug>/MEMBER.md` destination. After it is accepted, research every field in `person-data.md` for each member from their supplied sources and safe public facts. Draft each artifact from `templates/MEMBER.md`, preserve source limits, and write `Unknown` for unresolved shared fields. Preserve the existing one-at-a-time `(Recommended)` or batch artifact review; begin a batch artifact proposal exactly `Here is the complete proposed members batch:`. Save each accepted `MEMBER.md` as its own artifact and history entry.
-15. Ask the sharing decision exactly as follows:
+   The only follow-ups are these recovery questions, in their fixed wording: `**What is the organization's name?**`, `**What are the missing names for these suborganizations?**`, `**What is your full name?**`, `**What is your email address?**`, `**What are your full name and email address?**`, and for other members `**What are the missing full names for these members?**`, `**What are the missing email addresses for these members?**`, or `**What are the missing full names and email addresses for these members?**`. When several apply, send one message: the first applicable one is the bold lead question and the others follow as bullets in their fixed wording without bold, each with only the record-identifying context it needs. Never conduct per-field, per-member, owner, or affiliation interviews.
+3. Research every supplied source under the rules above: every field in `company-data.md` for the root and each suborganization, every field in `person-data.md` for each member. Draft `ORG.md` from `templates/org.md` and `MEMBER.md` from `templates/MEMBER.md`, preserve source limits, write `Unknown` for every unresolved field, and include only known optional metadata. Then present one proposal per the standard covering the root organization (`plus the workspace's standard setup files`), every supplied suborganization, and every supplied member, each by identity with its defining facts: for an organization, what is known and how many fields are still unknown; for a member, name, role, email. Show a complete draft only when asked. No other assistant turn may occur between the intake answer (or its one recovery message) and this proposal. Split only when the environment's approval-text limit forces it, along artifact boundaries, with the root organization always in part 1.
+4. On acceptance, create the repo; copy `templates/AGENTS.md`, `templates/CLAUDE.md`, and `templates/gitignore` to `AGENTS.md`, `CLAUDE.md`, and `.gitignore`; write every accepted `ORG.md` and `MEMBER.md` at its canonical path, using repeated `suborgs/<suborg-slug>/` segments for nested nodes and creating no empty directories; initialize git on `main`; set only the repo-local identity, to the operator's accepted name and email when the operator is in the batch and to `GTM Workspace <gtm@local>` otherwise; and save the accepted set as one history entry. Accepting the proposal authorizes the boilerplate files.
+5. On a keyboard, ask the sharing decision exactly as follows; this step's subject is the repository, so it may name GitHub:
 
    > **How would you like to use this GTM workspace repository?**
    >
@@ -158,7 +86,7 @@ On a fixed-connection surface whose connected repo has no root `ORG.md` or legac
    2. Make it multiplayer through a private GitHub repository.
 
    Keep the required reply line. For multiplayer, check `gh` is installed and authenticated. Guide install or login in single-question steps when needed. Ask the owning GitHub account/organization, propose the repo name, confirm it, create a private repo, and push `main`. At every step include `Cancel and stay local for now` as an option. Never imply local mode lacks history or GitHub sharing is public.
-16. Close with a tree-style list of files created, explain they are saved to history, and state whether the workspace stays on this computer or is shared privately with the team. Do not lead with branch, remote, or push details. Then add a short `Recommended next step` paragraph using only the explicit capability/skill catalog supplied by the hosting environment. Normalize only these exact workflow IDs and choose the first listed below that is available, regardless of conversational hints:
+6. Close per the standard: the organization, each suborganization, and each member by identity, then `Saved.`, and one sentence saying whether the workspace stays on this computer or is shared privately with the team. Then add a short `Recommended next step` paragraph using only the explicit capability/skill catalog supplied by the hosting environment. Normalize only these exact workflow IDs and choose the first listed below that is available, regardless of conversational hints:
 
    1. `gtm-icp` → `Define the ideal customer profile for <saved organization display name>.`
    2. `gtm-persona` → `Define the buyer personas for <saved organization display name>.`
@@ -167,50 +95,52 @@ On a fixed-connection surface whose connected repo has no root `ORG.md` or legac
 
 ## Import (keyboard surfaces only)
 
+Import's subject is the repository itself, so it may name GitHub, the repository, and the folder.
+
 1. Check git before touching the target; use the create flow's guided recovery if missing. Ensure `~/.gtm/` exists.
-2. Ask whether the source is a local folder or a GitHub URL. Then ask for that one source. Apply link safety; reject credential-bearing URLs without echoing them.
+2. Ask in one message whether the source is a local folder or a GitHub URL and for that source. Apply link safety; reject credential-bearing URLs without echoing them.
 3. For a local folder, explain that import copies it and leaves the original untouched, then ask the user to confirm that expectation. For GitHub, explain it will clone a separate copy.
 4. Inspect the source without changing it. Derive the proposed slug from an existing `ORG.md` H1, then a legacy `org.md` H1, otherwise the source name. Show and confirm the target `~/.gtm/<org-slug>`.
 5. Check collision. Offer opening the existing target `(Recommended)`, choosing another slug, or cancelling; never overwrite.
 6. Copy the local source or clone the GitHub source into the new target. Preserve available history; leave the local original untouched.
 7. Inventory the target recursively against every contract and legacy-migration check. Report what fits and what needs conversion, including loose markdown, lowercase `org.md`, legacy `people/<person-slug>/person.md` or `PERSON.md`, unsafe links, placeholders, collisions, and git health. Members already under a suborganization's canonical `members/` directory are valid.
-8. Present exact moves, renames, deletions, boilerplate additions, and complete replacement file contents. Legacy members move to `members/<member-slug>/MEMBER.md` under the same organization node. Run the accept loop on this one conversion proposal.
+8. Present one conversion proposal per the standard: the moves, renames, deletions, and boilerplate additions in words, naming each artifact by identity when it has a display-name heading and an owning node and by slug or path when nothing else identifies it. Legacy members move to `members/<member-slug>/MEMBER.md` under the same organization node. Show replacement content only when asked.
 9. On acceptance, apply only the proposal, initialize git on `main` when needed, set a temporary repo-local identity only when no local identity exists, and save the conversion as one plain-English history entry.
 10. Offer the same optional guided multiplayer setup as create. Do not replace a valid existing remote without explicit confirmation.
-11. Close with the source left untouched, destination folder, resulting tree, repairs made, history status, and whether the workspace stays local or is shared privately. Keep Git mechanics optional.
+11. Close with the source left untouched, what the converted workspace now contains by identity, the repairs made, `Saved.`, and whether the workspace stays local or is shared privately.
 
 ## Update
 
-1. Resolve the repo, then ask what to update: root organization facts / a suborg / a member / refresh facts from research / structure.
-2. Recursively list existing suborganizations or members with their full node-relative paths when the chosen target needs one; ask the user to select. For structure, offer add, rename, or move only where the contract permits it. A member may move between root and any valid suborganization node; within the selected organization, its destination is always `members/<member-slug>/MEMBER.md`.
-3. Gather the requested change one question at a time. For a full research refresh, reread existing public links and use fresh public research. Apply every field in `company-data.md` to an `ORG.md` refresh and every field in `person-data.md` to a `MEMBER.md` refresh. Preserve accepted values that new evidence does not disprove, keep unresolved shared fields visible as `Unknown`, and distinguish sourced changes from inference. Keep the existing supplied member email unless the user or a direct source corrects it. A narrower refresh changes only the scope the user requested.
-4. Show complete before/after content for every affected file and exact path operations. Run the accept loop.
-5. On acceptance, apply exactly the proposal, update member `Suborganizations:` references when an accepted suborganization rename requires it, run background git, and close with paths and a plain-English change summary.
+1. Resolve the repo, then ask in one message what to update: root organization facts / a suborg / a member / refresh facts from research / structure, with the target by identity when it is already clear.
+2. Recursively list existing suborganizations or members by identity when the chosen target needs one; ask the user to select. For structure, offer add, rename, or move only where the contract permits it. A member may move between root and any valid suborganization node.
+3. Ask every missing result-changing fact in one message. For a full research refresh, reread existing public links and use fresh public research. Apply every field in `company-data.md` to an `ORG.md` refresh and every field in `person-data.md` to a `MEMBER.md` refresh. Preserve accepted values that new evidence does not disprove, keep unresolved shared fields visible as `Unknown`, and distinguish sourced changes from inference. Keep the existing supplied member email unless the user or a direct source corrects it. A narrower refresh changes only the scope the user requested.
+4. Present one proposal per the standard: each affected organization or member by identity with its changed facts only, each `was X, now Y`, and any move or rename in words. Show complete before and after content only when asked.
+5. On acceptance, apply exactly the proposal, update member `Suborganizations:` references when an accepted suborganization rename requires it, run background git, and close per the standard.
 
 ## Delete
 
-1. Resolve the repo, then ask what to delete: a member / a suborg / content within a file / the entire organization context.
-2. List valid targets with full paths when needed. For a suborganization, include all recursively nested suborganizations and every member, ICP, and persona owned by each deleted node, plus affected `Suborganizations:` lines elsewhere, in the consequence report. Name every owned artifact by its complete repository-relative path; tree indentation does not substitute for the full path. For file content, show the complete resulting file.
-3. Explain exact paths that disappear, what affiliation lines change, and recovery. In-repo deletion is recoverable from history. Whole-repo deletion removes the local folder and all local history; a GitHub copy survives and is not deleted.
-4. For a member, suborg, or file-content deletion, present exact operations through the normal accept loop. On acceptance, apply the deletions, remove directories made empty by the accepted deletion, and verify every promised target path is absent before running background git and closing with recovery guidance.
-5. Whole-repo deletion is keyboard-only: on a fixed-connection surface, use the surface refusal instead of this step. For a whole repo, show the consequence report, then ask the user to type the org slug exactly. A mismatch changes nothing and asks again or offers cancel. An exact match authorizes removal of only the resolved `~/.gtm/<org-slug>` directory; do not run git afterward.
-6. Close with what disappeared and how to recover it from history, a surviving remote, or re-import as applicable.
+1. Resolve the repo, then ask in one message what to delete: a member / a suborg / content within a file / the entire organization context, with the target by identity when it is already clear.
+2. List valid targets by identity when needed. For a suborganization, include all recursively nested suborganizations and every member, ICP, and persona owned by each deleted node, plus affected `Suborganizations:` references elsewhere, in the consequence report. Name every owned artifact by identity, `Household Buyer (Northstar Group › Consumer)`. For file content, describe the facts that disappear and show the resulting content only when asked.
+3. Explain what disappears by identity, which affiliations change, and that the user can ask to restore it. In-repo deletion is recoverable. Whole-repo deletion removes the local folder and all local history; a GitHub copy survives and is not deleted.
+4. For a member, suborg, or file-content deletion, present one proposal per the standard. On acceptance, apply the deletions, remove directories made empty by the accepted deletion, and verify every promised target is absent before running background git and closing per the standard with restore guidance.
+5. Whole-repo deletion is keyboard-only and may name the repository and folder: on a fixed-connection surface, use the surface refusal instead of this step. For a whole repo, show the consequence report, then ask the user to type the org slug exactly. A mismatch changes nothing and asks again or offers cancel. An exact match authorizes removal of only the resolved `~/.gtm/<org-slug>` directory; do not run git afterward.
+6. Close with what disappeared and how to recover it: ask to restore it, a surviving GitHub copy, or re-import, as applicable.
 
 ## Doctor
 
 1. Resolve the repo and inspect every item in `contract.md`'s doctor checklist without changing anything. Traverse organization nodes recursively and inventory canonical and legacy member paths at every depth.
-2. Report all healthy checks and every defect in plain English. Include exact affected paths, whether changes are safely saved to history, and whether the local and private shared copies agree. Keep branch, remote, upstream, and service details internal unless a problem requires them; never expose credential-bearing URLs.
+2. Report all healthy checks and every defect in plain English. Name each affected artifact by identity, or by slug or path when it has no display-name heading or owning node. Say whether changes are safely saved and whether the local and private shared copies agree. Keep branch, remote, upstream, and service details internal unless a problem requires them; never expose credential-bearing URLs.
 3. If healthy, say so, change nothing, and close with a clean bill of health.
-4. If defective, propose exact path operations and complete replacement contents. Explain any destructive consequence and run the accept loop on the whole repair set.
+4. If defective, describe each repair in words and explain any destructive consequence, then present one proposal per the standard for the whole repair set. Show replacement content only when asked.
 5. On acceptance, apply only approved fixes. Keep each canonical member at its owning node, migrate legacy paths under the same node, preserve facts, remove machine state/placeholders, restore contract files, and normalize safe slugs. Do not treat the temporary local identity as a defect.
-6. Stage the repair set, inspect it, and save it once as `Repair GTM workspace repo`. Run remote pull/rebase/push when applicable. Close by rerunning the checklist and reporting the resulting health.
+6. Stage the repair set, inspect it, and save it once as `Repair GTM workspace repo`. Run remote pull/rebase/push when applicable. Close by rerunning the checklist and reporting the resulting health, then `Saved.`
 
 ## Git problem patterns
 
-Use the same one-question form for each interruption:
+These interruptions concern the repository itself, so they may name GitHub, the repository, and the folder. Use one bold question with numbered options for each:
 
 - Missing git: guided install `(Recommended)` / cancel.
-- Uncommitted unrelated work: include it in the preview / leave it untouched and save only accepted paths `(Recommended)` / cancel.
+- Uncommitted unrelated work: include it in the proposal / leave it untouched and save only accepted paths `(Recommended)` / cancel.
 - Pull conflict or diverged history: stop and explain that local and shared edits overlap; guide a careful review `(Recommended)` / stay local for now / cancel. Never resolve by discarding or force-pushing.
 - Authentication or rejected push: sign in and retry `(Recommended)` / stay local for now / cancel.
 - Missing or invalid remote: repair the remote with a confirmed public-safe URL `(Recommended)` / stay local / cancel.
