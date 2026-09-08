@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0, 2026-09-08
+
+Workflow library generation 13, unchanged.
+
+- Added the shared interaction standard at `skills/gtm-workspace/references/interaction.md`, referenced by all five skills. It owns audience language, proposal shape, batching, grouped questions, approval by surface, and closing language; each skill keeps only its own vocabulary and flows.
+- Proposals are now short plain-language summaries per artifact, identified by display name plus owner chain (`National Insurers (Nimbus Labs › Enterprise)`). Complete files, before-and-after bytes, diffs, code, and SQL appear only when the user asks. Updates state changed facts as `was X, now Y`; deletions state the name and effect; destructive migrations state the table or column and the rows affected in words.
+- Batching: several supplied ICPs, personas, members, or suborganizations are drafted and saved in one proposal and one durable change. No skill offers a suggest or brainstorm step.
+- Grouped questions: every missing result-changing fact is asked in one message (one bold lead question, bulleted facts, at most one numbered block). Anything not asked is drafted as `Unknown`. `gtm-workspace` create is now one intake message, one research pass, one proposal, and one save.
+- Single hosted approval: on a surface that declares a native approval control, that control is the proposal and the only gate. The whole proposal goes into the write control's `summary` (plain text, up to 2,500 characters, first line `For <root display name>:`, last line the action's closing line). Keyboard surfaces use one shape for every skill: `**Save this?**`, the summary, then `1. Save (Recommended)`, `2. Change it`, `3. Cancel`.
+- Plumbing language is out of GTM content flows: no git, GitHub, commit, push, pull request, branch, hash, path, label, manifest, tool name, command, or run identifier in user-facing text. Flows close with `Saved.`; hosted workflow saves add `It will be live in production in a few minutes; ask me to check.` Import, sharing setup, whole-workspace deletion, and git-problem recovery may still name GitHub and the repository.
+- `docs/gtm-agent-requirements.md` gains a conversation contract for hosted surfaces: the host declares the approval control and its 2,500-character plain-text limit, renders only `summary`, checks the closing line deterministically, and reports success without commit URLs or paths.
+- Evals, assertions, and graders were rewritten for the new proposal and question shapes, with a batch case and a hosted native-approval case per lifecycle skill. Validation used the offline repository and compatibility checks only; no model-run eval was executed for this release.
+
 ## 0.2.1, 2026-09-05
 
 Workflow library generation 13, unchanged.

@@ -4,12 +4,13 @@ The deterministic grader maps each sentence in `evals.json` to repository state,
 
 ## Cross-case controls
 
-- Every question-bearing assistant turn starts with one bold question.
-- Every discrete choice uses numbered options, at most one `(Recommended)`, and the exact reply line.
+- Every question-bearing assistant turn is one grouped message: one bold lead question first, the remaining facts wanted as bullets, at most one numbered block with at most one `(Recommended)`, and the exact reply line only with that block.
+- Every save proposal is plain language per the shared interaction standard: `**Save this?**` with the context line on a keyboard, or the whole proposal as the native approval control's `summary` (first line `For <root display name>:`, last line `Approve to save, or Cancel and tell me what to change.`) on a hosted surface. No file, migration, command, tool name, or run identifier appears in user-facing text.
+- Several supplied changes are drafted together and saved in one proposal and one history entry.
 - No transcript contains `AskUserQuestion`, a value from ignored environment files, or credentials.
 - Headered v10 managed files match their recorded SHA-256 hashes after create or accepted update work; local modifications are diffed before recopy.
 - Runtime state, environment files, Turso pull files, and `data/` remain ignored.
-- Database generation and migration happen only after the user accepts the table proposal.
+- On a keyboard, database generation and migration happen only after the user accepts the proposal; on a hosted surface, generation runs in the scratch draft before the request so the request already carries the SQL, journal, and snapshot.
 - Inspection cases are read-only. Sandbox cases do not expose ports or use remote Git commands.
 
 ## Authoring controls
@@ -42,7 +43,7 @@ The deterministic grader maps each sentence in `evals.json` to repository state,
 - Sandbox mode rejects file databases and CLI model backends. A hosted sandbox starts no real run, holds a read-only database credential, and applies migrations only inside the approval-gated save.
 - No live cloud, provider, model, or credential-brokering operation is part of the deterministic suite.
 - Hosted controls keep production run bearers, OIDC tokens, and public webhook URLs outside both the sandbox and the visible transcript. Hook tokens only name pending stages. No Vercel deploy token exists.
-- The save gate names its production deployment effect. Its approved operation applies backward-compatible migrations before the atomic `main` commit. Preview and status are read-only; real start, approval, and cancel remain separately approval-gated. The save names each migration and shows full SQL for non-additive statements.
+- The save proposal ends its workflow description with `Saving this also puts it live in production.` Its approved operation applies backward-compatible migrations before the atomic `main` commit. Preview and status are read-only; real start, approval, and cancel remain separately approval-gated, each with the whole proposal as its approval text and its own closing line. The proposal states each table change in words and any destructive effect with the rows affected; the host request names each migration, carries its SQL, and declares destructive statements.
 - A trusted start waits for `GET /api/deployment` to report the accepted commit and sends the same SHA; a missing or mismatched header is rejected.
 - Cloud query and Studio require the read-only token and never reuse the migration token.
 - The shipped command hook allows inspection and dry runs but asks for spend, decisions, cancellation, migrations, deployment, or unsafe shell syntax.

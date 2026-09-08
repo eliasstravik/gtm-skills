@@ -55,6 +55,28 @@ PERSON_DATA_FILES = (
     Path("gtm-workspace/templates/MEMBER.md"),
     Path("gtm-persona/templates/persona.md"),
 )
+SHARED_REFERENCES = (Path("gtm-workspace/references/interaction.md"),)
+INTERACTION_SECTIONS = (
+    "## Audience and language",
+    "## Proposal shape",
+    "## Batching",
+    "## Questions",
+    "## Approval by surface",
+    "## Closing",
+    "## Connection steps carve-out",
+)
+INTERACTION_POINTERS = {
+    Path("gtm-workspace/SKILL.md"): "references/interaction.md",
+    Path("gtm-workspace/references/flows.md"): "interaction.md",
+    Path("gtm-workspace/references/contract.md"): "(interaction.md)",
+    Path("gtm-icp/SKILL.md"): "../gtm-workspace/references/interaction.md",
+    Path("gtm-icp/references/contract.md"): "../../gtm-workspace/references/interaction.md",
+    Path("gtm-persona/SKILL.md"): "../gtm-workspace/references/interaction.md",
+    Path("gtm-persona/references/contract.md"): "../../gtm-workspace/references/interaction.md",
+    Path("gtm-workflow/SKILL.md"): "../gtm-workspace/references/interaction.md",
+    Path("gtm-workflow/references/conversation.md"): "../../gtm-workspace/references/interaction.md",
+    Path("gtm-qualify-prospects/SKILL.md"): "../gtm-workspace/references/interaction.md",
+}
 
 
 def parse_frontmatter(skill_md: Path, errors: list[str]) -> dict[str, str]:
@@ -287,6 +309,22 @@ def check_person_data_contract(skills_root: Path, errors: list[str]) -> None:
             errors.append(f"{path}: missing person-data contract pointer {pointer!r}")
 
 
+def check_shared_references(skills_root: Path, errors: list[str]) -> None:
+    for relative in SHARED_REFERENCES:
+        path = skills_root / relative
+        if not path.is_file():
+            errors.append(f"{path}: missing shared reference")
+            continue
+        text = path.read_text()
+        for heading in INTERACTION_SECTIONS:
+            if heading not in text:
+                errors.append(f"{path}: shared interaction standard is missing {heading!r}")
+    for relative, pointer in INTERACTION_POINTERS.items():
+        path = skills_root / relative
+        if not path.is_file() or pointer not in path.read_text():
+            errors.append(f"{path}: missing interaction standard pointer {pointer!r}")
+
+
 def main() -> int:
     errors: list[str] = []
     skill_dirs = sorted(path for path in SKILLS_ROOT.iterdir() if path.is_dir())
@@ -297,6 +335,7 @@ def main() -> int:
         check_skill(skill_dir, errors)
     check_company_data_contract(SKILLS_ROOT, errors)
     check_person_data_contract(SKILLS_ROOT, errors)
+    check_shared_references(SKILLS_ROOT, errors)
 
     with tempfile.TemporaryDirectory(prefix="gtm-skill-loaders-") as temporary:
         install_root = Path(temporary)
@@ -309,6 +348,7 @@ def main() -> int:
                 check_skill(installed, errors)
             check_company_data_contract(install_root / loader_root, errors)
             check_person_data_contract(install_root / loader_root, errors)
+            check_shared_references(install_root / loader_root, errors)
 
     if errors:
         print("Skill compatibility check failed:")

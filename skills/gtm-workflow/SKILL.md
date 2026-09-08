@@ -51,7 +51,7 @@ Produce an accepted workflow change, committed migration, validation result, dep
 
 ## Exceptions
 
-Report a run still active after the bounded poll so `gtm runs get` can retrieve it later. A duplicate live run returns the existing run key. Leave tracked state unchanged when persistence fails.
+Report a run still active after the bounded poll as still running by workflow name and start time, and offer to check again. A duplicate live run is reported by workflow name and start time. Leave tracked state unchanged when persistence fails.
 
 ## QC
 
@@ -62,11 +62,11 @@ Report a run still active after the bounded poll so `gtm runs get` can retrieve 
 - Route every paid vendor call through `provider()` and every model call through `agent()`.
 - Use committed migrations. The project has no `db:push` command.
 - When `GTM_SANDBOX=1`, use Turso, the `api` model backend, host-approved tracked writes, and no exposed port or remote Git command. The sandbox authors, validates, dry-runs, and queries; it starts no real run. Real runs, approvals, and cancellations go through the host's trusted controls.
-- Save accepted tracked changes to history on `main`.
-- For `Runs: on Vercel`, state in the save gate that the `main` commit starts production deployment; do not add a second deploy gate or deploy token.
+- Save accepted tracked changes on `main` and close with `Saved.`; follow the shared interaction standard for every question, proposal, approval, and closing message, and keep commands, tool names, and run identifiers out of user-facing text.
+- For a hosted workflow, end the save proposal's workflow description with `Saving this also puts it live in production.`; do not add a second deploy gate or deploy token.
 - Never use `AskUserQuestion`.
 - Start, reuse, record, and stop processes only under [open](references/open.md).
 
 ## References
 
-Read [the contract](references/contract.md) for every action, [flows](references/flows.md) for create, update, inspect, delete, or run, [open](references/open.md) for open and local server work, [conversation](references/conversation.md) for visible messages, and [deploy](references/deploy.md) before Vercel changes. Read [providers](references/providers.md) before adapter work and [agents](references/agents.md) when configuring command permissions.
+Read [the contract](references/contract.md) for every action, [flows](references/flows.md) for create, update, inspect, delete, or run, [open](references/open.md) for open and local server work, [the shared interaction standard](../gtm-workspace/references/interaction.md) and [conversation](references/conversation.md) for visible messages, and [deploy](references/deploy.md) before Vercel changes. Read [providers](references/providers.md) before adapter work and [agents](references/agents.md) when configuring command permissions.

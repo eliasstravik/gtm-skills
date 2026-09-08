@@ -1,6 +1,6 @@
 # Getting started: build your GTM foundation
 
-GTM Skills gives your AI agent five focused skills: four Lifecycle Skills and one Task Skill. They share one Git-backed source of truth. This guide takes you from installation to a GTM workspace with its first ICP, persona, and reusable workflow: the agent writes the code, and you review one diff and one dry run.
+GTM Skills gives your AI agent five focused skills: four Lifecycle Skills and one Task Skill. They share one Git-backed source of truth. This guide takes you from installation to a GTM workspace with its first ICP, persona, and reusable workflow: the agent writes the code, and you review one short proposal and one dry run.
 
 ## 1. Check the prerequisites
 
@@ -29,7 +29,7 @@ Start the guided setup:
 /gtm-workspace
 ```
 
-The skill helps you create a new GTM workspace or import one that already exists. Review the complete preview before accepting any write. A new workspace is saved as a Git repository under:
+The skill helps you create a new GTM workspace or import one that already exists. It asks for everything it needs in one message, then shows one short proposal naming the organization, any suborganizations, and any members, and saves them together once you accept. A new workspace is saved as a Git repository under:
 
 ```text
 ~/.gtm/<org-slug>/
@@ -72,7 +72,7 @@ Run:
 /gtm-icp
 ```
 
-Choose the organization node that owns the market definition, describe the companies it is built to serve, and review the complete ICP preview. Once accepted, the ICP becomes part of the workspace and its history. Persona authoring and account research, segmentation, or scoring remain separate workflows.
+Choose the organization node that owns the market definition, describe the companies it is built to serve, and review a short summary of the ICP's criteria and disqualifiers; ask to see the full draft if you want it. Several ICPs supplied together are proposed and saved together. Once accepted, the ICP becomes part of the workspace and its history. Persona authoring and account research, segmentation, or scoring remain separate workflows.
 
 ## 5. Define your first persona
 
@@ -82,7 +82,7 @@ Run:
 /gtm-persona
 ```
 
-Choose the organization node that owns the buyer or stakeholder definition. Set desired or accepted criteria for full name, education, estimated followers, experience, languages, location, network size, and professional profile. Add responsibilities, buying influence, authority boundaries, disqualifiers, and honest open questions when useful, then review the complete persona before saving it. ICP authoring and lead research, segmentation, or scoring remain separate workflows.
+Choose the organization node that owns the buyer or stakeholder definition. Set desired or accepted criteria for full name, education, estimated followers, experience, languages, location, network size, and professional profile. Add responsibilities, buying influence, authority boundaries, disqualifiers, and honest open questions when useful, then review a short summary of the persona's role, responsibilities, and authority before saving it. ICP authoring and lead research, segmentation, or scoring remain separate workflows.
 
 ## 6. Build your first workflow
 
@@ -94,7 +94,7 @@ Run:
 
 Choose **Create a workflow** and describe the repeatable GTM job. The skill asks where it should run, what data it accepts, which stable key identifies a row, which organization and ICP it uses, and the maximum rows and spend allowed. It declares a typed table for the business result and commits each schema change as a migration.
 
-For an on-demand workflow, start with **On this computer**. The first create adds the root `workflows/` project, installs its pinned dependencies, creates an ignored local environment file, builds the workflow, and validates it. You review one complete proposal before tracked files or migrations are written.
+For an on-demand workflow, start with **On this computer**. The first create adds the root `workflows/` project, installs its pinned dependencies, creates an ignored local environment file, builds the workflow, and validates it. You review one plain-language proposal, which says what the workflow does, where it runs, what it costs per run, and what it writes, before tracked files or migrations are written.
 
 Local agent work uses the first supported CLI already available on your `PATH`. You do not need Vercel or a separate model-provider key for this path.
 
@@ -112,7 +112,7 @@ npm run gtm -- run <workflow-slug> --input data/input.json --checkpoint 3 --wait
 npm run db:studio
 ```
 
-Inspect the typed result table in Studio, then approve the rest of the same run with the exact command the agent shows. An unchanged rerun reuses cached provider and model results and records zero-cost cache hits.
+Inspect the typed result table in Studio, then tell the agent to continue the same run. An unchanged rerun reuses cached provider and model results and records zero-cost cache hits.
 
 To run the same workflow on Vercel, install and sign in to the optional CLI:
 

@@ -17,6 +17,7 @@ import time
 REPO_ROOT = Path(__file__).resolve().parents[3]
 EVAL_ROOT = Path(__file__).resolve().parents[1]
 SKILL_ROOT = REPO_ROOT / "skills" / "gtm-icp"
+SHARED_REFERENCES = REPO_ROOT / "skills" / "gtm-workspace" / "references"
 CONTEXT_TEMPLATES = REPO_ROOT / "skills" / "gtm-workspace" / "templates"
 MODEL = "gpt-5.6-sol"
 AUTH_FILES = ("auth.json", ".credentials.json", "installation_id")
@@ -48,13 +49,15 @@ def seed_home(eval_case: dict, home: Path, env: dict[str, str]) -> None:
 
 
 def copy_skill(skill_root: Path, home: Path) -> Path:
-    target = home / "skill"
-    target.mkdir()
+    """Install the skill beside the shared gtm-workspace references so `../gtm-workspace/references/*` resolves."""
+    target = home / "skills" / SKILL_ROOT.name
+    target.mkdir(parents=True)
     shutil.copy2(skill_root / "SKILL.md", target / "SKILL.md")
     for directory in ("references", "templates"):
         source_dir = skill_root / directory
         if source_dir.is_dir():
             shutil.copytree(source_dir, target / directory)
+    shutil.copytree(SHARED_REFERENCES, home / "skills" / "gtm-workspace" / "references")
     return target
 
 
@@ -206,7 +209,7 @@ def run_one(
 
         snapshot = run_dir / "sandbox_snapshot"
         snapshot.mkdir()
-        for relative in (Path(".gtm"), Path("source")):
+        for relative in (Path(".gtm"), Path("source"), Path(".gtm-eval")):
             source = home / relative
             if source.exists():
                 shutil.copytree(source, snapshot / relative, symlinks=True)

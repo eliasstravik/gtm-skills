@@ -15,21 +15,35 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 SKILL_ROOT = REPO_ROOT / "skills" / "gtm-workspace"
 SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
-ROOT_IDENTITY_QUESTION = "What is the organization's name, website, and any social profiles such as LinkedIn?"
+INTAKE_QUESTION = "What is the organization's name, website, and any social profiles such as LinkedIn?"
 ROOT_NAME_RECOVERY = "What is the organization's name?"
-ROOT_SOURCES_QUESTION = "Are there any other links, files, or folders you'd like me to research for this context?"
-SUBORG_IDENTITY_QUESTION = "What is the suborganization's name, website, and any social profiles?"
-SUBORG_NAME_RECOVERY = "What is the suborganization's name?"
-SUBORG_SOURCES_QUESTION = "Are there any other links, files, or folders you'd like me to research for this suborganization's context?"
-OPERATOR_IDENTITY_QUESTION = "What is your full name, email address, role, and any social profiles such as LinkedIn?"
-OPERATOR_AFFILIATION_QUESTION = "What is your full name, email address, role, any social profiles such as LinkedIn, and which suborganizations you work with?"
-MEMBER_OWNER_QUESTION = "What is this member's full name, email address, role, any social profiles such as LinkedIn, which organization should own their member record, and which other suborganizations they work with?"
-MEMBER_BOTH_RECOVERY = "What are this member's full name and email address?"
-MEMBER_SOURCES_QUESTION = "Are there any other links, files, or folders you'd like me to research for this member's context?"
-BULK_SUBORGS_QUESTION = "Which suborganizations would you like to add?"
-BULK_MEMBERS_QUESTION = "Which members would you like to add?"
+SUBORG_NAMES_RECOVERY = "What are the missing names for these suborganizations?"
+OPERATOR_NAME_RECOVERY = "What is your full name?"
+OPERATOR_EMAIL_RECOVERY = "What is your email address?"
+OPERATOR_BOTH_RECOVERY = "What are your full name and email address?"
+MEMBER_NAMES_RECOVERY = "What are the missing full names for these members?"
+MEMBER_EMAILS_RECOVERY = "What are the missing email addresses for these members?"
+MEMBER_BOTH_RECOVERY = "What are the missing full names and email addresses for these members?"
 MENU_QUESTION = "What would you like to do with an organization's GTM workspace?"
 SHARING_QUESTION = "How would you like to use this GTM workspace repository?"
+SAVE_OPENER = "**Save this?**"
+SAVE_CLOSING = "Approve to save, or Cancel and tell me what to change."
+REPLY_LINE = "Reply with a number, or type your answer."
+SETUP_FILES_PHRASE = "plus the workspace's standard setup files"
+INTAKE_BULLETS = (
+    "Other links, files, or folders I should research",
+    "Suborganizations, if distinct businesses need their own GTM context",
+    "You: full name, email, role, social profiles",
+    "Other members: the same details for each",
+)
+BOLD_QUESTION = re.compile(r"\*\*[^*\n]+\?\*\*")
+NUMBERED = re.compile(r"^\d+\.\s")
+BANNED_WORDS = re.compile(
+    r"\b(?:git|github|commit|commits|committed|committing|push|pushed|pull request|branch|hash|sha|manifest)\b"
+    r"|saved to history",
+    re.I,
+)
+BANNED_PATHS = re.compile(r"(?:^|[\s`(\"'])(?:icps|personas|members|suborgs)/|\S+\.md\b|~/\.gtm/")
 
 CANONICAL_EXAMPLE_INVENTORY = (
     "Brightpath Analytics",
@@ -41,37 +55,19 @@ CANONICAL_EXAMPLE_INVENTORY = (
     "Brightpath Enterprise",
     "https://enterprise.brightpath.example",
     "https://linkedin.example/company/brightpath-enterprise",
-    "https://enterprise.brightpath.example/docs",
-    "/path/to/Brightpath Enterprise deck.pdf",
-    "/path/to/enterprise-interviews/",
     "Jordan Lee",
     "jordan@brightpath.example",
     "Head of Sales",
     "https://linkedin.example/in/jordan-lee",
-    "https://brightpath.example/team/jordan",
-    "/path/to/Jordan Lee resume.pdf",
-    "/path/to/interview-notes/",
 )
 
 CANONICAL_EXAMPLE_LINES = Counter(
     [
-        "Example (fictional): `Brightpath Analytics — https://brightpath.example — LinkedIn: https://linkedin.example/company/brightpath-analytics`",
-        "Example (fictional): `https://docs.brightpath.example`, `/path/to/Brightpath sales deck.pdf`, or `/path/to/customer-interviews/`. You can paste several items or say `none`.",
-        "Example (fictional): `Brightpath Enterprise — https://enterprise.brightpath.example — LinkedIn: https://linkedin.example/company/brightpath-enterprise`",
-        "Example (fictional): `https://enterprise.brightpath.example/docs`, `/path/to/Brightpath Enterprise deck.pdf`, or `/path/to/enterprise-interviews/`. You can paste several items or say `none`.",
-        "Example (fictional): `Jordan Lee — jordan@brightpath.example — Head of Sales — LinkedIn: https://linkedin.example/in/jordan-lee`",
-        "Example (fictional): `https://brightpath.example/team/jordan`, `/path/to/Jordan Lee resume.pdf`, or `/path/to/interview-notes/`. You can paste several items or say `none`.",
-        "Example (fictional): `Brightpath Enterprise — parent: Brightpath Analytics — https://enterprise.brightpath.example — LinkedIn: https://linkedin.example/company/brightpath-enterprise`",
-        "Example (fictional): `Jordan Lee — jordan@brightpath.example — Head of Sales — LinkedIn: https://linkedin.example/in/jordan-lee`",
+        "Share whatever you have in one message. Only the organization name is required. Example (fictional): `Brightpath Analytics — https://brightpath.example — LinkedIn: https://linkedin.example/company/brightpath-analytics`",
+        "- Other links, files, or folders I should research. Example (fictional): `https://docs.brightpath.example`, `/path/to/Brightpath sales deck.pdf`, or `/path/to/customer-interviews/`",
+        "- Suborganizations, if distinct businesses need their own GTM context: name, parent, website, links. Example (fictional): `Brightpath Enterprise — parent: Brightpath Analytics — https://enterprise.brightpath.example — LinkedIn: https://linkedin.example/company/brightpath-enterprise`",
+        "- You: full name, email, role, social profiles, and which suborganizations you work with. Example (fictional): `Jordan Lee — jordan@brightpath.example — Head of Sales — LinkedIn: https://linkedin.example/in/jordan-lee`",
     ]
-)
-
-PROPOSAL_OPENINGS = (
-    "Here is the complete proposed",
-    "Here is the proposed suborganization set:",
-    "Here is the proposed members set:",
-    "Here is the complete proposed suborganization batch:",
-    "Here is the complete proposed members batch:",
 )
 
 
@@ -188,7 +184,7 @@ def root_members_only(repo: Path) -> bool:
 
 
 def result(ok: bool, evidence: str) -> tuple[bool, str]:
-    return ok, evidence
+    return bool(ok), evidence
 
 
 def same_non_git_tree(left: Path, right: Path) -> bool:
@@ -249,10 +245,19 @@ def conversation_turns(run_dir: Path) -> tuple[list[tuple[str, str]], bool]:
     return turns, alternating
 
 
+def assistant_turns(run_dir: Path) -> list[str]:
+    turns, _ = conversation_turns(run_dir)
+    values = [text for role, text in turns if role == "Assistant"]
+    final = run_dir / "outputs" / "final.md"
+    if final.is_file():
+        values.append(final.read_text(errors="replace"))
+    return values
+
+
 def bold_question(turn: str) -> str | None:
     lines = [line.strip() for line in turn.splitlines() if line.strip()]
     bold_questions = [match.group(1) for line in lines if (match := re.fullmatch(r"\*\*(.+\?)\*\*", line))]
-    if len(bold_questions) != 1 or not re.fullmatch(r"\*\*(.+\?)\*\*", lines[0]):
+    if len(bold_questions) != 1 or not lines or not re.fullmatch(r"\*\*(.+\?)\*\*", lines[0]):
         return None
     return " ".join(bold_questions[0].split())
 
@@ -261,78 +266,122 @@ def question_turn(turns: list[tuple[str, str]], question: str) -> str | None:
     return next((text for role, text in turns if role == "Assistant" and bold_question(text) == question), None)
 
 
-def exact_intake_window(
-    turns: list[tuple[str, str]],
-    identity_question: str,
-    allowed_sequence: list[set[str]],
-    proposal_path: str,
-) -> tuple[bool, str]:
-    starts = [
-        index
-        for index, (role, text) in enumerate(turns)
-        if role == "Assistant" and bold_question(text) == identity_question
-    ]
-    if len(starts) != 1:
-        return False, f"Expected one identity turn for {identity_question!r}; found {len(starts)}."
-    start = starts[0]
-    assistant_after = [
-        (index, text)
-        for index, (role, text) in enumerate(turns[start:], start=start)
-        if role == "Assistant"
-    ]
-    sentinel_position = next(
-        (
-            position
-            for position, (_, text) in enumerate(assistant_after)
-            if "Here is the complete proposed" in text and proposal_path in text
-        ),
-        None,
-    )
-    if sentinel_position is None:
-        return False, f"No complete-proposal sentinel found for {proposal_path}."
-    window = [text for _, text in assistant_after[:sentinel_position]]
-    actual = [bold_question(text) for text in window]
-    expected_length = len(allowed_sequence)
-    ok = (
-        sentinel_position == expected_length
-        and len(actual) == expected_length
-        and all(question is not None and question in allowed for question, allowed in zip(actual, allowed_sequence, strict=True))
-    )
-    return ok, f"Ordered assistant sequence before {proposal_path}: {actual!r}; sentinel immediately followed it: {sentinel_position == expected_length}."
+def proposal_turns(turns: list[tuple[str, str]]) -> list[str]:
+    return [text for role, text in turns if role == "Assistant" and text.lstrip().startswith(SAVE_OPENER)]
 
 
-def exact_bulk_window(
-    turns: list[tuple[str, str]],
-    intake_question: str,
-    allowed_sequence: list[set[str]],
-    proposal_opening: str,
-) -> tuple[bool, str]:
-    starts = [
-        index
-        for index, (role, text) in enumerate(turns)
-        if role == "Assistant" and bold_question(text) == intake_question
-    ]
+def context_line_under_opener(text: str, root_name: str) -> bool:
+    nonempty = [line.strip() for line in text.splitlines() if line.strip()]
+    return len(nonempty) >= 2 and nonempty[0] == SAVE_OPENER and nonempty[1] == f"Using GTM workspace: {root_name}"
+
+
+def message_shape_problems(text: str, index: int) -> list[str]:
+    """Apply the shared interaction standard's question shape to one assistant turn."""
+    nonempty = [line.strip() for line in text.splitlines() if line.strip()]
+    problems: list[str] = []
+    bold_questions = [line for line in nonempty if BOLD_QUESTION.fullmatch(line)]
+    if "?" in text and (len(bold_questions) != 1 or not nonempty or nonempty[0] != bold_questions[0]):
+        problems.append(f"assistant turn {index} does not render exactly one bold lead question first")
+    numbered_positions = [position for position, line in enumerate(nonempty) if NUMBERED.match(line)]
+    if numbered_positions:
+        if numbered_positions != list(range(numbered_positions[0], numbered_positions[-1] + 1)):
+            problems.append(f"assistant turn {index} has more than one numbered block")
+        if not text.rstrip().endswith(REPLY_LINE):
+            problems.append(f"assistant turn {index} lacks the exact reply line")
+        recommended = [nonempty[position] for position in numbered_positions if "(Recommended)" in nonempty[position]]
+        if len(recommended) > 1 or (recommended and not recommended[0].startswith("1.")):
+            problems.append(f"assistant turn {index} has invalid recommendation placement")
+    elif REPLY_LINE in text:
+        problems.append(f"assistant turn {index} carries the reply line without a numbered block")
+    return problems
+
+
+def grouped_shape_ok(turns: list[tuple[str, str]]) -> tuple[bool, str]:
+    problems: list[str] = []
+    for index, text in enumerate((text for role, text in turns if role == "Assistant"), start=1):
+        problems.extend(message_shape_problems(text, index))
+    return not problems, f"grouped-shape problems={problems!r}"
+
+
+def intake_window(turns: list[tuple[str, str]]) -> tuple[list[str | None], list[str], bool]:
+    """Bold leads of the assistant turns from the intake question up to the proposal, and whether that proposal exists."""
+    starts = [index for index, (role, text) in enumerate(turns) if role == "Assistant" and bold_question(text) == INTAKE_QUESTION]
     if len(starts) != 1:
-        return False, f"Expected one bulk turn for {intake_question!r}; found {len(starts)}."
-    assistant_after = [
-        text
-        for role, text in turns[starts[0] :]
-        if role == "Assistant"
-    ]
-    sentinel_position = next(
-        (position for position, text in enumerate(assistant_after) if proposal_opening in text),
-        None,
+        return [], [], False
+    window: list[str] = []
+    for role, text in turns[starts[0] :]:
+        if role != "Assistant":
+            continue
+        if text.lstrip().startswith(SAVE_OPENER):
+            return [bold_question(item) for item in window], window, True
+        window.append(text)
+    return [bold_question(item) for item in window], window, False
+
+
+def intake_has_bullets(text: str) -> bool:
+    return all(prefix in text for prefix in INTAKE_BULLETS) and "Only the organization name is required" in text
+
+
+def fenced(text: str) -> bool:
+    return "```" in text
+
+
+def closes_saved(run_dir: Path) -> bool:
+    final = run_dir / "outputs" / "final.md"
+    text = final.read_text(errors="replace").rstrip() if final.is_file() else ""
+    if not text:
+        turns = assistant_turns(run_dir)
+        text = turns[-1].rstrip() if turns else ""
+    return text.endswith("Saved.") or "Saved." in text.splitlines()[-3:] if text else False
+
+
+def content_flow_turns(run_dir: Path) -> list[str]:
+    """Assistant turns under the plumbing-language ban: everything before the sharing step, minus the guided menu."""
+    values = []
+    for text in assistant_turns(run_dir):
+        if MENU_QUESTION in text:
+            continue
+        if SHARING_QUESTION in text:
+            break
+        values.append(text)
+    return values
+
+
+def banned_language(run_dir: Path, *, paths: bool = True) -> tuple[bool, str]:
+    hits: list[str] = []
+    for index, text in enumerate(content_flow_turns(run_dir), start=1):
+        for match in BANNED_WORDS.finditer(text):
+            hits.append(f"turn {index}: {match.group(0)!r}")
+        if paths:
+            for match in BANNED_PATHS.finditer(text):
+                hits.append(f"turn {index}: path {match.group(0).strip()!r}")
+    return not hits, f"banned-language hits={hits[:12]!r}"
+
+
+def approvals(snapshot: Path) -> list[dict]:
+    path = snapshot / ".gtm-eval" / "approvals.jsonl"
+    if not path.is_file():
+        return []
+    records = []
+    for line in path.read_text(errors="replace").splitlines():
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return records
+
+
+def plain_text(summary: str) -> bool:
+    lines = [line.strip() for line in summary.splitlines() if line.strip()]
+    return (
+        "**" not in summary
+        and "```" not in summary
+        and not any(line.startswith("#") for line in lines)
+        and not any(NUMBERED.match(line) for line in lines)
+        and "|" not in summary
+        and "->" not in summary
+        and "→" not in summary
     )
-    if sentinel_position is None:
-        return False, f"No bulk proposal sentinel found for {proposal_opening!r}."
-    actual = [bold_question(text) for text in assistant_after[:sentinel_position]]
-    expected_length = len(allowed_sequence)
-    ok = (
-        sentinel_position == expected_length
-        and len(actual) == expected_length
-        and all(question is not None and question in allowed for question, allowed in zip(actual, allowed_sequence, strict=True))
-    )
-    return ok, f"Ordered bulk assistant sequence before {proposal_opening!r}: {actual!r}; sentinel immediately followed it: {sentinel_position == expected_length}."
 
 
 def completion_request_check(output: str, request: str) -> bool:
@@ -344,14 +393,8 @@ def completion_request_check(output: str, request: str) -> bool:
     return request in output and context_statement is not None
 
 
-def proposal_fenced_text(turns: list[tuple[str, str]]) -> str:
-    proposal_text = []
-    for role, text in turns:
-        if role != "Assistant" or not any(opening in text for opening in PROPOSAL_OPENINGS):
-            continue
-        fences = re.findall(r"```[^\n]*\n(.*?)```", text, re.S)
-        proposal_text.extend(fences or [text])
-    return "\n".join(proposal_text)
+def proposal_text(turns: list[tuple[str, str]]) -> str:
+    return "\n".join(proposal_turns(turns))
 
 
 def research_argument_text(run_dir: Path) -> str:
@@ -396,7 +439,7 @@ def example_leakage_check(metadata: dict, snapshot: Path, run_dir: Path) -> tupl
     turns, _ = conversation_turns(run_dir)
     surfaces = {
         "research arguments": research_argument_text(run_dir),
-        "artifact proposals": proposal_fenced_text(turns),
+        "artifact proposals": proposal_text(turns),
         "generated context artifacts": generated_context_text(snapshot),
     }
     forbidden = [value for value in CANONICAL_EXAMPLE_INVENTORY if value not in allowed]
@@ -440,61 +483,41 @@ def attempted_git_write(commands: list[str]) -> bool:
     )
 
 
+def changed_paths(repo: Path) -> list[str]:
+    return [line for line in git(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD").splitlines() if line]
+
+
 def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str]]:
     root = snapshot / ".gtm"
+    turns, alternating = conversation_turns(run_dir)
+    output = user_output(run_dir)
+    assistant = "\n".join(assistant_turns(run_dir))
+    proposals = proposal_turns(turns)
+    proposal = proposals[-1] if proposals else ""
+    shape = grouped_shape_ok(turns)
+
     if name == "create-simple-local":
         repo = root / "acme-lantern"; org = repo / "ORG.md"; member = repo / "members/maria-chen/MEMBER.md"
         org_text = org.read_text().lower() if org.is_file() else ""
-        turns, alternating = conversation_turns(run_dir)
-        root_window = exact_intake_window(
-            turns,
-            ROOT_IDENTITY_QUESTION,
-            [{ROOT_IDENTITY_QUESTION}, {ROOT_SOURCES_QUESTION}],
-            "~/.gtm/acme-lantern/ORG.md",
-        )
-        operator_window = exact_intake_window(
-            turns,
-            OPERATOR_IDENTITY_QUESTION,
-            [{OPERATOR_IDENTITY_QUESTION}, {MEMBER_SOURCES_QUESTION}],
-            "members/maria-chen/MEMBER.md",
-        )
-        operator_turns = "\n".join(
-            text
-            for role, text in turns
-            if role == "Assistant" and bold_question(text) in {OPERATOR_IDENTITY_QUESTION, MEMBER_SOURCES_QUESTION}
-        ).lower()
+        leads, window, has_proposal = intake_window(turns)
         sharing = question_turn(turns, SHARING_QUESTION) or ""
-        output = user_output(run_dir)
+        language = banned_language(run_dir)
         return [
             result(has_contract(repo) and org.is_file(), "Compared all three root files byte-for-byte with templates and checked ORG.md."),
             result(org.is_file() and org.read_text().startswith("# Acme Lantern") and "scheduling" in org_text and ("plumb" in org_text or "electric" in org_text), "Checked the org H1 and normalized stems for the supplied scheduling and plumbing/electrical market facts."),
             result(member.is_file() and "- Email: maria@acme-lantern.example" in member.read_text() and root_members_only(repo) and "Suborganizations:" not in member.read_text(), "Checked Maria's canonical root member path, email, and absence of invented affiliation."),
-            result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) >= 2 and git(repo, "config", "--local", "user.email") == "maria@acme-lantern.example", "Checked main, history count, and repo-local operator email."),
+            result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 1 and git(repo, "config", "--local", "user.email") == "maria@acme-lantern.example", "Checked main, exactly one history entry, and repo-local operator email."),
             result(not git(repo, "remote") and no_machine_state(repo), "Checked no remotes and scanned the artifact for machine state/placeholders."),
-            result(alternating and root_window[0], root_window[1] + f" Transcript alternates: {alternating}."),
-            result(operator_window[0] and "affiliat" not in operator_turns and "which suborganization" not in operator_turns, operator_window[1] + " Checked the flat member intake text for no affiliation language."),
+            result(alternating and has_proposal and leads == [INTAKE_QUESTION] and intake_has_bullets(window[0]) and shape[0], f"Intake window leads={leads!r}; proposal followed={has_proposal}; alternating={alternating}; {shape[1]}"),
+            result(len(proposals) == 1 and context_line_under_opener(proposal, "Acme Lantern") and SETUP_FILES_PHRASE in proposal and "Maria Chen (Acme Lantern)" in proposal and not fenced(assistant) and language[0], f"Checked proposal opener, context line, setup-files phrase, member identity, no fences; {language[1]}"),
             result(all(term in sharing.lower() for term in ("local", "single-player", "multiplayer", "private", "github")), "Checked all five required sharing terms in the exact sharing-question turn."),
-            result(completion_request_check(output, "Define the ideal customer profile for Acme Lantern."), "Checked the exact ICP fallback request, saved organization name, and saved-context statement."),
+            result(completion_request_check(output, "Define the ideal customer profile for Acme Lantern.") and "Saved." in output, "Checked the exact ICP fallback request, the `Saved.` close, and the saved-context statement."),
         ]
     if name == "create-complex-bulk":
         repo = root / "meridian-holdings"
         found_members = {p.parent.name: p for p in member_files(repo)}
-        turns, alternating = conversation_turns(run_dir)
-        suborg_bulk = exact_bulk_window(
-            turns,
-            BULK_SUBORGS_QUESTION,
-            [{BULK_SUBORGS_QUESTION}],
-            "Here is the proposed suborganization set:",
-        )
-        member_bulk = exact_bulk_window(
-            turns,
-            BULK_MEMBERS_QUESTION,
-            [{BULK_MEMBERS_QUESTION}],
-            "Here is the proposed members set:",
-        )
-        suborg_turn = question_turn(turns, BULK_SUBORGS_QUESTION) or ""
-        member_turn = question_turn(turns, BULK_MEMBERS_QUESTION) or ""
-        output = user_output(run_dir)
+        leads, window, has_proposal = intake_window(turns)
+        language = banned_language(run_dir)
         organization_paths = (
             "ORG.md",
             "suborgs/meridian-cloud/ORG.md",
@@ -506,14 +529,22 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             "priya-shah": repo / "suborgs/meridian-cloud/suborgs/meridian-cloud-europe/members/priya-shah/MEMBER.md",
             "leo-martins": repo / "suborgs/meridian-home/members/leo-martins/MEMBER.md",
         }
+        identities = (
+            "Meridian Cloud (Meridian Holdings)",
+            "Meridian Cloud Europe (Meridian Holdings › Meridian Cloud)",
+            "Meridian Home (Meridian Holdings)",
+            "Devon Price (Meridian Holdings)",
+            "Priya Shah (Meridian Holdings › Meridian Cloud › Meridian Cloud Europe)",
+            "Leo Martins (Meridian Holdings › Meridian Home)",
+        )
         return [
             result(has_contract(repo) and canonical_org_tree(repo) and all((repo / path).is_file() for path in organization_paths), "Checked the root, two direct suborganizations, and recursively nested Europe ORG.md files."),
             result(set(found_members) == set(member_paths) and all(path.is_file() and "- Email:" in path.read_text() for path in member_paths.values()) and canonical_member_paths(repo) and no_legacy_layout(repo), "Checked exact root, direct-suborganization, and recursively nested MEMBER.md paths with no legacy layout."),
-            result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) >= 7, "Checked main and at least seven artifact history entries."),
+            result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 1 and git(repo, "config", "--local", "user.email") == "devon@meridian-holdings.example", "Checked main, exactly one history entry, and Devon's repo-local identity."),
             result(not git(repo, "remote"), "Checked that no remote remains after multiplayer was declined."),
             result(no_machine_state(repo), "Scanned for empty directories, placeholder markers, logs, temp content, and state.json."),
-            result(alternating and suborg_bulk[0] and "one message" in suborg_turn.lower(), suborg_bulk[1] + " Checked the prompt explicitly requests one freeform message."),
-            result(member_bulk[0] and "one message" in member_turn.lower() and "own" in member_turn.lower(), member_bulk[1] + " Checked one-message collection with ownership embedded in the initial bulk turn."),
+            result(alternating and has_proposal and leads == [INTAKE_QUESTION] and intake_has_bullets(window[0]) and shape[0], f"Intake window leads={leads!r}; proposal followed={has_proposal}; {shape[1]}"),
+            result(len(proposals) == 1 and SETUP_FILES_PHRASE in proposal and all(identity in proposal for identity in identities) and not fenced(assistant) and language[0], f"Checked one proposal with the setup-files phrase and every identity, no fences; {language[1]}"),
             result(completion_request_check(output, "Define the ideal customer profile for Meridian Holdings."), "Checked fixed-priority ICP authoring despite both catalog IDs, plus the saved-context statement."),
         ]
     if name == "import-local-folder":
@@ -528,36 +559,33 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
         ]
     if name == "update-a-member":
         repo = root / "ember-health"; member = repo / "members/casey-lee/MEMBER.md"; text = member.read_text() if member.exists() else ""
+        language = banned_language(run_dir)
+        was_now = re.search(r"was Sales Lead.{0,20}now VP Sales", proposal, re.S) is not None
         return [
             result("- Email: casey@ember-health.example" in text and "- Role: VP Sales" in text and "Sales Lead" not in text, "Checked preserved email and exact role replacement."),
             result("## Links" in text and "https://www.linkedin.com/in/casey-lee-example" in text, "Checked accepted LinkedIn URL under a Links section."),
             result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2, "Checked main and exactly one commit beyond the seed."),
             result(len(member_files(repo)) == 1 and root_members_only(repo) and no_legacy_layout(repo) and not (repo / "suborgs").exists() and no_machine_state(repo) and not git(repo, "remote"), "Checked no new entity, legacy path, state, or remote."),
+            result(len(proposals) == 1 and context_line_under_opener(proposal, "Ember Health") and "Casey Lee (Ember Health)" in proposal and was_now and "linkedin" in proposal.lower() and not fenced(assistant) and closes_saved(run_dir) and language[0] and shape[0], f"Checked proposal shape, identity, `was X, now Y`, link, no fences, `Saved.` close; {language[1]}; {shape[1]}"),
         ]
     if name == "delete-a-suborg":
         repo = root / "northstar-group"; member = repo / "members/amina-yusuf/MEMBER.md"; text = member.read_text() if member.exists() else ""
-        turns, _ = conversation_turns(run_dir)
-        consequence = next(
-            (
-                turn
-                for role, turn in turns
-                if role == "Assistant" and "Accept and save" in turn and "suborgs/consumer" in turn
-            ),
-            "",
+        identities = (
+            "Northstar Consumer (Northstar Group)",
+            "Northstar Youth (Northstar Group › Northstar Consumer)",
+            "Layla Chen (Northstar Group › Northstar Consumer)",
+            "Family Learning (Northstar Group › Northstar Consumer)",
+            "Household Buyer (Northstar Group › Northstar Consumer)",
+            "Noah Okafor (Northstar Group › Northstar Consumer › Northstar Youth)",
+            "Teen Program Director (Northstar Group › Northstar Consumer › Northstar Youth)",
         )
-        owned_paths = (
-            "suborgs/consumer/icps/family-learning.md",
-            "suborgs/consumer/personas/household-buyer.md",
-            "suborgs/consumer/members/layla-chen/MEMBER.md",
-            "suborgs/consumer/suborgs/youth/personas/teen-program-director.md",
-            "suborgs/consumer/suborgs/youth/members/noah-okafor/MEMBER.md",
-        )
+        language = banned_language(run_dir)
         return [
             result(not (repo / "suborgs/consumer").exists() and (repo / "suborgs/enterprise/ORG.md").is_file() and (repo / "ORG.md").is_file(), "Checked Consumer subtree absence and Enterprise/root survival."),
             result("enterprise" in text and "consumer" not in text.lower() and "youth" not in text.lower(), "Checked affiliation cleanup while preserving Enterprise."),
             result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2, "Checked main and exactly one deletion commit beyond seed."),
             result(bool(git(repo, "remote", "get-url", "origin")) and "northstar-group.git" in git(repo, "remote", "get-url", "origin"), "Checked that origin remains configured to the seeded remote."),
-            result(all(path in consequence for path in owned_paths), f"Checked the accepted consequence proposal for owned artifact paths: {owned_paths!r}."),
+            result(len(proposals) == 1 and all(identity in proposal for identity in identities) and language[0] and shape[0], f"Checked the proposal for every owned identity; {language[1]}; {shape[1]}"),
         ]
     if name == "doctor-broken-repo":
         repo = root / "atlas-labs"; europe = repo / "suborgs/europe/ORG.md"; member = repo / "suborgs/europe/members/sam-rivera/MEMBER.md"
@@ -568,10 +596,10 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             and agents.startswith("# GTM Workspace")
             and "Members live under their owning organization node" in agents
             and "Work only on `main`" in agents
-            and "Preview durable changes" in agents
+            and "Describe durable changes" in agents
         )
         return [
-            result(contract_restored, "Checked all root contract files, exact CLAUDE.md bytes, and the required node-owned/main/preview AGENTS.md semantics."),
+            result(contract_restored, "Checked all root contract files, exact CLAUDE.md bytes, and the required node-owned/main/describe-before-write AGENTS.md semantics."),
             result(europe.is_file() and europe.read_text().startswith("# ") and "serves manufacturers in the European Union" in europe.read_text(), "Checked restored H1 and preserved overview."),
             result(member.is_file() and "sam@atlas-labs.example" in member.read_text() and canonical_member_paths(repo) and no_legacy_layout(repo), "Checked the in-place Europe legacy migration to canonical MEMBER.md and removal of all legacy paths."),
             result(not (repo / "state.json").exists() and not (repo / "suborgs/europe/empty-notes").exists(), "Checked seeded state file and empty directory removal."),
@@ -579,7 +607,6 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
         ]
     if name == "doctor-root-workflow-project":
         repo = root / "solstice-freight"
-        output = user_output(run_dir)
         lower = output.lower()
         expected_paths = (
             "workflows/package.json",
@@ -601,7 +628,7 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             and any(word in lower for word in ("healthy", "valid", "permitted"))
             and any(marker in lower for marker in ("ignored", "untracked", ".env", "data/"))
         )
-        no_repair = "repair proposal" not in lower and "accept and save" not in output and "repair gtm context repo" not in lower
+        no_repair = "repair proposal" not in lower and SAVE_OPENER not in output and "repair gtm workspace repo" not in lower
         no_defect_claim = not any(
             marker in lower
             for marker in ("defects found", "defect:", "needs repair", "invalid placement")
@@ -613,7 +640,6 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
         ]
     if name == "doctor-suborg-workflow-project":
         repo = root / "aster-ridge"
-        output = user_output(run_dir)
         lower = output.lower()
         unchanged = (
             git(repo, "branch", "--show-current") == "main"
@@ -633,7 +659,6 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
     if name == "hosted-create-refusal":
         repo = root / "northwind-gtm"
         fixture = REPO_ROOT / "evals/gtm-workspace/fixtures/hosted-connected/home/.gtm/northwind-gtm"
-        output = user_output(run_dir)
         lower = output.lower()
         all_outputs = all_output_text(run_dir).lower()
         inventory = json.loads((run_dir / "home_inventory.json").read_text())
@@ -662,52 +687,36 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             result(unchanged, "Compared every non-git repo byte with the fixture and checked a clean, exact two-entry history."),
             result("fixed" in lower and "deployment" in lower and "cli" in lower and "keyboard" in lower, "Checked the refusal explanation and CLI-at-a-keyboard redirect in user-facing output."),
             result(unchanged and two_redirects and "delete" in lower, "Checked a second fixed-deployment keyboard redirect for the whole-repo delete request and verified no deletion."),
-            result(
-                not researched
-                and delta_draft is None,
-                "Checked every produced text artifact plus executor tool calls for absence of a Delta draft or external research.",
-            ),
+            result(not researched and delta_draft is None, "Checked every produced text artifact plus executor tool calls for absence of a Delta draft or external research."),
         ]
     if name == "hosted-update-proceeds":
         repo = root / "northwind-gtm"
         member = repo / "members/rae-santos/MEMBER.md"
         text = member.read_text() if member.is_file() else ""
-        output = user_output(run_dir).lower()
+        lower = output.lower()
         commands = executor_commands(run_dir)
         pushed = any(re.search(r"\bgit\b.*\bpush\b", command, re.I | re.S) for command in commands)
-        accepted = """# Rae Santos
-
-## Identity
-
-- Email: rae@northwind-gear.example
-- Role: VP Sales
-
-## Links
-
-- LinkedIn: https://www.linkedin.com/in/rae-santos-example"""
         persisted = (
             git(repo, "branch", "--show-current") == "main"
             and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 3
             and not git(repo, "status", "--porcelain")
-            and text.strip() == accepted
-            and git(repo, "show", "HEAD:members/rae-santos/MEMBER.md") == accepted
             and git(repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD") == "members/rae-santos/MEMBER.md"
         )
         remote_problem = any(
-            phrase in output
+            phrase in lower
             for phrase in ("missing remote", "remote is missing", "remote problem", "remote defect", "failed to push")
         )
+        language = banned_language(run_dir)
         return [
             result("- Email: rae@northwind-gear.example" in text and "- Role: VP Sales" in text and "Head of Sales" not in text, "Checked preserved email and exact role replacement."),
             result("## Links" in text and "https://www.linkedin.com/in/rae-santos-example" in text, "Checked the accepted LinkedIn URL under Links."),
-            result(persisted, "Checked main, a clean tree, exactly one new commit, the exact accepted bytes in HEAD, and no unrelated path in that commit."),
-            result(not git(repo, "remote") and not pushed and "failed to push" not in output, "Checked that no remote was added, no git push command ran, and no push failure was reported."),
-            result(not remote_problem, "Checked user-facing output for absence of missing-remote problem or defect language."),
+            result(persisted, "Checked main, a clean tree, exactly one new commit, and no unrelated path in that commit."),
+            result(not git(repo, "remote") and not pushed and "failed to push" not in lower, "Checked that no remote was added, no git push command ran, and no push failure was reported."),
+            result(not remote_problem and "Rae Santos (Northwind Gear)" in assistant_turns(run_dir)[-1] and closes_saved(run_dir) and language[0], f"Checked no remote-problem language, the identity plus `Saved.` close; {language[1]}"),
         ]
     if name == "hosted-save-failure-recovery":
         repo = root / "northwind-gtm"
         fixture = REPO_ROOT / "evals/gtm-workspace/fixtures/hosted-connected/home/.gtm/northwind-gtm"
-        output = user_output(run_dir)
         lower = output.lower().replace("’", "'").replace("‘", "'")
         commands = executor_commands(run_dir)
         used_ask_user_question = any(
@@ -739,21 +748,14 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             and "durable" in lower
             and not re.search(r"(?:has been|was successfully|is now|successfully) (?:saved|committed)", lower)
         )
-        proposal = all(
-            value in output
-            for value in (
-                "Head of Sales",
-                "VP Sales",
-                "https://www.linkedin.com/in/rae-santos-example",
-            )
-        )
+        was_now = re.search(r"was Head of Sales.{0,20}now VP Sales", proposal, re.S) is not None
         no_persistence_attempt = not git(repo, "remote") and not attempted_git_write(commands)
         return [
             result(unchanged, "Compared every non-git byte with the fixture and checked a clean, exact two-entry history."),
             result(negative_save, "Checked that the response explains the durable-save failure and never reports successful persistence."),
             result(formatted_recovery and not used_ask_user_question, "Checked a direct bold recovery question, recommended CLI-at-a-keyboard option first, cancel second, exact reply line, and no AskUserQuestion call."),
             result(no_persistence_attempt, "Checked that no commit, push, or remote mutation was attempted after the declared durable-save failure."),
-            result(proposal and "cancel" in lower, "Checked that the exact role and LinkedIn proposal was shown before the user canceled recovery."),
+            result(len(proposals) == 1 and was_now and "https://www.linkedin.com/in/rae-santos-example" in proposal and "cancel" in lower, "Checked the `was X, now Y` proposal with the link before the user canceled recovery."),
         ]
     if name == "create-bundled-recovery":
         repo = root / "copperline-systems"
@@ -761,44 +763,22 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
         suborg = repo / "suborgs/copperline-enterprise/ORG.md"
         operator = repo / "members/taylor-kim/MEMBER.md"
         member = repo / "suborgs/copperline-enterprise/members/nora-patel/MEMBER.md"
-        turns, alternating = conversation_turns(run_dir)
-        menu = next(
-            (
-                text
-                for role, text in turns
-                if role == "Assistant" and f"**{MENU_QUESTION}**" in text
-            ),
-            "",
+        menu = next((text for role, text in turns if role == "Assistant" and f"**{MENU_QUESTION}**" in text), "")
+        leads, window, has_proposal = intake_window(turns)
+        recovery = window[1] if len(window) >= 2 else ""
+        recovery_lines = [line.strip() for line in recovery.splitlines() if line.strip()]
+        composed_recovery = (
+            bold_question(recovery) == ROOT_NAME_RECOVERY
+            and any(line.lstrip("-* ").strip() == SUBORG_NAMES_RECOVERY for line in recovery_lines)
+            and any(line.lstrip("-* ").strip() == MEMBER_BOTH_RECOVERY for line in recovery_lines)
+            and f"**{SUBORG_NAMES_RECOVERY}**" not in recovery
+            and f"**{MEMBER_BOTH_RECOVERY}**" not in recovery
         )
-        root_window = exact_intake_window(
-            turns,
-            ROOT_IDENTITY_QUESTION,
-            [{ROOT_IDENTITY_QUESTION}, {ROOT_NAME_RECOVERY}, {ROOT_SOURCES_QUESTION}],
-            "~/.gtm/copperline-systems/ORG.md",
-        )
-        named_suborg_sources = "Are there any other links, files, or folders you'd like me to research for Copperline Enterprise's context?"
-        suborg_window = exact_intake_window(
-            turns,
-            SUBORG_IDENTITY_QUESTION,
-            [{SUBORG_IDENTITY_QUESTION}, {SUBORG_NAME_RECOVERY}, {SUBORG_SOURCES_QUESTION, named_suborg_sources}],
-            "suborgs/copperline-enterprise/ORG.md",
-        )
-        operator_window = exact_intake_window(
-            turns,
-            OPERATOR_AFFILIATION_QUESTION,
-            [{OPERATOR_AFFILIATION_QUESTION}, {MEMBER_SOURCES_QUESTION}],
-            "members/taylor-kim/MEMBER.md",
-        )
-        member_window = exact_intake_window(
-            turns,
-            MEMBER_OWNER_QUESTION,
-            [{MEMBER_OWNER_QUESTION}, {MEMBER_BOTH_RECOVERY}, {MEMBER_SOURCES_QUESTION}],
-            "suborgs/copperline-enterprise/members/nora-patel/MEMBER.md",
-        )
-        operator_turn = question_turn(turns, OPERATOR_AFFILIATION_QUESTION) or ""
-        member_turn = question_turn(turns, MEMBER_OWNER_QUESTION) or ""
         all_questions = [bold_question(text) for role, text in turns if role == "Assistant"]
-        standalone_affiliation = any(question and "affiliat" in question.lower() for question in all_questions)
+        standalone_follow_up = any(
+            question and any(term in question.lower() for term in ("affiliat", "which organization should own", "role", "social profile"))
+            for question in all_questions
+        )
         menu_ok = (
             "A GTM workspace is a saved folder for one organization. It gives your agent the background it needs for GTM work." in menu
             and "Create a GTM workspace for a new organization" in menu
@@ -814,22 +794,25 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             and "Suborganizations:" not in operator.read_text()
             and "- Email: nora@copperline.example" in member.read_text()
             and git(repo, "branch", "--show-current") == "main"
-            and int(git(repo, "rev-list", "--count", "HEAD") or 0) >= 4
+            and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 1
         )
-        output = user_output(run_dir)
+        identities = (
+            "Copperline Enterprise (Copperline Systems)",
+            "Taylor Kim (Copperline Systems)",
+            "Nora Patel (Copperline Systems › Copperline Enterprise)",
+        )
         return [
-            result(artifact_ok, "Checked contract files, root/suborganization artifacts, root and suborganization member ownership, emails, main, and per-artifact history."),
+            result(artifact_ok, "Checked contract files, root/suborganization artifacts, root and suborganization member ownership, emails, main, and one history entry."),
             result(alternating and menu_ok, f"Checked exact menu explanation, question, representative organization-aware choices, and turn alternation ({alternating})."),
-            result(root_window[0] and suborg_window[0], root_window[1] + " " + suborg_window[1]),
-            result(operator_window[0] and member_window[0], operator_window[1] + " " + member_window[1]),
-            result("Copperline Enterprise" in operator_turn and "Copperline Enterprise" in member_turn and not standalone_affiliation, "Checked both first member turns for the valid saved display name and found no standalone owner or affiliation question."),
+            result(has_proposal and leads == [INTAKE_QUESTION, ROOT_NAME_RECOVERY] and intake_has_bullets(window[0]) and composed_recovery, f"Intake window leads={leads!r}; composed recovery={composed_recovery}; proposal followed={has_proposal}."),
+            result(not standalone_follow_up and shape[0], f"Checked for no standalone owner/affiliation/role/optional-field question; {shape[1]}"),
+            result(len(proposals) == 1 and SETUP_FILES_PHRASE in proposal and "Copperline Systems" in proposal and all(identity in proposal for identity in identities) and not fenced(assistant), "Checked the proposal for the organization, setup-files phrase, every identity, and no fences."),
             result(completion_request_check(output, "Define the ideal customer profile for Copperline Systems."), "Checked the exact recognized ICP request, saved display name, and saved-context statement."),
         ]
     if name == "create-unrecognized-workflow-fallback":
         repo = root / "pine-harbor"
         org = repo / "ORG.md"
         member = repo / "members/iris-wong/MEMBER.md"
-        output = user_output(run_dir)
         artifact_ok = (
             has_contract(repo)
             and org.is_file()
@@ -839,7 +822,7 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
             and root_members_only(repo)
             and no_legacy_layout(repo)
             and git(repo, "branch", "--show-current") == "main"
-            and int(git(repo, "rev-list", "--count", "HEAD") or 0) >= 2
+            and int(git(repo, "rev-list", "--count", "HEAD") or 0) >= 1
             and not git(repo, "remote")
         )
         return [
@@ -849,6 +832,53 @@ def checks_for(name: str, snapshot: Path, run_dir: Path) -> list[tuple[bool, str
                 and "gtm-market-orbit" not in output,
                 "Checked the exact generic fallback and saved-context statement, with no rendering of the unrecognized ID.",
             ),
+        ]
+    if name == "batch-add-members":
+        repo = root / "ember-health"
+        casey = repo / "members/casey-lee/MEMBER.md"
+        fixture_casey = REPO_ROOT / "evals/gtm-workspace/fixtures/batch-add-members/home/.gtm/ember-health/members/casey-lee/MEMBER.md"
+        members = {
+            "Priya Nair": (repo / "members/priya-nair/MEMBER.md", "priya@ember-health.example", "Head of Marketing"),
+            "Tom Adeyemi": (repo / "members/tom-adeyemi/MEMBER.md", "tom@ember-health.example", "Customer Success Lead"),
+            "Jordan Reyes": (repo / "members/jordan-reyes/MEMBER.md", "jordan@ember-health.example", None),
+        }
+        identities = [f"{name} (Ember Health)" for name in members]
+        files_ok = all(
+            path.is_file()
+            and path.read_text().startswith(f"# {name}")
+            and f"- Email: {email}" in path.read_text()
+            and (role is None or f"- Role: {role}" in path.read_text())
+            for name, (path, email, role) in members.items()
+        )
+        expected_paths = sorted(path.relative_to(repo).as_posix() for path, _, _ in members.values())
+        questions = [bold_question(text) for role, text in turns if role == "Assistant" and bold_question(text)]
+        language = banned_language(run_dir)
+        return [
+            result(not any(question and question != SAVE_OPENER.strip("*") for question in questions), f"Checked that no question was asked before the proposal; questions={questions!r}."),
+            result(len(proposals) == 1 and context_line_under_opener(proposal, "Ember Health") and all(identity in proposal for identity in identities) and "priya@ember-health.example" in proposal and not fenced(assistant), "Checked one proposal with the context line, every member identity with email, and no fences."),
+            result(files_ok and casey.is_file() and casey.read_bytes() == fixture_casey.read_bytes(), "Checked the three canonical member files, emails, roles, and Casey's unchanged bytes."),
+            result(git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 2 and sorted(changed_paths(repo)) == expected_paths and not git(repo, "status", "--porcelain"), "Checked exactly one commit beyond the seed changing exactly the three member paths."),
+            result(all(identity in assistant_turns(run_dir)[-1] for identity in identities) and closes_saved(run_dir) and language[0] and shape[0], f"Checked the three-identity `Saved.` close; {language[1]}; {shape[1]}"),
+        ]
+    if name == "hosted-native-approval-update":
+        repo = root / "northwind-gtm"
+        member = repo / "members/rae-santos/MEMBER.md"
+        text = member.read_text() if member.is_file() else ""
+        records = approvals(snapshot)
+        summary = records[0].get("summary", "") if len(records) == 1 and isinstance(records[0].get("summary"), str) else ""
+        lines = [line.strip() for line in summary.splitlines() if line.strip()]
+        identity = "Rae Santos (Northwind Gear)"
+        numbered_save_block = re.search(r"(?m)^1\.\s*(?:Save|Accept)", assistant) is not None
+        commands = executor_commands(run_dir)
+        pushed = any(re.search(r"\bgit\b.*\bpush\b", command, re.I | re.S) for command in commands)
+        language = banned_language(run_dir)
+        return [
+            result(len(records) == 1 and bool(summary.strip()), f"Checked the stand-in control log for exactly one record with a summary; records={len(records)}."),
+            result(bool(lines) and lines[0] == "For Northwind Gear:" and lines[-1] == SAVE_CLOSING, f"Checked the summary's first and last lines: {lines[:1]!r} … {lines[-1:]!r}."),
+            result(identity in summary and re.search(r"was Head of Sales.{0,20}now VP Sales", summary, re.S) is not None and "linkedin" in summary.lower() and plain_text(summary), "Checked identity, `was X, now Y`, link, and plain-text shape of the summary."),
+            result(SAVE_OPENER not in assistant and "Accept and save" not in assistant and "Would you like to save" not in assistant and not numbered_save_block, "Checked that no proposal message or numbered accept block appeared in the transcript."),
+            result("- Email: rae@northwind-gear.example" in text and "- Role: VP Sales" in text and "Head of Sales" not in text and "https://www.linkedin.com/in/rae-santos-example" in text and git(repo, "branch", "--show-current") == "main" and int(git(repo, "rev-list", "--count", "HEAD") or 0) == 3 and not git(repo, "status", "--porcelain") and changed_paths(repo) == ["members/rae-santos/MEMBER.md"], "Checked the file written through the control and one clean scoped commit."),
+            result(identity in assistant_turns(run_dir)[-1] and closes_saved(run_dir) and "apply_gtm_workspace_changes" not in assistant and not pushed and language[0], f"Checked the identity plus `Saved.` close without path, commit, push, or tool name; {language[1]}"),
         ]
     raise ValueError(name)
 
