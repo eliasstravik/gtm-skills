@@ -27,7 +27,7 @@ Reply with a number, or type your answer.
 4. Apply link safety to supplied sources. Research every field in the shared `company-data.md` when safe sources are available. Treat sources as evidence for criteria the user may accept, not permission to infer criteria from organization facts.
 5. Compare only owner-local ICPs for material overlap. If a near-duplicate exists, explain it and ask whether to update the existing ICP `(Recommended)` or continue with a distinct definition.
 6. Draft one `icps/<slug>/ICP.md` per supplied ICP from `templates/icp.md` using accepted or safely sourced criteria. Keep all 13 company-data fields in order and write `Unknown` for unresolved criteria. Preserve uncertainty and disqualifiers; omit only unsupported optional sections after `## Company data`.
-7. Present one proposal per the standard covering every drafted ICP: each by identity (`<display name> (<root> › <owner chain>)`), with its account criteria and disqualifiers in two to four lines, and any overlap explanation. Show the complete draft only when asked.
+7. Present one proposal per the standard covering every drafted ICP: each by identity (`<display name> (<root> › <owner chain>)`) on one line, the defining facts stated once for the batch when shared, and any overlap in one line. Show the complete draft only when asked.
 8. After acceptance, create only the needed `icps/<slug>/` directories and `ICP.md` files, persist every accepted ICP in one durable change, and close per the standard: each ICP by identity, then `Saved.`
 
 ## Update
@@ -42,9 +42,9 @@ Reply with a number, or type your answer.
 
 1. Resolve the workspace and target under the artifact-reading node rule.
 2. If several ICPs are visible and none was named, list only those visible ICPs by identity and ask which one to delete.
-3. Present one proposal per the standard: the ICP by identity, that the definition will no longer be available from that node, and that the user can ask to restore it.
+3. Present one proposal per the standard: the ICP by identity and that it will no longer be available.
 4. After acceptance, delete only that file, remove its artifact directory if empty, and remove `icps/` if the accepted deletion makes it empty.
-5. Persist the deletion and close with what disappeared by identity, `Saved.`, and that the user can ask to restore it, without commands or hashes.
+5. Persist the deletion and close with what disappeared by identity, `Saved.`, and the standard's one-sentence restore offer.
 
 ## Doctor
 

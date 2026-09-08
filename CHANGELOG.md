@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.1, 2026-09-09
+
+Workflow library generation 13, unchanged.
+
+- The shared interaction standard gains a length and formatting section: one sentence per line, at most 12 body lines per message, bulleted lists for three or more parallel items, one bold lead line in ordinary messages, and a cut list (sentences about what does not change, research method or sources, restore reminders outside a delete closing, the adjectives researched, complete, and full, restated requests).
+- Proposal shape is now an opener line, the artifacts one per line, and at most three lines of defining facts, with shared facts stated once for the batch under `All:`. Deletions list the names and end `They will no longer be available.` Closings use the same shape in the past tense with `Saved.` on its own line; a delete closing may add one restore sentence.
+- Hosted approval text may use `- ` bullet lines; the host contract says so and renders them as bullets.
+- ICP, persona, workspace, and workflow flows point at the new shape instead of "two to four lines" per artifact; the workflow save proposal is one bulleted list (does, reads, runs, costs, writes, checked).
+- Validation used the offline repository and compatibility checks only; no eval was run or updated for this release, so eval assertions may lag the new proposal shape.
+
 ## 0.3.0, 2026-09-08
 
 Workflow library generation 13, unchanged.
