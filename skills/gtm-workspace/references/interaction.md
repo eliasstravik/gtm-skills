@@ -65,6 +65,15 @@ Splitting follows artifact boundaries only: ICPs, personas, members, and suborga
 
 ## Questions
 
+There are exactly two ways to ask the user for a decision, and the skill never invents a third:
+
+1. **A gate** for any durable action: the native approval control on a hosted surface, or the numbered `Save this?` block on a keyboard, per [Approval by surface](#approval-by-surface). Approve or 1 executes; Cancel or 3 writes nothing and the skill asks `**What would you like me to change?**`.
+2. **A numbered choice block** for every other decision, with option 1 the skill's recommendation ending `(Recommended)`.
+
+An open question is only for a fact the user must type (a name, an email, a URL). Never ask a yes-or-no question, never ask `Shall I…?` or `Should I proceed?`, and never define a confirmation phrase such as `Say "add them"` or `Reply yes to continue`. The user's only ways to say yes are the gate and a number.
+
+Once every fact a proposal needs is in hand, the next assistant action is the gate itself. No message announces that research is complete, that drafts are ready, or what the proposal will contain; the proposal is that announcement.
+
 Ask only for a missing decision or fact that changes the result. Put every such question in one message: one bold lead question first, then the remaining facts wanted as a bulleted list (never numbered), each on one line with a fictional example where the flow already has one. At most one numbered choice block per message; only choice options are numbered, at most option 1 ends with `(Recommended)`, and the block ends exactly `Reply with a number, or type your answer.` A message with no choice block has no reply line.
 
 Do not ask for facts the agent can research or leave as `Unknown`. Do not use `AskUserQuestion` or a host question tool.
