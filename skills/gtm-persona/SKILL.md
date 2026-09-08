@@ -65,4 +65,4 @@ If no valid workspace is connected or discoverable, stop without writing and dir
 - Read [the shared person-data research contract](../gtm-workspace/references/person-data.md) before creating or fully researching a persona; apply its ordered fields as desired or accepted person criteria.
 - Read [the persona lifecycle flows](references/flows.md) after selecting the Procedure row; they define menu, create, update, delete, doctor, recovery, and closure.
 - Render [the persona draft template](templates/persona.md) only for create; it is a starting shape, not a schema or validity test.
-- Read [the shared interaction standard](../gtm-workspace/references/interaction.md) before any user-facing message; it defines audience language, proposal shape, batching, grouped questions, approval by surface, and closing.
+- Read [the shared interaction standard](../gtm-workspace/references/interaction.md) before any user-facing message; it defines audience language, length and formatting, proposal shape, batching, grouped questions, approval by surface, and closing.

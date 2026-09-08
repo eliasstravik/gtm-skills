@@ -58,6 +58,7 @@ PERSON_DATA_FILES = (
 SHARED_REFERENCES = (Path("gtm-workspace/references/interaction.md"),)
 INTERACTION_SECTIONS = (
     "## Audience and language",
+    "## Length and formatting",
     "## Proposal shape",
     "## Batching",
     "## Questions",

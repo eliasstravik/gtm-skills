@@ -25,7 +25,7 @@ Reply with a number, or type your answer.
 4. Apply link safety to supplied sources. Research every field in `person-data.md` when safe sources are available, but persist only criteria the user supplies or accepts. Organization and member facts do not establish persona criteria.
 5. Compare only owner-local personas for material overlap. If a near-duplicate exists, explain it and ask whether to update the existing persona `(Recommended)` or continue with a distinct definition.
 6. Draft one `personas/<slug>/PERSONA.md` per supplied persona from `templates/persona.md`. Keep all eight shared fields in order, use `Unknown` for unresolved criteria, and preserve uncertainty, authority limits, and disqualifiers in optional sections. Omit empty optional sections.
-7. Present one proposal per the standard covering every drafted persona: each by identity (`<display name> (<root> › <owner chain>)`), with its role, responsibilities, and authority in two to four lines, and any overlap explanation. Show the complete draft only when asked.
+7. Present one proposal per the standard covering every drafted persona: each by identity (`<display name> (<root> › <owner chain>)`) on one line, the defining facts stated once for the batch when shared, and any overlap in one line. Show the complete draft only when asked.
 8. After acceptance, create only the needed `personas/<slug>/` directories and `PERSONA.md` files, persist every accepted persona in one durable change, and close per the standard: each persona by identity, then `Saved.`
 
 ## Update
@@ -40,9 +40,9 @@ Reply with a number, or type your answer.
 
 1. Resolve the workspace and target under the artifact-reading node rule.
 2. If several personas are visible and none was named, list only those visible personas by identity and ask which one to delete.
-3. Present one proposal per the standard: the persona by identity, that the definition will no longer be available from that node, and that the user can ask to restore it.
+3. Present one proposal per the standard: the persona by identity and that it will no longer be available.
 4. After acceptance, delete only that file, remove its artifact directory if empty, and remove `personas/` if the accepted deletion makes it empty.
-5. Persist the deletion and close with what disappeared by identity, `Saved.`, and that the user can ask to restore it, without commands or hashes.
+5. Persist the deletion and close with what disappeared by identity, `Saved.`, and the standard's one-sentence restore offer.
 
 ## Doctor
 
