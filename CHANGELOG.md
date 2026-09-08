@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.2, 2026-09-09
+
+Workflow library generation 13, unchanged.
+
+- The shared interaction standard now names the only two ways to ask for a decision: the gate (native approval control, or the numbered `Save this?` block on a keyboard) for any durable action, and a numbered choice block with option 1 `(Recommended)` for everything else. Open questions are for typed facts only. Yes-or-no questions, `Shall I…?`, and invented confirmation phrases such as `Say "add them"` are banned.
+- Once a proposal's facts are in hand, the next assistant action is the gate. No readiness or research-complete message precedes it.
+- Validation used the offline repository and compatibility checks only; no eval was run or updated for this release.
+
 ## 0.3.1, 2026-09-09
 
 Workflow library generation 13, unchanged.
