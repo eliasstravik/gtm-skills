@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1, 2026-09-09
+
+Workflow library generation 15.
+
+- Remote read-only commands work in the hosted sandbox, where the firewall brokers the read-only credential and no token is present in the environment. Outside the sandbox a missing read-only token is still refused, and the write token is never used.
+- Helpers called from the workflow body or used as the row step are drawn inline, so a row's stages, decisions, and error paths appear in the diagram and `gtm check` no longer asks authors to wrap them in one step. A step called from inside another step stays hidden and still fails the check.
+- The deployed diagram page, JSON, and PNG routes work on Vercel. The build traces the TypeScript parser into the function instead of inlining the CommonJS package into the ESM bundle, where it threw `__filename is not defined` and returned 500.
+- The diagram reads the documented `Result table:` workflow header as well as `Table:`, so a workflow written to the contract names its table on the page.
+
 ## 0.4.0, 2026-09-09
 
 Workflow library generation 14.

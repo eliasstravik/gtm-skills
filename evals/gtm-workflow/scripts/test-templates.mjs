@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHmac } from "node:crypto";
-import { chmod, cp, mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdtemp, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
@@ -10,8 +10,8 @@ import { test } from "node:test";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v14 templates pass the deterministic workflow contract", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v14-"));
+test("v15 templates pass the deterministic workflow contract", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v15-"));
   let vendor;
   let server;
   let releaseSlowRequest;
@@ -60,6 +60,7 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
   await writeFile(join(directory, "workflows/branching-proof.ts"), branchingWorkflow);
   await writeFile(join(directory, "workflows/nested-loop-proof.ts"), nestedLoopWorkflow);
   await writeFile(join(directory, "workflows/branching-try-proof.ts"), branchingTryWorkflow);
+  await writeFile(join(directory, "workflows/helper-row-proof.ts"), helperRowWorkflow);
   await writeFile(join(directory, "vercel.json"), JSON.stringify({ crons: [{ path: "/api/run/scheduled-proof", schedule: "0 9 * * *" }] }));
 
   const fakeDirectory = join(directory, "fake-bin");
@@ -120,8 +121,9 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
   const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
   const checked = JSON.parse(lastJsonLine(check.stdout));
   assert.equal(checked.ok, true);
-  assert.equal(checked.workflows, 12);
-  assert.equal(checked.libVersion, 14);
+  assert.equal(checked.workflows, 13);
+  assert.equal(checked.libVersion, 15);
+  await assertVercelFunctionsTraceParser(directory, env);
   const providers = await gtm(directory, env, ["providers", "list", "organization", "--format", "json"]);
   assert.deepEqual(providers, [{
     name: "mock-data",
@@ -401,6 +403,8 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
   const nestedGraph = JSON.parse(
     lastJsonLine((await command("npm", ["run", "gtm", "--", "diagram", "nested-loop-proof", "--format", "json"], { cwd: directory, env })).stdout),
   );
+  // The contract calls the header "Result table"; the extractor reads that name and the older "Table".
+  assert.equal(nestedGraph.workflow.table, "accounts");
   const nestedLoopGroups = nestedGraph.groups.filter((groupItem) => groupItem.kind === "loop");
   assert.equal(nestedLoopGroups.length, 1);
   assert.ok(nestedGraph.edges.every((edge) => edge.from !== edge.to), "no edge should have from === to");
@@ -421,6 +425,33 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
     tryGraph.edges.some((edge) => edge.from === handleUnknownNode.id && edge.to === recoverNode.id && edge.label === "on error"),
     "handleUnknown should have an on error edge to recoverFromFailure",
   );
+
+  // A plain helper used as the row step runs in workflow context, so the whole row is drawn
+  // inside the loop: its stages, its decision, and the early return that skips scoring. The
+  // workspace-wide `gtm check` above passes with this workflow present, so it reports no finding.
+  const helperGraph = JSON.parse(
+    lastJsonLine((await command("npm", ["run", "gtm", "--", "diagram", "helper-row-proof", "--format", "json"], { cwd: directory, env })).stdout),
+  );
+  assert.deepEqual(helperGraph.nodes.map((node) => [node.kind, node.label, node.group ?? null]), [
+    ["start", "Rows", null],
+    ["step", "Look up the row", "g1"],
+    ["decision", "Was anything found?", "g1"],
+    ["step", "Score the row", "g1"],
+    ["save", "Save the account", "g1"],
+    ["wait", "Checkpoint", "g1"],
+    ["end", "Done", null],
+  ]);
+  assert.deepEqual(helperGraph.groups, [{ id: "g1", kind: "loop", label: "For each row" }]);
+  assert.deepEqual(helperGraph.edges, [
+    { from: "n1", to: "n2" },
+    { from: "n2", to: "n3" },
+    { from: "n3", to: "n4", label: "no" },
+    { from: "n3", to: "n5", label: "yes" },
+    { from: "n4", to: "n5" },
+    { from: "n5", to: "n6" },
+    { from: "n6", to: "n2", label: "next", back: true },
+    { from: "n6", to: "n7" },
+  ]);
 
   const runDiagram = await command("npm", ["run", "gtm", "--", "diagram", "local-proof", "--run", completed.runKey], { cwd: directory, env });
   assert.equal(runDiagram.stdout.slice(runDiagram.stdout.indexOf("flowchart")).trim(), [
@@ -715,6 +746,23 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
     { cwd: directory, env: { ...env, GTM_SANDBOX: "1", GTM_AGENT_BACKEND: "claude" } },
   );
   assert.match(sandboxBackend.stderr, /requires GTM_AGENT_BACKEND=api/);
+
+  // The hosted sandbox never holds a read-only token: its firewall brokers one, so a remote
+  // read-only command must attempt the connection instead of refusing for a missing token.
+  const brokeredEnv = {
+    ...env,
+    GTM_SANDBOX: "1",
+    GTM_AGENT_BACKEND: "api",
+    TURSO_DATABASE_URL: "libsql://sandbox-probe.invalid",
+    TURSO_AUTH_TOKEN: "write-token",
+  };
+  delete brokeredEnv.TURSO_READ_ONLY_AUTH_TOKEN;
+  const brokeredRead = await gtmFailure(directory, brokeredEnv, ["query", "--sql", "select 1"]);
+  assert.notEqual(brokeredRead.error.code, "missing_read_only_token");
+  const unbrokeredEnv = { ...brokeredEnv };
+  delete unbrokeredEnv.GTM_SANDBOX;
+  const unbrokeredRead = await gtmFailure(directory, unbrokeredEnv, ["query", "--sql", "select 1"]);
+  assert.equal(unbrokeredRead.error.code, "missing_read_only_token");
   await assertDirtyProductionStartRefused(directory, env, inputFile, nitroPort);
 });
 
@@ -960,7 +1008,7 @@ async function assertCheckRules(directory, env) {
   await expectCheckViolation(migrationPath, (source) => `${source}\nALTER TABLE workflow_runs RENAME TO old_workflow_runs;\n`, "destructive_migration", directory, env);
   await expectCheckViolation(migrationPath, (source) => `${source}\n-- gtm: destructive accepted\nDROP TABLE IF EXISTS gtm_check_probe;\n`, "destructive_migration", directory, env);
   await expectCheckPasses(migrationPath, (source) => `-- gtm: destructive accepted\n${source}\nDROP TABLE IF EXISTS gtm_check_probe;\n`, directory, env);
-  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v14\n", "// gtm-lib v14\n\n"), "lib_modified", directory, env);
+  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v15\n", "// gtm-lib v15\n\n"), "lib_modified", directory, env);
 
   const branchingPath = join(directory, "workflows/branching-proof.ts");
   await expectCheckViolation(branchingPath, (source) => source.replace("/** Look up each domain */\n", ""), "diagram_rules", directory, env);
@@ -973,9 +1021,11 @@ async function assertCheckRules(directory, env) {
   assert.match(missingLabel.error.message, /step_label_missing workflows\/branching-proof\.ts:\d+ lookupDomain has no label\. Fix: Add a JSDoc comment directly above it/);
   assert.match(missingLabel.error.message, /Run npm run gtm -- diagram branching-proof --format ascii after fixing to confirm the shape\.$/);
 
+  // The helper is called from inside a step, which the walk never enters, so its steps stay
+  // hidden. A helper called from the workflow body is drawn inline instead and reports nothing.
   const hiddenInHelper = await checkFailure(
     branchingPath,
-    (source) => source.replace("      await saveKnownAccount(row.key);", "      await saveThroughHelper(row.key);") + "\nasync function saveThroughHelper(key: string) {\n  await saveKnownAccount(key);\n}\n",
+    (source) => source.replace('  "use step";\n  return key;', '  "use step";\n  await saveThroughHelper(key);\n  return key;') + "\nasync function saveThroughHelper(key: string) {\n  await saveKnownAccount(key);\n}\n",
     directory,
     env,
   );
@@ -1029,6 +1079,14 @@ async function assertCheckRules(directory, env) {
     directory,
     env,
     /step_unreachable workflows\/branching-proof\.ts:\d+ saveKnownAccount is called inside a conditional expression the diagram cannot follow\. Fix: Write the choice as if\/else in the workflow body so the diagram shows the decision\./,
+  );
+  await expectCheckViolation(
+    branchingPath,
+    (source) => source.replace("      await saveKnownAccount(row.key);", "      await saveThroughHelper(row.key);") + "\nasync function saveThroughHelper(key: string) {\n  await saveKnownAccount(key);\n  await saveThroughHelper(key);\n}\n",
+    "diagram_rules",
+    directory,
+    env,
+    /step_unreachable workflows\/branching-proof\.ts:\d+ saveThroughHelper calls itself directly or indirectly, so the diagram cannot follow it\. Fix: Recursive helpers cannot be drawn; unroll the loop in the workflow body\./,
   );
 }
 
@@ -1109,6 +1167,46 @@ async function freePort() {
   const port = server.address().port;
   await new Promise((resolvePromise) => server.close(resolvePromise));
   return port;
+}
+
+/**
+ * The Vercel preset must not inline the TypeScript parser into the ESM function bundle: the parser
+ * is CommonJS and reads __filename, which throws in an ES module and fails every diagram route.
+ */
+async function assertVercelFunctionsTraceParser(directory, env) {
+  await command(join(directory, "node_modules/.bin/nitro"), ["build", "--preset", "vercel"], { cwd: directory, env });
+  const functions = await functionDirectories(join(directory, ".vercel/output/functions"));
+  assert.ok(functions.length > 0, "the vercel preset should write at least one function directory");
+  for (const functionDirectory of functions) {
+    const traced = await readdir(join(functionDirectory, "node_modules"));
+    assert.ok(
+      traced.includes("typescript-parser"),
+      `${relative(directory, functionDirectory)} should trace typescript-parser; saw ${JSON.stringify(traced)}`,
+    );
+    const inlined = (await filesContaining(functionDirectory, "isFileSystemCaseSensitive")).filter(
+      (file) => !file.includes("/node_modules/"),
+    );
+    assert.deepEqual(
+      inlined.map((file) => relative(functionDirectory, file)),
+      [],
+      `${relative(directory, functionDirectory)} inlines the TypeScript parser`,
+    );
+  }
+  await rm(join(directory, ".vercel"), { recursive: true, force: true });
+}
+
+async function functionDirectories(root) {
+  const found = [];
+  const walk = async (current) => {
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const path = join(current, entry.name);
+      if (entry.name.endsWith(".func")) found.push(path);
+      else await walk(path);
+    }
+  };
+  await walk(root);
+  return found;
 }
 
 function command(executable, args, options) {
@@ -1646,7 +1744,7 @@ const nestedLoopWorkflow = `/**
  * Kind: on-demand
  * Owner: Fixture | ICP: Fixture
  * Providers: none
- * Table: accounts | key: fixture account id
+ * Result table: accounts | key: fixture account id
  */
 import { setAttributes } from "workflow";
 import { z } from "zod";
@@ -1680,6 +1778,67 @@ export async function nestedLoopProof(arg: Input, meta: WorkflowMeta) {
   }
   await updateRun(meta.runKey, { status: "completed", completed, failed: 0, cost_usd: 0, finished: true });
   return { completed };
+}
+`;
+
+const helperRowWorkflow = `/**
+ * Proves a plain row helper is drawn inline, with its branch and its early return.
+ * Runs: on this computer
+ * Kind: on-demand
+ * Owner: Fixture | ICP: Fixture
+ * Providers: none
+ * Table: accounts | key: fixture account id
+ */
+import { z } from "zod";
+import { accounts } from "../db/tables/accounts";
+import type { WorkflowMeta } from "../lib/approve";
+import { upsertRows } from "../lib/db";
+import { runRows } from "../lib/rows";
+
+export const input = z.object({ rows: z.array(z.object({ key: z.string(), domain: z.string() })) });
+type Input = z.infer<typeof input>;
+export const MAX_ROWS = 25;
+export const MAX_SPEND_USD = 0;
+export const COST_PER_ROW_USD = 0;
+
+/** Look up the row */
+async function lookupRow(row: Input["rows"][number]) {
+  "use step";
+  return { key: row.key, status: row.domain.endsWith(".test") ? "found" : "empty" };
+}
+
+/** Score the row */
+async function scoreRow(found: { key: string }) {
+  "use step";
+  return { score: 1, reason: found.key };
+}
+
+/** Save the account */
+async function saveAccount(row: Record<string, unknown>) {
+  "use step";
+  await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]);
+}
+
+async function processRow(row: Input["rows"][number]) {
+  const found = await lookupRow(row);
+  // Was anything found?
+  if (found.status === "empty") {
+    return { key: row.key, status: "empty" as const };
+  }
+  const scored = await scoreRow(found);
+  return { key: row.key, value: scored };
+}
+
+export async function helperRowProof(arg: Input, meta: WorkflowMeta) {
+  "use workflow";
+  arg = input.parse(arg);
+  return runRows({
+    rows: arg.rows,
+    meta,
+    table: { name: "accounts", save: saveAccount },
+    rowStep: processRow,
+    caps: { maxRows: MAX_ROWS, maxSpendUsd: MAX_SPEND_USD, costPerRowUsd: COST_PER_ROW_USD },
+  });
 }
 `;
 
