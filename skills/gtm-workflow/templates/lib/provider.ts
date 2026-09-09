@@ -1,8 +1,9 @@
-// gtm-lib v16
+// gtm-lib v17
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "./db";
+import { reserveAgentCall } from "./agent-ledger";
 import { redact, redactedError } from "./redact";
 import {
   enrichmentCache,
@@ -17,6 +18,8 @@ export type PaidCallMeta = {
   slug: string;
   rowKey?: string;
   step?: string;
+  /** Optional ceiling supplied by an accepted event source. */
+  maxSpendUsd?: number;
 };
 
 export class ProviderAuthError extends Error {
@@ -58,6 +61,8 @@ export type ProviderInput<T extends z.ZodTypeAny> = {
   parseRaw?: (raw: unknown) => z.input<T>;
   meta: PaidCallMeta;
   isEmpty?: (value: z.infer<T>) => boolean;
+  /** Shared admission for parallel paid branches; cache hits remain free. */
+  admission?: { operation: string; maxSpendUsd: number; maxCalls: number };
 };
 
 export type PaidCallResult<T> = {
@@ -120,8 +125,13 @@ export async function provider<T extends z.ZodTypeAny>(
     }
   }
 
-  const ledgerId = randomUUID();
-  await db.insert(enrichmentRuns).values({
+  const ledgerId = input.admission ? await reserveAgentCall({
+    meta: input.meta, operation: input.admission.operation, provider: input.name, endpoint: input.endpoint,
+    costUsd: input.costUsd ?? 0, costKind: acceptedCostSource === "projected" ? "estimate" : "upper-bound",
+    maxSpendUsd: Math.min(input.admission.maxSpendUsd, input.meta.maxSpendUsd ?? input.admission.maxSpendUsd),
+    maxCalls: input.admission.maxCalls,
+  }) : randomUUID();
+  if (!input.admission) await db.insert(enrichmentRuns).values({
     id: ledgerId,
     runKey: input.meta.runKey,
     workflow: input.meta.slug,
@@ -137,6 +147,7 @@ export async function provider<T extends z.ZodTypeAny>(
     errorKind: null,
     createdAt: now,
   });
+  else await db.update(enrichmentRuns).set({ inputsHash }).where(eq(enrichmentRuns.id, ledgerId));
 
   try {
     const called = await input.call();

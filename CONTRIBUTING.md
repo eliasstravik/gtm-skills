@@ -12,7 +12,7 @@ The repo separates three layers, and every contribution should know which one it
 
 Work moves between the execution modes in one direction. A method is proven in-session, where the human approves each one-off paid probe; it graduates to a workflow when it becomes recurring or at-volume — the tell is per-call approval turning into rubber-stamping. Graduation is per stage: mechanical stages (sourcing, enrichment, scoring) graduate while a genuinely per-item judgment stage stays attended in-session over the workflow's typed results, its accepted output re-entering as supplied rows, until sampled review honestly suffices.
 
-Knowledge crosses that boundary only at authoring time: the agent compiles a skill's method and the accepted workspace-artifact text into the workflow's committed `agent()` prompts (accepted ICP or persona text passed as `agent({ context, contextId })`, the `contextId` naming its source artifact). A workflow never loads, resolves, or fetches skill content at run time — a production run resolves no knowledge outside its reviewed commit. When the source method or artifact later changes, deployed workflows deliberately keep the text they were compiled with until a session recompiles them as a reviewed change.
+Knowledge crosses that boundary at authoring time: compile a method and accepted workspace text into committed `agent()` prompts, or package selected methods as revisioned content in a durable agent definition. A production agent may load those committed skills through `loadSkill`; it never fetches new skill code or treats external data as authority. When a source method or artifact changes, deployed workflows keep their reviewed content until a session updates the definition.
 
 ## Skill types
 

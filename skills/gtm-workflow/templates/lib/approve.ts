@@ -1,4 +1,4 @@
-// gtm-lib v16
+// gtm-lib v17
 import { defineHook, sleep } from "workflow";
 import { z } from "zod";
 import {
@@ -27,6 +27,7 @@ export type WorkflowMeta = {
   scheduledFor?: string | null;
   rowKey?: string;
   step?: string;
+  maxSpendUsd?: number;
 };
 
 export type ApprovalResult = {

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0, 2026-09-09
+
+Workflow library generation 17.
+
+- Workflow authoring selects ordinary steps, durable agent stages, or a mixture, with explicit native composition and extension guidance.
+- Durable agents use selected MCP/HTTP tools and committed skill content, structured results, call limits, per-attempt accounting, and atomic spending reservations. Previews disclose estimated costs and bind the capability definition.
+- Signed event sources start new runs with permanent deduplication and daily admission limits. Existing hooks continue to resume waiting runs.
+- Workflow diagrams recognize dynamic agent stages and durable sleeps. The validator rejects durable agents inside steps.
+- Existing workflow projects require the managed runtime update; no database schema change is required. Credentials, live event subscriptions, and workflow-owned definitions stay deployment-specific.
+- Skill evaluations and description optimization are excluded at the user's request. Validation uses deterministic runtime fixtures, static skill checks, and builds.
+
 ## 0.4.4, 2026-09-09
 
 Workflow library generation 16, unchanged.

@@ -44,12 +44,12 @@ Bootstrap during the first create and keep the draft outside the repository unti
 ## Create
 
 1. Resolve workspace, owner, and kind. Read the owner's relevant ICP and persona files.
-2. Run `gtm check` before editing an existing project. Offer a v16 recopy when headers or content hashes differ; show the diff for every locally modified managed file first.
+2. Run `gtm check` before editing an existing project. Offer a v17 recopy when headers or content hashes differ; show the diff for every locally modified managed file first.
 3. Resolve where it runs, offering `on this computer` or `hosted, in production`. For on-demand work, recommend this computer. For scheduled or triggered work, recommend hosted. In a sandbox, recommend hosted for every workflow because the sandbox never starts a real run. Explain that local scheduled work runs only when invoked and hosted model calls use the user's budgeted key. Ask this together with every other open decision in step 4 as one grouped message.
-4. Resolve the purpose, explicit input shape, stable row key, result columns, paid stages, adapter docs, caps, timing, approval stages, checkpoint, and external writes.
+4. Resolve the purpose, explicit input shape, stable row key, result columns, paid stages, adapter docs, caps, timing, approval stages, checkpoint, and external writes. Apply [workflow composition](capabilities.md) to choose fixed steps, an agent stage, or both. For agents, resolve selected skills/tools, argument scope, and cost uncertainty in this same proposal.
 5. When the workflow needs a provider, read [providers](providers.md) and run `npm run gtm -- providers list [keywords] --format json` before writing an adapter. Reuse a matching endpoint. List first before saying a capability is missing. Write a new adapter against the user's own credential only when no listed contract matches, then test it against fixtures.
 6. Declare the result table, derive the model-facing business schema inside the agent step, and load the owner's accepted ICP and persona text into `context` with stable file paths in `contextId`. Add `key` and `updatedAt` only when saving.
-7. Write row work with `runRows()`. Add `scheduledInput` and matching cron entry for scheduled work. For triggered work, prefer `waitForTrigger()` plus the bearer-protected trigger route; use a public webhook only when the caller cannot send a bearer, and validate its payload in the workflow.
+7. Write row work with `runRows()`. Add `scheduledInput` and matching cron entry for scheduled work. For a new run per event, follow [event sources](events.md). For a callback to an existing run, use `waitForTrigger()` and its protected route. Keep durable agent calls in workflow context and export their definitions in `AGENTS` for preview.
 8. Run `npm run gtm -- check`; it enforces export, input, compiler-level workflow, paid-step retry, table, bookkeeping, migration, version, and content-hash rules.
 9. Run `gtm run --dry-run` against the accepted input. It validates the Zod schema and caps without spend; a fresh table and working credentials are not required.
 10. Present one save proposal per [conversation](conversation.md), as its bulleted list; no file names or commands. On a hosted surface, run `db:generate` in the scratch draft before building the request so it already carries the SQL, journal, and snapshot, and the proposal is the approval control's text.
@@ -61,7 +61,7 @@ Cancellation before step 11 writes no tracked bytes and no migration.
 ## Update
 
 1. Resolve the workflow and inspect its header, table, adapter, migrations, schedule, approvals, and deployment state.
-2. Compare every managed file with v16 by header and recorded hash. Show locally modified diffs and include any accepted recopy in the proposal.
+2. Compare every managed file with v17 by header and recorded hash. Show locally modified diffs and include any accepted recopy in the proposal.
 3. Agree the business change. A run-location switch is an update to the same workflow.
 4. Change only the workflow, table, adapter, accepted ICP/persona context, environment names, cron entry, or deployment metadata required by the request. Reload context text so its changed content invalidates the model cache.
 5. New columns are nullable or defaulted. Use expand/contract for a rename: add, backfill, switch code, then drop after the old deployment is gone. Keep schedule headers, `scheduledInput`, and cron entries aligned.

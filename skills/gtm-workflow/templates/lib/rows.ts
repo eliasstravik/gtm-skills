@@ -1,4 +1,4 @@
-// gtm-lib v16
+// gtm-lib v17
 import {
   cancellationHook,
   cancellationToken,
@@ -45,6 +45,9 @@ export async function runRows<TRow extends { key: string }>(input: {
   ) => Promise<RowStepResult>;
   caps: RunRowsCaps;
 }) {
+  input = { ...input, caps: { ...input.caps,
+    maxSpendUsd: Math.min(input.caps.maxSpendUsd, input.meta.maxSpendUsd ?? input.caps.maxSpendUsd),
+  } };
   await registerWorkflowRun(input.meta.runKey);
   const projected = input.rows.length * input.caps.costPerRowUsd;
   if (
@@ -84,6 +87,7 @@ export async function runRows<TRow extends { key: string }>(input: {
       try {
         const rowMeta = {
           ...input.meta,
+          maxSpendUsd: input.caps.maxSpendUsd,
           rowKey: row.key,
           step: input.rowStep.name || "rowStep",
         };
