@@ -10,8 +10,8 @@ import { test } from "node:test";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v14 templates pass the deterministic workflow contract", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v14-"));
+test("v15 templates pass the deterministic workflow contract", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v15-"));
   let vendor;
   let server;
   let releaseSlowRequest;
@@ -122,7 +122,7 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
   const checked = JSON.parse(lastJsonLine(check.stdout));
   assert.equal(checked.ok, true);
   assert.equal(checked.workflows, 13);
-  assert.equal(checked.libVersion, 14);
+  assert.equal(checked.libVersion, 15);
   const providers = await gtm(directory, env, ["providers", "list", "organization", "--format", "json"]);
   assert.deepEqual(providers, [{
     name: "mock-data",
@@ -1005,7 +1005,7 @@ async function assertCheckRules(directory, env) {
   await expectCheckViolation(migrationPath, (source) => `${source}\nALTER TABLE workflow_runs RENAME TO old_workflow_runs;\n`, "destructive_migration", directory, env);
   await expectCheckViolation(migrationPath, (source) => `${source}\n-- gtm: destructive accepted\nDROP TABLE IF EXISTS gtm_check_probe;\n`, "destructive_migration", directory, env);
   await expectCheckPasses(migrationPath, (source) => `-- gtm: destructive accepted\n${source}\nDROP TABLE IF EXISTS gtm_check_probe;\n`, directory, env);
-  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v14\n", "// gtm-lib v14\n\n"), "lib_modified", directory, env);
+  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v15\n", "// gtm-lib v15\n\n"), "lib_modified", directory, env);
 
   const branchingPath = join(directory, "workflows/branching-proof.ts");
   await expectCheckViolation(branchingPath, (source) => source.replace("/** Look up each domain */\n", ""), "diagram_rules", directory, env);

@@ -1,4 +1,4 @@
-// gtm-lib v14
+// gtm-lib v15
 import { Resvg } from "@resvg/resvg-js";
 import type { DiagramEdge, DiagramNode, DiagramStatus } from "./diagram";
 import type { Box, LaidOutGraph } from "./layout";

@@ -1,4 +1,4 @@
-// gtm-lib v14
+// gtm-lib v15
 import { defineConfig } from "nitro";
 
 export default defineConfig({
