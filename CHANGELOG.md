@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3, 2026-09-09
+
+Workflow library generation 16, unchanged.
+
+- When a hosted channel sends the workflow picture and Diagram/Runs/Data links, the assistant adds only a caption instead of repeating the links.
+- Validation used offline repository and compatibility checks. Evals were skipped at the user’s request.
+
 ## 0.4.2, 2026-09-09
 
 Workflow library generation 16.
