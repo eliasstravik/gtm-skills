@@ -17,10 +17,11 @@ Reply with a number, or type your answer.
 2. Refuse to start or reuse Nitro while `workflows/.env.local` exists. Explain that Nitro would load it after `.env` and point local runs at the cloud database.
 3. Reuse a healthy owned Nitro server or a healthy `nitro dev` listener whose working directory is this workspace's `workflows/`. Otherwise start one background `npm run dev` there and record its PID, command, working directory, and purpose in the conversation.
 4. Open `http://127.0.0.1:3000/_workflow`.
-5. Call the embedded UI manifest RPC with the request recorded below. Require every expected qualified workflow in the response and confirm each source appears as `workflows/<slug>.ts` or `workflows/<suborg-path>/<slug>.ts`.
-6. Run `npx workflow inspect runs` against the same `.workflow-data/` and confirm run history is readable.
-7. Unless `GTM_SANDBOX=1`, run `npm run db:studio`, report its URL, and name the workflow result table. Studio is a viewer and is local only.
-8. Report both URLs and whether the server remains running. State that open started no workflow and made no paid call.
+5. Mint the diagram link for the workflow the user named, or for the first workflow when none was named, with `npm run gtm -- diagram <slug> --format web --no-open`, and include it as the Diagram line of the "Where to look" block.
+6. Call the embedded UI manifest RPC with the request recorded below. Require every expected qualified workflow in the response and confirm each source appears as `workflows/<slug>.ts` or `workflows/<suborg-path>/<slug>.ts`.
+7. Run `npx workflow inspect runs` against the same `.workflow-data/` and confirm run history is readable.
+8. Unless `GTM_SANDBOX=1`, run `npm run db:studio`, report its URL, and name the workflow result table. Studio is a viewer and is local only.
+9. Report both URLs and whether the server remains running. State that open started no workflow and made no paid call.
 
 <!-- TEMPORARY: waits on workflow@5.0.0: replace the internal manifest request when a public manifest command is available. -->
 The embedded UI sends `POST /_workflow/api/rpc` with `Content-Type: application/cbor`. Its CBOR body encodes `{"method":"fetchWorkflowsManifest","params":{"worldEnv":{}}}`.
@@ -35,7 +36,8 @@ When the user asks for private remote access, hand the running Nitro origin to t
 2. If either value is absent, report that the project is not deployed and stop. When the user named a workflow, also require its header to say `Runs: on Vercel`; otherwise report that the workflow is not deployed and stop.
 3. Run `./node_modules/.bin/workflow inspect runs --backend vercel --project <project> --team <team> --url` with both recorded values.
 4. Open the printed URL. If it cannot be opened, say `In the Vercel project, open Observability, then Workflows.`
-5. For table inspection, use the Turso dashboard or run `npm run db:studio:cloud` on the user's computer. Ignored `.env.turso` contains `TURSO_DATABASE_URL`, write-only `TURSO_AUTH_TOKEN` for migrations, and `TURSO_READ_ONLY_AUTH_TOKEN` for Studio and `gtm query --cloud`; inspection refuses to reuse the write token.
+5. Mint the production diagram link the same way; the recorded production origin is used automatically for a `Runs: on Vercel` workflow.
+6. For table inspection, use the Turso dashboard or run `npm run db:studio:cloud` on the user's computer. Ignored `.env.turso` contains `TURSO_DATABASE_URL`, write-only `TURSO_AUTH_TOKEN` for migrations, and `TURSO_READ_ONLY_AUTH_TOKEN` for Studio and `gtm query --cloud`; inspection refuses to reuse the write token.
 
 ## Sandbox inspection
 
@@ -66,4 +68,4 @@ For `Runs visible, Workflows empty`:
 
 ## Limits
 
-Open does not deploy, run, spend, migrate, or propose a save. It adds no custom UI, dashboard, or proxy. Add a process manager only when the user asks for survival across sessions or reboots.
+Open does not deploy, run, spend, migrate, or propose a save. It adds no custom UI, dashboard, or proxy. Add a process manager only when the user asks for survival across sessions or reboots. The diagram link expires after 24 hours by default; `--expires <hours>` changes it.

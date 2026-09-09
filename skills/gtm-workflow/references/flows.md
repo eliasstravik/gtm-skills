@@ -44,7 +44,7 @@ Bootstrap during the first create and keep the draft outside the repository unti
 ## Create
 
 1. Resolve workspace, owner, and kind. Read the owner's relevant ICP and persona files.
-2. Run `gtm check` before editing an existing project. Offer a v13 recopy when headers or content hashes differ; show the diff for every locally modified managed file first.
+2. Run `gtm check` before editing an existing project. Offer a v14 recopy when headers or content hashes differ; show the diff for every locally modified managed file first.
 3. Resolve where it runs, offering `on this computer` or `hosted, in production`. For on-demand work, recommend this computer. For scheduled or triggered work, recommend hosted. In a sandbox, recommend hosted for every workflow because the sandbox never starts a real run. Explain that local scheduled work runs only when invoked and hosted model calls use the user's budgeted key. Ask this together with every other open decision in step 4 as one grouped message.
 4. Resolve the purpose, explicit input shape, stable row key, result columns, paid stages, adapter docs, caps, timing, approval stages, checkpoint, and external writes.
 5. When the workflow needs a provider, read [providers](providers.md) and run `npm run gtm -- providers list [keywords] --format json` before writing an adapter. Reuse a matching endpoint. List first before saying a capability is missing. Write a new adapter against the user's own credential only when no listed contract matches, then test it against fixtures.
@@ -54,20 +54,20 @@ Bootstrap during the first create and keep the draft outside the repository unti
 9. Run `gtm run --dry-run` against the accepted input. It validates the Zod schema and caps without spend; a fresh table and working credentials are not required.
 10. Present one save proposal per [conversation](conversation.md), as its bulleted list; no file names or commands. On a hosted surface, run `db:generate` in the scratch draft before building the request so it already carries the SQL, journal, and snapshot, and the proposal is the approval control's text.
 11. On a keyboard, on acceptance, copy the draft into the workspace, run `npm ci`, then `db:generate`. Inspect the generated SQL and its journal and snapshot artifacts; state any destructive effect in words and show SQL on request. Apply accepted migrations, run `db:verify`, and only then save; a hosted workflow's one atomic `main` commit puts it live in production.
-12. If the header says `Runs: on Vercel`, follow [deploy](deploy.md) and close with `Saved.` and `It will be live in production in a few minutes; ask me to check.` Otherwise close with `Saved.` and enter the run gate. The first real run defaults to a checkpoint after three rows.
+12. If the header says `Runs: on Vercel`, follow [deploy](deploy.md) and close with `Saved.` and `It will be live in production in a few minutes; ask me to check.` Otherwise close with `Saved.` and enter the run gate. The first real run defaults to a checkpoint after three rows. Then show the "Where to look" block.
 
 Cancellation before step 11 writes no tracked bytes and no migration.
 
 ## Update
 
 1. Resolve the workflow and inspect its header, table, adapter, migrations, schedule, approvals, and deployment state.
-2. Compare every managed file with v13 by header and recorded hash. Show locally modified diffs and include any accepted recopy in the proposal.
+2. Compare every managed file with v14 by header and recorded hash. Show locally modified diffs and include any accepted recopy in the proposal.
 3. Agree the business change. A run-location switch is an update to the same workflow.
 4. Change only the workflow, table, adapter, accepted ICP/persona context, environment names, cron entry, or deployment metadata required by the request. Reload context text so its changed content invalidates the model cache.
 5. New columns are nullable or defaulted. Use expand/contract for a rename: add, backfill, switch code, then drop after the old deployment is gone. Keep schedule headers, `scheduledInput`, and cron entries aligned.
 6. Run `gtm check` and the dry run before the save proposal. On a keyboard, do not generate a migration yet; on a hosted surface, run `db:generate` in the scratch draft now so the request carries its SQL, journal, and snapshot.
 7. Present one proposal stating the changed facts only, each `was X, now Y`, and each table change in words. On a keyboard, on acceptance, run `db:generate`, inspect the SQL, save its registered artifacts together, apply the migration, and run `db:verify`. The approval-gated hosted save verifies hashes before its `main` commit. If behavior changed, enter the checkpointed run gate.
-8. A `main` commit deploys when the accepted header says `Runs: on Vercel`; wait for that exact SHA before a real run.
+8. A `main` commit deploys when the accepted header says `Runs: on Vercel`; wait for that exact SHA before a real run. Then show the "Where to look" block.
 
 ## Inspect
 
@@ -86,7 +86,7 @@ For all workflows, also report:
 
 Do not run migration generation as an inspection check.
 
-For `show me the workflow`, run `npm run gtm -- diagram <slug> --format mermaid`. Add `--run <runKey>` when the operator wants status and spend overlaid, resolving the run from the workflow name and time they give. Relay the command output instead of drawing a separate graph, without the command.
+For `show me the workflow`, run `npm run gtm -- diagram <slug> --format png` on a keyboard and open the file, or `--format ascii` when no picture can be shown. Add `--run <runKey>` when the operator wants status and spend overlaid, resolving the run from the workflow name and time they give. Follow with the "Where to look" block from [conversation](conversation.md#where-to-look). Relay the picture and the block, never the command.
 
 For a run, use `npm run gtm -- runs get <runId|runKey> --format markdown`, resolving the run key internally from the workflow name and time the user gives. Add `--failed` for the failed row key, step, provider, endpoint, and redacted error. Relay the business facts without the command or run identifier. Results stay in the database and are not copied to ad hoc JSON files.
 
@@ -128,6 +128,20 @@ npm run gtm -- run <slug> --rows-from-run <runKey> --only failed --dry-run
 ```
 
 Use `empty` for empty ledger outcomes, `remaining` for keys recorded by a stopped run, or `all` for the prior scope. The command writes the selection under ignored `data/reruns/`, then follows the same dry-run and run gates as `--input`. Add `--cloud` for Turso; the command requires `TURSO_READ_ONLY_AUTH_TOKEN` and never substitutes the write token.
+
+## Where to look moments
+
+Show the "Where to look" block from [conversation](conversation.md#where-to-look) at these moments, and nowhere else:
+
+| Flow | Moment | Diagram form |
+| --- | --- | --- |
+| Inspect, `show me the workflow` | immediately | picture plus the block |
+| Create | with the save proposal: a picture of the draft from `gtm diagram <slug> --format png` (or `ascii`) run in the draft; after `Saved.` (hosted: after `Live.`): the block | draft picture, then links to the saved workflow |
+| Update | with the proposal: a picture of the changed flow; after the save: the block | same |
+| Run | at start, at each checkpoint report, and at completion | block with `--run <runKey>` so the diagram carries status and spend |
+| Open | always | block only |
+
+Mint the diagram link with `npm run gtm -- diagram <slug> --format web --no-open [--run <runKey>]` and use the printed URL. On a hosted surface the trusted workflow control's read-only diagram action returns the link and the picture; the sandbox never mints links.
 
 ## Sandbox branches
 

@@ -28,21 +28,23 @@ Ignore `node_modules/`, `.env*` except `.env.example`, `.vercel/`, `.well-known/
 
 ## Versioned files
 
-Every `lib/*.ts`, API route, managed script, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v13`. `package.json` carries `gtm.libVersion: 13`, SHA-256 entries under `gtm.libHashes`, and pinned versions under `gtm.validatedAgainst`. Run `gtm check` before every action: distinguish an old header from a locally modified hash, show the diff of a modified managed file before offering a recopy, and never overwrite it silently.
+Every `lib/*.ts`, API route, page route under `server/routes`, managed script, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v14`. `package.json` carries `gtm.libVersion: 14`, SHA-256 entries under `gtm.libHashes`, and pinned versions under `gtm.validatedAgainst`. Run `gtm check` before every action: distinguish an old header from a locally modified hash, show the diff of a modified managed file before offering a recopy, and never overwrite it silently.
 
 Follow the [runtime upgrade procedure](../../../docs/runtime-upgrade.md) before changing a validated pin.
 
-A v2 project has no fixed schema or migrations; offer a v13 re-scaffold through update, preserve ignored results, present the full diff, and migrate after acceptance. A v5 project lacks cancellation. A v6 project combines web research and structured answering incorrectly. A v8 project cannot preserve original provider responses and does not trust the ledger for totals. Offer the v13 recopy and its committed fixed-table migration.
+A v2 project has no fixed schema or migrations; offer a v14 re-scaffold through update, preserve ignored results, present the full diff, and migrate after acceptance. A v5 project lacks cancellation. A v6 project combines web research and structured answering incorrectly. A v8 project cannot preserve original provider responses and does not trust the ledger for totals. Offer the v14 recopy and its committed fixed-table migration.
 
-A v9 project lets cloud queries reuse the write credential and accepts data-changing CTEs. A v9 project cannot guarantee `tools: "none"` on every local model backend. A v9 cancellation closes the run row before the runtime confirms its in-flight step stopped. A v9 route can lose the SDK run id and reopen the duplicate guard while an orphan is live. A v9 model cache ignores accepted ICP and persona content. A v9 project can persist and return credentials embedded in errors. A v9 ledger starts after the paid call and cannot distinguish reported, fixed, and projected costs. A v9 command allowlist can preapprove real spend and mutation. A v9 approval route duplicates hook schema, uses an internal import, and leaves decided hooks reusable. <!-- TEMPORARY: waits on workflow@5.0.0: keep recovery disabled until restart cannot re-enqueue a pending paid step. --> A v9 local restart can recover and repeat a paid step before the documented zombie procedure runs. A v9 production route accepts starts that do not prove the workspace commit. Offer the v13 recopy through update, show every locally modified managed-file diff, and apply its committed migration with `db:migrate` and `db:verify`.
+A v9 project lets cloud queries reuse the write credential and accepts data-changing CTEs. A v9 project cannot guarantee `tools: "none"` on every local model backend. A v9 cancellation closes the run row before the runtime confirms its in-flight step stopped. A v9 route can lose the SDK run id and reopen the duplicate guard while an orphan is live. A v9 model cache ignores accepted ICP and persona content. A v9 project can persist and return credentials embedded in errors. A v9 ledger starts after the paid call and cannot distinguish reported, fixed, and projected costs. A v9 command allowlist can preapprove real spend and mutation. A v9 approval route duplicates hook schema, uses an internal import, and leaves decided hooks reusable. <!-- TEMPORARY: waits on workflow@5.0.0: keep recovery disabled until restart cannot re-enqueue a pending paid step. --> A v9 local restart can recover and repeat a paid step before the documented zombie procedure runs. A v9 production route accepts starts that do not prove the workspace commit. Offer the v14 recopy through update, show every locally modified managed-file diff, and apply its committed migration with `db:migrate` and `db:verify`.
 
-A v10 project lacks provider discovery, bounded operator polling, row and step ledger attribution, selective reruns, command-generated diagrams, and receipt summaries. Offer the v13 recopy and its committed ledger migration through update.
+A v10 project lacks provider discovery, bounded operator polling, row and step ledger attribution, selective reruns, command-generated diagrams, and receipt summaries. Offer the v14 recopy and its committed ledger migration through update.
 
-A v11 project's `gtm check` misreads template literals and regular expressions inside function bodies, so a workflow whose steps use `${...}` before the exported workflow fails with a false `invalid_export`. Offer the v13 recopy; no schema change is required.
+A v11 project's `gtm check` misreads template literals and regular expressions inside function bodies, so a workflow whose steps use `${...}` before the exported workflow fails with a false `invalid_export`. Offer the v14 recopy; no schema change is required.
 
-A v12 project's `gtm check` rejects every destructive migration, including one already accepted through the delete flow, so a project cannot keep an accepted drop and pass its own check. Offer the v13 recopy; no schema change is required.
+A v12 project's `gtm check` rejects every destructive migration, including one already accepted through the delete flow, so a project cannot keep an accepted drop and pass its own check. Offer the v14 recopy; no schema change is required.
 
-The v13 template pins runtime beta.46. It accepts the lazy hook-resume timing and ended-run behavior because approval state is checked in the database before every resume. The release also retains workflow VMs across attribute writes and safe boundaries with open hooks. The recovery, embedded data-directory, and engine-ceiling workarounds remain until stable 5.0.0 triggers the next review.
+A v13 project has no workflow graph, no signed diagram page, no PNG rendering, no stage attributes, and its `gtm check` accepts unlabelled or hidden steps. Its workflows fail the v14 `diagram_rules` check until every step carries a label and every step call sits in the workflow body. Offer the v14 recopy through update, apply the listed fixes to each workflow in the same proposal, and confirm the shape with the ASCII diagram; no schema change is required.
+
+The v14 template pins runtime beta.46. It accepts the lazy hook-resume timing and ended-run behavior because approval state is checked in the database before every resume. The release also retains workflow VMs across attribute writes and safe boundaries with open hooks. The recovery, embedded data-directory, and engine-ceiling workarounds remain until stable 5.0.0 triggers the next review.
 
 ## Workflow and table contract
 
@@ -73,6 +75,7 @@ export const input = z.object({ rows: z.array(z.object({ key: z.string(), domain
 type Input = z.infer<typeof input>;
 export const MAX_ROWS = 100, MAX_SPEND_USD = 10, COST_PER_ROW_USD = 0.1;
 const acceptedIcp = "<resolved accepted ICP and persona text>";
+/** Enrich the account */
 async function enrichAccount(row: Input["rows"][number], meta: WorkflowMeta, signal: AbortSignal) {
   "use step";
   const schema = createInsertSchema(accounts).pick({ score: true, reason: true });
@@ -81,6 +84,7 @@ async function enrichAccount(row: Input["rows"][number], meta: WorkflowMeta, sig
   return { key: row.key, value };
 }
 enrichAccount.maxRetries = 0;
+/** Save the account */
 async function saveAccount(row: Record<string, unknown>) {
   "use step";
   await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]);
@@ -130,6 +134,10 @@ Absent `TURSO_DATABASE_URL` selects `file:./data/gtm.db`; empty tokens mean abse
 | Rule | Required behavior |
 | --- | --- |
 | Business stages define the graph | Give each operator stage one named `"use step"` function. |
+| Steps carry labels | Every `"use step"` function has a JSDoc comment whose first line is a 3 to 80 character plain-language label; it is the card text on every diagram. `gtm check`: `step_label_missing`. |
+| Steps stay visible | A step is called only from the workflow body or through `lib/` helpers, never from a plain helper or a callback the graph cannot follow. `gtm check`: `step_hidden_in_helper`, `step_unreachable`. |
+| Paths are visible | A branch or loop that changes the path is an `if`, `for`, or `Promise.all` in the workflow body on step results, never a condition inside a step. A `//` comment on the line above names the decision or loop. |
+| Stages mark the timeline | The workflow calls `setAttributes({ stage })` at each stage; `runRows()` does this for row work. `gtm check`: `stage_attributes_missing`. |
 | Reachability controls bundles | Workflow and module-scope executable code use only the allowed workflow helpers and local steps. |
 | Rows have identity | Every result row has a stable `key`; reruns merge by it. |
 | Tables are declared | Schema changes use table files and committed migrations, never runtime DDL. |
@@ -137,7 +145,7 @@ Absent `TURSO_DATABASE_URL` selects `file:./data/gtm.db`; empty tokens mean abse
 | Row bookkeeping is centralized | Use `runRows()`; non-row workflows end with `updateRun()`. |
 | Scheduled delivery deduplicates | Use `scheduled_for`, never the SDK run id, as the delivery key. |
 
-`gtm check` uses the TypeScript compiler API to enforce paid-step retry policy, table keys and timestamps, deterministic workflow bodies, terminal bookkeeping, and allowed module-scope execution. It also validates migrations, managed-file headers and hashes, and warns when installed runtime versions differ from the validated pins.
+`gtm check` uses the TypeScript compiler API to enforce paid-step retry policy, table keys and timestamps, deterministic workflow bodies, terminal bookkeeping, and allowed module-scope execution. It also validates migrations, managed-file headers and hashes, and warns when installed runtime versions differ from the validated pins. It also extracts the workflow graph and reports every diagram rule finding in one diagram_rules error, one line per finding with its fix.
 
 ## Safety and persistence
 

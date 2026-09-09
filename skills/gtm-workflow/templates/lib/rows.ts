@@ -1,10 +1,11 @@
-// gtm-lib v13
+// gtm-lib v14
 import {
   cancellationHook,
   cancellationToken,
   checkpoint,
   type WorkflowMeta,
 } from "./approve";
+import { setAttributes } from "workflow";
 import { redact } from "./redact";
 import {
   getActualRunCostUsd,
@@ -12,6 +13,11 @@ import {
   registerWorkflowRun,
   updateRun,
 } from "./steps";
+
+function stageLabel(name: string): string {
+  const words = name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
 
 export type RowStepResult =
   | { key: string; status?: "success"; value: Record<string, unknown> }
@@ -81,6 +87,7 @@ export async function runRows<TRow extends { key: string }>(input: {
           rowKey: row.key,
           step: input.rowStep.name || "rowStep",
         };
+        await setAttributes({ stage: stageLabel(input.rowStep.name || "rowStep"), row: row.key });
         const outcome = await Promise.race([
           input.rowStep(row, rowMeta, controller.signal).then((value) => ({
             cancelled: false as const,
@@ -98,6 +105,7 @@ export async function runRows<TRow extends { key: string }>(input: {
           empty += 1;
           completed.push(outcome.value.key);
         } else {
+          await setAttributes({ stage: stageLabel(input.table.save.name || "save"), row: row.key });
           await input.table.save({ key: outcome.value.key, ...outcome.value.value });
           success += 1;
           completed.push(outcome.value.key);

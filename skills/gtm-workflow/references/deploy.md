@@ -34,6 +34,7 @@ Initial setup is a keyboard operation, not a Slack workflow action:
 7. Add `GTM_RUN_SECRET`, set `CRON_SECRET` to the same value for schedules, and add any Gateway or provider variables named by `.env.example`.
 8. Enable Vercel system environment variables and record the non-secret team, project, and production URL under `package.json` `gtm.vercel`.
 9. Add a Trusted Sources rule permitting the Eve production project to call this protected workflow production project with OIDC.
+10. Set Deployment Protection so production is reachable without a Vercel login: choose **Only Preview Deployments** for Vercel Authentication, or attach a production custom domain. Run routes stay bearer-protected; the diagram routes are protected by their signed links. With protection left on, Slack viewers who open a diagram link see a Vercel login instead of the diagram, and the trusted diagram action reports `protected`.
 
 Do not configure a Vercel deploy token in Eve. Do not give the sandbox Vercel CLI access. `api.vercel.com` stays closed.
 

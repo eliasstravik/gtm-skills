@@ -67,9 +67,21 @@ Approval-gated actions use these closing lines: checkpoint continue `Approve to 
 
 ## Business diagrams
 
-For `show me the workflow`, generate the business diagram and relay it. When the operator wants status and spend overlaid, add `[x]` done, `[!]` failed, `[~]` active, `[ ]` not reached, and paid-step cost from the run they name by workflow name and time. Hide schemas, storage writes, model settings, and telemetry.
+For `show me the workflow`, show the generated picture (PNG on a surface that displays images, otherwise the ASCII form) and follow it with the "Where to look" block. When the operator wants status and spend overlaid, use the run they name by workflow name and time; the picture then carries `[x]` done, `[!]` failed, `[~]` active, `[ ]` not reached, spend per paid stage, and rows done and failed on each loop. Hide schemas, storage writes, model settings, and telemetry.
 
 Add a short caption with the trigger, inputs or changes, saved result, and partial-failure behavior. Provide technical control flow only when requested.
+
+## Where to look
+
+After a workflow is resolved, the flows in [flows](flows.md#where-to-look-moments) show one block of at most three lines:
+
+```text
+Diagram: <signed diagram link>
+Runs: <embedded Workflows UI locally, or the Vercel Observability page or run deep link when hosted>
+Data: <Drizzle Studio locally, or the Turso dashboard when hosted>
+```
+
+Local links are `http://127.0.0.1:3000/gtm/diagram/<path>?…`, `http://127.0.0.1:3000/_workflow`, and the Studio URL printed by `npm run db:studio`. Hosted links are the production diagram link, `https://vercel.com/<team>/<project>/observability/workflows` from the recorded `gtm.vercel` values (or the run's stored run URL for one run), and the Turso dashboard `https://app.turso.tech/<org>/databases/<db>` derived from the `libsql://<db>-<org>.turso.io` database host; when derivation fails, link `https://app.turso.tech`. On a hosted surface label the second line `Runs (needs Vercel access):`. This block is the only place a host name may appear, per the [shared interaction standard](../../gtm-workspace/references/interaction.md#where-to-look-carve-out).
 
 ## Outcome reports
 

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { chmod, cp, mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -9,8 +10,8 @@ import { test } from "node:test";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v13 templates pass the deterministic workflow contract", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v13-"));
+test("v14 templates pass the deterministic workflow contract", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v14-"));
   let vendor;
   let server;
   let releaseSlowRequest;
@@ -56,6 +57,9 @@ test("v13 templates pass the deterministic workflow contract", async (context) =
   await writeFile(join(directory, "workflows/spend-proof.ts"), spendWorkflow);
   await writeFile(join(directory, "workflows/held-proof.ts"), heldWorkflow);
   await writeFile(join(directory, "workflows/row-error-proof.ts"), rowErrorWorkflow);
+  await writeFile(join(directory, "workflows/branching-proof.ts"), branchingWorkflow);
+  await writeFile(join(directory, "workflows/nested-loop-proof.ts"), nestedLoopWorkflow);
+  await writeFile(join(directory, "workflows/branching-try-proof.ts"), branchingTryWorkflow);
   await writeFile(join(directory, "vercel.json"), JSON.stringify({ crons: [{ path: "/api/run/scheduled-proof", schedule: "0 9 * * *" }] }));
 
   const fakeDirectory = join(directory, "fake-bin");
@@ -116,8 +120,8 @@ test("v13 templates pass the deterministic workflow contract", async (context) =
   const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
   const checked = JSON.parse(lastJsonLine(check.stdout));
   assert.equal(checked.ok, true);
-  assert.equal(checked.workflows, 9);
-  assert.equal(checked.libVersion, 13);
+  assert.equal(checked.workflows, 12);
+  assert.equal(checked.libVersion, 14);
   const providers = await gtm(directory, env, ["providers", "list", "organization", "--format", "json"]);
   assert.deepEqual(providers, [{
     name: "mock-data",
@@ -238,6 +242,7 @@ test("v13 templates pass the deterministic workflow contract", async (context) =
   assert.equal(dry.rows, 20);
   assert.equal(dry.projectedCostUsd, 2);
   assert.equal(dry.withinCaps, true);
+  assert.deepEqual(dry.stages, ["Enrich the account", "Save the account"]);
   assert.equal(await ledgerCount(directory, env), 0);
 
   const paused = await gtm(directory, env, [
@@ -336,26 +341,161 @@ test("v13 templates pass the deterministic workflow contract", async (context) =
   assert.match(markdownReceipt.stdout, /Hit rate: found 20 of 20 \(100%\)/);
   assert.match(markdownReceipt.stdout, /fixed \$0\.40, reported \$0\.20/);
 
+  const stageMarks = await stageAttributes(directory);
+  assert.ok(stageMarks.includes("Enrich account"), `runRows should mark the row step as a stage; saw ${JSON.stringify(stageMarks)}`);
+  assert.ok(stageMarks.includes("Save account"), `runRows should mark the save as a stage; saw ${JSON.stringify(stageMarks)}`);
+
   const plainDiagram = await command("npm", ["run", "gtm", "--", "diagram", "local-proof"], { cwd: directory, env });
   assert.equal(plainDiagram.stdout.slice(plainDiagram.stdout.indexOf("flowchart")).trim(), [
     "flowchart TD",
-    '  rows["Rows"]',
-    '  step0["enrich account"]',
-    '  step1["save account"]',
-    "  rows --> step0",
-    "  step0 --> step1",
-    '  step1 -. "next row" .-> step0',
+    '  n1(["Rows"])',
+    '  subgraph g1["For each row"]',
+    '    n2["Enrich the account"]',
+    '    n3[("Save the account")]',
+    '    n4{{"Checkpoint"}}',
+    "  end",
+    '  n5(["Done"])',
+    "  n1 --> n2",
+    "  n2 --> n3",
+    "  n3 --> n4",
+    '  n4 -. "next" .-> n2',
+    "  n4 --> n5",
   ].join("\n"));
+  const jsonDiagram = await command("npm", ["run", "gtm", "--", "diagram", "branching-proof", "--format", "json"], { cwd: directory, env });
+  const graph = JSON.parse(lastJsonLine(jsonDiagram.stdout));
+  assert.deepEqual(graph.workflow, { path: "branching-proof", label: "Branching proof", runs: "on this computer", kind: "on-demand", table: "accounts" });
+  assert.deepEqual(graph.nodes.map((node) => [node.kind, node.label, node.group ?? null]), [
+    ["start", "Rows", null],
+    ["step", "Look up each domain", "g1"],
+    ["decision", "Is the domain known?", "g1"],
+    ["step", "Save the known account", "g1"],
+    ["step", "Record the unknown domain", "g1"],
+    ["step", "Note the failure", null],
+    ["step", "Record the unknown domain", null],
+    ["end", "Done", null],
+  ]);
+  assert.deepEqual(graph.groups, [{ id: "g1", kind: "loop", label: "Walk every supplied row" }]);
+  assert.deepEqual(graph.edges, [
+    { from: "n1", to: "n2" },
+    { from: "n2", to: "n3" },
+    { from: "n3", to: "n4", label: "yes" },
+    { from: "n3", to: "n5", label: "no" },
+    { from: "n4", to: "n2", label: "next", back: true },
+    { from: "n5", to: "n2", label: "next", back: true },
+    { from: "n4", to: "n6" },
+    { from: "n5", to: "n6" },
+    { from: "n6", to: "n7", label: "on error" },
+    { from: "n6", to: "n8" },
+    { from: "n7", to: "n8" },
+  ]);
+  const rowGraph = JSON.parse(lastJsonLine((await command("npm", ["run", "gtm", "--", "diagram", "local-proof", "--format", "json"], { cwd: directory, env })).stdout));
+  assert.deepEqual(rowGraph.nodes.map((node) => [node.kind, node.label, node.group ?? null, node.provider ?? null, node.unitCostUsd ?? null]), [
+    ["start", "Rows", null, null, null],
+    ["step", "Enrich the account", "g1", "mock-data", 0.02],
+    ["save", "Save the account", "g1", null, null],
+    ["wait", "Checkpoint", "g1", null, null],
+    ["end", "Done", null, null, null],
+  ]);
+  assert.deepEqual(rowGraph.groups, [{ id: "g1", kind: "loop", label: "For each row" }]);
+
+  const nestedGraph = JSON.parse(
+    lastJsonLine((await command("npm", ["run", "gtm", "--", "diagram", "nested-loop-proof", "--format", "json"], { cwd: directory, env })).stdout),
+  );
+  const nestedLoopGroups = nestedGraph.groups.filter((groupItem) => groupItem.kind === "loop");
+  assert.equal(nestedLoopGroups.length, 1);
+  assert.ok(nestedGraph.edges.every((edge) => edge.from !== edge.to), "no edge should have from === to");
+  const nestedStep = nestedGraph.nodes.find((node) => node.kind === "step");
+  assert.equal(nestedStep.group, nestedLoopGroups[0].id);
+
+  const tryGraph = JSON.parse(
+    lastJsonLine((await command("npm", ["run", "gtm", "--", "diagram", "branching-try-proof", "--format", "json"], { cwd: directory, env })).stdout),
+  );
+  const handleKnownNode = tryGraph.nodes.find((node) => node.step === "handleKnown");
+  const handleUnknownNode = tryGraph.nodes.find((node) => node.step === "handleUnknown");
+  const recoverNode = tryGraph.nodes.find((node) => node.step === "recoverFromFailure");
+  assert.ok(
+    tryGraph.edges.some((edge) => edge.from === handleKnownNode.id && edge.to === recoverNode.id && edge.label === "on error"),
+    "handleKnown should have an on error edge to recoverFromFailure",
+  );
+  assert.ok(
+    tryGraph.edges.some((edge) => edge.from === handleUnknownNode.id && edge.to === recoverNode.id && edge.label === "on error"),
+    "handleUnknown should have an on error edge to recoverFromFailure",
+  );
+
   const runDiagram = await command("npm", ["run", "gtm", "--", "diagram", "local-proof", "--run", completed.runKey], { cwd: directory, env });
   assert.equal(runDiagram.stdout.slice(runDiagram.stdout.indexOf("flowchart")).trim(), [
     "flowchart TD",
-    '  rows["Rows"]',
-    '  step0["[x] enrich account ($0.60)"]',
-    '  step1["[x] save account"]',
-    "  rows --> step0",
-    "  step0 --> step1",
-    '  step1 -. "next row" .-> step0',
+    '  n1(["Rows"])',
+    '  subgraph g1["For each row: 20 done, 0 failed"]',
+    '    n2["[x] Enrich the account ($0.60)"]',
+    '    n3[("[x] Save the account")]',
+    '    n4{{"[x] Checkpoint"}}',
+    "  end",
+    '  n5(["[x] Done"])',
+    "  n1 --> n2",
+    "  n2 --> n3",
+    "  n3 --> n4",
+    '  n4 -. "next" .-> n2',
+    "  n4 --> n5",
   ].join("\n"));
+  const asciiDiagram = await command("npm", ["run", "gtm", "--", "diagram", "branching-proof", "--format", "ascii"], { cwd: directory, env });
+  assert.equal(asciiDiagram.stdout.slice(asciiDiagram.stdout.indexOf("Rows")).trim(), [
+    "Rows",
+    "[Walk every supplied row]",
+    "  Look up each domain",
+    "  <Is the domain known?>",
+    "    yes: Save the known account",
+    "    no: Record the unknown domain",
+    "  (next: Look up each domain)",
+    "Note the failure",
+    "  on error: Record the unknown domain",
+    "Done",
+  ].join("\n"));
+  const svgDiagram = await command("npm", ["run", "gtm", "--", "diagram", "branching-proof", "--format", "svg"], { cwd: directory, env });
+  const svgPath = JSON.parse(lastJsonLine(svgDiagram.stdout)).path;
+  assert.match(svgPath, /^data\/diagrams\/branching-proof\.svg$/);
+  const svg = await readFile(join(directory, svgPath), "utf8");
+  assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
+  assert.match(svg, /Look up each domain/);
+  assert.match(svg, /Walk every supplied row/);
+  assert.match(svg, />yes</);
+  const pngDiagram = await command("npm", ["run", "gtm", "--", "diagram", "local-proof", "--run", completed.runKey, "--format", "png"], { cwd: directory, env });
+  const pngPath = JSON.parse(lastJsonLine(pngDiagram.stdout)).path;
+  assert.match(pngPath, /^data\/diagrams\/local-proof-[0-9a-f]{32}\.png$/);
+  const png = await readFile(join(directory, pngPath));
+  assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.ok(png.length > 5_000, `png is ${png.length} bytes`);
+
+  const webDiagram = JSON.parse(lastJsonLine((await command("npm", ["run", "gtm", "--", "diagram", "local-proof", "--run", completed.runKey, "--format", "web", "--no-open"], { cwd: directory, env })).stdout));
+  const webUrl = new URL(webDiagram.url);
+  assert.equal(webUrl.origin, env.GTM_BASE_URL);
+  assert.equal(webUrl.pathname, "/gtm/diagram/local-proof");
+  assert.equal(webUrl.searchParams.get("run"), completed.runKey);
+  assert.match(webDiagram.expiresAt, /^\d{4}-\d{2}-\d{2}T/);
+  const page = await fetch(webUrl);
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get("content-type"), /text\/html/);
+  const html = await page.text();
+  assert.match(html, /<meta property="og:image" content="http:\/\/127\.0\.0\.1:\d+\/api\/diagram-image\/local-proof\?run=/);
+  assert.match(html, /esm\.sh\/@xyflow\/react@12\.11\.6/);
+  const jsonResponse = await fetch(`${env.GTM_BASE_URL}/api/diagram/local-proof${webUrl.search}`);
+  assert.equal(jsonResponse.status, 200);
+  const laidOut = await jsonResponse.json();
+  assert.equal(laidOut.run.runKey, completed.runKey);
+  assert.equal(laidOut.nodes[1].status, "done");
+  assert.ok(laidOut.positions.n2.width > 0 && laidOut.groupBounds.g1.height > 0);
+  const imageResponse = await fetch(`${env.GTM_BASE_URL}/api/diagram-image/local-proof${webUrl.search}`);
+  assert.equal(imageResponse.status, 200);
+  assert.equal(imageResponse.headers.get("content-type"), "image/png");
+  assert.equal((await fetch(`${env.GTM_BASE_URL}/api/diagram/local-proof`)).status, 401);
+  const tampered = new URL(webUrl);
+  tampered.searchParams.set("sig", "A".repeat(43));
+  assert.equal((await fetch(`${env.GTM_BASE_URL}/api/diagram/local-proof${tampered.search}`)).status, 401);
+  const expiredExp = Math.floor(Date.now() / 1000) - 60;
+  const expiredSig = createHmac("sha256", secret).update(`diagram|local-proof|-|${expiredExp}`).digest("base64url");
+  assert.equal((await fetch(`${env.GTM_BASE_URL}/api/diagram/local-proof?exp=${expiredExp}&sig=${expiredSig}`)).status, 401);
+  assert.equal((await fetch(`${env.GTM_BASE_URL}/api/diagram/no-such-workflow?exp=${expiredExp + 600}&sig=${createHmac("sha256", secret).update(`diagram|no-such-workflow|-|${expiredExp + 600}`).digest("base64url")}`)).status, 404);
+  assert.equal(createHmac("sha256", "run-secret").update("diagram|account-scoring|-|1800000000").digest("base64url"), "blMhCFDtQH3hzIQsBNiSMpttas2dGVMJq5qtqtW8NAM");
 
   const beforeCapCalls = vendorCalls;
   const capResponse = await httpJson(`${env.GTM_BASE_URL}/api/run/local-proof`, {
@@ -820,7 +960,76 @@ async function assertCheckRules(directory, env) {
   await expectCheckViolation(migrationPath, (source) => `${source}\nALTER TABLE workflow_runs RENAME TO old_workflow_runs;\n`, "destructive_migration", directory, env);
   await expectCheckViolation(migrationPath, (source) => `${source}\n-- gtm: destructive accepted\nDROP TABLE IF EXISTS gtm_check_probe;\n`, "destructive_migration", directory, env);
   await expectCheckPasses(migrationPath, (source) => `-- gtm: destructive accepted\n${source}\nDROP TABLE IF EXISTS gtm_check_probe;\n`, directory, env);
-  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v13\n", "// gtm-lib v13\n\n"), "lib_modified", directory, env);
+  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v14\n", "// gtm-lib v14\n\n"), "lib_modified", directory, env);
+
+  const branchingPath = join(directory, "workflows/branching-proof.ts");
+  await expectCheckViolation(branchingPath, (source) => source.replace("/** Look up each domain */\n", ""), "diagram_rules", directory, env);
+
+  // Every finding code carries its exact message and fix line, because the agent reads nothing
+  // else: the code alone never says which construct to change.
+  const missingLabel = await checkFailure(branchingPath, (source) => source.replace("/** Look up each domain */\n", ""), directory, env);
+  assert.equal(missingLabel.error.code, "diagram_rules");
+  assert.match(missingLabel.error.message, /^1 diagram rule finding\.\n/);
+  assert.match(missingLabel.error.message, /step_label_missing workflows\/branching-proof\.ts:\d+ lookupDomain has no label\. Fix: Add a JSDoc comment directly above it/);
+  assert.match(missingLabel.error.message, /Run npm run gtm -- diagram branching-proof --format ascii after fixing to confirm the shape\.$/);
+
+  const hiddenInHelper = await checkFailure(
+    branchingPath,
+    (source) => source.replace("      await saveKnownAccount(row.key);", "      await saveThroughHelper(row.key);") + "\nasync function saveThroughHelper(key: string) {\n  await saveKnownAccount(key);\n}\n",
+    directory,
+    env,
+  );
+  assert.equal(hiddenInHelper.error.code, "diagram_rules");
+  assert.match(
+    hiddenInHelper.error.message,
+    /step_hidden_in_helper workflows\/branching-proof\.ts:\d+ saveKnownAccount is called from helper saveThroughHelper, so it cannot appear in the diagram or the trace\. Fix: Call it from the workflow body, or make saveThroughHelper a "use step" function with its own label\./,
+  );
+
+  const inCallback = await checkFailure(
+    branchingPath,
+    (source) => source.replace("    await noteFailure(\"none\");", "    [\"none\"].forEach((key) => noteFailure(key));"),
+    directory,
+    env,
+  );
+  assert.equal(inCallback.error.code, "diagram_rules");
+  assert.match(
+    inCallback.error.message,
+    /step_unreachable workflows\/branching-proof\.ts:\d+ noteFailure is called inside a callback the diagram cannot follow\. Fix: Use a for\.\.of loop or Promise\.all\(items\.map\(\.\.\.\)\) so the call sits in the workflow body\./,
+  );
+
+  const noStages = await checkFailure(triggerPath, (source) => source.replace(/  await setAttributes\(\{[^\n]*\n/, ""), directory, env);
+  assert.equal(noStages.error.code, "diagram_rules");
+  assert.match(
+    noStages.error.message,
+    /stage_attributes_missing workflows\/trigger-proof\.ts:\d+ workflow body never calls setAttributes\. Fix: Call setAttributes\(\{ stage: "<label>" \}\) before each stage, or use runRows\(\) which does this for row work\./,
+  );
+
+  // A step used as a value, nested in another step's arguments, or hidden in a ternary all leave
+  // the graph silently incomplete or plainly wrong, so each one is a finding of its own.
+  await expectCheckViolation(
+    branchingPath,
+    (source) => source.replace("    await noteFailure(\"none\");", "    const keys = arg.rows.map((row) => row.key);\n    await Promise.all(keys.map(noteFailure));"),
+    "diagram_rules",
+    directory,
+    env,
+    /step_unreachable workflows\/branching-proof\.ts:\d+ noteFailure is passed as a callback to keys\.map, so the diagram cannot follow it\. Fix: Call it from an arrow function instead, such as keys\.map\(\(item\) => noteFailure\(item\)\)\./,
+  );
+  await expectCheckViolation(
+    branchingPath,
+    (source) => source.replace("      await saveKnownAccount(row.key);", "      await saveKnownAccount(await noteFailure(row.key));"),
+    "diagram_rules",
+    directory,
+    env,
+    /step_unreachable workflows\/branching-proof\.ts:\d+ noteFailure is called inside the arguments of saveKnownAccount, so the diagram cannot follow it\. Fix: Assign each call to its own const in the workflow body, so every step is its own stage\./,
+  );
+  await expectCheckViolation(
+    branchingPath,
+    (source) => source.replace("      await recordUnknown(row.key);", "      await (found.known ? saveKnownAccount(row.key) : recordUnknown(row.key));"),
+    "diagram_rules",
+    directory,
+    env,
+    /step_unreachable workflows\/branching-proof\.ts:\d+ saveKnownAccount is called inside a conditional expression the diagram cannot follow\. Fix: Write the choice as if\/else in the workflow body so the diagram shows the decision\./,
+  );
 }
 
 async function assertDirtyProductionStartRefused(directory, env, inputFile, nitroPort) {
@@ -855,12 +1064,18 @@ async function expectCheckPasses(path, mutate, directory, env) {
   }
 }
 
-async function expectCheckViolation(path, mutate, code, directory, env) {
+async function expectCheckViolation(path, mutate, code, directory, env, pattern) {
+  const result = await checkFailure(path, mutate, directory, env);
+  assert.equal(result.error.code, code, `${relative(directory, path)} should fail ${code}`);
+  if (pattern) assert.match(result.error.message, pattern);
+}
+
+/** Mutates the file, runs check, and always restores it, so the caller can read the message. */
+async function checkFailure(path, mutate, directory, env) {
   const source = await readFile(path, "utf8");
   await writeFile(path, mutate(source));
   try {
-    const result = await gtmFailure(directory, env, ["check"]);
-    assert.equal(result.error.code, code, `${relative(directory, path)} should fail ${code}`);
+    return await gtmFailure(directory, env, ["check"]);
   } finally {
     await writeFile(path, source);
   }
@@ -926,6 +1141,39 @@ function lastJsonLine(text) {
     .split("\n")
     .reverse()
     .find((line) => line.trim().startsWith("{" ) || line.trim().startsWith("["));
+}
+
+/** The local workflow runtime writes run events under one of these folders, depending on version. */
+const RUN_DATA_FOLDERS = [".workflow-data", "node_modules/.nitro/workflow", ".nitro/workflow"];
+
+/** Every distinct stage value setAttributes recorded, read back from the run event log. */
+async function stageAttributes(directory) {
+  const stages = new Set();
+  for (const folder of RUN_DATA_FOLDERS) {
+    for (const path of await filesContaining(join(directory, folder), '"attr_set"')) {
+      let event;
+      try {
+        event = JSON.parse(await readFile(path, "utf8"));
+      } catch {
+        continue;
+      }
+      for (const change of event?.eventData?.changes ?? []) {
+        if (change?.key === "stage") stages.add(change.value);
+      }
+    }
+  }
+  return [...stages].sort();
+}
+
+async function filesContaining(directory, needle) {
+  const { readdir } = await import("node:fs/promises");
+  const hits = [];
+  for (const entry of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) hits.push(...(await filesContaining(path, needle)));
+    else if ((await readFile(path, "utf8").catch(() => "")).includes(needle)) hits.push(path);
+  }
+  return hits;
 }
 
 const mockDataAdapter = `/**
@@ -999,6 +1247,7 @@ export const MAX_ROWS = 25;
 export const MAX_SPEND_USD = 5;
 export const COST_PER_ROW_USD = 0.1;
 
+/** Enrich the account */
 async function enrichAccount(row: Input["rows"][number], meta: WorkflowMeta, signal: AbortSignal) {
   "use step";
   const vendor = await provider({
@@ -1031,6 +1280,7 @@ async function enrichAccount(row: Input["rows"][number], meta: WorkflowMeta, sig
 }
 enrichAccount.maxRetries = 0;
 
+/** Save the account */
 async function saveAccount(row: Record<string, unknown>) {
   "use step";
   await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]);
@@ -1058,6 +1308,7 @@ const approvalWorkflow = `/**
  * Table: approval_effects | key: approval case
  */
 import { z } from "zod";
+import { setAttributes } from "workflow";
 import { approvalEffects } from "../db/tables/accounts";
 import { approve, type WorkflowMeta } from "../lib/approve";
 import { upsertRows } from "../lib/db";
@@ -1067,6 +1318,7 @@ type Input = z.infer<typeof input>;
 export const MAX_ROWS = 1;
 export const MAX_SPEND_USD = 0;
 export const COST_PER_ROW_USD = 0;
+/** Record the approval */
 async function recordApproval(key: string) {
   "use step";
   await upsertRows(approvalEffects, [{ key, updatedAt: Date.now() }]);
@@ -1074,6 +1326,7 @@ async function recordApproval(key: string) {
 export async function approvalProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
   arg = input.parse(arg);
+  await setAttributes({ stage: "Record the approval" });
   const decision = await approve({ stage: "outreach", summary: "Approve fixture side effect", meta, timeoutMs: arg.timeoutMs });
   if (decision.approved) await recordApproval(arg.case);
   await updateRun(meta.runKey, { status: decision.outcome === "approved" ? "completed" : decision.outcome === "timed_out" ? "timed_out" : "stopped", completed: decision.approved ? 1 : 0, failed: 0, cost_usd: 0, finished: true });
@@ -1090,6 +1343,7 @@ const scheduledWorkflow = `/**
  * Providers: none
  */
 import { z } from "zod";
+import { setAttributes } from "workflow";
 import { approve, type WorkflowMeta } from "../lib/approve";
 import { updateRun } from "../lib/steps";
 export const input = z.object({ date: z.string() });
@@ -1102,6 +1356,7 @@ export async function scheduledProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
   arg ??= scheduledInput;
   arg = input.parse(arg);
+  await setAttributes({ stage: "Hold the scheduled run" });
   const decision = await approve({ stage: "scheduled", summary: "Hold scheduled fixture", meta });
   await updateRun(meta.runKey, { status: decision.approved ? "completed" : "stopped", completed: decision.approved ? 1 : 0, failed: 0, cost_usd: 0, finished: true });
   return arg;
@@ -1116,6 +1371,7 @@ const triggerWorkflow = `/**
  * Providers: none
  */
 import { z } from "zod";
+import { setAttributes } from "workflow";
 import { waitForTrigger, type WorkflowMeta } from "../lib/approve";
 import { updateRun } from "../lib/steps";
 export const input = z.object({ event: z.string() });
@@ -1127,6 +1383,7 @@ export const COST_PER_ROW_USD = 0;
 export async function triggerProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
   arg = input.parse(arg);
+  await setAttributes({ stage: "Wait for the authorized trigger" });
   payload.parse(await waitForTrigger(meta));
   await updateRun(meta.runKey, { status: "completed", completed: 1, failed: 0, cost_usd: 0, finished: true });
   return arg;
@@ -1152,6 +1409,7 @@ type Input = z.infer<typeof input>;
 export const MAX_ROWS = 1;
 export const MAX_SPEND_USD = 1;
 export const COST_PER_ROW_USD = 0.02;
+/** Look up the domain slowly */
 async function slowLookup(row: Input["rows"][number], meta: WorkflowMeta) {
   "use step";
   const result = await provider({
@@ -1161,6 +1419,7 @@ async function slowLookup(row: Input["rows"][number], meta: WorkflowMeta) {
   return { key: row.key, value: { company: result.value.company, score: 1, reason: "slow" } };
 }
 slowLookup.maxRetries = 0;
+/** Save the slow account */
 async function saveSlow(row: Record<string, unknown>) { "use step"; await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]); }
 export async function slowProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
@@ -1177,6 +1436,7 @@ const errorWorkflow = `/**
  * Providers: error-vendor lookup $0.02 per row
  */
 import { z } from "zod";
+import { setAttributes } from "workflow";
 import type { WorkflowMeta } from "../lib/approve";
 import { provider } from "../lib/provider";
 import { updateRun } from "../lib/steps";
@@ -1185,6 +1445,7 @@ type Input = z.infer<typeof input>;
 export const MAX_ROWS = 1;
 export const MAX_SPEND_USD = 1;
 export const COST_PER_ROW_USD = 0.02;
+/** Fail with a credential in the error */
 async function failWithCredential(_key: string, meta: WorkflowMeta) {
   "use step";
   return provider({ name: "error-vendor", endpoint: "lookup", input: {}, schema: z.object({ ok: z.boolean() }), ttlMs: 1000, costUsd: 0.02, call: async () => { throw new Error("request failed https://vendor.invalid/path?api_key=" + process.env.FIXTURE_API_TOKEN); }, meta });
@@ -1193,6 +1454,7 @@ failWithCredential.maxRetries = 0;
 export async function errorProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
   arg = input.parse(arg);
+  await setAttributes({ stage: "Fail with a credential in the error" });
   try { await failWithCredential(arg.key, meta); }
   catch (error) { await updateRun(meta.runKey, { status: "failed", error: String(error), failed_step: "failWithCredential", finished: true }); throw error; }
   await updateRun(meta.runKey, { status: "completed", completed: 1, failed: 0, finished: true });
@@ -1218,12 +1480,14 @@ type Input = z.infer<typeof input>;
 export const MAX_ROWS = 5;
 export const MAX_SPEND_USD = 0.05;
 export const COST_PER_ROW_USD = 0.01;
+/** Look up the domain against the spend cap */
 async function spendLookup(row: Input["rows"][number], meta: WorkflowMeta) {
   "use step";
   const result = await provider({ name: "mock-data", endpoint: "spend-lookup", input: { domain: row.domain }, schema: z.object({ company: z.string() }), ttlMs: 1000, costUsd: 0.03, call: async () => (await fetch(process.env.MOCK_VENDOR_URL + "?domain=" + encodeURIComponent(row.domain))).json(), meta });
   return { key: row.key, value: { company: result.value.company, score: 1, reason: "spend" } };
 }
 spendLookup.maxRetries = 0;
+/** Save the spend account */
 async function saveSpend(row: Record<string, unknown>) { "use step"; await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]); }
 export async function spendProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
@@ -1251,12 +1515,14 @@ type Input = z.infer<typeof input>;
 export const MAX_ROWS = 5;
 export const MAX_SPEND_USD = 1;
 export const COST_PER_ROW_USD = 0.01;
+/** Look up the account and hold on auth failure */
 async function heldLookup(row: Input["rows"][number], meta: WorkflowMeta) {
   "use step";
   const result = await provider({ name: "held-vendor", endpoint: "lookup", input: { key: row.key }, schema: z.object({ company: z.string() }), ttlMs: 1000, costUsd: 0.01, call: async () => { if (row.key === "held-1") throw new ProviderAuthError("credential rejected"); return { company: row.key }; }, meta });
   return { key: row.key, value: { company: result.value.company, score: 1, reason: "held" } };
 }
 heldLookup.maxRetries = 0;
+/** Save the held account */
 async function saveHeld(row: Record<string, unknown>) { "use step"; await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]); }
 export async function heldProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
@@ -1284,6 +1550,7 @@ type Input = z.infer<typeof input>;
 export const MAX_ROWS = 5;
 export const MAX_SPEND_USD = 1;
 export const COST_PER_ROW_USD = 0.01;
+/** Look up the row */
 async function lookupRow(row: Input["rows"][number], meta: WorkflowMeta) {
   "use step";
   const result = await provider({
@@ -1293,10 +1560,183 @@ async function lookupRow(row: Input["rows"][number], meta: WorkflowMeta) {
   return { key: row.key, value: { company: result.value.company, score: 1, reason: "row error proof" } };
 }
 lookupRow.maxRetries = 0;
+/** Save the row */
 async function saveRow(row: Record<string, unknown>) { "use step"; await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]); }
 export async function rowErrorProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
   arg = input.parse(arg);
   return runRows({ rows: arg.rows, meta, table: { name: "accounts", save: saveRow }, rowStep: lookupRow, caps: { maxRows: MAX_ROWS, maxSpendUsd: MAX_SPEND_USD, costPerRowUsd: COST_PER_ROW_USD } });
+}
+`;
+
+const branchingWorkflow = `/**
+ * Proves the diagram extractor on a loop with a branch and an error path.
+ * Runs: on this computer
+ * Kind: on-demand
+ * Owner: Fixture | ICP: Fixture
+ * Providers: none
+ * Table: accounts | key: fixture account id
+ */
+import { setAttributes } from "workflow";
+import { z } from "zod";
+import { accounts } from "../db/tables/accounts";
+import type { WorkflowMeta } from "../lib/approve";
+import { upsertRows } from "../lib/db";
+import { updateRun } from "../lib/steps";
+
+export const input = z.object({ rows: z.array(z.object({ key: z.string(), domain: z.string() })) });
+type Input = z.infer<typeof input>;
+export const MAX_ROWS = 25;
+export const MAX_SPEND_USD = 0;
+export const COST_PER_ROW_USD = 0;
+
+/** Look up each domain */
+async function lookupDomain(row: Input["rows"][number]) {
+  "use step";
+  return { key: row.key, known: row.domain.endsWith(".test") };
+}
+
+/** Save the known account */
+async function saveKnownAccount(key: string) {
+  "use step";
+  await upsertRows(accounts, [{ key, score: 1, reason: "known", updatedAt: Date.now() }]);
+}
+
+/** Record the unknown domain */
+async function recordUnknown(key: string) {
+  "use step";
+  await upsertRows(accounts, [{ key, score: 0, reason: "unknown", updatedAt: Date.now() }]);
+}
+
+/** Note the failure */
+async function noteFailure(key: string) {
+  "use step";
+  return key;
+}
+
+export async function branchingProof(arg: Input, meta: WorkflowMeta) {
+  "use workflow";
+  arg = input.parse(arg);
+  let completed = 0;
+  // Walk every supplied row
+  for (const row of arg.rows) {
+    await setAttributes({ stage: "Look up each domain", row: row.key });
+    const found = await lookupDomain(row);
+    // Is the domain known?
+    if (found.known) {
+      await saveKnownAccount(row.key);
+    } else {
+      await recordUnknown(row.key);
+    }
+    completed += 1;
+  }
+  try {
+    await noteFailure("none");
+  } catch {
+    await recordUnknown("failure");
+  }
+  await updateRun(meta.runKey, { status: "completed", completed, failed: 0, cost_usd: 0, finished: true });
+  return { completed };
+}
+`;
+
+const nestedLoopWorkflow = `/**
+ * Proves nested loops collapse to a single group with no self edges.
+ * Runs: on this computer
+ * Kind: on-demand
+ * Owner: Fixture | ICP: Fixture
+ * Providers: none
+ * Table: accounts | key: fixture account id
+ */
+import { setAttributes } from "workflow";
+import { z } from "zod";
+import { accounts } from "../db/tables/accounts";
+import type { WorkflowMeta } from "../lib/approve";
+import { upsertRows } from "../lib/db";
+import { updateRun } from "../lib/steps";
+
+export const input = z.object({ batches: z.array(z.array(z.object({ key: z.string() }))) });
+type Input = z.infer<typeof input>;
+export const MAX_ROWS = 25;
+export const MAX_SPEND_USD = 0;
+export const COST_PER_ROW_USD = 0;
+
+/** Record the row */
+async function recordRow(key: string) {
+  "use step";
+  await upsertRows(accounts, [{ key, score: 1, reason: "nested", updatedAt: Date.now() }]);
+}
+
+export async function nestedLoopProof(arg: Input, meta: WorkflowMeta) {
+  "use workflow";
+  arg = input.parse(arg);
+  await setAttributes({ stage: "Record the row" });
+  let completed = 0;
+  for (const batch of arg.batches) {
+    for (const row of batch) {
+      await recordRow(row.key);
+      completed += 1;
+    }
+  }
+  await updateRun(meta.runKey, { status: "completed", completed, failed: 0, cost_usd: 0, finished: true });
+  return { completed };
+}
+`;
+
+const branchingTryWorkflow = `/**
+ * Proves every try-block exit becomes an on-error source into the catch entry.
+ * Runs: on this computer
+ * Kind: on-demand
+ * Owner: Fixture | ICP: Fixture
+ * Providers: none
+ * Table: accounts | key: fixture account id
+ */
+import { setAttributes } from "workflow";
+import { z } from "zod";
+import { accounts } from "../db/tables/accounts";
+import type { WorkflowMeta } from "../lib/approve";
+import { upsertRows } from "../lib/db";
+import { updateRun } from "../lib/steps";
+
+export const input = z.object({ known: z.boolean() });
+type Input = z.infer<typeof input>;
+export const MAX_ROWS = 1;
+export const MAX_SPEND_USD = 0;
+export const COST_PER_ROW_USD = 0;
+
+/** Handle the known case */
+async function handleKnown() {
+  "use step";
+  await upsertRows(accounts, [{ key: "known", score: 1, reason: "known", updatedAt: Date.now() }]);
+}
+
+/** Handle the unknown case */
+async function handleUnknown() {
+  "use step";
+  await upsertRows(accounts, [{ key: "unknown", score: 0, reason: "unknown", updatedAt: Date.now() }]);
+}
+
+/** Recover from the failure */
+async function recoverFromFailure() {
+  "use step";
+  await upsertRows(accounts, [{ key: "recovered", score: 0, reason: "recovered", updatedAt: Date.now() }]);
+}
+
+export async function branchingTryProof(arg: Input, meta: WorkflowMeta) {
+  "use workflow";
+  arg = input.parse(arg);
+  await setAttributes({ stage: "Handle the known case" });
+  try {
+    // Is the case known?
+    if (arg.known) {
+      await handleKnown();
+    } else {
+      await handleUnknown();
+    }
+  } catch {
+    await recoverFromFailure();
+  }
+  await updateRun(meta.runKey, { status: "completed", completed: 1, failed: 0, cost_usd: 0, finished: true });
+  return { ok: true };
 }
 `;
