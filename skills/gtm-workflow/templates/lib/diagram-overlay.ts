@@ -16,7 +16,11 @@ export async function overlayRun(graph: WorkflowGraph, runKey: string): Promise<
   )[0];
   if (!run) throw new Error(`Unknown run ${runKey}`);
   const slug = graph.workflow.path.split("/").at(-1);
-  if (run.workflow !== slug) throw new Error(`Run ${runKey} belongs to ${String(run.workflow)}, not ${slug}`);
+  // The workflow_mismatch: prefix keeps the CLI's own exit code for this case; the signed route
+  // reports every overlay failure as not_found and never surfaces the message.
+  if (run.workflow !== slug) {
+    throw new Error(`workflow_mismatch: Run ${runKey} belongs to ${String(run.workflow)}, not ${slug}`);
+  }
   const ledger = await executeSelect(
     `select step, status, coalesce(sum(cost_usd), 0) as cost_usd from enrichment_runs where run_key = ${literal(String(run.run_key))} and step is not null group by step, status order by step, status`,
   );

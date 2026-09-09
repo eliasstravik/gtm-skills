@@ -26,7 +26,7 @@ export function publicOrigin(event: RouteEvent): string {
 
 export async function resolveDiagramRequest(event: RouteEvent): Promise<DiagramRequest> {
   const secret = process.env.GTM_RUN_SECRET;
-  if (!secret) return { ok: false, response: deny(503, "unconfigured", "GTM_RUN_SECRET is not set.") };
+  if (!secret) return { ok: false, response: deny(503, "unconfigured", "The run secret is not configured.") };
   const path = event.context.params?.workflow ?? "";
   if (!PATH_PATTERN.test(path)) return { ok: false, response: deny(400, "invalid_workflow", "workflow path required") };
   const url = new URL(event.req.url);

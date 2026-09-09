@@ -7,5 +7,5 @@ export default defineEventHandler(async (event) => {
   const resolved = await resolveDiagramRequest(event as any);
   if (!resolved.ok) return resolved.response;
   const png = renderPng(renderSvg(resolved.laidOut), await readFontBytes());
-  return new Response(png, { headers: { "content-type": "image/png", "cache-control": "no-store" } });
+  return new Response(png, { headers: { "content-type": "image/png", "cache-control": "private, max-age=60" } });
 });

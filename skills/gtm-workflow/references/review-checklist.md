@@ -15,7 +15,7 @@ Use this checklist when an operator asks to audit or review a workflow. Run `npm
 - Held-run errors. Adapters must throw `ProviderAuthError` for authentication failures and `ProviderQuotaError` for account limits under [adapter error and retry behavior](providers.md#empty-error-and-retry-behavior). Review adapter branches and fixtures manually.
 - Managed header and version drift. Managed files must carry the current header and recorded hash under [versioned files](contract.md#versioned-files). `gtm check`: `lib_version_mismatch`, `lib_hash_missing`, and `lib_modified`.
 - Migration integrity. Generated SQL, journal entries, and snapshots must stay registered under [safety and persistence](contract.md#safety-and-persistence). `gtm check`: `invalid_migration_artifacts` and `destructive_migration`.
-- Diagram rules. Every step carries a JSDoc label, every step call sits in the workflow body or a `lib/` helper, and the workflow marks stages under [the workflow contract](contract.md#workflow-and-table-contract). `gtm check`: `diagram_rules`, one line per finding with its fix.
+- Diagram rules. Every step carries a JSDoc label, every step call sits in the workflow body or a `lib/` helper, and the workflow marks stages under [house rules](contract.md#house-rules). `gtm check`: `diagram_rules`, one line per finding with its fix.
 
 ## SHOULD FIX
 

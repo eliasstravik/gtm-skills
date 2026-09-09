@@ -1,6 +1,6 @@
 # Shared interaction standard
 
-Every GTM skill applies this standard to its user-facing messages. Skill-specific vocabulary stays in each skill; this file owns audience, length and formatting, proposal shape, batching, questions, approval by surface, closing language, and the connection-step carve-out.
+Every GTM skill applies this standard to its user-facing messages. Skill-specific vocabulary stays in each skill; this file owns audience, length and formatting, proposal shape, batching, questions, approval by surface, closing language, and the two carve-outs: where to look, and connection steps.
 
 ## Contents
 

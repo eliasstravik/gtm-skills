@@ -19,7 +19,8 @@ function groupText(group: DiagramGroup): string {
 }
 
 function shape(node: DiagramNode, text: string): string {
-  const quoted = JSON.stringify(text);
+  // Mermaid has no backslash escape inside a quoted label, so a quote becomes its entity.
+  const quoted = JSON.stringify(text).replace(/\\"/g, "#quot;");
   switch (node.kind) {
     case "start":
     case "end":

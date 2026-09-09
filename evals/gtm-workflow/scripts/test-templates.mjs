@@ -964,28 +964,72 @@ async function assertCheckRules(directory, env) {
 
   const branchingPath = join(directory, "workflows/branching-proof.ts");
   await expectCheckViolation(branchingPath, (source) => source.replace("/** Look up each domain */\n", ""), "diagram_rules", directory, env);
-  await expectCheckViolation(
-    branchingPath,
-    (source) => source.replace("      await saveKnownAccount(row.key);", "      await saveThroughHelper(row.key);") + "\nasync function saveThroughHelper(key: string) {\n  await saveKnownAccount(key);\n}\n",
-    "diagram_rules",
-    directory,
-    env,
-  );
-  await expectCheckViolation(branchingPath, (source) => source.replace("    await noteFailure(\"none\");", "    [\"none\"].forEach((key) => noteFailure(key));"), "diagram_rules", directory, env);
-  await expectCheckViolation(triggerPath, (source) => source.replace(/  await setAttributes\(\{[^\n]*\n/, ""), "diagram_rules", directory, env);
-  const missingLabel = await (async () => {
-    const source = await readFile(branchingPath, "utf8");
-    await writeFile(branchingPath, source.replace("/** Look up each domain */\n", ""));
-    try {
-      return await gtmFailure(directory, env, ["check"]);
-    } finally {
-      await writeFile(branchingPath, source);
-    }
-  })();
+
+  // Every finding code carries its exact message and fix line, because the agent reads nothing
+  // else: the code alone never says which construct to change.
+  const missingLabel = await checkFailure(branchingPath, (source) => source.replace("/** Look up each domain */\n", ""), directory, env);
   assert.equal(missingLabel.error.code, "diagram_rules");
   assert.match(missingLabel.error.message, /^1 diagram rule finding\.\n/);
   assert.match(missingLabel.error.message, /step_label_missing workflows\/branching-proof\.ts:\d+ lookupDomain has no label\. Fix: Add a JSDoc comment directly above it/);
   assert.match(missingLabel.error.message, /Run npm run gtm -- diagram branching-proof --format ascii after fixing to confirm the shape\.$/);
+
+  const hiddenInHelper = await checkFailure(
+    branchingPath,
+    (source) => source.replace("      await saveKnownAccount(row.key);", "      await saveThroughHelper(row.key);") + "\nasync function saveThroughHelper(key: string) {\n  await saveKnownAccount(key);\n}\n",
+    directory,
+    env,
+  );
+  assert.equal(hiddenInHelper.error.code, "diagram_rules");
+  assert.match(
+    hiddenInHelper.error.message,
+    /step_hidden_in_helper workflows\/branching-proof\.ts:\d+ saveKnownAccount is called from helper saveThroughHelper, so it cannot appear in the diagram or the trace\. Fix: Call it from the workflow body, or make saveThroughHelper a "use step" function with its own label\./,
+  );
+
+  const inCallback = await checkFailure(
+    branchingPath,
+    (source) => source.replace("    await noteFailure(\"none\");", "    [\"none\"].forEach((key) => noteFailure(key));"),
+    directory,
+    env,
+  );
+  assert.equal(inCallback.error.code, "diagram_rules");
+  assert.match(
+    inCallback.error.message,
+    /step_unreachable workflows\/branching-proof\.ts:\d+ noteFailure is called inside a callback the diagram cannot follow\. Fix: Use a for\.\.of loop or Promise\.all\(items\.map\(\.\.\.\)\) so the call sits in the workflow body\./,
+  );
+
+  const noStages = await checkFailure(triggerPath, (source) => source.replace(/  await setAttributes\(\{[^\n]*\n/, ""), directory, env);
+  assert.equal(noStages.error.code, "diagram_rules");
+  assert.match(
+    noStages.error.message,
+    /stage_attributes_missing workflows\/trigger-proof\.ts:\d+ workflow body never calls setAttributes\. Fix: Call setAttributes\(\{ stage: "<label>" \}\) before each stage, or use runRows\(\) which does this for row work\./,
+  );
+
+  // A step used as a value, nested in another step's arguments, or hidden in a ternary all leave
+  // the graph silently incomplete or plainly wrong, so each one is a finding of its own.
+  await expectCheckViolation(
+    branchingPath,
+    (source) => source.replace("    await noteFailure(\"none\");", "    const keys = arg.rows.map((row) => row.key);\n    await Promise.all(keys.map(noteFailure));"),
+    "diagram_rules",
+    directory,
+    env,
+    /step_unreachable workflows\/branching-proof\.ts:\d+ noteFailure is passed as a callback to keys\.map, so the diagram cannot follow it\. Fix: Call it from an arrow function instead, such as keys\.map\(\(item\) => noteFailure\(item\)\)\./,
+  );
+  await expectCheckViolation(
+    branchingPath,
+    (source) => source.replace("      await saveKnownAccount(row.key);", "      await saveKnownAccount(await noteFailure(row.key));"),
+    "diagram_rules",
+    directory,
+    env,
+    /step_unreachable workflows\/branching-proof\.ts:\d+ noteFailure is called inside the arguments of saveKnownAccount, so the diagram cannot follow it\. Fix: Assign each call to its own const in the workflow body, so every step is its own stage\./,
+  );
+  await expectCheckViolation(
+    branchingPath,
+    (source) => source.replace("      await recordUnknown(row.key);", "      await (found.known ? saveKnownAccount(row.key) : recordUnknown(row.key));"),
+    "diagram_rules",
+    directory,
+    env,
+    /step_unreachable workflows\/branching-proof\.ts:\d+ saveKnownAccount is called inside a conditional expression the diagram cannot follow\. Fix: Write the choice as if\/else in the workflow body so the diagram shows the decision\./,
+  );
 }
 
 async function assertDirtyProductionStartRefused(directory, env, inputFile, nitroPort) {
@@ -1020,12 +1064,18 @@ async function expectCheckPasses(path, mutate, directory, env) {
   }
 }
 
-async function expectCheckViolation(path, mutate, code, directory, env) {
+async function expectCheckViolation(path, mutate, code, directory, env, pattern) {
+  const result = await checkFailure(path, mutate, directory, env);
+  assert.equal(result.error.code, code, `${relative(directory, path)} should fail ${code}`);
+  if (pattern) assert.match(result.error.message, pattern);
+}
+
+/** Mutates the file, runs check, and always restores it, so the caller can read the message. */
+async function checkFailure(path, mutate, directory, env) {
   const source = await readFile(path, "utf8");
   await writeFile(path, mutate(source));
   try {
-    const result = await gtmFailure(directory, env, ["check"]);
-    assert.equal(result.error.code, code, `${relative(directory, path)} should fail ${code}`);
+    return await gtmFailure(directory, env, ["check"]);
   } finally {
     await writeFile(path, source);
   }

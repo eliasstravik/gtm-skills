@@ -200,25 +200,52 @@ class GraphBuilder {
     this.#expression(node, group);
   }
 
+  /** Every shape that puts a step call somewhere the walk cannot reach reports the same code. */
+  #unreachable(node: ts.Node, message: string, fix: string) {
+    this.findings.push({ code: "step_unreachable", file: this.relativeFile, line: lineOf(this.file, node), message, fix });
+  }
+
   #expression(node: ts.Node, group: string | undefined) {
     const visit = (current: ts.Node): void => {
       if (ts.isArrowFunction(current) || ts.isFunctionExpression(current)) {
         const hidden = stepCalls(current, this.steps);
         if (hidden.length > 0) {
-          this.findings.push({
-            code: "step_unreachable",
-            file: this.relativeFile,
-            line: lineOf(this.file, hidden[0]),
-            message: `${calleeName(hidden[0])} is called inside a callback the diagram cannot follow.`,
-            fix: "Use a for..of loop or Promise.all(items.map(...)) so the call sits in the workflow body.",
-          });
+          this.#unreachable(
+            hidden[0],
+            `${calleeName(hidden[0])} is called inside a callback the diagram cannot follow.`,
+            "Use a for..of loop or Promise.all(items.map(...)) so the call sits in the workflow body.",
+          );
         }
         return;
+      }
+      if (ts.isConditionalExpression(current)) {
+        const branchCalls = [
+          ...stepCalls(current.whenTrue, this.steps),
+          ...stepCalls(current.whenFalse, this.steps),
+        ];
+        if (branchCalls.length > 0) {
+          this.#unreachable(
+            branchCalls[0],
+            `${calleeName(branchCalls[0])} is called inside a conditional expression the diagram cannot follow.`,
+            "Write the choice as if/else in the workflow body so the diagram shows the decision.",
+          );
+          // Descending would chain both branches as if they both ran, which is a false shape.
+          return void visit(current.condition);
+        }
       }
       if (ts.isCallExpression(current)) {
         if (isPromiseAll(current)) return this.#parallel(current, group);
         const name = calleeName(current);
-        if (name && this.steps.has(name)) return this.#stepNode(name, group);
+        if (name && this.steps.has(name)) {
+          for (const nested of current.arguments.flatMap((argument) => stepCalls(argument, this.steps))) {
+            this.#unreachable(
+              nested,
+              `${calleeName(nested)} is called inside the arguments of ${name}, so the diagram cannot follow it.`,
+              "Assign each call to its own const in the workflow body, so every step is its own stage.",
+            );
+          }
+          return this.#stepNode(name, group);
+        }
         if (name === "runRows") return this.#runRows(current, group);
         if (name && WAIT_CALLS[name]) {
           const wait = this.#node({ kind: "wait", label: waitLabel(name, current, this.file) }, group);
@@ -326,6 +353,13 @@ class GraphBuilder {
         branches = [callback.body];
         const collection = lastIdentifierSegment(argument.expression.expression, this.file);
         label = `For each ${humanize(collection).toLowerCase()}, at the same time`;
+      } else if (callback && ts.isIdentifier(callback) && this.steps.has(callback.text)) {
+        const mapCall = argument.expression.getText(this.file);
+        this.#unreachable(
+          callback,
+          `${callback.text} is passed as a callback to ${mapCall}, so the diagram cannot follow it.`,
+          `Call it from an arrow function instead, such as ${mapCall}((item) => ${callback.text}(item)).`,
+        );
       }
     }
     if (branches.length === 0) return;

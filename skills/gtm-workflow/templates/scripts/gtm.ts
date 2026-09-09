@@ -283,7 +283,13 @@ async function diagram(args: string[]) {
     try {
       await overlayRun(graph, runKey);
     } catch (caught) {
-      throw new AppError("not_found", redact(caught), 6);
+      const message = redact(caught);
+      // overlayRun marks the one case the CLI has always reported separately: a real run that
+      // belongs to a different workflow, which is a bad argument rather than a missing run.
+      if (message.startsWith("workflow_mismatch:")) {
+        throw new AppError("workflow_mismatch", message.slice("workflow_mismatch:".length).trim(), 2);
+      }
+      throw new AppError("not_found", message, 6);
     }
   }
   const format = stringFlag(flags, "format") ?? "mermaid";
@@ -375,7 +381,7 @@ async function check() {
       [
         `${findings.length} diagram rule finding${findings.length === 1 ? "" : "s"}.`,
         ...lines,
-        `Run npm run gtm -- diagram ${slugs.join(" ")} --format ascii after fixing to confirm the shape.`,
+        ...slugs.map((slug) => `Run npm run gtm -- diagram ${slug} --format ascii after fixing to confirm the shape.`),
       ].join("\n"),
       2,
     );
