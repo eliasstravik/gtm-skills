@@ -101,7 +101,8 @@ export function extractGraph(source: string, workflowPath: string): ExtractResul
       label: humanize(slug),
       runs: headerValue(source, "Runs") ?? "unknown",
       kind: headerValue(source, "Kind") ?? "unknown",
-      table: headerValue(source, "Table")?.split("|")[0].trim() ?? null,
+      // Workflows written to the contract say "Result table"; older headers say "Table".
+      table: (headerValue(source, "Result table") ?? headerValue(source, "Table"))?.split("|")[0].trim() ?? null,
     },
     nodes: [],
     groups: [],

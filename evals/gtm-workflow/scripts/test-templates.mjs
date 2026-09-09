@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHmac } from "node:crypto";
-import { chmod, cp, mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdtemp, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
@@ -123,6 +123,7 @@ test("v15 templates pass the deterministic workflow contract", async (context) =
   assert.equal(checked.ok, true);
   assert.equal(checked.workflows, 13);
   assert.equal(checked.libVersion, 15);
+  await assertVercelFunctionsTraceParser(directory, env);
   const providers = await gtm(directory, env, ["providers", "list", "organization", "--format", "json"]);
   assert.deepEqual(providers, [{
     name: "mock-data",
@@ -402,6 +403,8 @@ test("v15 templates pass the deterministic workflow contract", async (context) =
   const nestedGraph = JSON.parse(
     lastJsonLine((await command("npm", ["run", "gtm", "--", "diagram", "nested-loop-proof", "--format", "json"], { cwd: directory, env })).stdout),
   );
+  // The contract calls the header "Result table"; the extractor reads that name and the older "Table".
+  assert.equal(nestedGraph.workflow.table, "accounts");
   const nestedLoopGroups = nestedGraph.groups.filter((groupItem) => groupItem.kind === "loop");
   assert.equal(nestedLoopGroups.length, 1);
   assert.ok(nestedGraph.edges.every((edge) => edge.from !== edge.to), "no edge should have from === to");
@@ -1166,6 +1169,46 @@ async function freePort() {
   return port;
 }
 
+/**
+ * The Vercel preset must not inline the TypeScript parser into the ESM function bundle: the parser
+ * is CommonJS and reads __filename, which throws in an ES module and fails every diagram route.
+ */
+async function assertVercelFunctionsTraceParser(directory, env) {
+  await command(join(directory, "node_modules/.bin/nitro"), ["build", "--preset", "vercel"], { cwd: directory, env });
+  const functions = await functionDirectories(join(directory, ".vercel/output/functions"));
+  assert.ok(functions.length > 0, "the vercel preset should write at least one function directory");
+  for (const functionDirectory of functions) {
+    const traced = await readdir(join(functionDirectory, "node_modules"));
+    assert.ok(
+      traced.includes("typescript-parser"),
+      `${relative(directory, functionDirectory)} should trace typescript-parser; saw ${JSON.stringify(traced)}`,
+    );
+    const inlined = (await filesContaining(functionDirectory, "isFileSystemCaseSensitive")).filter(
+      (file) => !file.includes("/node_modules/"),
+    );
+    assert.deepEqual(
+      inlined.map((file) => relative(functionDirectory, file)),
+      [],
+      `${relative(directory, functionDirectory)} inlines the TypeScript parser`,
+    );
+  }
+  await rm(join(directory, ".vercel"), { recursive: true, force: true });
+}
+
+async function functionDirectories(root) {
+  const found = [];
+  const walk = async (current) => {
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const path = join(current, entry.name);
+      if (entry.name.endsWith(".func")) found.push(path);
+      else await walk(path);
+    }
+  };
+  await walk(root);
+  return found;
+}
+
 function command(executable, args, options) {
   return runCommand(executable, args, options, false);
 }
@@ -1701,7 +1744,7 @@ const nestedLoopWorkflow = `/**
  * Kind: on-demand
  * Owner: Fixture | ICP: Fixture
  * Providers: none
- * Table: accounts | key: fixture account id
+ * Result table: accounts | key: fixture account id
  */
 import { setAttributes } from "workflow";
 import { z } from "zod";
