@@ -446,6 +446,20 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
     "  on error: Record the unknown domain",
     "Done",
   ].join("\n"));
+  const svgDiagram = await command("npm", ["run", "gtm", "--", "diagram", "branching-proof", "--format", "svg"], { cwd: directory, env });
+  const svgPath = JSON.parse(lastJsonLine(svgDiagram.stdout)).path;
+  assert.match(svgPath, /^data\/diagrams\/branching-proof\.svg$/);
+  const svg = await readFile(join(directory, svgPath), "utf8");
+  assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
+  assert.match(svg, /Look up each domain/);
+  assert.match(svg, /Walk every supplied row/);
+  assert.match(svg, />yes</);
+  const pngDiagram = await command("npm", ["run", "gtm", "--", "diagram", "local-proof", "--run", completed.runKey, "--format", "png"], { cwd: directory, env });
+  const pngPath = JSON.parse(lastJsonLine(pngDiagram.stdout)).path;
+  assert.match(pngPath, /^data\/diagrams\/local-proof-[0-9a-f]{32}\.png$/);
+  const png = await readFile(join(directory, pngPath));
+  assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.ok(png.length > 5_000, `png is ${png.length} bytes`);
 
   const beforeCapCalls = vendorCalls;
   const capResponse = await httpJson(`${env.GTM_BASE_URL}/api/run/local-proof`, {

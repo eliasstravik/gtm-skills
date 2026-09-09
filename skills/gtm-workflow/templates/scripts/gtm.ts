@@ -10,7 +10,9 @@ import { createScanner, LanguageVariant, SyntaxKind } from "typescript/unstable/
 import { executeReadOnly } from "../lib/db";
 import { extractGraph, type DiagramFinding } from "../lib/diagram";
 import { overlayRun } from "../lib/diagram-overlay";
+import { renderPng, renderSvg } from "../lib/diagram-svg";
 import { toAscii, toMermaid } from "../lib/diagram-text";
+import { layoutGraph } from "../lib/layout";
 import { redact, redactValue } from "../lib/redact";
 
 type Flags = Record<string, string | boolean>;
@@ -287,7 +289,20 @@ async function diagram(args: string[]) {
   if (format === "json") return print(graph);
   if (format === "mermaid") return process.stdout.write(`${toMermaid(graph)}\n`);
   if (format === "ascii") return process.stdout.write(`${toAscii(graph)}\n`);
-  throw new AppError("invalid_format", "format must be mermaid, ascii, or json", 2);
+  if (format === "svg" || format === "png") {
+    const svg = renderSvg(layoutGraph(graph));
+    const directory = join(root, "data", "diagrams");
+    await mkdir(directory, { recursive: true });
+    const name = `${slug}${runKey ? `-${graph.run?.runKey ?? runKey}` : ""}.${format}`;
+    const target = join(directory, name);
+    if (format === "svg") await writeFile(target, svg);
+    else {
+      const font = await readFile(join(root, "assets", "fonts", "Inter-Regular.ttf"));
+      await writeFile(target, renderPng(svg, font));
+    }
+    return print({ path: relative(root, target).split(sep).join("/") });
+  }
+  throw new AppError("invalid_format", "format must be mermaid, ascii, json, svg, png, or web", 2);
 }
 
 async function query(args: string[]) {
