@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.4, 2026-09-09
+
+Workflow library generation 16, unchanged.
+
+- Hosted workflow diagrams combine the caption, picture, and links into one message instead of posting the caption separately.
+- Validation used offline repository and compatibility checks. Evals were skipped at the user’s request.
+
 ## 0.4.3, 2026-09-09
 
 Workflow library generation 16, unchanged.
