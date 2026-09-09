@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.2, 2026-09-09
+
+Workflow library generation 16.
+
+- PNG diagrams load the bundled Inter font through the native renderer's supported `fontFiles` option. Temporary font files are removed after rendering, including on failure. This restores text in deployed diagram images without depending on installed system fonts.
+- The hosted workflow link block labels its second line `Runs:`.
+- Validation used focused PNG rendering and visual inspection, offline compatibility checks, and deployment builds. Evals were skipped at the user's request.
+
 ## 0.4.1, 2026-09-09
 
 Workflow library generation 15.

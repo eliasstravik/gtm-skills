@@ -1,5 +1,8 @@
-// gtm-lib v15
+// gtm-lib v16
 import { Resvg } from "@resvg/resvg-js";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { DiagramEdge, DiagramNode, DiagramStatus } from "./diagram";
 import type { Box, LaidOutGraph } from "./layout";
 
@@ -93,10 +96,19 @@ export function renderSvg(laidOut: LaidOutGraph): string {
 }
 
 export function renderPng(svg: string, fontBytes: Uint8Array): Buffer {
-  const resvg = new Resvg(svg, {
-    fitTo: { mode: "width", value: 1400 },
-    background: "#ffffff",
-    font: { fontBuffers: [Buffer.from(fontBytes)], loadSystemFonts: false, defaultFontFamily: "Inter" },
-  });
-  return resvg.render().asPng();
+  // The native Node renderer accepts fontFiles, not the WASM-only fontBuffers.
+  // Materialize the bundled font in writable storage, including on Vercel.
+  const directory = mkdtempSync(join(tmpdir(), "gtm-diagram-font-"));
+  try {
+    const fontPath = join(directory, "Inter-Regular.ttf");
+    writeFileSync(fontPath, fontBytes);
+    const resvg = new Resvg(svg, {
+      fitTo: { mode: "width", value: 1400 },
+      background: "#ffffff",
+      font: { fontFiles: [fontPath], loadSystemFonts: false, defaultFontFamily: "Inter" },
+    });
+    return resvg.render().asPng();
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 }
