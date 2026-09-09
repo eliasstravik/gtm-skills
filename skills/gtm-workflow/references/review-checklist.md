@@ -10,6 +10,8 @@ Use this checklist when an operator asks to audit or review a workflow. Run `npm
 
 - Caps before spend. The workflow must use the cap-before-spend behavior owned by [`runRows()`](contract.md#workflow-and-table-contract). `gtm check` reports `missing_terminal_bookkeeping` when a row workflow bypasses `runRows()` entirely.
 - Paid-step retries. Every step that calls `provider()` or `agent()` must set `maxRetries = 0`, except for the contract's confirmed-unbilled `RetryableError` path in [adapter error and retry behavior](providers.md#empty-error-and-retry-behavior). `gtm check`: `paid_step_retries`.
+- Runtime initialization. `npm run build` must pass its credential-free compiled workflow initialization check. Keep Node-only SDK imports in step implementations.
+- Delivery before completion. Put post-save effects in `runRows.afterSave`; check business-key delivery claims across distinct run IDs.
 - Save before checkpoint. A successful row must reach its table save before `runRows()` can open the checkpoint described in [the workflow contract](contract.md#workflow-and-table-contract). `gtm check` reports `missing_terminal_bookkeeping` when the workflow bypasses `runRows()`, but review the supplied `table.save` callback manually.
 - Credential-free adapter input. Canonical adapter input must exclude credentials under [paid calls](contract.md#paid-calls). Review manually.
 - Reachability. The exported workflow, route, schedule, and trigger path must agree under [the workflow contract](contract.md#workflow-and-table-contract) and [runtime identity](contract.md#runtime-and-run-identity). `gtm check`: `invalid_export`, `invalid_input_parse`, `invalid_rows_input`, `invalid_workflow`, `invalid_module_scope`, and `nondeterministic_workflow` where applicable.

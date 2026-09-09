@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - "skills/gtm-workflow/**"
+      - "tests/**"
       - "evals/gtm-workflow/scripts/**"
       - ".github/workflows/gtm-workflow-templates.yml"
   push:
     branches: [main]
     paths:
       - "skills/gtm-workflow/**"
+      - "tests/**"
       - "evals/gtm-workflow/scripts/**"
       - ".github/workflows/gtm-workflow-templates.yml"
 
@@ -27,4 +29,8 @@ jobs:
           node-version-file: skills/gtm-workflow/templates/.nvmrc
           cache: npm
           cache-dependency-path: skills/gtm-workflow/templates/package-lock.json
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+        working-directory: skills/gtm-workflow/templates
+      - run: node --test tests/workflow-runtime.test.mjs
+      - run: node --experimental-test-module-mocks --import ./skills/gtm-workflow/templates/node_modules/tsx/dist/loader.mjs --test tests/rows-lifecycle.test.mjs
       - run: node --test evals/gtm-workflow/scripts/test-templates.mjs

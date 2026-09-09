@@ -1,4 +1,4 @@
-// gtm-lib v17
+// gtm-lib v18
 import {
   cancellationHook,
   cancellationToken,
@@ -43,6 +43,8 @@ export async function runRows<TRow extends { key: string }>(input: {
     meta: WorkflowMeta,
     signal: AbortSignal,
   ) => Promise<RowStepResult>;
+  /** Runs in workflow context after persistence, before checkpoint and terminal state. */
+  afterSave?: (row: TRow, meta: WorkflowMeta, signal: AbortSignal) => Promise<void>;
   caps: RunRowsCaps;
 }) {
   input = { ...input, caps: { ...input.caps,
@@ -111,6 +113,10 @@ export async function runRows<TRow extends { key: string }>(input: {
         } else {
           await setAttributes({ stage: stageLabel(input.table.save.name || "save"), row: row.key });
           await input.table.save({ key: outcome.value.key, ...outcome.value.value });
+          if (input.afterSave) {
+            await setAttributes({ stage: stageLabel(input.afterSave.name || "afterSave"), row: row.key });
+            await input.afterSave(row, rowMeta, controller.signal);
+          }
           success += 1;
           completed.push(outcome.value.key);
         }
@@ -169,7 +175,7 @@ export async function runRows<TRow extends { key: string }>(input: {
   }
 
   await updateRun(input.meta.runKey, {
-    status,
+    status: status === "completed" && failed.length > 0 ? "failed" : status,
     completed: completed.length,
     failed: failed.length,
     cost_usd: await getActualRunCostUsd(input.meta.runKey),
@@ -179,7 +185,7 @@ export async function runRows<TRow extends { key: string }>(input: {
     finished: status !== "cancelling",
   });
   return {
-    status,
+    status: status === "completed" && failed.length > 0 ? "failed" : status,
     completed,
     failed,
     counts: { success, empty, failed: failed.length },

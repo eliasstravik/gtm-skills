@@ -1,4 +1,4 @@
-// gtm-lib v17
+// gtm-lib v18
 import { createHash } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { getDb } from "./db";

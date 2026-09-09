@@ -59,7 +59,7 @@ Report a run still active after the bounded poll as still running by workflow na
 
 - Secrets never appear in prompts, tracked files, conversation, or command output; values move from `.env` through the shell only.
 - Before editing any workflow or managed library file, read the pinned runtime's bundled documentation under `workflows/node_modules/workflow/docs/`; assume prior SDK knowledge is outdated.
-- Run `gtm check` and compare every `// gtm-lib v17` header and recorded content hash before an action. Show locally modified diffs, offer a recopy, and never apply it silently.
+- Run `gtm check` and compare every `// gtm-lib v18` header and recorded content hash before an action. Show locally modified diffs, offer a recopy, and never apply it silently.
 - Every business stage carries a plain-language label. Managed agents appear as dynamic stages; their tool calls are inspected in native traces.
 - Copy the versioned lib, routes, scripts, and config verbatim and edit workflow-owned tables, adapters, migrations, and workflow files instead.
 - Use `provider()` for classic paid calls, `agent()` for short model calls, and `durableAgent()` for durable tool loops; follow [composition](references/capabilities.md) for accounted custom adapters.

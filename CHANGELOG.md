@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.1, 2026-09-09
+
+Workflow library generation 18.
+
+- Builds initialize the compiled workflow bundle without credentials or step execution, catching Node-only imports before deployment.
+- Row workflows support delivery after saving and before completion through `afterSave`; delivery failures remain failures. Diagrams include the callback.
+- Authoring guidance requires the runtime check and keeps authentication SDKs inside steps.
+- Existing projects need the managed update and build-command suffix; no schema migration is required. Skill evaluations remain excluded.
+
 ## 0.5.0, 2026-09-09
 
 Workflow library generation 17.
