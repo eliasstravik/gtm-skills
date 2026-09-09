@@ -59,7 +59,7 @@ export function bindToolArguments(definition: ToolDefinition, input: unknown): R
 }
 
 /** MCP servers can encode an expected no-match as isError. Recovery is explicit and read-only. */
-function mcpErrorData(result: { structuredContent?: unknown; content: unknown }) {
+function mcpErrorData(result: { structuredContent?: unknown; content?: unknown }) {
   if (result.structuredContent !== undefined) return result.structuredContent;
   const content = result.content;
   if (Array.isArray(content) && content.length === 1 && content[0]?.type === "text") {
@@ -68,7 +68,7 @@ function mcpErrorData(result: { structuredContent?: unknown; content: unknown })
   return undefined;
 }
 
-function mcpErrorMessage(result: { structuredContent?: unknown; content: unknown }): string {
+function mcpErrorMessage(result: { structuredContent?: unknown; content?: unknown }): string {
   const text = Array.isArray(result.content)
     ? result.content.filter((item) => item?.type === "text").map((item) => item.text).join("\n") : "";
   return redact(`MCP tool reported an error: ${text || JSON.stringify(result.structuredContent) || "no details"}`);

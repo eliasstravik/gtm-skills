@@ -48,7 +48,7 @@
     "libHashes": {
       "drizzle.config.ts": "a5d0dc939e448e957f64732cfcc2a5b15fb1ff8c79db3238a6d6f075de9ad7fa",
       "lib/agent-ledger.ts": "01b0911a1d240d032e9e7b3eb1b7b184065bffbabf46a10d675d32c19d33b3bc",
-      "lib/agent-tools.ts": "188f2d6f177a60503fbbcab3a7718751b5be01b98190dd2a1fdfdb9faa9676e1",
+      "lib/agent-tools.ts": "e4dc441bd2a5dcd4b94517c10be37d065a83bbb98ebe3ddbaafb3621fa70e68b",
       "lib/agent.ts": "3f193505738a7ee3975d358701008ba8fb64a731d491fa7a28c76d29f5f7cf70",
       "lib/approve.ts": "9bc09e487710d19b25e71c0553521b9f03f195c3200084fc9c88ca4387637a37",
       "lib/capabilities.ts": "aa6e0df7dda25b9834b0634de6374c86bf35c4cde601b4a6b236348360a078a9",
