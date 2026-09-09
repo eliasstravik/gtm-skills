@@ -1,10 +1,16 @@
 # Changelog
 
-## 0.3.3, 2026-09-09
+## 0.4.0, 2026-09-09
 
-Workflow library generation 13, unchanged.
+Workflow library generation 14.
 
+- Every workflow has a real graph: the diagram command extracts steps, decisions, loops, parallel groups, and error paths from the workflow body instead of listing step names. Mermaid and ASCII render that graph; `json`, `svg`, `png`, and `web` formats are new.
+- The workflows project serves a signed diagram page, graph JSON, and a PNG at `/gtm/diagram/<path>`, `/api/diagram/<path>`, and `/api/diagram-image/<path>`. Links are signed with the run secret and expire after 24 hours.
+- Authoring rules: every step carries a JSDoc label, steps are called from the workflow body, decisions and loops may carry a naming comment, and `runRows()` marks stages as run attributes. `gtm check` fails with `diagram_rules`, one line per finding with its fix. Existing workflows fail until fixed.
+- The workflow flows show a "Where to look" block (diagram, runs, data) at defined moments, and the shared interaction standard gains the matching carve-out.
+- Deployed projects must set Vercel Authentication to preview deployments only, or attach a production custom domain, so diagram links open without a Vercel login.
 - Prospect qualification renders the verdict first: labelled Verdict, Score, Confidence, Scored against, and Reasoning lines for one entity; one table per mode plus a reasoning line per entity for several. The agent still composes the reasoning and band before writing any visible line.
+- Validation: `node --test evals/gtm-workflow/scripts/test-templates.mjs`, the offline layout and compatibility checks.
 
 ## 0.3.2, 2026-09-09
 
