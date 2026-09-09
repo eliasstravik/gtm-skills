@@ -1,4 +1,4 @@
-// gtm-lib v17
+// gtm-lib v18
 import { defineEventHandler } from "nitro/h3";
 import { eventSources } from "../../../events";
 import { receiveEvent } from "../../../lib/events";

@@ -11,9 +11,9 @@ import { agentWorkflow, preload, events } from "./capability-fixtures.mjs";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v17 templates pass the deterministic workflow contract", async (context) => {
+test("v18 templates pass the deterministic workflow contract", async (context) => {
   const capabilityOnly = process.env.GTM_CAPABILITIES_ONLY === "1";
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v17-"));
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v18-"));
   let vendor;
   let server;
   let releaseSlowRequest;
@@ -132,7 +132,7 @@ test("v17 templates pass the deterministic workflow contract", async (context) =
   const checked = JSON.parse(lastJsonLine(check.stdout));
   assert.equal(checked.ok, true);
   assert.equal(checked.workflows, 14);
-  assert.equal(checked.libVersion, 17);
+  assert.equal(checked.libVersion, 18);
   await assertVercelFunctionsTraceParser(directory, env);
   const providers = await gtm(directory, env, ["providers", "list", "organization", "--format", "json"]);
   assert.deepEqual(providers, [{

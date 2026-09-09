@@ -1,4 +1,4 @@
-// gtm-lib v17
+// gtm-lib v18
 import ts from "typescript-parser";
 
 export type DiagramStatus = "pending" | "active" | "done" | "failed";
@@ -429,6 +429,7 @@ class GraphBuilder {
     const argument = call.arguments[0];
     const properties = argument && ts.isObjectLiteralExpression(argument) ? argument.properties : [];
     const rowStep = identifierProperty(properties, "rowStep");
+    const afterSave = identifierProperty(properties, "afterSave");
     const table = objectProperty(properties, "table");
     const saveStep = table ? identifierProperty(table.properties, "save") : undefined;
     const tableName = table ? stringProperty(table.properties, "name") : undefined;
@@ -447,6 +448,8 @@ class GraphBuilder {
       loop.id,
     );
     this.#connect(save.id);
+    if (afterSave && this.steps.has(afterSave)) this.#stepNode(afterSave, loop.id);
+    else if (afterSave && this.helpers.has(afterSave)) this.#inlineHelper(afterSave, call, loop.id);
     const wait = this.#node({ kind: "wait", label: "Checkpoint" }, loop.id);
     this.#connect(wait.id);
     const first = this.graph.nodes[firstIndex];

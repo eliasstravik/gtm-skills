@@ -1,4 +1,4 @@
-// gtm-lib v17
+// gtm-lib v18
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -838,6 +838,7 @@ async function headeredFiles() {
       join(root, "scripts", "gtm.ts"),
       join(root, "scripts", "migrate-cloud.ts"),
       join(root, "scripts", "verify-migrations.ts"),
+      join(root, "scripts", "check-workflow-runtime.mjs"),
       join(root, "drizzle.config.ts"),
       join(root, "nitro.config.ts"),
     ]);

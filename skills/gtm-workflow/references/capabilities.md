@@ -58,11 +58,13 @@ The definition names its stable stage `id`, business `label`, source `revision`,
 
 Parse the returned value with the business Zod schema before saving. Save the result before a notification. A stopped loop without a complete structured result is a failure, not a partial brief presented as complete.
 
-Use `runRows()` for row isolation and cancellation, passing its signal to the stage. For a single-input workflow, explicitly register the run and update terminal state in success/failure paths. A managed agent is one business node in the diagram; native traces contain its model/tool calls.
+Use `runRows()` for row isolation and cancellation, passing its signal to the stage. Put notifications that follow persistence in its `afterSave(row, meta, signal)` callback. It runs in workflow context before checkpoints and terminal bookkeeping; a delivery failure marks that row and the run failed. A completed run cannot admit another paid or effectful step. Claim delivery atomically in the business table when the same business event could arrive under different run IDs; a run-local ledger alone cannot prevent those duplicate sends. For a single-input workflow, explicitly register the run and update terminal state in success/failure paths. A managed agent is one business node in the diagram; native traces contain its model/tool calls.
 
 ## Tools and committed skills
 
 `ToolDefinition` supports fixed HTTP GET/POST endpoints and remote Streamable HTTP MCP tools. Schemas and descriptions are committed. Discover/inspect a server at author time and copy the selected tool contract; do not load every tool or promote server instructions into agent instructions at runtime.
+
+Keep Node-only authentication and provider SDK imports inside the trusted step or a lazily loaded step implementation. A shared module that exports a workflow-visible schema must remain safe to initialize in the workflow VM. Build success alone is insufficient; the build must also pass the compiled workflow initialization check.
 
 Credentials are environment-variable references. Resolve values inside trusted workflow steps. Eve connections, Eve skills, Eve's browser, and Eve's sandbox are separate resources and are not inherited by deployed workflows.
 
