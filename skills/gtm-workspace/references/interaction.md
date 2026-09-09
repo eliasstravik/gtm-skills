@@ -11,6 +11,7 @@ Every GTM skill applies this standard to its user-facing messages. Skill-specifi
 - [Questions](#questions)
 - [Approval by surface](#approval-by-surface)
 - [Closing](#closing)
+- [Where to look carve-out](#where-to-look-carve-out)
 - [Connection steps carve-out](#connection-steps-carve-out)
 
 ## Audience and language
@@ -140,6 +141,10 @@ Run outcomes keep the workflow skill's business report (rows, hit rate, cost) wi
 
 Reply with a number, or type your answer.
 ```
+
+## Where to look carve-out
+
+The workflow skill may show one block of at most three labelled links (`Diagram:`, `Runs:`, `Data:`) at the moments its flows name. The labels are business words; a host name may appear inside those links only. Nothing else in the audience rules changes: no other link, host, path, or identifier appears in user-facing text.
 
 ## Connection steps carve-out
 
