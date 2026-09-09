@@ -1,4 +1,4 @@
-// gtm-lib v18
+// gtm-lib v19
 const SECRET_NAME = /_(?:KEY|TOKEN|SECRET)$/i;
 const SENSITIVE_ASSIGNMENT =
   /((?:["']?(?:api[_-]?key|apikey|key|token|secret|password|authorization)["']?)\s*[:=]\s*)(["']?)([^\s,;&"']+)(["']?)/gi;

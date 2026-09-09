@@ -1,4 +1,4 @@
-// gtm-lib v18
+// gtm-lib v19
 import { defineConfig } from "drizzle-kit";
 import { getDatabaseConfig } from "./lib/db-url";
 
