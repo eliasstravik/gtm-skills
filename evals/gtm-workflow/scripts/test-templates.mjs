@@ -341,6 +341,10 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
   assert.match(markdownReceipt.stdout, /Hit rate: found 20 of 20 \(100%\)/);
   assert.match(markdownReceipt.stdout, /fixed \$0\.40, reported \$0\.20/);
 
+  const stageMarks = await stageAttributes(directory);
+  assert.ok(stageMarks.includes("Enrich account"), `runRows should mark the row step as a stage; saw ${JSON.stringify(stageMarks)}`);
+  assert.ok(stageMarks.includes("Save account"), `runRows should mark the save as a stage; saw ${JSON.stringify(stageMarks)}`);
+
   const plainDiagram = await command("npm", ["run", "gtm", "--", "diagram", "local-proof"], { cwd: directory, env });
   assert.equal(plainDiagram.stdout.slice(plainDiagram.stdout.indexOf("flowchart")).trim(), [
     "flowchart TD",
@@ -1087,6 +1091,39 @@ function lastJsonLine(text) {
     .split("\n")
     .reverse()
     .find((line) => line.trim().startsWith("{" ) || line.trim().startsWith("["));
+}
+
+/** The local workflow runtime writes run events under one of these folders, depending on version. */
+const RUN_DATA_FOLDERS = [".workflow-data", "node_modules/.nitro/workflow", ".nitro/workflow"];
+
+/** Every distinct stage value setAttributes recorded, read back from the run event log. */
+async function stageAttributes(directory) {
+  const stages = new Set();
+  for (const folder of RUN_DATA_FOLDERS) {
+    for (const path of await filesContaining(join(directory, folder), '"attr_set"')) {
+      let event;
+      try {
+        event = JSON.parse(await readFile(path, "utf8"));
+      } catch {
+        continue;
+      }
+      for (const change of event?.eventData?.changes ?? []) {
+        if (change?.key === "stage") stages.add(change.value);
+      }
+    }
+  }
+  return [...stages].sort();
+}
+
+async function filesContaining(directory, needle) {
+  const { readdir } = await import("node:fs/promises");
+  const hits = [];
+  for (const entry of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) hits.push(...(await filesContaining(path, needle)));
+    else if ((await readFile(path, "utf8").catch(() => "")).includes(needle)) hits.push(path);
+  }
+  return hits;
 }
 
 const mockDataAdapter = `/**
