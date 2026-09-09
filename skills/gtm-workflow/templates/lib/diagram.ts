@@ -72,7 +72,7 @@ export function extractGraph(source: string, workflowPath: string): ExtractResul
   const file = ts.createSourceFile(relativeFile, source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
   const findings: DiagramFinding[] = [];
   const steps = new Map<string, StepInfo>();
-  const helpers: ts.FunctionDeclaration[] = [];
+  const helpers = new Map<string, ts.FunctionDeclaration>();
   let workflow: ts.FunctionDeclaration | undefined;
 
   for (const statement of file.statements) {
@@ -80,7 +80,7 @@ export function extractGraph(source: string, workflowPath: string): ExtractResul
     const directive = directiveOf(statement.body);
     if (directive === "use step") steps.set(statement.name.text, stepInfo(statement, file));
     else if (directive === "use workflow") workflow = statement;
-    else helpers.push(statement);
+    else helpers.set(statement.name.text, statement);
   }
 
   for (const step of steps.values()) {
@@ -92,17 +92,6 @@ export function extractGraph(source: string, workflowPath: string): ExtractResul
       message: `${step.name} has no label.`,
       fix: "Add a JSDoc comment directly above it whose first line says what the stage does, such as /** Score the account against the ICP */.",
     });
-  }
-  for (const helper of helpers) {
-    for (const call of stepCalls(helper.body!, steps)) {
-      findings.push({
-        code: "step_hidden_in_helper",
-        file: relativeFile,
-        line: lineOf(file, call),
-        message: `${calleeName(call)} is called from helper ${helper.name!.text}, so it cannot appear in the diagram or the trace.`,
-        fix: `Call it from the workflow body, or make ${helper.name!.text} a "use step" function with its own label.`,
-      });
-    }
   }
 
   const slug = workflowPath.split("/").at(-1)!;
@@ -118,7 +107,21 @@ export function extractGraph(source: string, workflowPath: string): ExtractResul
     groups: [],
     edges: [],
   };
-  new GraphBuilder(graph, steps, file, source, relativeFile, findings).build(workflow);
+  const builder = new GraphBuilder(graph, steps, helpers, file, source, relativeFile, findings);
+  builder.build(workflow);
+  // A helper the workflow reaches is drawn inline, so only the ones it never reaches hide steps.
+  for (const [name, helper] of helpers) {
+    if (builder.inlined.has(name)) continue;
+    for (const call of stepCalls(helper.body!, steps)) {
+      findings.push({
+        code: "step_hidden_in_helper",
+        file: relativeFile,
+        line: lineOf(file, call),
+        message: `${calleeName(call)} is called from helper ${name}, so it cannot appear in the diagram or the trace.`,
+        fix: `Call it from the workflow body, or make ${name} a "use step" function with its own label.`,
+      });
+    }
+  }
   return { graph, findings };
 }
 
@@ -127,10 +130,14 @@ class GraphBuilder {
   #groups = 0;
   #tails: Tail[] = [];
   #returns: Tail[] = [];
+  #inlining: string[] = [];
+  /** Helpers drawn inline, so the hidden-step rule can skip them. */
+  readonly inlined = new Set<string>();
 
   constructor(
     private readonly graph: WorkflowGraph,
     private readonly steps: Map<string, StepInfo>,
+    private readonly helpers: Map<string, ts.FunctionDeclaration>,
     private readonly file: ts.SourceFile,
     private readonly source: string,
     private readonly relativeFile: string,
@@ -247,6 +254,7 @@ class GraphBuilder {
           return this.#stepNode(name, group);
         }
         if (name === "runRows") return this.#runRows(current, group);
+        if (name && this.helpers.has(name)) return this.#inlineHelper(name, current, group);
         if (name && WAIT_CALLS[name]) {
           const wait = this.#node({ kind: "wait", label: waitLabel(name, current, this.file) }, group);
           return this.#connect(wait.id);
@@ -256,6 +264,31 @@ class GraphBuilder {
       ts.forEachChild(current, visit);
     };
     visit(node);
+  }
+
+  /**
+   * A plain helper called from workflow context runs in workflow context, so every step inside it
+   * is a real step: its body is drawn at the call site. A `return` inside it ends that helper, not
+   * the workflow, so its return tails continue into whatever follows the call.
+   */
+  #inlineHelper(name: string, call: ts.Node, group: string | undefined) {
+    if (this.#inlining.includes(name)) {
+      return this.#unreachable(
+        call,
+        `${name} calls itself directly or indirectly, so the diagram cannot follow it.`,
+        "Recursive helpers cannot be drawn; unroll the loop in the workflow body.",
+      );
+    }
+    const helper = this.helpers.get(name);
+    if (!helper?.body) return;
+    this.inlined.add(name);
+    this.#inlining.push(name);
+    const outerReturns = this.#returns;
+    this.#returns = [];
+    this.#statements(helper.body.statements, group);
+    this.#tails = [...this.#tails, ...this.#returns];
+    this.#returns = outerReturns;
+    this.#inlining.pop();
   }
 
   #stepNode(name: string, group: string | undefined) {
@@ -274,7 +307,10 @@ class GraphBuilder {
   }
 
   #if(node: ts.IfStatement, group: string | undefined) {
-    if (!containsStep(node, this.steps)) return;
+    // Inside an inlined helper a bare `return` ends that row early, which is a real path even when
+    // the branch calls no step, so the decision is still drawn.
+    const endsEarly = this.#inlining.length > 0 && containsReturn(node);
+    if (!containsStep(node, this.steps, this.helpers) && !endsEarly) return;
     const decision = this.#node(
       { kind: "decision", label: leadingComment(this.source, node) ?? `${condensed(node.expression.getText(this.file))}?` },
       group,
@@ -291,7 +327,7 @@ class GraphBuilder {
   }
 
   #loop(node: ts.IterationStatement, group: string | undefined) {
-    if (!containsStep(node.statement, this.steps)) return;
+    if (!containsStep(node.statement, this.steps, this.helpers)) return;
     const loop = this.#group("loop", leadingComment(this.source, node) ?? loopLabel(node, this.file), group);
     const firstIndex = this.graph.nodes.length;
     this.#statement(node.statement, loop.id);
@@ -329,7 +365,7 @@ class GraphBuilder {
     const before = this.graph.nodes.length;
     this.#statements(node.tryBlock.statements, group);
     const tryTails = this.#tails;
-    if (node.catchClause && containsStep(node.catchClause.block, this.steps)) {
+    if (node.catchClause && containsStep(node.catchClause.block, this.steps, this.helpers)) {
       // Every path out of the try block (all of them, not just the last node created) is a
       // possible error source; fall back to the try's own entry when the block added no nodes.
       const sources = this.graph.nodes.length > before ? tryTails : entryTails;
@@ -385,6 +421,8 @@ class GraphBuilder {
     const loop = this.#group("loop", "For each row", group);
     const firstIndex = this.graph.nodes.length;
     if (rowStep && this.steps.has(rowStep)) this.#stepNode(rowStep, loop.id);
+    // runRows() calls the row step in workflow context, so a plain helper there is drawn inline.
+    else if (rowStep && this.helpers.has(rowStep)) this.#inlineHelper(rowStep, call, loop.id);
     const saveInfo = saveStep ? this.steps.get(saveStep) : undefined;
     const save = this.#node(
       {
@@ -446,14 +484,35 @@ function stepCalls(node: ts.Node, steps: Map<string, StepInfo>): ts.CallExpressi
   return calls;
 }
 
-function containsStep(node: ts.Node, steps: Map<string, StepInfo>): boolean {
+/** A helper call counts as a step call, because the helper's body is drawn inline. */
+function containsStep(
+  node: ts.Node,
+  steps: Map<string, StepInfo>,
+  helpers: Map<string, ts.FunctionDeclaration> = new Map(),
+  seen: Set<string> = new Set(),
+): boolean {
   let found = false;
   const visit = (current: ts.Node) => {
     if (found) return;
     if (ts.isCallExpression(current)) {
       const name = calleeName(current);
       if (name && (steps.has(name) || name === "runRows" || WAIT_CALLS[name])) found = true;
+      const helper = name && !seen.has(name) ? helpers.get(name) : undefined;
+      if (helper?.body && containsStep(helper.body, steps, helpers, new Set([...seen, name!]))) found = true;
     }
+    ts.forEachChild(current, visit);
+  };
+  visit(node);
+  return found;
+}
+
+/** A `return` that is not inside a nested function, so it ends the body being walked. */
+function containsReturn(node: ts.Node): boolean {
+  let found = false;
+  const visit = (current: ts.Node) => {
+    if (found) return;
+    if (ts.isFunctionLike(current)) return;
+    if (ts.isReturnStatement(current)) found = true;
     ts.forEachChild(current, visit);
   };
   visit(node);

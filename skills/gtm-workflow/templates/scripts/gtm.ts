@@ -917,7 +917,7 @@ async function configureReadOnly(flags: Flags) {
     throw new AppError("missing_cloud_url", "TURSO_DATABASE_URL is required with --cloud", 2);
   }
   if (!databaseUrl || databaseUrl.startsWith("file:")) return;
-  if (!readOnlyToken) {
+  if (!readOnlyToken && process.env.GTM_SANDBOX !== "1") {
     throw new AppError(
       "missing_read_only_token",
       "TURSO_READ_ONLY_AUTH_TOKEN is required for remote read-only commands; the write token is never used.",
@@ -925,7 +925,10 @@ async function configureReadOnly(flags: Flags) {
     );
   }
   process.env.TURSO_DATABASE_URL = databaseUrl;
-  process.env.TURSO_AUTH_TOKEN = readOnlyToken;
+  // The hosted sandbox holds no read-only token: its firewall attaches the brokered read-only
+  // credential, so the client must connect with no local token rather than the write token.
+  if (readOnlyToken) process.env.TURSO_AUTH_TOKEN = readOnlyToken;
+  else delete process.env.TURSO_AUTH_TOKEN;
 }
 
 function sqlLiteral(value: string) {
