@@ -73,6 +73,8 @@ Add a short caption with the trigger, inputs or changes, saved result, and parti
 
 ## Where to look
 
+When a host channel automatically delivers the picture and the Diagram/Runs/Data block together, that message fulfills this section. Add only a short workflow caption; do not repeat the links or add another block. For a links-only request, the channel message needs no additional reply.
+
 After a workflow is resolved, the flows in [flows](flows.md#where-to-look-moments) show one block of at most three lines:
 
 ```text
