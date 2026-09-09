@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
 import { createScanner, LanguageVariant, SyntaxKind } from "typescript/unstable/ast";
 import { executeReadOnly } from "../lib/db";
-import { extractGraph } from "../lib/diagram";
+import { extractGraph, type DiagramFinding } from "../lib/diagram";
 import { redact, redactValue } from "../lib/redact";
 
 type Flags = Record<string, string | boolean>;
@@ -306,6 +306,7 @@ async function check() {
   await command(join(root, "node_modules", ".bin", "nitro"), ["build"]);
   await command(join(root, "node_modules", ".bin", "workflow"), ["validate"]);
   const workflows = await workflowFiles();
+  const findings: { slug: string; finding: DiagramFinding }[] = [];
   for (const file of workflows) {
     const source = await readFile(file, "utf8");
     const slug = basename(file, ".ts");
@@ -328,6 +329,22 @@ async function check() {
       throw new AppError("invalid_rows_input", `${relative(root, file)} rows input must include key`, 2);
     }
     validateWorkflowSource(file, source, expected);
+    for (const finding of extractGraph(source, workflowPath(file)).findings) findings.push({ slug, finding });
+  }
+  if (findings.length > 0) {
+    const slugs = [...new Set(findings.map((entry) => entry.slug))];
+    const lines = findings.map(
+      ({ finding }) => `${finding.code} ${finding.file}:${finding.line} ${finding.message} Fix: ${finding.fix}`,
+    );
+    throw new AppError(
+      "diagram_rules",
+      [
+        `${findings.length} diagram rule finding${findings.length === 1 ? "" : "s"}.`,
+        ...lines,
+        `Run npm run gtm -- diagram ${slugs.join(" ")} --format ascii after fixing to confirm the shape.`,
+      ].join("\n"),
+      2,
+    );
   }
   await validateTableSources();
   await validateMigrationArtifacts();

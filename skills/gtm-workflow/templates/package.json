@@ -56,7 +56,7 @@
       "lib/schema.ts": "a6eb68886fc9cf348eabd5be6440ac3002d6a62cb5280190699ba393f67f4791",
       "lib/steps.ts": "ebf74e5723ac9020d03309e5623502e9386ef014f522f90fc7d97aa3d753e998",
       "nitro.config.ts": "b04a8b2f4d2e3913a7f5d488559ae68d136d9bca8a3e7dd27d1b04c437f59d0b",
-      "scripts/gtm.ts": "21f5ea172260e7766807a88d4f92c20a7d3ebf93aa0d326ce2151eaf80ec37e4",
+      "scripts/gtm.ts": "46d62eb84863385d4e7fdb01802c1625ada6364f88c38e5c40a5147f180b049f",
       "scripts/migrate-cloud.ts": "f328cf65181cf12f1e2515601ad8a70dee5223ea522dde053d1f95ee8a0a6082",
       "scripts/verify-migrations.ts": "0fa07a4f757c64fa4e8ca1a795ac0eaa5ea772421fbb7d395a344f8c1c6a24a8",
       "server/api/approve/[token].post.ts": "f9bede3bd9ba34ca75cb448d80901c44c70c9b0f22832f8d0e4c0724305f9bc5",

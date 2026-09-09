@@ -885,6 +885,31 @@ async function assertCheckRules(directory, env) {
   await expectCheckViolation(migrationPath, (source) => `${source}\n-- gtm: destructive accepted\nDROP TABLE IF EXISTS gtm_check_probe;\n`, "destructive_migration", directory, env);
   await expectCheckPasses(migrationPath, (source) => `-- gtm: destructive accepted\n${source}\nDROP TABLE IF EXISTS gtm_check_probe;\n`, directory, env);
   await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v14\n", "// gtm-lib v14\n\n"), "lib_modified", directory, env);
+
+  const branchingPath = join(directory, "workflows/branching-proof.ts");
+  await expectCheckViolation(branchingPath, (source) => source.replace("/** Look up each domain */\n", ""), "diagram_rules", directory, env);
+  await expectCheckViolation(
+    branchingPath,
+    (source) => source.replace("      await saveKnownAccount(row.key);", "      await saveThroughHelper(row.key);") + "\nasync function saveThroughHelper(key: string) {\n  await saveKnownAccount(key);\n}\n",
+    "diagram_rules",
+    directory,
+    env,
+  );
+  await expectCheckViolation(branchingPath, (source) => source.replace("    await noteFailure(\"none\");", "    [\"none\"].forEach((key) => noteFailure(key));"), "diagram_rules", directory, env);
+  await expectCheckViolation(triggerPath, (source) => source.replace(/  await setAttributes\(\{[^\n]*\n/, ""), "diagram_rules", directory, env);
+  const missingLabel = await (async () => {
+    const source = await readFile(branchingPath, "utf8");
+    await writeFile(branchingPath, source.replace("/** Look up each domain */\n", ""));
+    try {
+      return await gtmFailure(directory, env, ["check"]);
+    } finally {
+      await writeFile(branchingPath, source);
+    }
+  })();
+  assert.equal(missingLabel.error.code, "diagram_rules");
+  assert.match(missingLabel.error.message, /^1 diagram rule finding\.\n/);
+  assert.match(missingLabel.error.message, /step_label_missing workflows\/branching-proof\.ts:\d+ lookupDomain has no label\. Fix: Add a JSDoc comment directly above it/);
+  assert.match(missingLabel.error.message, /Run npm run gtm -- diagram branching-proof --format ascii after fixing to confirm the shape\.$/);
 }
 
 async function assertDirtyProductionStartRefused(directory, env, inputFile, nitroPort) {
