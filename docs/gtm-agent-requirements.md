@@ -1,6 +1,6 @@
-# GTM agent requirements for workflow v13
+# GTM agent requirements for workflow v17
 
-This is the host contract for a small Eve Slack agent that authors the v13 `gtm-workflow` project in one connected GTM workspace and runs it on Vercel. Vercel deploys the workflow project from that same repository. The sandbox never starts a real run.
+This is the host contract for a small Eve Slack agent that authors the v17 `gtm-workflow` project in one connected GTM workspace and runs it on Vercel. Vercel deploys the workflow project from that same repository. The sandbox never starts a real run.
 
 This contract tracks the workflow library major version: refresh it in the same reviewed change as every `gtm-lib` bump, so it never describes a project shape the skill no longer authors.
 
@@ -11,7 +11,7 @@ The template owns the mechanism:
 - Slack is the only channel.
 - `apply_gtm_workspace_changes` is the only authored write tool. Its request names every migration, includes full SQL for non-additive statements, and declares `DELETE`, `UPDATE`, `RENAME`, `DROP`, and `CREATE TRIGGER` destructive. It applies accepted migrations through a write credential that exists only for that step and saves one approved atomic commit to `main`. If the commit fails after migrations applied, the result says so.
 - Validate the save payload and its manifest before requesting human approval. Return actionable path and operation errors to the agent so it can correct the request. Every valid resubmission still requires human approval, and execution repeats validation before any write. The manifest mapping is defined in [the hosted save procedure](../skills/gtm-workflow/references/deploy.md#before-the-commit).
-- `operate_gtm_workflow` has read-only preview and status actions plus approval-gated start, approval, and cancel actions. Start carries the rows and projected cost the approver saw and refuses when the fresh dry run disagrees.
+- `operate_gtm_workflow` has read-only preview and status actions plus approval-gated start, approval, trigger, and cancel actions. Start carries the rows and projected cost the approver saw and refuses when the fresh dry run disagrees. Agent starts also carry `expectedCapabilitiesHash` from the accepted preview; the host refuses missing or changed agent definitions.
 - One host module dry-runs the exact workspace HEAD, waits until the protected production runtime reports that same Git SHA, starts it with a required atomic SHA recheck, and strips input, public webhook URLs, and credentials from results.
 - The sandbox remains deny-all except npm, the workspace Turso host with a read-only credential, and accepted provider hosts without credentials. It never receives the production run bearer, OIDC token, a Gateway key, or a database write credential. It authors, validates, dry-runs, and queries; it starts no real run.
 
@@ -88,6 +88,10 @@ Vercel's Git integration deploys the commit. `api.vercel.com` stays closed to bo
 ## Run control
 
 Preview imports the committed workflow, validates its exported Zod input, performs the zero-spend dry run against one ignored input file, and reports parsed rows, stages, projected cost, caps, and checkpoint.
+
+Agent previews also report selected tools, fixed arguments, destinations, effects, skill revisions, model/tool limits, deadline, and whether cost is estimated. The hash covers the full committed definitions, including skill content. Explain those facts in the same run approval. Workflow agents use the workflow project's credentials and execution tools; they never inherit Eve's connections or sandbox.
+
+The approval-gated trigger action submits bounded JSON callback data to `/api/runs/<runKey>/trigger` without exposing its hook token. It uses the continue-run approval closing line. A permanent event subscription instead uses the signed intake route and committed event registry described in [event sources](../skills/gtm-workflow/references/events.md). Source enable/disable uses the existing accepted workspace save, not a new agent-owned control store.
 
 Start repeats the dry run, refuses when its rows or projected cost differ from the values the approver accepted, then polls the protected `GET /api/deployment` route until it returns the requested workspace SHA. It reads the bounded ignored input and calls the production route with:
 

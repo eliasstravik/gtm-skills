@@ -1,4 +1,4 @@
-// gtm-lib v16
+// gtm-lib v17
 import {
   createClient as createWebClient,
   type Client,

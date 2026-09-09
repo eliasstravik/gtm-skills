@@ -6,12 +6,14 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { test } from "node:test";
+import { agentWorkflow, preload, events } from "./capability-fixtures.mjs";
 
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v15 templates pass the deterministic workflow contract", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v15-"));
+test("v17 templates pass the deterministic workflow contract", async (context) => {
+  const capabilityOnly = process.env.GTM_CAPABILITIES_ONLY === "1";
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v17-"));
   let vendor;
   let server;
   let releaseSlowRequest;
@@ -49,6 +51,10 @@ test("v15 templates pass the deterministic workflow contract", async (context) =
   await writeFile(join(directory, "providers/unused-data.ts"), unusedDataAdapter);
   await writeFile(join(directory, "providers/__fixtures__/mock-data/success.json"), '{"company":"fixture.test"}\n');
   await writeFile(join(directory, "workflows/local-proof.ts"), localWorkflow);
+  await writeFile(join(directory, "workflows/agent-proof.ts"), agentWorkflow);
+  await writeFile(join(directory, "events/index.ts"), events);
+  await writeFile(join(directory, "fixture-preload.mjs"), preload);
+  await cp(join(import.meta.dirname, "agent-runtime.test.ts"), join(directory, "agent-runtime.test.ts"));
   await writeFile(join(directory, "workflows/approval-proof.ts"), approvalWorkflow);
   await writeFile(join(directory, "workflows/scheduled-proof.ts"), scheduledWorkflow);
   await writeFile(join(directory, "workflows/trigger-proof.ts"), triggerWorkflow);
@@ -105,6 +111,10 @@ test("v15 templates pass the deterministic workflow contract", async (context) =
     GTM_BASE_URL: `http://127.0.0.1:${nitroPort}`,
     WORKFLOW_LOCAL_BASE_URL: `http://127.0.0.1:${nitroPort}`,
   };
+  // Never inherit a developer's database credentials; fixture env files supply their own values.
+  delete env.TURSO_DATABASE_URL;
+  delete env.TURSO_AUTH_TOKEN;
+  delete env.TURSO_READ_ONLY_AUTH_TOKEN;
   await writeFile(
     join(directory, ".env"),
     [
@@ -121,8 +131,8 @@ test("v15 templates pass the deterministic workflow contract", async (context) =
   const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
   const checked = JSON.parse(lastJsonLine(check.stdout));
   assert.equal(checked.ok, true);
-  assert.equal(checked.workflows, 13);
-  assert.equal(checked.libVersion, 15);
+  assert.equal(checked.workflows, 14);
+  assert.equal(checked.libVersion, 17);
   await assertVercelFunctionsTraceParser(directory, env);
   const providers = await gtm(directory, env, ["providers", "list", "organization", "--format", "json"]);
   assert.deepEqual(providers, [{
@@ -143,7 +153,7 @@ test("v15 templates pass the deterministic workflow contract", async (context) =
   const editedLedger = await commandFailure("npm", ["run", "db:verify"], { cwd: directory, env });
   assert.match(editedLedger.stderr, /Migration ledger is missing/);
   await writeFile(migrationPath, migrationSource);
-  await assertCheckRules(directory, env);
+  if (!capabilityOnly) await assertCheckRules(directory, env);
   await writeFile(
     join(directory, ".env.turso"),
     "TURSO_DATABASE_URL=libsql://fixture.turso.io\nTURSO_AUTH_TOKEN=\n",
@@ -200,7 +210,9 @@ test("v15 templates pass the deterministic workflow contract", async (context) =
 
   server = spawn(join(directory, "node_modules/.bin/nitro"), ["dev", "--port", String(nitroPort)], {
     cwd: directory,
-    env,
+    env: { ...env, NODE_OPTIONS: `--import=${join(directory, "fixture-preload.mjs")}`,
+      AI_GATEWAY_API_KEY: "fixture-gateway-key", FIXTURE_EVENT_SECRET: "fixture-signing-secret",
+      GTM_FIXTURE_CALLS: join(directory, "fixture-calls.txt") },
     stdio: ["ignore", "pipe", "pipe"],
     detached: true,
   });
@@ -209,6 +221,7 @@ test("v15 templates pass the deterministic workflow contract", async (context) =
   server.stderr.on("data", (chunk) => (serverLog += chunk));
   await waitForOrigin(env.GTM_BASE_URL, () => serverLog);
 
+  if (!capabilityOnly) {
   const unauthenticatedDeployment = await fetch(`${env.GTM_BASE_URL}/api/deployment`);
   assert.equal(unauthenticatedDeployment.status, 401);
   const deployment = await fetch(`${env.GTM_BASE_URL}/api/deployment`, {
@@ -764,6 +777,47 @@ test("v15 templates pass the deterministic workflow contract", async (context) =
   const unbrokeredRead = await gtmFailure(directory, unbrokeredEnv, ["query", "--sql", "select 1"]);
   assert.equal(unbrokeredRead.error.code, "missing_read_only_token");
   await assertDirtyProductionStartRefused(directory, env, inputFile, nitroPort);
+  }
+  // These are deterministic runtime fixtures, not skill or model evaluations.
+  const agentInputFile = join(directory, "data/agent.json");
+  await writeFile(agentInputFile, JSON.stringify({ rows: [{ key: "agent-1", domain: "lead.test" }] }));
+  const agentDry = await gtm(directory, env, ["run", "agent-proof", "--input", agentInputFile, "--dry-run"]);
+  assert.equal(agentDry.agents[0].skills[0].name, "research");
+  assert.equal(agentDry.agents[0].tools[0].destination, "https://fixture-mcp.test/mcp");
+  assert.equal(agentDry.costIsEstimate, true);
+  assert.match(agentDry.capabilitiesHash, /^[a-f0-9]{64}$/);
+  assert.equal(await readFile(join(directory, "fixture-calls.txt"), "utf8").catch(() => ""), "");
+  const agentRun = await gtm(directory, env, ["run", "agent-proof", "--input", agentInputFile, "--wait"]);
+  assert.equal(agentRun.status, "completed", JSON.stringify(agentRun));
+  assert.equal(agentRun.failed, 0, JSON.stringify(agentRun));
+  const agentLedger = await sqlRows(directory, env, `select provider, cost_usd, status from enrichment_runs where run_key = '${agentRun.runKey}'`);
+  assert.equal(agentLedger.filter((row) => row.provider === "agent-model").length, 3);
+  assert.equal(agentLedger.filter((row) => row.provider === "agent-tool").length, 1);
+  assert.ok(agentLedger.every((row) => row.status === "success"));
+  assert.ok(Math.abs(agentRun.costUsd - 0.035) < 0.000001);
+  const failedAgent = await startAndWait(directory, env, "agent-proof", { rows: [{ key: "agent-error", domain: "error.test" }] });
+  assert.equal(failedAgent.failed, 1, JSON.stringify(failedAgent));
+  const failedLedger = await sqlRows(directory, env, `select provider, status from enrichment_runs where run_key = '${failedAgent.runKey}'`);
+  assert.equal(failedLedger.filter((row) => row.provider === "agent-tool").length, 1);
+  assert.equal(failedLedger.filter((row) => row.provider === "agent-model").length, 2);
+  assert.equal(failedLedger.find((row) => row.provider === "agent-tool").status, "error");
+  const body = JSON.stringify({ id: "booking-1", domain: "lead.test" });
+  const signature = createHmac("sha256", "fixture-signing-secret").update(body).digest("hex");
+  const url = `${env.GTM_BASE_URL}/api/events/booking`;
+  assert.equal((await fetch(url, { method: "POST", body })).status, 401);
+  const sendBooking = () => fetch(url, { method: "POST", body, headers: { "x-cal-signature-256": signature } });
+  const deliveries = await Promise.all([sendBooking(), sendBooking()]);
+  const receipts = await Promise.all(deliveries.map((response) => response.json()));
+  assert.equal(receipts[0].runKey, receipts[1].runKey);
+  assert.equal(deliveries[0].status, 202);
+  const booking = await waitForRun(directory, env, receipts[0].runKey, "completed");
+  assert.equal(booking.failed, 0, JSON.stringify(booking));
+  assert.equal((await (await sendBooking()).json()).duplicate, true);
+  const nextBody = JSON.stringify({ id: "booking-2", domain: "lead.test" });
+  assert.equal((await fetch(url, { method: "POST", body: nextBody, headers: {
+    "x-cal-signature-256": createHmac("sha256", "fixture-signing-secret").update(nextBody).digest("hex"),
+  } })).status, 429);
+  await command(process.execPath, ["--import", "tsx", "--test", "agent-runtime.test.ts"], { cwd: directory, env });
 });
 
 async function gtm(directory, env, args) {
@@ -1008,7 +1062,7 @@ async function assertCheckRules(directory, env) {
   await expectCheckViolation(migrationPath, (source) => `${source}\nALTER TABLE workflow_runs RENAME TO old_workflow_runs;\n`, "destructive_migration", directory, env);
   await expectCheckViolation(migrationPath, (source) => `${source}\n-- gtm: destructive accepted\nDROP TABLE IF EXISTS gtm_check_probe;\n`, "destructive_migration", directory, env);
   await expectCheckPasses(migrationPath, (source) => `-- gtm: destructive accepted\n${source}\nDROP TABLE IF EXISTS gtm_check_probe;\n`, directory, env);
-  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v15\n", "// gtm-lib v15\n\n"), "lib_modified", directory, env);
+  await expectCheckViolation(providerPath, (source) => source.replace(/^(\/\/ gtm-lib v\d+)\n/, "$1\n\n"), "lib_modified", directory, env);
 
   const branchingPath = join(directory, "workflows/branching-proof.ts");
   await expectCheckViolation(branchingPath, (source) => source.replace("/** Look up each domain */\n", ""), "diagram_rules", directory, env);

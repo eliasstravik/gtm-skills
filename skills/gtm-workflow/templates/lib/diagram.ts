@@ -1,4 +1,4 @@
-// gtm-lib v16
+// gtm-lib v17
 import ts from "typescript-parser";
 
 export type DiagramStatus = "pending" | "active" | "done" | "failed";
@@ -55,6 +55,7 @@ const WAIT_CALLS: Record<string, string> = {
   checkpoint: "Checkpoint",
   approve: "Wait for approval",
   waitForTrigger: "Wait for trigger",
+  sleep: "Wait until the requested time",
 };
 const LABEL_MIN = 3;
 const LABEL_MAX = 80;
@@ -255,6 +256,18 @@ class GraphBuilder {
           return this.#stepNode(name, group);
         }
         if (name === "runRows") return this.#runRows(current, group);
+        if (name === "durableAgent") {
+          const definition = resolveLiteral(current.arguments[0], this.file);
+          const properties = definition && ts.isObjectLiteralExpression(definition) ? definition.properties : [];
+          const label = stringProperty(properties, "label") ?? "Agent stage";
+          const stage = this.#node({ kind: "step", label: `${label} (dynamic tools)`, provider: "agent",
+            step: stringProperty(properties, "id") ?? "durableAgent" }, group);
+          return this.#connect(stage.id);
+        }
+        if (name === "start") {
+          const child = this.#node({ kind: "step", label: "Start child workflow", step: "start" }, group);
+          return this.#connect(child.id);
+        }
         if (name && this.helpers.has(name)) return this.#inlineHelper(name, current, group);
         if (name && WAIT_CALLS[name]) {
           const wait = this.#node({ kind: "wait", label: waitLabel(name, current, this.file) }, group);
@@ -477,12 +490,39 @@ function stepCalls(node: ts.Node, steps: Map<string, StepInfo>): ts.CallExpressi
   const visit = (current: ts.Node) => {
     if (ts.isCallExpression(current)) {
       const name = calleeName(current);
-      if (name && steps.has(name)) calls.push(current);
+      if (name && (steps.has(name) || name === "durableAgent")) calls.push(current);
     }
     ts.forEachChild(current, visit);
   };
   visit(node);
   return calls;
+}
+
+/** Resolve committed literal definitions without executing authored modules. */
+function resolveLiteral(node: ts.Expression | undefined, file: ts.SourceFile, seen = new Set<string>()): ts.Expression | undefined {
+  if (!node) return undefined;
+  if (ts.isAsExpression(node) || ts.isSatisfiesExpression(node) || ts.isParenthesizedExpression(node)) {
+    return resolveLiteral(node.expression, file, seen);
+  }
+  if (ts.isIdentifier(node)) {
+    if (seen.has(node.text)) return undefined;
+    const visited = new Set([...seen, node.text]);
+    for (const statement of file.statements) {
+      if (!ts.isVariableStatement(statement)) continue;
+      for (const declaration of statement.declarationList.declarations) {
+        if (ts.isIdentifier(declaration.name) && declaration.name.text === node.text) {
+          return resolveLiteral(declaration.initializer, file, visited);
+        }
+      }
+    }
+    return undefined;
+  }
+  if (ts.isElementAccessExpression(node) && ts.isNumericLiteral(node.argumentExpression)) {
+    const array = resolveLiteral(node.expression, file, seen);
+    if (array && ts.isArrayLiteralExpression(array)) return resolveLiteral(array.elements[Number(node.argumentExpression.text)], file, seen);
+    return undefined;
+  }
+  return node;
 }
 
 /** A helper call counts as a step call, because the helper's body is drawn inline. */
@@ -497,7 +537,7 @@ function containsStep(
     if (found) return;
     if (ts.isCallExpression(current)) {
       const name = calleeName(current);
-      if (name && (steps.has(name) || name === "runRows" || WAIT_CALLS[name])) found = true;
+      if (name && (steps.has(name) || name === "runRows" || name === "durableAgent" || WAIT_CALLS[name])) found = true;
       const helper = name && !seen.has(name) ? helpers.get(name) : undefined;
       if (helper?.body && containsStep(helper.body, steps, helpers, new Set([...seen, name!]))) found = true;
     }

@@ -1,4 +1,4 @@
-// gtm-lib v16
+// gtm-lib v17
 import dagre from "@dagrejs/dagre";
 import type { DiagramNode, WorkflowGraph } from "./diagram";
 

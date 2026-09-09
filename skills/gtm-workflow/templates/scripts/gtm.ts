@@ -1,4 +1,4 @@
-// gtm-lib v16
+// gtm-lib v17
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -14,6 +14,8 @@ import { renderPng, renderSvg } from "../lib/diagram-svg";
 import { toAscii, toMermaid } from "../lib/diagram-text";
 import { layoutGraph } from "../lib/layout";
 import { redact, redactValue } from "../lib/redact";
+import { describeCapabilities } from "../lib/capabilities";
+import { validateAgentSchemas } from "../lib/agent-tools";
 import { diagramQuery } from "../lib/sign";
 
 type Flags = Record<string, string | boolean>;
@@ -119,6 +121,8 @@ async function run(args: string[]) {
     projectedCostUsd,
     maxSpendUsd,
     withinCaps,
+    ...(loaded.agents.length ? { agents: loaded.agents, capabilitiesHash: loaded.capabilitiesHash,
+      costIsEstimate: loaded.agents.some((agent: { costIsEstimate: boolean }) => agent.costIsEstimate) } : {}),
     ...(sourceRun ? { rowsFromRun: sourceRun, only: stringFlag(flags, "only") ?? "failed", inputFile: relative(root, inputPath) } : {}),
   };
   if (flags["dry-run"]) {
@@ -423,8 +427,17 @@ function validateWorkflowSource(file: string, source: string, exportName: string
   const path = relative(root, file);
   const tokens = compilerTokens(source);
   const functions = functionBodies(source, tokens);
+  if (/\bdurableAgent\s*\(/.test(source) && !/export\s+const\s+AGENTS\b/.test(source)) {
+    throw new AppError("agent_manifest", `${path} must export AGENTS with the committed definitions used by durableAgent`, 2);
+  }
   for (const fn of functions) {
     const { name, directive: directiveText, body: bodyText } = fn;
+    if (directiveText === "use step" && /\b(?:durableAgent|WorkflowAgent)\s*\(/.test(bodyText)) {
+      throw new AppError("agent_boundary", `${path} calls a durable agent inside a step; call durableAgent from workflow context`, 2);
+    }
+    if (directiveText === "use workflow" && /\bdurableAgent\s*\(/.test(bodyText) && !/export\s+const\s+AGENTS\b/.test(source)) {
+      throw new AppError("agent_manifest", `${path} must export AGENTS with the committed agent definitions for preview`, 2);
+    }
     if (directiveText === "use step" && /\b(?:provider|agent)\s*\(/.test(bodyText)) {
       const noRetry = new RegExp(`\\b${name}\\.maxRetries\\s*=\\s*0\\b`).test(source);
       const retryableOnly = /catch\s*\([^)]*\)\s*\{[\s\S]*RetryableError[\s\S]*throw/.test(
@@ -481,7 +494,9 @@ function validateWorkflowSource(file: string, source: string, exportName: string
     ) {
       rootIndex -= 2;
     }
-    if (tokens[rootIndex].text !== "z") {
+    const safeHookDefinition = tokens[rootIndex].text === "defineHook" &&
+      /import\s*\{[^}]*\bdefineHook\b[^}]*\}\s*from\s*["']workflow["']/.test(source);
+    if (tokens[rootIndex].text !== "z" && !safeHookDefinition) {
       throw new AppError(
         "invalid_module_scope",
         `${path} executes ${tokens[rootIndex].text} at module scope`,
@@ -612,6 +627,9 @@ function versionWarnings(packageJson: any): string[] {
   const expected = packageJson.gtm?.validatedAgainst ?? {};
   const actual = {
     workflow: packageJson.dependencies?.workflow,
+    ai: packageJson.dependencies?.ai,
+    workflowAgent: packageJson.dependencies?.["@ai-sdk/workflow"],
+    mcp: packageJson.dependencies?.["@ai-sdk/mcp"],
     nitro: packageJson.dependencies?.nitro,
     drizzleKit: packageJson.devDependencies?.["drizzle-kit"],
     node: process.versions.node.split(".")[0],
@@ -981,11 +999,18 @@ async function loadWorkflow(file: string, body: unknown) {
       throw new AppError("invalid_workflow", `${relative(root, file)} must export numeric ${name}`, 2);
     }
   }
+  const agents = describeCapabilities(loaded.AGENTS ?? []);
+  for (const definition of loaded.AGENTS ?? []) validateAgentSchemas(definition);
+  if (agents.some((agent) => agent.maxSpendUsd > loaded.MAX_SPEND_USD)) {
+    throw new AppError("agent_budget", "An agent definition exceeds the workflow MAX_SPEND_USD", 2);
+  }
   return {
     input: parsed.data,
     maxRows: Number(loaded.MAX_ROWS),
     costPerRowUsd: Number(loaded.COST_PER_ROW_USD),
     maxSpendUsd: Number(loaded.MAX_SPEND_USD),
+    agents,
+    capabilitiesHash: createHash("sha256").update(JSON.stringify(loaded.AGENTS ?? [])).digest("hex"),
   };
 }
 

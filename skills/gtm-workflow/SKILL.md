@@ -1,6 +1,6 @@
 ---
 name: gtm-workflow
-description: Triggers when a user wants to create, update, inspect, delete, run, approve, query, schedule, trigger, or deploy a saved GTM workflow in a GTM workspace, including typed result tables, paid provider or model calls, dry runs, checkpoints, authorized triggers, and hosted workflows. Not for creating or repairing the workspace itself, ICP or persona lifecycle work, other workflow engines, or one-off calls that are not saved as workflows.
+description: Triggers when a user asks for /gtm-workflows or wants to create, update, inspect, delete, run, approve, query, schedule, trigger, or deploy a saved GTM workflow, including ordinary steps, agent stages, selected skills and MCP tools, browsing, webhook intake, waits, parallel work, and workflow operations. Not for workspace setup, ICP or persona lifecycle work, or one-off calls that are not saved as workflows.
 ---
 
 # GTM workflow
@@ -11,7 +11,7 @@ Apply this Lifecycle SOP when a request creates, updates, inspects, deletes, run
 
 ## Scope
 
-Own the root `workflows/` Nitro project, its managed workflows, typed tables, migrations, paid-call cache and ledger, local or Vercel runtime, native inspection tools, and deployment metadata. `gtm-workspace`, `gtm-icp`, and `gtm-persona` own their respective lifecycles.
+Own the root `workflows/` project, its managed workflows, execution definitions, event sources, typed tables, migrations, paid-call cache and ledger, runtime, inspection tools, and deployment metadata. `gtm-workspace`, `gtm-icp`, and `gtm-persona` own their respective lifecycles.
 
 **Contract**
 
@@ -37,6 +37,8 @@ The agent owns authoring, validation, dry runs, checkpointed runs, scoped change
 | Condition | Action |
 | --- | --- |
 | No action is clear | Use the guided menu in [flows](references/flows.md) |
+| Create, update, or explain execution behavior | Apply [workflow composition](references/capabilities.md) to select ordinary, agent, or mixed stages and the supported native building blocks |
+| New-run event source or existing-run callback | Read [event sources](references/events.md) before selecting the trigger mechanism |
 | Create | Follow create in [flows](references/flows.md) |
 | Update | Follow update in [flows](references/flows.md) |
 | Inspect | Follow inspect in [flows](references/flows.md) |
@@ -57,12 +59,12 @@ Report a run still active after the bounded poll as still running by workflow na
 
 - Secrets never appear in prompts, tracked files, conversation, or command output; values move from `.env` through the shell only.
 - Before editing any workflow or managed library file, read the pinned runtime's bundled documentation under `workflows/node_modules/workflow/docs/`; assume prior SDK knowledge is outdated.
-- Run `gtm check` and compare every `// gtm-lib v16` header and recorded content hash before an action. Show locally modified diffs, offer a recopy, and never apply it silently.
-- Every step carries a plain-language label and every step call sits in the workflow body; gtm check fails otherwise and lists the fix.
+- Run `gtm check` and compare every `// gtm-lib v17` header and recorded content hash before an action. Show locally modified diffs, offer a recopy, and never apply it silently.
+- Every business stage carries a plain-language label. Managed agents appear as dynamic stages; their tool calls are inspected in native traces.
 - Copy the versioned lib, routes, scripts, and config verbatim and edit workflow-owned tables, adapters, migrations, and workflow files instead.
-- Route every paid vendor call through `provider()` and every model call through `agent()`.
+- Use `provider()` for classic paid calls, `agent()` for short model calls, and `durableAgent()` for durable tool loops; follow [composition](references/capabilities.md) for accounted custom adapters.
 - Use committed migrations. The project has no `db:push` command.
-- When `GTM_SANDBOX=1`, use Turso, the `api` model backend, host-approved tracked writes, and no exposed port or remote Git command. The sandbox authors, validates, dry-runs, and queries; it starts no real run. Real runs, approvals, and cancellations go through the host's trusted controls.
+- When `GTM_SANDBOX=1`, use the configured hosted database, the `api` model backend, host-approved tracked writes, and no exposed port or remote Git command. The sandbox authors, validates, dry-runs, and queries; it starts no real run. Real runs, approvals, and cancellations go through the host's trusted controls.
 - Save accepted tracked changes on `main` and close with `Saved.`; follow the shared interaction standard for every question, proposal, approval, and closing message, and keep commands, tool names, and run identifiers out of user-facing text.
 - For a hosted workflow, end the save proposal's workflow description with `Saving this also puts it live in production.`; do not add a second deploy gate or deploy token.
 - Never use `AskUserQuestion`.
@@ -70,4 +72,4 @@ Report a run still active after the bounded poll as still running by workflow na
 
 ## References
 
-Read [the contract](references/contract.md) for every action, [flows](references/flows.md) for create, update, inspect, delete, or run, [open](references/open.md) for open and local server work, [the shared interaction standard](../gtm-workspace/references/interaction.md) and [conversation](references/conversation.md) for visible messages, and [deploy](references/deploy.md) before Vercel changes. Read [providers](references/providers.md) before adapter work and [agents](references/agents.md) when configuring command permissions.
+Read [the contract](references/contract.md) for every action, [flows](references/flows.md) for create, update, inspect, delete, or run, [open](references/open.md) for open and local server work, [the shared interaction standard](../gtm-workspace/references/interaction.md) and [conversation](references/conversation.md) for visible messages, and [deploy](references/deploy.md) before hosting changes. Read [providers](references/providers.md) before adapter work and [agents](references/agents.md) when configuring command permissions.

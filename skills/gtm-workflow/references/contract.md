@@ -2,6 +2,8 @@
 
 Use this contract for every workflow action.
 
+For stage selection, agent tools/skills, native workflow composition, and extension requirements, read [workflow composition](capabilities.md). For permanent event intake and standing authorization, read [event sources](events.md).
+
 ## Workspace and ownership
 
 Resolve the workspace in this order: a repository named in the request, the connected repository, then canonical repositories under `~/.gtm/` whose root has `ORG.md`. If several remain, ask which one to use. If none exists, stop before writes and hand creation or connection to `gtm-workspace`.
@@ -17,7 +19,8 @@ workflows/
 ├── workflows/<owner-path>/<slug>.ts
 ├── db/tables/<table>.ts
 ├── providers/<provider>.ts
-├── lib/{schema,db-url,db,steps,provider,agent,approve,rows,redact,migration-ledger}.ts
+├── events/index.ts
+├── lib/  (versioned runtime, accounting, agents, events, and diagrams)
 ├── scripts/{gtm,migrate-cloud,verify-migrations}.ts
 └── server/api/{deployment,run,runs,runs/[runId]/{cancel,trigger},approve}/...
 ```
@@ -28,27 +31,31 @@ Ignore `node_modules/`, `.env*` except `.env.example`, `.vercel/`, `.well-known/
 
 ## Versioned files
 
-Every `lib/*.ts`, API route, page route under `server/routes`, managed script, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v16`. `package.json` carries `gtm.libVersion: 16`, SHA-256 entries under `gtm.libHashes`, and pinned versions under `gtm.validatedAgainst`. Run `gtm check` before every action: distinguish an old header from a locally modified hash, show the diff of a modified managed file before offering a recopy, and never overwrite it silently.
+Every `lib/*.ts`, API route, page route under `server/routes`, managed script, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v17`. `package.json` carries `gtm.libVersion: 17`, SHA-256 entries under `gtm.libHashes`, and pinned versions under `gtm.validatedAgainst`. Run `gtm check` before every action: distinguish an old header from a locally modified hash, show the diff of a modified managed file before offering a recopy, and never overwrite it silently.
 
 Follow the [runtime upgrade procedure](../../../docs/runtime-upgrade.md) before changing a validated pin.
 
-A v2 project has no fixed schema or migrations; offer a v16 re-scaffold through update, preserve ignored results, present the full diff, and migrate after acceptance. A v5 project lacks cancellation. A v6 project combines web research and structured answering incorrectly. A v8 project cannot preserve original provider responses and does not trust the ledger for totals. Offer the v16 recopy and its committed fixed-table migration.
+A v2 project has no fixed schema or migrations; offer a v17 re-scaffold through update, preserve ignored results, present the full diff, and migrate after acceptance. A v5 project lacks cancellation. A v6 project combines web research and structured answering incorrectly. A v8 project cannot preserve original provider responses and does not trust the ledger for totals. Offer the v17 recopy and its committed fixed-table migration.
 
-A v9 project lets cloud queries reuse the write credential and accepts data-changing CTEs. A v9 project cannot guarantee `tools: "none"` on every local model backend. A v9 cancellation closes the run row before the runtime confirms its in-flight step stopped. A v9 route can lose the SDK run id and reopen the duplicate guard while an orphan is live. A v9 model cache ignores accepted ICP and persona content. A v9 project can persist and return credentials embedded in errors. A v9 ledger starts after the paid call and cannot distinguish reported, fixed, and projected costs. A v9 command allowlist can preapprove real spend and mutation. A v9 approval route duplicates hook schema, uses an internal import, and leaves decided hooks reusable. <!-- TEMPORARY: waits on workflow@5.0.0: keep recovery disabled until restart cannot re-enqueue a pending paid step. --> A v9 local restart can recover and repeat a paid step before the documented zombie procedure runs. A v9 production route accepts starts that do not prove the workspace commit. Offer the v16 recopy through update, show every locally modified managed-file diff, and apply its committed migration with `db:migrate` and `db:verify`.
+A v9 project lets cloud queries reuse the write credential and accepts data-changing CTEs. A v9 project cannot guarantee `tools: "none"` on every local model backend. A v9 cancellation closes the run row before the runtime confirms its in-flight step stopped. A v9 route can lose the SDK run id and reopen the duplicate guard while an orphan is live. A v9 model cache ignores accepted ICP and persona content. A v9 project can persist and return credentials embedded in errors. A v9 ledger starts after the paid call and cannot distinguish reported, fixed, and projected costs. A v9 command allowlist can preapprove real spend and mutation. A v9 approval route duplicates hook schema, uses an internal import, and leaves decided hooks reusable. <!-- TEMPORARY: waits on workflow@5.0.0: keep recovery disabled until restart cannot re-enqueue a pending paid step. --> A v9 local restart can recover and repeat a paid step before the documented zombie procedure runs. A v9 production route accepts starts that do not prove the workspace commit. Offer the v17 recopy through update, show every locally modified managed-file diff, and apply its committed migration with `db:migrate` and `db:verify`.
 
-A v10 project lacks provider discovery, bounded operator polling, row and step ledger attribution, selective reruns, command-generated diagrams, and receipt summaries. Offer the v16 recopy and its committed ledger migration through update.
+A v10 project lacks provider discovery, bounded operator polling, row and step ledger attribution, selective reruns, command-generated diagrams, and receipt summaries. Offer the v17 recopy and its committed ledger migration through update.
 
-A v11 project's `gtm check` misreads template literals and regular expressions inside function bodies, so a workflow whose steps use `${...}` before the exported workflow fails with a false `invalid_export`. Offer the v16 recopy; no schema change is required.
+A v11 project's `gtm check` misreads template literals and regular expressions inside function bodies, so a workflow whose steps use `${...}` before the exported workflow fails with a false `invalid_export`. Offer the v17 recopy; no schema change is required.
 
-A v12 project's `gtm check` rejects every destructive migration, including one already accepted through the delete flow, so a project cannot keep an accepted drop and pass its own check. Offer the v16 recopy; no schema change is required.
+A v12 project's `gtm check` rejects every destructive migration, including one already accepted through the delete flow, so a project cannot keep an accepted drop and pass its own check. Offer the v17 recopy; no schema change is required.
 
-A v13 project has no workflow graph, no signed diagram page, no PNG rendering, no stage attributes, and its `gtm check` accepts unlabelled or hidden steps. Its workflows fail the v16 `diagram_rules` check until every step carries a label and every step call sits in the workflow body. Offer the v16 recopy through update, apply the listed fixes to each workflow in the same proposal, and confirm the shape with the ASCII diagram; no schema change is required.
+A v13 project has no workflow graph, no signed diagram page, no PNG rendering, no stage attributes, and its `gtm check` accepts unlabelled or hidden steps. Its workflows fail the v17 `diagram_rules` check until every step carries a label and every step call sits in the workflow body. Offer the v17 recopy through update, apply the listed fixes to each workflow in the same proposal, and confirm the shape with the ASCII diagram; no schema change is required.
 
-A v14 project cannot serve its diagram routes on Vercel, because the build inlines the CommonJS TypeScript parser into the ESM function bundle and every diagram request fails with `__filename is not defined`. A v14 project also cannot run remote read-only commands in the hosted sandbox, where no read-only token is present; its diagram cannot see inside a row helper, so it forces the helper into one opaque step; and it reads only a `Table:` header, so a workflow whose header says `Result table:` shows no table. Offer the v16 recopy through update; no schema change is required.
+A v14 project cannot serve its diagram routes on Vercel, because the build inlines the CommonJS TypeScript parser into the ESM function bundle and every diagram request fails with `__filename is not defined`. A v14 project also cannot run remote read-only commands in the hosted sandbox, where no read-only token is present; its diagram cannot see inside a row helper, so it forces the helper into one opaque step; and it reads only a `Table:` header, so a workflow whose header says `Result table:` shows no table. Offer the v17 recopy through update; no schema change is required.
 
-A v15 project passes the WASM-only `fontBuffers` option to the native PNG renderer, so deployed images lose their text. Offer the v16 recopy; no schema change is required.
+A v15 project passes the WASM-only `fontBuffers` option to the native PNG renderer, so deployed images lose their text. Offer the v17 recopy; no schema change is required.
 
-The v16 template pins runtime beta.46. It accepts the lazy hook-resume timing and ended-run behavior because approval state is checked in the database before every resume. The release also retains workflow VMs across attribute writes and safe boundaries with open hooks. The recovery, embedded data-directory, and engine-ceiling workarounds remain until stable 5.0.0 triggers the next review.
+The v17 template pins runtime beta.46. It accepts the lazy hook-resume timing and ended-run behavior because approval state is checked in the database before every resume. The release also retains workflow VMs across attribute writes and safe boundaries with open hooks. The recovery, embedded data-directory, and engine-ceiling workarounds remain until stable 5.0.0 triggers the next review.
+
+A v16 project lacks durable agent definitions, selected MCP/HTTP tools and committed skills, atomic agent-call reservations, capability previews, and permanent signed event intake. Recopy v17 through update and preserve existing workflow-owned files. Add the empty workflow-owned `events/index.ts` only when absent; never replace a configured registry. No schema migration is required. The added packages and their compatibility are recorded in [composition](capabilities.md#extension-boundary).
+
+The pinned WorkflowAgent's `timeout` option calls `AbortSignal.timeout()` in workflow context, which beta.46 rejects. The managed helper instead uses a durable `sleep()` and cancellation signal. The model/MCP fixtures cover the resulting workflow path. Recheck this behavior on the next WorkflowAgent upgrade; do not substitute a real timer in orchestration code.
 
 ## Workflow and table contract
 
@@ -121,11 +128,13 @@ When `VERCEL_GIT_COMMIT_SHA` exists, production POST starts require `x-gtm-works
 
 Scheduled starts persist the UTC `scheduled_for` date under a unique `(path, scheduled_for)` index, so a second delivery returns `already_ran_today` after or during the first run. Recover a missed day with reviewed `scheduledInput` and `--scheduled-for YYYY-MM-DD`; deduplicate downstream delivery by that date. Triggered row handlers skip a key whose `updated_at` is newer than the trigger event.
 
+Subdaily cron routes can opt into fixed UTC admission windows through `cadence-minutes`; see [event sources](events.md). Permanent signed intake stores an event identity in the same index so completed events remain deduplicated.
+
 The platform documentation states that retained run state lasts one day, seven days, or thirty days by plan; the database remains the durable record. A start body is practically limited by the platform's 4.5 MB function request cap. A run is limited to 25,000 events and 10,000 steps, with replay slowing beyond roughly 2,000 events, so split inputs above about 300 rows into child workflows by batch and attach the parent run id as an attribute.
 
 ## Paid calls
 
-Every paid vendor call goes through `provider()` and every model call through `agent()` inside an operator-named step. `runRows()` passes the current row key and step name into each paid call, and the ledger stores them as `row_key` and `step`. Before a cache-miss call, the library writes `pending`; afterward it atomically writes the cache and updates the ledger to `success`, `empty`, or `error`. Terminal reconciliation turns abandoned pending rows into `lost`. Cache hits cost zero, cache parse failures record `error`, and pre-call failures cost zero. `cost_source` distinguishes `reported`, `fixed`, and `projected`; totals include pending and lost fixed cost.
+Classic paid calls use `provider()` and short model calls use `agent()` inside an operator-named step. Durable agents and custom accounted adapters follow [the agent accounting contract](capabilities.md#limits-and-accounting). `runRows()` passes row and step identities into calls; the ledger stores them as `row_key` and `step`. Before a classic cache-miss call, the library writes `pending`; afterward it atomically writes the cache and updates the ledger to `success`, `empty`, or `error`. Terminal reconciliation turns abandoned pending rows into `lost`. Cache hits cost zero, cache parse failures record `error`, and pre-call failures cost zero. `cost_source` distinguishes `reported`, `fixed`, and `projected`; totals include pending and lost reservations.
 
 Adapter inputs are canonical and contain no credential. Pass accepted ICP and persona text to `agent({ context, contextId })`; both affect its cache key. For untrusted row or provider content, `claude` and `api` enforce `tools: "none"`; other local backends must fail before spawn unless the operator explicitly accepts `tools: "host-default"`. Paid steps set `maxRetries = 0`; bounded retries may rethrow only `RetryableError` after confirming the attempt was not billed. See [providers](providers.md).
 
@@ -137,15 +146,15 @@ Absent `TURSO_DATABASE_URL` selects `file:./data/gtm.db`; empty tokens mean abse
 
 | Rule | Required behavior |
 | --- | --- |
-| Business stages define the graph | Give each operator stage one named `"use step"` function. |
+| Business stages define the graph | Use a named ordinary step or a declared managed agent stage for each operator stage. |
 | Steps carry labels | Every `"use step"` function has a JSDoc comment whose first line is a 3 to 80 character plain-language label; it is the card text on every diagram. `gtm check`: `step_label_missing`. |
-| Steps stay visible | A step is called from the workflow body, through `lib/` helpers, or from a plain helper that the workflow body calls or passes as `rowStep`, which is drawn inline. A step called from inside another step, or from a callback the graph cannot follow, stays hidden and is forbidden. `gtm check`: `step_hidden_in_helper`, `step_unreachable`. |
+| Steps stay visible | Business steps are called from workflow context or a visible helper. Managed `durableAgent()` is a dynamic business stage whose inner model/tool steps are visible in native traces. Keep its loop outside a step. `gtm check`: `step_hidden_in_helper`, `step_unreachable`, `agent_boundary`. |
 | Paths are visible | A branch or loop that changes the path is an `if`, `for`, or `Promise.all` in the workflow body on step results, never a condition inside a step. A `//` comment on the line above names the decision or loop. |
 | Stages mark the timeline | The workflow calls `setAttributes({ stage })` at each stage; `runRows()` does this for row work. `gtm check`: `stage_attributes_missing`. |
 | Reachability controls bundles | Workflow and module-scope executable code use only the allowed workflow helpers and local steps. |
 | Rows have identity | Every result row has a stable `key`; reruns merge by it. |
 | Tables are declared | Schema changes use table files and committed migrations, never runtime DDL. |
-| Paid calls use one funnel | Use `provider()` and `agent()` only inside paid steps with retry policy. |
+| Paid calls are accounted | Use `provider()`/`agent()` inside paid steps, `durableAgent()` in workflow context, or an adapter using the reservation ledger. Each paid/effectful attempt has its own identity and retry policy. |
 | Row bookkeeping is centralized | Use `runRows()`; non-row workflows end with `updateRun()`. |
 | Scheduled delivery deduplicates | Use `scheduled_for`, never the SDK run id, as the delivery key. |
 

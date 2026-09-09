@@ -4,13 +4,13 @@ on:
   pull_request:
     paths:
       - "skills/gtm-workflow/**"
-      - "evals/gtm-workflow/scripts/test-templates.mjs"
+      - "evals/gtm-workflow/scripts/**"
       - ".github/workflows/gtm-workflow-templates.yml"
   push:
     branches: [main]
     paths:
       - "skills/gtm-workflow/**"
-      - "evals/gtm-workflow/scripts/test-templates.mjs"
+      - "evals/gtm-workflow/scripts/**"
       - ".github/workflows/gtm-workflow-templates.yml"
 
 permissions:

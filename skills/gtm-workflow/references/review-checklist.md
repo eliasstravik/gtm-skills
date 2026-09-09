@@ -4,6 +4,10 @@ Use this checklist when an operator asks to audit or review a workflow. Run `npm
 
 ## MUST FIX
 
+- Agent scope. A durable stage exports its actual committed definitions in `AGENTS`; its preview matches the model, tools, fixed arguments, skills, destinations, effects and limits that execute. Review with [composition](capabilities.md); `gtm check`: `agent_boundary`, `agent_manifest`.
+- Agent accounting. Every paid/effectful model or tool attempt uses the reservation ledger with a stable identity; parallel branches share one run limit. An estimated request cost is disclosed as estimated. Ambiguous attempts are inspected before a retry.
+- Event intake. Permanent sources verify signatures over raw bytes, validate/map input, keep permanent event identities, and have an accepted enable/disable and frequency/spend policy under [event sources](events.md). A per-run callback alone is not intake.
+
 - Caps before spend. The workflow must use the cap-before-spend behavior owned by [`runRows()`](contract.md#workflow-and-table-contract). `gtm check` reports `missing_terminal_bookkeeping` when a row workflow bypasses `runRows()` entirely.
 - Paid-step retries. Every step that calls `provider()` or `agent()` must set `maxRetries = 0`, except for the contract's confirmed-unbilled `RetryableError` path in [adapter error and retry behavior](providers.md#empty-error-and-retry-behavior). `gtm check`: `paid_step_retries`.
 - Save before checkpoint. A successful row must reach its table save before `runRows()` can open the checkpoint described in [the workflow contract](contract.md#workflow-and-table-contract). `gtm check` reports `missing_terminal_bookkeeping` when the workflow bypasses `runRows()`, but review the supplied `table.save` callback manually.
