@@ -1,4 +1,4 @@
-// gtm-lib v15
+// gtm-lib v16
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export type DiagramClaims = { path: string; run: string | null; exp: number };

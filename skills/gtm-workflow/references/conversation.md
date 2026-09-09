@@ -81,7 +81,7 @@ Runs: <embedded Workflows UI locally, or the Vercel Observability page or run de
 Data: <Drizzle Studio locally, or the Turso dashboard when hosted>
 ```
 
-Local links are `http://127.0.0.1:3000/gtm/diagram/<path>?…`, `http://127.0.0.1:3000/_workflow`, and the Studio URL printed by `npm run db:studio`. Hosted links are the production diagram link, `https://vercel.com/<team>/<project>/observability/workflows` from the recorded `gtm.vercel` values (or the run's stored run URL for one run), and the Turso dashboard `https://app.turso.tech/<org>/databases/<db>` derived from the `libsql://<db>-<org>.turso.io` database host; when derivation fails, link `https://app.turso.tech`. On a hosted surface label the second line `Runs (needs Vercel access):`. This block is the only place a host name may appear, per the [shared interaction standard](../../gtm-workspace/references/interaction.md#where-to-look-carve-out).
+Local links are `http://127.0.0.1:3000/gtm/diagram/<path>?…`, `http://127.0.0.1:3000/_workflow`, and the Studio URL printed by `npm run db:studio`. Hosted links are the production diagram link, `https://vercel.com/<team>/<project>/observability/workflows` from the recorded `gtm.vercel` values (or the run's stored run URL for one run), and the Turso dashboard `https://app.turso.tech/<org>/databases/<db>` derived from the `libsql://<db>-<org>.turso.io` database host; when derivation fails, link `https://app.turso.tech`. On a hosted surface label the second line `Runs:`. This block is the only place a host name may appear, per the [shared interaction standard](../../gtm-workspace/references/interaction.md#where-to-look-carve-out).
 
 ## Outcome reports
 

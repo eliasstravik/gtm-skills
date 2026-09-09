@@ -1,4 +1,4 @@
-// gtm-lib v15
+// gtm-lib v16
 export type DiagramPageInput = { path: string; label: string; search: string; origin: string };
 
 function escape(text: string): string {
