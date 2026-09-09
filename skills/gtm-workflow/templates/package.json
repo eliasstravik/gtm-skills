@@ -48,7 +48,7 @@
       "lib/approve.ts": "0dde0b1c5ea544881aed0d32b51d6340d7247b22a9b8f622bd67d5ad8a959be3",
       "lib/db-url.ts": "385ae8ac9d8a75d87022b36eca836a10f407b0504f00cb4b4fb917730258d819",
       "lib/db.ts": "06ace9b158dcc4b1f654f7f9c79fc9f271609b29f55b1415d782c85d7746784b",
-      "lib/diagram.ts": "7a1d5de6dcba26fb3f69992aae149c4b0a0963811fb3081b266f29131385c29b",
+      "lib/diagram.ts": "b0bb252bdfc288ab31bca329b356a82365c491a19ee7a58b3a07adab9eb159a5",
       "lib/migration-ledger.ts": "85c28d7e15772d18cf6746b0eb0f828c14a2db3b60e743898917b93ee7c86e68",
       "lib/provider.ts": "1a64b022b6b8f8c5d3c7eaf6e732ac44125c40e9e56732d6b7e2556291b7eacc",
       "lib/redact.ts": "a912c5bda438d156d7dace40464bd30c3bd4047eb614361315cb68f3edb91be0",

@@ -270,18 +270,43 @@ class GraphBuilder {
     this.#statement(node.statement, loop.id);
     const first = this.graph.nodes[firstIndex];
     if (first) {
-      for (const tail of this.#tails) this.graph.edges.push({ from: tail.id, to: first.id, label: "next", back: true });
+      // A loop whose body is itself just a single nested loop reaches here with the same
+      // node as both the tail and the first node of the body: never emit a from === to edge.
+      for (const tail of this.#tails) {
+        if (tail.id !== first.id) this.graph.edges.push({ from: tail.id, to: first.id, label: "next", back: true });
+      }
+    }
+    this.#dropIfEmpty(loop);
+  }
+
+  /**
+   * A loop that wraps only another loop (or other groups) contributes no node of its own to
+   * the diagram, so it is dropped; any group nested directly inside it is re-parented to the
+   * dropped group's own parent, so a chain of pass-through loops collapses to the one group
+   * that actually contains a node.
+   */
+  #dropIfEmpty(group: DiagramGroup) {
+    if (this.graph.nodes.some((node) => node.group === group.id)) return;
+    const index = this.graph.groups.indexOf(group);
+    if (index === -1) return;
+    this.graph.groups.splice(index, 1);
+    for (const child of this.graph.groups) {
+      if (child.parent !== group.id) continue;
+      if (group.parent === undefined) delete child.parent;
+      else child.parent = group.parent;
     }
   }
 
   #try(node: ts.TryStatement, group: string | undefined) {
+    const entryTails = this.#tails;
     const before = this.graph.nodes.length;
     this.#statements(node.tryBlock.statements, group);
     const tryTails = this.#tails;
-    const tried = this.graph.nodes.slice(before);
     if (node.catchClause && containsStep(node.catchClause.block, this.steps)) {
-      const last = tried.at(-1);
-      this.#tails = last ? [{ id: last.id, label: "on error" }] : tryTails;
+      // Every path out of the try block (all of them, not just the last node created) is a
+      // possible error source; fall back to the try's own entry when the block added no nodes.
+      const sources = this.graph.nodes.length > before ? tryTails : entryTails;
+      this.#tails = sources.map((tail) => ({ id: tail.id, label: "on error" }));
       this.#statements(node.catchClause.block.statements, group);
       this.#tails = [...tryTails, ...this.#tails];
     } else {
@@ -299,7 +324,8 @@ class GraphBuilder {
       const callback = argument.arguments[0];
       if (callback && (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback))) {
         branches = [callback.body];
-        label = `For each ${humanize(argument.expression.expression.getText(this.file)).toLowerCase()}, at the same time`;
+        const collection = lastIdentifierSegment(argument.expression.expression, this.file);
+        label = `For each ${humanize(collection).toLowerCase()}, at the same time`;
       }
     }
     if (branches.length === 0) return;
@@ -415,6 +441,13 @@ function isPromiseAll(call: ts.CallExpression): boolean {
 
 function isMapCall(node: ts.Node): node is ts.CallExpression & { expression: ts.PropertyAccessExpression } {
   return ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "map";
+}
+
+/** The last segment of a property path, so `arg.items` labels as "items", not "arg.items". */
+function lastIdentifierSegment(node: ts.Expression, file: ts.SourceFile): string {
+  if (ts.isPropertyAccessExpression(node)) return node.name.text;
+  if (ts.isIdentifier(node)) return node.text;
+  return node.getText(file);
 }
 
 function waitLabel(name: string, call: ts.CallExpression, file: ts.SourceFile): string {

@@ -57,6 +57,8 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
   await writeFile(join(directory, "workflows/held-proof.ts"), heldWorkflow);
   await writeFile(join(directory, "workflows/row-error-proof.ts"), rowErrorWorkflow);
   await writeFile(join(directory, "workflows/branching-proof.ts"), branchingWorkflow);
+  await writeFile(join(directory, "workflows/nested-loop-proof.ts"), nestedLoopWorkflow);
+  await writeFile(join(directory, "workflows/branching-try-proof.ts"), branchingTryWorkflow);
   await writeFile(join(directory, "vercel.json"), JSON.stringify({ crons: [{ path: "/api/run/scheduled-proof", schedule: "0 9 * * *" }] }));
 
   const fakeDirectory = join(directory, "fake-bin");
@@ -117,7 +119,7 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
   const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
   const checked = JSON.parse(lastJsonLine(check.stdout));
   assert.equal(checked.ok, true);
-  assert.equal(checked.workflows, 10);
+  assert.equal(checked.workflows, 12);
   assert.equal(checked.libVersion, 14);
   const providers = await gtm(directory, env, ["providers", "list", "organization", "--format", "json"]);
   assert.deepEqual(providers, [{
@@ -383,6 +385,31 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
     ["end", "Done", null, null, null],
   ]);
   assert.deepEqual(rowGraph.groups, [{ id: "g1", kind: "loop", label: "For each row" }]);
+
+  const nestedGraph = JSON.parse(
+    lastJsonLine((await command("npm", ["run", "gtm", "--", "diagram", "nested-loop-proof", "--format", "json"], { cwd: directory, env })).stdout),
+  );
+  const nestedLoopGroups = nestedGraph.groups.filter((groupItem) => groupItem.kind === "loop");
+  assert.equal(nestedLoopGroups.length, 1);
+  assert.ok(nestedGraph.edges.every((edge) => edge.from !== edge.to), "no edge should have from === to");
+  const nestedStep = nestedGraph.nodes.find((node) => node.kind === "step");
+  assert.equal(nestedStep.group, nestedLoopGroups[0].id);
+
+  const tryGraph = JSON.parse(
+    lastJsonLine((await command("npm", ["run", "gtm", "--", "diagram", "branching-try-proof", "--format", "json"], { cwd: directory, env })).stdout),
+  );
+  const handleKnownNode = tryGraph.nodes.find((node) => node.step === "handleKnown");
+  const handleUnknownNode = tryGraph.nodes.find((node) => node.step === "handleUnknown");
+  const recoverNode = tryGraph.nodes.find((node) => node.step === "recoverFromFailure");
+  assert.ok(
+    tryGraph.edges.some((edge) => edge.from === handleKnownNode.id && edge.to === recoverNode.id && edge.label === "on error"),
+    "handleKnown should have an on error edge to recoverFromFailure",
+  );
+  assert.ok(
+    tryGraph.edges.some((edge) => edge.from === handleUnknownNode.id && edge.to === recoverNode.id && edge.label === "on error"),
+    "handleUnknown should have an on error edge to recoverFromFailure",
+  );
+
   const runDiagram = await command("npm", ["run", "gtm", "--", "diagram", "local-proof", "--run", completed.runKey], { cwd: directory, env });
   assert.equal(runDiagram.stdout.slice(runDiagram.stdout.indexOf("flowchart")).trim(), [
     "flowchart TD",
@@ -1225,6 +1252,7 @@ const errorWorkflow = `/**
  * Providers: error-vendor lookup $0.02 per row
  */
 import { z } from "zod";
+import { setAttributes } from "workflow";
 import type { WorkflowMeta } from "../lib/approve";
 import { provider } from "../lib/provider";
 import { updateRun } from "../lib/steps";
@@ -1242,6 +1270,7 @@ failWithCredential.maxRetries = 0;
 export async function errorProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
   arg = input.parse(arg);
+  await setAttributes({ stage: "Fail with a credential in the error" });
   try { await failWithCredential(arg.key, meta); }
   catch (error) { await updateRun(meta.runKey, { status: "failed", error: String(error), failed_step: "failWithCredential", finished: true }); throw error; }
   await updateRun(meta.runKey, { status: "completed", completed: 1, failed: 0, finished: true });
@@ -1424,5 +1453,106 @@ export async function branchingProof(arg: Input, meta: WorkflowMeta) {
   }
   await updateRun(meta.runKey, { status: "completed", completed, failed: 0, cost_usd: 0, finished: true });
   return { completed };
+}
+`;
+
+const nestedLoopWorkflow = `/**
+ * Proves nested loops collapse to a single group with no self edges.
+ * Runs: on this computer
+ * Kind: on-demand
+ * Owner: Fixture | ICP: Fixture
+ * Providers: none
+ * Table: accounts | key: fixture account id
+ */
+import { setAttributes } from "workflow";
+import { z } from "zod";
+import { accounts } from "../db/tables/accounts";
+import type { WorkflowMeta } from "../lib/approve";
+import { upsertRows } from "../lib/db";
+import { updateRun } from "../lib/steps";
+
+export const input = z.object({ batches: z.array(z.array(z.object({ key: z.string() }))) });
+type Input = z.infer<typeof input>;
+export const MAX_ROWS = 25;
+export const MAX_SPEND_USD = 0;
+export const COST_PER_ROW_USD = 0;
+
+/** Record the row */
+async function recordRow(key: string) {
+  "use step";
+  await upsertRows(accounts, [{ key, score: 1, reason: "nested", updatedAt: Date.now() }]);
+}
+
+export async function nestedLoopProof(arg: Input, meta: WorkflowMeta) {
+  "use workflow";
+  arg = input.parse(arg);
+  await setAttributes({ stage: "Record the row" });
+  let completed = 0;
+  for (const batch of arg.batches) {
+    for (const row of batch) {
+      await recordRow(row.key);
+      completed += 1;
+    }
+  }
+  await updateRun(meta.runKey, { status: "completed", completed, failed: 0, cost_usd: 0, finished: true });
+  return { completed };
+}
+`;
+
+const branchingTryWorkflow = `/**
+ * Proves every try-block exit becomes an on-error source into the catch entry.
+ * Runs: on this computer
+ * Kind: on-demand
+ * Owner: Fixture | ICP: Fixture
+ * Providers: none
+ * Table: accounts | key: fixture account id
+ */
+import { setAttributes } from "workflow";
+import { z } from "zod";
+import { accounts } from "../db/tables/accounts";
+import type { WorkflowMeta } from "../lib/approve";
+import { upsertRows } from "../lib/db";
+import { updateRun } from "../lib/steps";
+
+export const input = z.object({ known: z.boolean() });
+type Input = z.infer<typeof input>;
+export const MAX_ROWS = 1;
+export const MAX_SPEND_USD = 0;
+export const COST_PER_ROW_USD = 0;
+
+/** Handle the known case */
+async function handleKnown() {
+  "use step";
+  await upsertRows(accounts, [{ key: "known", score: 1, reason: "known", updatedAt: Date.now() }]);
+}
+
+/** Handle the unknown case */
+async function handleUnknown() {
+  "use step";
+  await upsertRows(accounts, [{ key: "unknown", score: 0, reason: "unknown", updatedAt: Date.now() }]);
+}
+
+/** Recover from the failure */
+async function recoverFromFailure() {
+  "use step";
+  await upsertRows(accounts, [{ key: "recovered", score: 0, reason: "recovered", updatedAt: Date.now() }]);
+}
+
+export async function branchingTryProof(arg: Input, meta: WorkflowMeta) {
+  "use workflow";
+  arg = input.parse(arg);
+  await setAttributes({ stage: "Handle the known case" });
+  try {
+    // Is the case known?
+    if (arg.known) {
+      await handleKnown();
+    } else {
+      await handleUnknown();
+    }
+  } catch {
+    await recoverFromFailure();
+  }
+  await updateRun(meta.runKey, { status: "completed", completed: 1, failed: 0, cost_usd: 0, finished: true });
+  return { ok: true };
 }
 `;
