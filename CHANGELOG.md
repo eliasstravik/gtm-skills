@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3, 2026-09-09
+
+Workflow library generation 13, unchanged.
+
+- Prospect qualification renders the verdict first: labelled Verdict, Score, Confidence, Scored against, and Reasoning lines for one entity; one table per mode plus a reasoning line per entity for several. The agent still composes the reasoning and band before writing any visible line.
+
 ## 0.3.2, 2026-09-09
 
 Workflow library generation 13, unchanged.
