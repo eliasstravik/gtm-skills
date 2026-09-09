@@ -1,4 +1,4 @@
-// gtm-lib v13
+// gtm-lib v14
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -749,15 +749,17 @@ async function workflowFiles() {
 }
 
 async function headeredFiles() {
+  const routesDirectory = join(root, "server", "routes");
   const files = (await walk(join(root, "lib"), (file) => file.endsWith(".ts")))
     .concat(await walk(join(root, "server", "api"), (file) => file.endsWith(".ts")))
+    .concat(existsSync(routesDirectory) ? await walk(routesDirectory, (file) => file.endsWith(".ts")) : [])
     .concat([
-    join(root, "scripts", "gtm.ts"),
-    join(root, "scripts", "migrate-cloud.ts"),
-    join(root, "scripts", "verify-migrations.ts"),
-    join(root, "drizzle.config.ts"),
-    join(root, "nitro.config.ts"),
-  ]);
+      join(root, "scripts", "gtm.ts"),
+      join(root, "scripts", "migrate-cloud.ts"),
+      join(root, "scripts", "verify-migrations.ts"),
+      join(root, "drizzle.config.ts"),
+      join(root, "nitro.config.ts"),
+    ]);
   return files.sort();
 }
 

@@ -9,8 +9,8 @@ import { test } from "node:test";
 const repo = resolve(import.meta.dirname, "../../..");
 const templates = join(repo, "skills/gtm-workflow/templates");
 
-test("v13 templates pass the deterministic workflow contract", async (context) => {
-  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v13-"));
+test("v14 templates pass the deterministic workflow contract", async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-workflow-v14-"));
   let vendor;
   let server;
   let releaseSlowRequest;
@@ -117,7 +117,7 @@ test("v13 templates pass the deterministic workflow contract", async (context) =
   const checked = JSON.parse(lastJsonLine(check.stdout));
   assert.equal(checked.ok, true);
   assert.equal(checked.workflows, 9);
-  assert.equal(checked.libVersion, 13);
+  assert.equal(checked.libVersion, 14);
   const providers = await gtm(directory, env, ["providers", "list", "organization", "--format", "json"]);
   assert.deepEqual(providers, [{
     name: "mock-data",
@@ -820,7 +820,7 @@ async function assertCheckRules(directory, env) {
   await expectCheckViolation(migrationPath, (source) => `${source}\nALTER TABLE workflow_runs RENAME TO old_workflow_runs;\n`, "destructive_migration", directory, env);
   await expectCheckViolation(migrationPath, (source) => `${source}\n-- gtm: destructive accepted\nDROP TABLE IF EXISTS gtm_check_probe;\n`, "destructive_migration", directory, env);
   await expectCheckPasses(migrationPath, (source) => `-- gtm: destructive accepted\n${source}\nDROP TABLE IF EXISTS gtm_check_probe;\n`, directory, env);
-  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v13\n", "// gtm-lib v13\n\n"), "lib_modified", directory, env);
+  await expectCheckViolation(providerPath, (source) => source.replace("// gtm-lib v14\n", "// gtm-lib v14\n\n"), "lib_modified", directory, env);
 }
 
 async function assertDirtyProductionStartRefused(directory, env, inputFile, nitroPort) {
