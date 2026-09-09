@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.2, 2026-09-09
+
+Workflow library generation 19.
+
+- Read-only MCP tools can accept narrowly specified no-match responses with `recoverableErrorSchema`; unrecognized failures still stop without retries.
+- Failed MCP attempts preserve bounded, redacted provider diagnostics in the trace and ledger.
+- Authoring guidance covers no-match handling, endpoint bindings, and provider search limits. No schema migration is required.
+
 ## 0.5.1, 2026-09-09
 
 Workflow library generation 18.

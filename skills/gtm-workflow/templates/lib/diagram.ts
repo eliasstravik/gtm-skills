@@ -1,4 +1,4 @@
-// gtm-lib v18
+// gtm-lib v19
 import ts from "typescript-parser";
 
 export type DiagramStatus = "pending" | "active" | "done" | "failed";

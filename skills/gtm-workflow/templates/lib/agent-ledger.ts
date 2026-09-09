@@ -1,6 +1,7 @@
-// gtm-lib v18
+// gtm-lib v19
 import { createHash } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
+import { redact } from "./redact";
 import { getDb } from "./db";
 import { enrichmentRuns } from "./schema";
 import type { PaidCallMeta } from "./provider";
@@ -53,7 +54,7 @@ export async function reserveAgentCall(call: AgentCall): Promise<string> {
   return id;
 }
 
-export async function settleAgentCall(id: string, costUsd?: number, failed = false): Promise<void> {
+export async function settleAgentCall(id: string, costUsd?: number, failed = false, error?: string): Promise<void> {
   "use step";
   if (costUsd !== undefined && (!Number.isFinite(costUsd) || costUsd < 0)) {
     throw new Error("Invalid reported cost; reservation retained");
@@ -62,7 +63,7 @@ export async function settleAgentCall(id: string, costUsd?: number, failed = fal
   await db.update(enrichmentRuns).set({
     status: failed ? "error" : "success",
     ...(costUsd === undefined ? {} : { costUsd, costSource: "reported" as const }),
-    ...(failed ? { errorKind: "call" as const, error: "Agent operation failed; inspect runtime trace" } : {}),
+    ...(failed ? { errorKind: "call" as const, error: error ? redact(error) : "Agent operation failed; inspect runtime trace" } : {}),
   }).where(eq(enrichmentRuns.id, id));
 }
 

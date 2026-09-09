@@ -1,10 +1,10 @@
-// gtm-lib v18
+// gtm-lib v19
 import { createMCPClient } from "@ai-sdk/mcp";
 import Ajv from "ajv";
 import { agentDefinition, toolDefinition, type ToolDefinition } from "./capabilities";
 import { reserveAgentCall, settleAgentCall } from "./agent-ledger";
 import type { PaidCallMeta } from "./provider";
-import { redactedError } from "./redact";
+import { redact, redactedError } from "./redact";
 
 function validate(schema: Record<string, unknown>, value: unknown) {
   const validator = new Ajv({ strict: false, allErrors: true }).compile(schema);
@@ -18,6 +18,7 @@ export function validateAgentSchemas(definition: unknown): void {
   for (const tool of spec.tools) {
     ajv.compile(tool.inputSchema);
     ajv.compile(tool.outputSchema);
+    if (tool.recoverableErrorSchema) ajv.compile(tool.recoverableErrorSchema);
   }
 }
 
@@ -57,6 +58,22 @@ export function bindToolArguments(definition: ToolDefinition, input: unknown): R
   return bound;
 }
 
+/** MCP servers can encode an expected no-match as isError. Recovery is explicit and read-only. */
+function mcpErrorData(result: { structuredContent?: unknown; content: unknown }) {
+  if (result.structuredContent !== undefined) return result.structuredContent;
+  const content = result.content;
+  if (Array.isArray(content) && content.length === 1 && content[0]?.type === "text") {
+    try { return JSON.parse(content[0].text); } catch { /* Non-JSON errors remain fatal. */ }
+  }
+  return undefined;
+}
+
+function mcpErrorMessage(result: { structuredContent?: unknown; content: unknown }): string {
+  const text = Array.isArray(result.content)
+    ? result.content.filter((item) => item?.type === "text").map((item) => item.text).join("\n") : "";
+  return redact(`MCP tool reported an error: ${text || JSON.stringify(result.structuredContent) || "no details"}`);
+}
+
 /** A tool call is a durable step; clients and credential values never cross its boundary. */
 export async function executeAgentTool(
   definition: ToolDefinition, input: unknown, meta: PaidCallMeta,
@@ -79,6 +96,7 @@ export async function executeAgentTool(
     const timeout = AbortSignal.timeout(spec.timeoutMs);
     const signal = abortSignal ? AbortSignal.any([abortSignal, timeout]) : timeout;
     let value: unknown;
+    let recoveredError: string | undefined;
     if (spec.transport.kind === "mcp") {
       const client = await createMCPClient({
         maxRetries: 0,
@@ -89,7 +107,13 @@ export async function executeAgentTool(
       try {
         const result = await client.callTool({ name: spec.transport.tool, arguments: args,
           options: { timeout: spec.timeoutMs, signal } });
-        if (result.isError) throw new Error("MCP tool reported an error");
+        if (Buffer.byteLength(JSON.stringify(result)) > spec.maxOutputBytes) throw new Error("Tool output exceeds accepted size");
+        if (result.isError) {
+          const recoverable = spec.recoverableErrorSchema && new Ajv({ strict: false })
+            .compile(spec.recoverableErrorSchema)(mcpErrorData(result));
+          if (!recoverable) throw new Error(mcpErrorMessage(result));
+          recoveredError = mcpErrorMessage(result);
+        }
         value = result;
       } finally {
         await client.close();
@@ -123,10 +147,10 @@ export async function executeAgentTool(
     if (Buffer.byteLength(JSON.stringify(value)) > spec.maxOutputBytes) throw new Error("Tool output exceeds accepted size");
     value = sanitizeToolOutput(value);
     validate(spec.outputSchema, value);
-    await settleAgentCall(id);
+    await settleAgentCall(id, undefined, recoveredError !== undefined, recoveredError);
     return value;
   } catch (error) {
-    await settleAgentCall(id, undefined, true);
+    await settleAgentCall(id, undefined, true, redact(error));
     throw redactedError(error);
   }
 }

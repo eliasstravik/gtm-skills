@@ -1,4 +1,4 @@
-// gtm-lib v18
+// gtm-lib v19
 import { z } from "zod";
 
 const dollars = z.number().finite().nonnegative();
@@ -19,6 +19,8 @@ export const toolDefinition = z.object({
   description: z.string().min(3).max(2000),
   inputSchema: schema,
   outputSchema: schema,
+  /** Match decoded MCP error data that represents an expected read outcome. */
+  recoverableErrorSchema: schema.optional(),
   effect: z.enum(["read", "write"]),
   costUsd: dollars,
   costKind: z.enum(["upper-bound", "estimate"]),
@@ -31,7 +33,11 @@ export const toolDefinition = z.object({
   ]),
   /** Exact arguments enforced outside the model, e.g. Monid operation and Slack channel. */
   fixedArguments: z.record(z.string(), z.unknown()).default({}),
-}).strict();
+}).strict().superRefine((value, ctx) => {
+  if (value.recoverableErrorSchema && (value.effect !== "read" || value.transport.kind !== "mcp")) {
+    ctx.addIssue({ code: "custom", path: ["recoverableErrorSchema"], message: "Only read-only MCP tools may recover expected result errors" });
+  }
+});
 
 export const agentDefinition = z.object({
   id: name,
@@ -73,8 +79,9 @@ export function describeCapabilities(definitions: unknown) {
   return agents.map((agent) => ({
     id: agent.id, label: agent.label, revision: agent.revision, model: agent.model,
     skills: agent.skills.map(({ name, revision }) => ({ name, revision })),
-    tools: agent.tools.map(({ name, effect, costKind, costUsd, maxCalls, transport, fixedArguments }) => ({
+    tools: agent.tools.map(({ name, effect, costKind, costUsd, maxCalls, transport, fixedArguments, recoverableErrorSchema }) => ({
       name, effect, costKind, costUsd, maxCalls, destination: transport.url, fixedArguments,
+      ...(recoverableErrorSchema ? { recoverableErrorSchema } : {}),
     })),
     maxModelCalls: agent.maxModelCalls, maxToolCalls: agent.maxToolCalls,
     maxSpendUsd: agent.maxSpendUsd, timeoutMs: agent.timeoutMs,

@@ -1,4 +1,4 @@
-// gtm-lib v18
+// gtm-lib v19
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
