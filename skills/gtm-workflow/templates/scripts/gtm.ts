@@ -8,6 +8,7 @@ import { pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
 import { createScanner, LanguageVariant, SyntaxKind } from "typescript/unstable/ast";
 import { executeReadOnly } from "../lib/db";
+import { extractGraph } from "../lib/diagram";
 import { redact, redactValue } from "../lib/redact";
 
 type Flags = Record<string, string | boolean>;
@@ -270,17 +271,22 @@ async function diagram(args: string[]) {
   const slug = positionals[0];
   if (!slug) throw new AppError("invalid_workflow", "diagram requires <slug>", 2);
   const workflow = await findWorkflow(slug, stringFlag(flags, "url"));
-  const stages = stepNames(await readFile(workflow, "utf8"));
+  const source = await readFile(workflow, "utf8");
+  const format = stringFlag(flags, "format") ?? "mermaid";
+  if (format === "json") {
+    const { graph } = extractGraph(source, workflowPath(workflow));
+    return print(graph);
+  }
+  const stages = stepNames(source);
   const runKey = stringFlag(flags, "run");
   let overlay: DiagramOverlay | undefined;
   if (runKey) {
     await configureReadOnly(flags);
     overlay = await diagramOverlay(slug, runKey, stages);
   }
-  const format = stringFlag(flags, "format") ?? "mermaid";
   if (format === "mermaid") return process.stdout.write(`${mermaidDiagram(stages, overlay)}\n`);
   if (format === "ascii") return process.stdout.write(`${asciiDiagram(stages, overlay)}\n`);
-  throw new AppError("invalid_format", "format must be mermaid or ascii", 2);
+  throw new AppError("invalid_format", "format must be mermaid, ascii, or json", 2);
 }
 
 async function query(args: string[]) {

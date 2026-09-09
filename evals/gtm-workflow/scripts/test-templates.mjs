@@ -56,6 +56,7 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
   await writeFile(join(directory, "workflows/spend-proof.ts"), spendWorkflow);
   await writeFile(join(directory, "workflows/held-proof.ts"), heldWorkflow);
   await writeFile(join(directory, "workflows/row-error-proof.ts"), rowErrorWorkflow);
+  await writeFile(join(directory, "workflows/branching-proof.ts"), branchingWorkflow);
   await writeFile(join(directory, "vercel.json"), JSON.stringify({ crons: [{ path: "/api/run/scheduled-proof", schedule: "0 9 * * *" }] }));
 
   const fakeDirectory = join(directory, "fake-bin");
@@ -116,7 +117,7 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
   const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
   const checked = JSON.parse(lastJsonLine(check.stdout));
   assert.equal(checked.ok, true);
-  assert.equal(checked.workflows, 9);
+  assert.equal(checked.workflows, 10);
   assert.equal(checked.libVersion, 14);
   const providers = await gtm(directory, env, ["providers", "list", "organization", "--format", "json"]);
   assert.deepEqual(providers, [{
@@ -346,6 +347,42 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
     "  step0 --> step1",
     '  step1 -. "next row" .-> step0',
   ].join("\n"));
+  const jsonDiagram = await command("npm", ["run", "gtm", "--", "diagram", "branching-proof", "--format", "json"], { cwd: directory, env });
+  const graph = JSON.parse(lastJsonLine(jsonDiagram.stdout));
+  assert.deepEqual(graph.workflow, { path: "branching-proof", label: "Branching proof", runs: "on this computer", kind: "on-demand", table: "accounts" });
+  assert.deepEqual(graph.nodes.map((node) => [node.kind, node.label, node.group ?? null]), [
+    ["start", "Rows", null],
+    ["step", "Look up each domain", "g1"],
+    ["decision", "Is the domain known?", "g1"],
+    ["step", "Save the known account", "g1"],
+    ["step", "Record the unknown domain", "g1"],
+    ["step", "Note the failure", null],
+    ["step", "Record the unknown domain", null],
+    ["end", "Done", null],
+  ]);
+  assert.deepEqual(graph.groups, [{ id: "g1", kind: "loop", label: "Walk every supplied row" }]);
+  assert.deepEqual(graph.edges, [
+    { from: "n1", to: "n2" },
+    { from: "n2", to: "n3" },
+    { from: "n3", to: "n4", label: "yes" },
+    { from: "n3", to: "n5", label: "no" },
+    { from: "n4", to: "n2", label: "next", back: true },
+    { from: "n5", to: "n2", label: "next", back: true },
+    { from: "n4", to: "n6" },
+    { from: "n5", to: "n6" },
+    { from: "n6", to: "n7", label: "on error" },
+    { from: "n6", to: "n8" },
+    { from: "n7", to: "n8" },
+  ]);
+  const rowGraph = JSON.parse(lastJsonLine((await command("npm", ["run", "gtm", "--", "diagram", "local-proof", "--format", "json"], { cwd: directory, env })).stdout));
+  assert.deepEqual(rowGraph.nodes.map((node) => [node.kind, node.label, node.group ?? null, node.provider ?? null, node.unitCostUsd ?? null]), [
+    ["start", "Rows", null, null, null],
+    ["step", "Enrich the account", "g1", "mock-data", 0.02],
+    ["save", "Save the account", "g1", null, null],
+    ["wait", "Checkpoint", "g1", null, null],
+    ["end", "Done", null, null, null],
+  ]);
+  assert.deepEqual(rowGraph.groups, [{ id: "g1", kind: "loop", label: "For each row" }]);
   const runDiagram = await command("npm", ["run", "gtm", "--", "diagram", "local-proof", "--run", completed.runKey], { cwd: directory, env });
   assert.equal(runDiagram.stdout.slice(runDiagram.stdout.indexOf("flowchart")).trim(), [
     "flowchart TD",
@@ -999,6 +1036,7 @@ export const MAX_ROWS = 25;
 export const MAX_SPEND_USD = 5;
 export const COST_PER_ROW_USD = 0.1;
 
+/** Enrich the account */
 async function enrichAccount(row: Input["rows"][number], meta: WorkflowMeta, signal: AbortSignal) {
   "use step";
   const vendor = await provider({
@@ -1031,6 +1069,7 @@ async function enrichAccount(row: Input["rows"][number], meta: WorkflowMeta, sig
 }
 enrichAccount.maxRetries = 0;
 
+/** Save the account */
 async function saveAccount(row: Record<string, unknown>) {
   "use step";
   await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]);
@@ -1058,6 +1097,7 @@ const approvalWorkflow = `/**
  * Table: approval_effects | key: approval case
  */
 import { z } from "zod";
+import { setAttributes } from "workflow";
 import { approvalEffects } from "../db/tables/accounts";
 import { approve, type WorkflowMeta } from "../lib/approve";
 import { upsertRows } from "../lib/db";
@@ -1067,6 +1107,7 @@ type Input = z.infer<typeof input>;
 export const MAX_ROWS = 1;
 export const MAX_SPEND_USD = 0;
 export const COST_PER_ROW_USD = 0;
+/** Record the approval */
 async function recordApproval(key: string) {
   "use step";
   await upsertRows(approvalEffects, [{ key, updatedAt: Date.now() }]);
@@ -1074,6 +1115,7 @@ async function recordApproval(key: string) {
 export async function approvalProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
   arg = input.parse(arg);
+  await setAttributes({ stage: "Record the approval" });
   const decision = await approve({ stage: "outreach", summary: "Approve fixture side effect", meta, timeoutMs: arg.timeoutMs });
   if (decision.approved) await recordApproval(arg.case);
   await updateRun(meta.runKey, { status: decision.outcome === "approved" ? "completed" : decision.outcome === "timed_out" ? "timed_out" : "stopped", completed: decision.approved ? 1 : 0, failed: 0, cost_usd: 0, finished: true });
@@ -1090,6 +1132,7 @@ const scheduledWorkflow = `/**
  * Providers: none
  */
 import { z } from "zod";
+import { setAttributes } from "workflow";
 import { approve, type WorkflowMeta } from "../lib/approve";
 import { updateRun } from "../lib/steps";
 export const input = z.object({ date: z.string() });
@@ -1102,6 +1145,7 @@ export async function scheduledProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
   arg ??= scheduledInput;
   arg = input.parse(arg);
+  await setAttributes({ stage: "Hold the scheduled run" });
   const decision = await approve({ stage: "scheduled", summary: "Hold scheduled fixture", meta });
   await updateRun(meta.runKey, { status: decision.approved ? "completed" : "stopped", completed: decision.approved ? 1 : 0, failed: 0, cost_usd: 0, finished: true });
   return arg;
@@ -1116,6 +1160,7 @@ const triggerWorkflow = `/**
  * Providers: none
  */
 import { z } from "zod";
+import { setAttributes } from "workflow";
 import { waitForTrigger, type WorkflowMeta } from "../lib/approve";
 import { updateRun } from "../lib/steps";
 export const input = z.object({ event: z.string() });
@@ -1127,6 +1172,7 @@ export const COST_PER_ROW_USD = 0;
 export async function triggerProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
   arg = input.parse(arg);
+  await setAttributes({ stage: "Wait for the authorized trigger" });
   payload.parse(await waitForTrigger(meta));
   await updateRun(meta.runKey, { status: "completed", completed: 1, failed: 0, cost_usd: 0, finished: true });
   return arg;
@@ -1152,6 +1198,7 @@ type Input = z.infer<typeof input>;
 export const MAX_ROWS = 1;
 export const MAX_SPEND_USD = 1;
 export const COST_PER_ROW_USD = 0.02;
+/** Look up the domain slowly */
 async function slowLookup(row: Input["rows"][number], meta: WorkflowMeta) {
   "use step";
   const result = await provider({
@@ -1161,6 +1208,7 @@ async function slowLookup(row: Input["rows"][number], meta: WorkflowMeta) {
   return { key: row.key, value: { company: result.value.company, score: 1, reason: "slow" } };
 }
 slowLookup.maxRetries = 0;
+/** Save the slow account */
 async function saveSlow(row: Record<string, unknown>) { "use step"; await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]); }
 export async function slowProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
@@ -1185,6 +1233,7 @@ type Input = z.infer<typeof input>;
 export const MAX_ROWS = 1;
 export const MAX_SPEND_USD = 1;
 export const COST_PER_ROW_USD = 0.02;
+/** Fail with a credential in the error */
 async function failWithCredential(_key: string, meta: WorkflowMeta) {
   "use step";
   return provider({ name: "error-vendor", endpoint: "lookup", input: {}, schema: z.object({ ok: z.boolean() }), ttlMs: 1000, costUsd: 0.02, call: async () => { throw new Error("request failed https://vendor.invalid/path?api_key=" + process.env.FIXTURE_API_TOKEN); }, meta });
@@ -1218,12 +1267,14 @@ type Input = z.infer<typeof input>;
 export const MAX_ROWS = 5;
 export const MAX_SPEND_USD = 0.05;
 export const COST_PER_ROW_USD = 0.01;
+/** Look up the domain against the spend cap */
 async function spendLookup(row: Input["rows"][number], meta: WorkflowMeta) {
   "use step";
   const result = await provider({ name: "mock-data", endpoint: "spend-lookup", input: { domain: row.domain }, schema: z.object({ company: z.string() }), ttlMs: 1000, costUsd: 0.03, call: async () => (await fetch(process.env.MOCK_VENDOR_URL + "?domain=" + encodeURIComponent(row.domain))).json(), meta });
   return { key: row.key, value: { company: result.value.company, score: 1, reason: "spend" } };
 }
 spendLookup.maxRetries = 0;
+/** Save the spend account */
 async function saveSpend(row: Record<string, unknown>) { "use step"; await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]); }
 export async function spendProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
@@ -1251,12 +1302,14 @@ type Input = z.infer<typeof input>;
 export const MAX_ROWS = 5;
 export const MAX_SPEND_USD = 1;
 export const COST_PER_ROW_USD = 0.01;
+/** Look up the account and hold on auth failure */
 async function heldLookup(row: Input["rows"][number], meta: WorkflowMeta) {
   "use step";
   const result = await provider({ name: "held-vendor", endpoint: "lookup", input: { key: row.key }, schema: z.object({ company: z.string() }), ttlMs: 1000, costUsd: 0.01, call: async () => { if (row.key === "held-1") throw new ProviderAuthError("credential rejected"); return { company: row.key }; }, meta });
   return { key: row.key, value: { company: result.value.company, score: 1, reason: "held" } };
 }
 heldLookup.maxRetries = 0;
+/** Save the held account */
 async function saveHeld(row: Record<string, unknown>) { "use step"; await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]); }
 export async function heldProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
@@ -1284,6 +1337,7 @@ type Input = z.infer<typeof input>;
 export const MAX_ROWS = 5;
 export const MAX_SPEND_USD = 1;
 export const COST_PER_ROW_USD = 0.01;
+/** Look up the row */
 async function lookupRow(row: Input["rows"][number], meta: WorkflowMeta) {
   "use step";
   const result = await provider({
@@ -1293,10 +1347,82 @@ async function lookupRow(row: Input["rows"][number], meta: WorkflowMeta) {
   return { key: row.key, value: { company: result.value.company, score: 1, reason: "row error proof" } };
 }
 lookupRow.maxRetries = 0;
+/** Save the row */
 async function saveRow(row: Record<string, unknown>) { "use step"; await upsertRows(accounts, [{ ...row, updatedAt: Date.now() }]); }
 export async function rowErrorProof(arg: Input, meta: WorkflowMeta) {
   "use workflow";
   arg = input.parse(arg);
   return runRows({ rows: arg.rows, meta, table: { name: "accounts", save: saveRow }, rowStep: lookupRow, caps: { maxRows: MAX_ROWS, maxSpendUsd: MAX_SPEND_USD, costPerRowUsd: COST_PER_ROW_USD } });
+}
+`;
+
+const branchingWorkflow = `/**
+ * Proves the diagram extractor on a loop with a branch and an error path.
+ * Runs: on this computer
+ * Kind: on-demand
+ * Owner: Fixture | ICP: Fixture
+ * Providers: none
+ * Table: accounts | key: fixture account id
+ */
+import { setAttributes } from "workflow";
+import { z } from "zod";
+import { accounts } from "../db/tables/accounts";
+import type { WorkflowMeta } from "../lib/approve";
+import { upsertRows } from "../lib/db";
+import { updateRun } from "../lib/steps";
+
+export const input = z.object({ rows: z.array(z.object({ key: z.string(), domain: z.string() })) });
+type Input = z.infer<typeof input>;
+export const MAX_ROWS = 25;
+export const MAX_SPEND_USD = 0;
+export const COST_PER_ROW_USD = 0;
+
+/** Look up each domain */
+async function lookupDomain(row: Input["rows"][number]) {
+  "use step";
+  return { key: row.key, known: row.domain.endsWith(".test") };
+}
+
+/** Save the known account */
+async function saveKnownAccount(key: string) {
+  "use step";
+  await upsertRows(accounts, [{ key, score: 1, reason: "known", updatedAt: Date.now() }]);
+}
+
+/** Record the unknown domain */
+async function recordUnknown(key: string) {
+  "use step";
+  await upsertRows(accounts, [{ key, score: 0, reason: "unknown", updatedAt: Date.now() }]);
+}
+
+/** Note the failure */
+async function noteFailure(key: string) {
+  "use step";
+  return key;
+}
+
+export async function branchingProof(arg: Input, meta: WorkflowMeta) {
+  "use workflow";
+  arg = input.parse(arg);
+  let completed = 0;
+  // Walk every supplied row
+  for (const row of arg.rows) {
+    await setAttributes({ stage: "Look up each domain", row: row.key });
+    const found = await lookupDomain(row);
+    // Is the domain known?
+    if (found.known) {
+      await saveKnownAccount(row.key);
+    } else {
+      await recordUnknown(row.key);
+    }
+    completed += 1;
+  }
+  try {
+    await noteFailure("none");
+  } catch {
+    await recordUnknown("failure");
+  }
+  await updateRun(meta.runKey, { status: "completed", completed, failed: 0, cost_usd: 0, finished: true });
+  return { completed };
 }
 `;
