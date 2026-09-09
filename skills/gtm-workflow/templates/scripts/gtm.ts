@@ -9,6 +9,8 @@ import { parseEnv } from "node:util";
 import { createScanner, LanguageVariant, SyntaxKind } from "typescript/unstable/ast";
 import { executeReadOnly } from "../lib/db";
 import { extractGraph, type DiagramFinding } from "../lib/diagram";
+import { overlayRun } from "../lib/diagram-overlay";
+import { toAscii, toMermaid } from "../lib/diagram-text";
 import { redact, redactValue } from "../lib/redact";
 
 type Flags = Record<string, string | boolean>;
@@ -22,9 +24,6 @@ type ProviderListRow = {
   fixture_covered: boolean;
   workflows: string[];
 };
-type DiagramStatus = "done" | "failed" | "active" | "pending";
-type DiagramOverlay = Map<string, { status: DiagramStatus; costUsd: number }>;
-
 class AppError extends Error {
   constructor(
     readonly code: string,
@@ -104,7 +103,9 @@ async function run(args: string[]) {
   const costPerRowUsd = loaded.costPerRowUsd;
   const maxSpendUsd = loaded.maxSpendUsd;
   const projectedCostUsd = rows * costPerRowUsd;
-  const stages = stepNames(source);
+  const stages = extractGraph(source, workflowPath(workflow)).graph.nodes
+    .filter((node) => node.kind === "step" || node.kind === "save")
+    .map((node) => node.label);
   const withinCaps = rows <= maxRows && projectedCostUsd <= maxSpendUsd;
   const dryRun = {
     workflow: slug,
@@ -272,20 +273,20 @@ async function diagram(args: string[]) {
   if (!slug) throw new AppError("invalid_workflow", "diagram requires <slug>", 2);
   const workflow = await findWorkflow(slug, stringFlag(flags, "url"));
   const source = await readFile(workflow, "utf8");
-  const format = stringFlag(flags, "format") ?? "mermaid";
-  if (format === "json") {
-    const { graph } = extractGraph(source, workflowPath(workflow));
-    return print(graph);
-  }
-  const stages = stepNames(source);
+  const { graph } = extractGraph(source, workflowPath(workflow));
   const runKey = stringFlag(flags, "run");
-  let overlay: DiagramOverlay | undefined;
   if (runKey) {
     await configureReadOnly(flags);
-    overlay = await diagramOverlay(slug, runKey, stages);
+    try {
+      await overlayRun(graph, runKey);
+    } catch (caught) {
+      throw new AppError("not_found", redact(caught), 6);
+    }
   }
-  if (format === "mermaid") return process.stdout.write(`${mermaidDiagram(stages, overlay)}\n`);
-  if (format === "ascii") return process.stdout.write(`${asciiDiagram(stages, overlay)}\n`);
+  const format = stringFlag(flags, "format") ?? "mermaid";
+  if (format === "json") return print(graph);
+  if (format === "mermaid") return process.stdout.write(`${toMermaid(graph)}\n`);
+  if (format === "ascii") return process.stdout.write(`${toAscii(graph)}\n`);
   throw new AppError("invalid_format", "format must be mermaid, ascii, or json", 2);
 }
 
@@ -907,79 +908,6 @@ function listHeader(source: string, name: string, fallback: RegExp) {
 function workflowImportsProvider(source: string, name: string) {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`from\\s+["'][^"']*\\/providers\\/${escaped}(?:\\.ts)?["']`).test(source);
-}
-
-function stepNames(source: string) {
-  return [...source.matchAll(/async function\s+([A-Za-z0-9_$]+)\s*\([^)]*\)\s*\{\s*["']use step["']/g)].map(
-    (match) => match[1],
-  );
-}
-
-async function diagramOverlay(slug: string, runKey: string, stages: string[]): Promise<DiagramOverlay> {
-  const run = (
-    await executeReadOnly(
-      `select run_key, workflow, status, failed_step from workflow_runs where run_key = ${sqlLiteral(runKey)} or run_id = ${sqlLiteral(runKey)} limit 1`,
-    )
-  )[0];
-  if (!run) throw new AppError("not_found", `Unknown run ${runKey}`, 6);
-  if (run.workflow !== slug) {
-    throw new AppError("workflow_mismatch", `Run ${runKey} belongs to ${String(run.workflow)}, not ${slug}`, 2);
-  }
-  const ledger = await executeReadOnly(
-    `select step, status, coalesce(sum(cost_usd), 0) as cost_usd from enrichment_runs where run_key = ${sqlLiteral(String(run.run_key))} and step is not null group by step, status order by step, status`,
-  );
-  const byStep = new Map<string, { statuses: Set<string>; costUsd: number }>();
-  for (const row of ledger) {
-    const name = String(row.step);
-    const current = byStep.get(name) ?? { statuses: new Set<string>(), costUsd: 0 };
-    current.statuses.add(String(row.status));
-    current.costUsd += Number(row.cost_usd ?? 0);
-    byStep.set(name, current);
-  }
-  const failedIndex = stages.indexOf(String(run.failed_step ?? ""));
-  const overlay: DiagramOverlay = new Map();
-  for (const [index, stage] of stages.entries()) {
-    const ledgerStep = byStep.get(stage);
-    let status: DiagramStatus = "pending";
-    if (ledgerStep?.statuses.has("error") || ledgerStep?.statuses.has("lost") || index === failedIndex) status = "failed";
-    else if (run.status === "completed") status = "done";
-    else if (ledgerStep?.statuses.has("pending")) status = "active";
-    else if (ledgerStep || failedIndex > index) status = "done";
-    else if (["running", "waiting", "cancelling"].includes(String(run.status)) && index === 0) status = "active";
-    overlay.set(stage, { status, costUsd: ledgerStep?.costUsd ?? -1 });
-  }
-  return overlay;
-}
-
-function mermaidDiagram(stages: string[], overlay?: DiagramOverlay) {
-  const lines = ["flowchart TD", '  rows["Rows"]'];
-  stages.forEach((stage, index) => lines.push(`  step${index}["${diagramLabel(stage, overlay)}"]`));
-  if (stages.length > 0) {
-    lines.push("  rows --> step0");
-    for (let index = 1; index < stages.length; index += 1) lines.push(`  step${index - 1} --> step${index}`);
-    lines.push(`  step${stages.length - 1} -. "next row" .-> step0`);
-  }
-  return lines.join("\n");
-}
-
-function asciiDiagram(stages: string[], overlay?: DiagramOverlay) {
-  const lines = ["Rows"];
-  for (const stage of stages) lines.push("  |", "  v", diagramLabel(stage, overlay));
-  if (stages.length > 0) lines.push(`  +-- next row --> ${humanize(stages[0])}`);
-  return lines.join("\n");
-}
-
-function diagramLabel(stage: string, overlay?: DiagramOverlay) {
-  const item = overlay?.get(stage);
-  const marker = item
-    ? { done: "[x]", failed: "[!]", active: "[~]", pending: "[ ]" }[item.status]
-    : "";
-  const cost = item && item.costUsd >= 0 ? ` ($${item.costUsd.toFixed(2)})` : "";
-  return `${marker ? `${marker} ` : ""}${humanize(stage)}${cost}`;
-}
-
-function humanize(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").toLowerCase();
 }
 
 function workflowPath(file: string) {

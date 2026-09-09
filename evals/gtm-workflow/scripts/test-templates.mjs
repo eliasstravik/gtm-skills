@@ -241,6 +241,7 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
   assert.equal(dry.rows, 20);
   assert.equal(dry.projectedCostUsd, 2);
   assert.equal(dry.withinCaps, true);
+  assert.deepEqual(dry.stages, ["Enrich the account", "Save the account"]);
   assert.equal(await ledgerCount(directory, env), 0);
 
   const paused = await gtm(directory, env, [
@@ -342,12 +343,18 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
   const plainDiagram = await command("npm", ["run", "gtm", "--", "diagram", "local-proof"], { cwd: directory, env });
   assert.equal(plainDiagram.stdout.slice(plainDiagram.stdout.indexOf("flowchart")).trim(), [
     "flowchart TD",
-    '  rows["Rows"]',
-    '  step0["enrich account"]',
-    '  step1["save account"]',
-    "  rows --> step0",
-    "  step0 --> step1",
-    '  step1 -. "next row" .-> step0',
+    '  n1(["Rows"])',
+    '  subgraph g1["For each row"]',
+    '    n2["Enrich the account"]',
+    '    n3[("Save the account")]',
+    '    n4{{"Checkpoint"}}',
+    "  end",
+    '  n5(["Done"])',
+    "  n1 --> n2",
+    "  n2 --> n3",
+    "  n3 --> n4",
+    '  n4 -. "next" .-> n2',
+    "  n4 --> n5",
   ].join("\n"));
   const jsonDiagram = await command("npm", ["run", "gtm", "--", "diagram", "branching-proof", "--format", "json"], { cwd: directory, env });
   const graph = JSON.parse(lastJsonLine(jsonDiagram.stdout));
@@ -413,12 +420,31 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
   const runDiagram = await command("npm", ["run", "gtm", "--", "diagram", "local-proof", "--run", completed.runKey], { cwd: directory, env });
   assert.equal(runDiagram.stdout.slice(runDiagram.stdout.indexOf("flowchart")).trim(), [
     "flowchart TD",
-    '  rows["Rows"]',
-    '  step0["[x] enrich account ($0.60)"]',
-    '  step1["[x] save account"]',
-    "  rows --> step0",
-    "  step0 --> step1",
-    '  step1 -. "next row" .-> step0',
+    '  n1(["Rows"])',
+    '  subgraph g1["For each row: 20 done, 0 failed"]',
+    '    n2["[x] Enrich the account ($0.60)"]',
+    '    n3[("[x] Save the account")]',
+    '    n4{{"[x] Checkpoint"}}',
+    "  end",
+    '  n5(["[x] Done"])',
+    "  n1 --> n2",
+    "  n2 --> n3",
+    "  n3 --> n4",
+    '  n4 -. "next" .-> n2',
+    "  n4 --> n5",
+  ].join("\n"));
+  const asciiDiagram = await command("npm", ["run", "gtm", "--", "diagram", "branching-proof", "--format", "ascii"], { cwd: directory, env });
+  assert.equal(asciiDiagram.stdout.slice(asciiDiagram.stdout.indexOf("Rows")).trim(), [
+    "Rows",
+    "[Walk every supplied row]",
+    "  Look up each domain",
+    "  <Is the domain known?>",
+    "    yes: Save the known account",
+    "    no: Record the unknown domain",
+    "  (next: Look up each domain)",
+    "Note the failure",
+    "  on error: Record the unknown domain",
+    "Done",
   ].join("\n"));
 
   const beforeCapCalls = vendorCalls;
