@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { createHmac } from "node:crypto";
 import { chmod, cp, mkdtemp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -460,6 +461,37 @@ test("v14 templates pass the deterministic workflow contract", async (context) =
   const png = await readFile(join(directory, pngPath));
   assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
   assert.ok(png.length > 5_000, `png is ${png.length} bytes`);
+
+  const webDiagram = JSON.parse(lastJsonLine((await command("npm", ["run", "gtm", "--", "diagram", "local-proof", "--run", completed.runKey, "--format", "web", "--no-open"], { cwd: directory, env })).stdout));
+  const webUrl = new URL(webDiagram.url);
+  assert.equal(webUrl.origin, env.GTM_BASE_URL);
+  assert.equal(webUrl.pathname, "/gtm/diagram/local-proof");
+  assert.equal(webUrl.searchParams.get("run"), completed.runKey);
+  assert.match(webDiagram.expiresAt, /^\d{4}-\d{2}-\d{2}T/);
+  const page = await fetch(webUrl);
+  assert.equal(page.status, 200);
+  assert.match(page.headers.get("content-type"), /text\/html/);
+  const html = await page.text();
+  assert.match(html, /<meta property="og:image" content="http:\/\/127\.0\.0\.1:\d+\/api\/diagram-image\/local-proof\?run=/);
+  assert.match(html, /esm\.sh\/@xyflow\/react@12\.11\.6/);
+  const jsonResponse = await fetch(`${env.GTM_BASE_URL}/api/diagram/local-proof${webUrl.search}`);
+  assert.equal(jsonResponse.status, 200);
+  const laidOut = await jsonResponse.json();
+  assert.equal(laidOut.run.runKey, completed.runKey);
+  assert.equal(laidOut.nodes[1].status, "done");
+  assert.ok(laidOut.positions.n2.width > 0 && laidOut.groupBounds.g1.height > 0);
+  const imageResponse = await fetch(`${env.GTM_BASE_URL}/api/diagram-image/local-proof${webUrl.search}`);
+  assert.equal(imageResponse.status, 200);
+  assert.equal(imageResponse.headers.get("content-type"), "image/png");
+  assert.equal((await fetch(`${env.GTM_BASE_URL}/api/diagram/local-proof`)).status, 401);
+  const tampered = new URL(webUrl);
+  tampered.searchParams.set("sig", "A".repeat(43));
+  assert.equal((await fetch(`${env.GTM_BASE_URL}/api/diagram/local-proof${tampered.search}`)).status, 401);
+  const expiredExp = Math.floor(Date.now() / 1000) - 60;
+  const expiredSig = createHmac("sha256", secret).update(`diagram|local-proof|-|${expiredExp}`).digest("base64url");
+  assert.equal((await fetch(`${env.GTM_BASE_URL}/api/diagram/local-proof?exp=${expiredExp}&sig=${expiredSig}`)).status, 401);
+  assert.equal((await fetch(`${env.GTM_BASE_URL}/api/diagram/no-such-workflow?exp=${expiredExp + 600}&sig=${createHmac("sha256", secret).update(`diagram|no-such-workflow|-|${expiredExp + 600}`).digest("base64url")}`)).status, 404);
+  assert.equal(createHmac("sha256", "run-secret").update("diagram|account-scoring|-|1800000000").digest("base64url"), "blMhCFDtQH3hzIQsBNiSMpttas2dGVMJq5qtqtW8NAM");
 
   const beforeCapCalls = vendorCalls;
   const capResponse = await httpJson(`${env.GTM_BASE_URL}/api/run/local-proof`, {

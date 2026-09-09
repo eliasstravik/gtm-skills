@@ -440,14 +440,29 @@ export function assertReadOnlyQuery(query: string): string {
   return trimmed;
 }
 
+/**
+ * Runs a SELECT the library itself composed. It leaves PRAGMA query_only alone, so a read served
+ * from the same process as a running workflow cannot make that workflow's writes fail.
+ */
+export async function executeSelect(query: string): Promise<Record<string, unknown>[]> {
+  const client = await getClient();
+  const result = await client.execute(assertReadOnlyQuery(query));
+  return result.rows.map((row) => ({ ...row }));
+}
+
 export async function executeReadOnly(query: string): Promise<Record<string, unknown>[]> {
   const statement = assertReadOnlyQuery(query);
   const client = await getClient();
-  if (getDatabaseConfig().dialect === "sqlite") {
-    await client.execute("PRAGMA query_only=1");
+  // The pragma sandboxes a caller-supplied statement, but it is per connection and the connection
+  // is shared, so it is always cleared again: a sticky query_only fails every later write.
+  const guarded = getDatabaseConfig().dialect === "sqlite";
+  if (guarded) await client.execute("PRAGMA query_only=1");
+  try {
+    const result = await client.execute(statement);
+    return result.rows.map((row) => ({ ...row }));
+  } finally {
+    if (guarded) await client.execute("PRAGMA query_only=0");
   }
-  const result = await client.execute(statement);
-  return result.rows.map((row) => ({ ...row }));
 }
 
 function maskSqlLiteralsAndComments(sqlText: string): string {

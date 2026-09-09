@@ -14,6 +14,7 @@ import { renderPng, renderSvg } from "../lib/diagram-svg";
 import { toAscii, toMermaid } from "../lib/diagram-text";
 import { layoutGraph } from "../lib/layout";
 import { redact, redactValue } from "../lib/redact";
+import { diagramQuery } from "../lib/sign";
 
 type Flags = Record<string, string | boolean>;
 type ProviderListRow = {
@@ -289,6 +290,23 @@ async function diagram(args: string[]) {
   if (format === "json") return print(graph);
   if (format === "mermaid") return process.stdout.write(`${toMermaid(graph)}\n`);
   if (format === "ascii") return process.stdout.write(`${toAscii(graph)}\n`);
+  if (format === "web") {
+    const origin = await resolveOrigin(workflow, flags);
+    const secret = process.env.GTM_RUN_SECRET;
+    if (!secret) throw new AppError("unauthorized", "GTM_RUN_SECRET is missing from .env", 3);
+    const hours = Number(stringFlag(flags, "expires") ?? 24);
+    if (!Number.isFinite(hours) || hours <= 0) throw new AppError("invalid_input", "--expires must be a positive number of hours", 2);
+    const exp = Math.floor(Date.now() / 1000) + Math.round(hours * 3600);
+    const claims = { path: workflowPath(workflow), run: graph.run?.runKey ?? null, exp };
+    const url = `${origin}/gtm/diagram/${claims.path}?${diagramQuery(claims, secret)}`;
+    if (!flags["no-open"]) {
+      spawn(process.platform === "darwin" ? "open" : "xdg-open", [url], { detached: true, stdio: "ignore" }).unref();
+    }
+    // The signed query is the capability itself and redact() strips query strings from URLs, so
+    // this payload is written directly. Both fields are built here, from the path and the clock.
+    process.stdout.write(`${JSON.stringify({ url, expiresAt: new Date(exp * 1000).toISOString() })}\n`);
+    return;
+  }
   if (format === "svg" || format === "png") {
     const svg = renderSvg(layoutGraph(graph));
     const directory = join(root, "data", "diagrams");

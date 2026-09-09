@@ -1,5 +1,5 @@
 // gtm-lib v14
-import { executeReadOnly } from "./db";
+import { executeSelect } from "./db";
 import type { DiagramStatus, WorkflowGraph } from "./diagram";
 
 const ACTIVE = new Set(["running", "waiting", "cancelling"]);
@@ -10,14 +10,14 @@ function literal(value: string): string {
 
 export async function overlayRun(graph: WorkflowGraph, runKey: string): Promise<WorkflowGraph> {
   const run = (
-    await executeReadOnly(
+    await executeSelect(
       `select run_key, workflow, status, failed_step, started_at, cost_usd, completed, failed from workflow_runs where run_key = ${literal(runKey)} or run_id = ${literal(runKey)} limit 1`,
     )
   )[0];
   if (!run) throw new Error(`Unknown run ${runKey}`);
   const slug = graph.workflow.path.split("/").at(-1);
   if (run.workflow !== slug) throw new Error(`Run ${runKey} belongs to ${String(run.workflow)}, not ${slug}`);
-  const ledger = await executeReadOnly(
+  const ledger = await executeSelect(
     `select step, status, coalesce(sum(cost_usd), 0) as cost_usd from enrichment_runs where run_key = ${literal(String(run.run_key))} and step is not null group by step, status order by step, status`,
   );
   const byStep = new Map<string, { statuses: Set<string>; costUsd: number }>();
