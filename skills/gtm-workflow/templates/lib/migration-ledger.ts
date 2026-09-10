@@ -1,4 +1,4 @@
-// gtm-lib v20
+// gtm-lib v21
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";

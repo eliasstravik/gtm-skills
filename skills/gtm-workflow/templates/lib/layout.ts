@@ -1,4 +1,4 @@
-// gtm-lib v20
+// gtm-lib v21
 import dagre from "@dagrejs/dagre";
 import type { DiagramNode, WorkflowGraph } from "./diagram";
 
@@ -28,7 +28,7 @@ export function layoutGraph(graph: WorkflowGraph): LaidOutGraph {
     if (group.parent) g.setParent(group.id, group.parent);
   }
   for (const node of graph.nodes) {
-    g.setNode(node.id, { ...SIZES[node.kind], label: node.label });
+    g.setNode(node.id, { ...SIZES[node.kind], ...(node.childWorkflow ? { height: 116 + Math.min(node.batches?.length ?? 0, 100) * 20, width: 310 } : {}), label: node.label });
     if (node.group) g.setParent(node.id, node.group);
   }
   graph.edges.forEach((edge, index) => {

@@ -1,7 +1,8 @@
-// gtm-lib v20
+// gtm-lib v21
 import { WorkflowAgent, Output } from "@ai-sdk/workflow";
 import { jsonSchema, stepCountIs, type ToolSet } from "ai";
-import { setAttributes, sleep } from "workflow";
+import { setAttributes } from "workflow";
+import { agentDeadlineHook, agentDeadlineToken, startAgentDeadline, finishAgentDeadline } from "./agent-deadline";
 import { agentDefinition, type AgentDefinition } from "./capabilities";
 import { reserveAgentCall, settleAgentCall } from "./agent-ledger";
 import { executeAgentTool, validateAgentResult } from "./agent-tools";
@@ -16,7 +17,7 @@ export async function durableAgent(
   spec.maxSpendUsd = Math.min(spec.maxSpendUsd, meta.maxSpendUsd ?? spec.maxSpendUsd);
   const stageMeta = { ...meta, step: spec.id };
   const controller = new AbortController();
-  await setAttributes({ stage: spec.label, agentRevision: spec.revision });
+  if ((meta.concurrency ?? 1) === 1) await setAttributes({ stage: spec.label, agentRevision: spec.revision });
   const tools: ToolSet = {};
   for (const selected of spec.tools) {
     tools[selected.name] = {
@@ -75,21 +76,26 @@ export async function durableAgent(
   const cancel = () => controller.abort("Agent cancelled");
   if (options.signal?.aborted) cancel();
   else options.signal?.addEventListener("abort", cancel, { once: true });
-  let finished = false;
-  void sleep(`${spec.timeoutMs}ms`).then(() => {
-    if (!finished) controller.abort("Agent deadline reached");
+  const deadline = agentDeadlineHook.create({ token: await agentDeadlineToken() });
+  let timerRunId: string | undefined;
+  const expired = deadline.then(() => {
+    controller.abort("Agent deadline reached");
+    throw new Error("Agent deadline reached");
   });
+  // Attach a rejection handler before starting the timer, including start failures.
+  void expired.catch(() => {});
   try {
-    const result = await agent.stream({
-      messages: [{ role: "user", content: JSON.stringify(input) }],
-      abortSignal: controller.signal,
-    });
+    timerRunId = await startAgentDeadline(spec.timeoutMs, deadline.token);
+    const result = await Promise.race([agent.stream({
+      messages: [{ role: "user", content: JSON.stringify(input) }], abortSignal: controller.signal,
+    }), expired]);
     if (controller.signal.aborted || result.error || result.finishReason === "error" || result.finishReason === "tool-calls") {
       throw new Error("Agent did not finish with a structured result; inspect the run trace");
     }
     return await validateAgentResult(spec.outputSchema, result.output);
   } finally {
-    finished = true;
+    await deadline.dispose();
+    if (timerRunId) await finishAgentDeadline(timerRunId);
     options.signal?.removeEventListener("abort", cancel);
   }
 }

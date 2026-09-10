@@ -1,4 +1,4 @@
-// gtm-lib v20
+// gtm-lib v21
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -9,6 +9,8 @@ import { parseEnv } from "node:util";
 import { createScanner, LanguageVariant, SyntaxKind } from "typescript/unstable/ast";
 import { executeReadOnly } from "../lib/db";
 import { extractGraph, type DiagramFinding } from "../lib/diagram";
+import { attachChildGraphs } from "../lib/diagram-children";
+import { executionShape } from "../lib/execution";
 import { overlayRun } from "../lib/diagram-overlay";
 import { renderPng, renderSvg } from "../lib/diagram-svg";
 import { toAscii, toMermaid } from "../lib/diagram-text";
@@ -108,13 +110,18 @@ async function run(args: string[]) {
   const costPerRowUsd = loaded.costPerRowUsd;
   const maxSpendUsd = loaded.maxSpendUsd;
   const projectedCostUsd = rows * costPerRowUsd;
+  const execution = executionShape(source);
+  if (execution.batch) execution.concurrency = executionShape(await readFile(join(root, "workflows", `${execution.batch.childWorkflow}.ts`), "utf8")).concurrency;
   const stages = extractGraph(source, workflowPath(workflow)).graph.nodes
     .filter((node) => node.kind === "step" || node.kind === "save")
     .map((node) => node.label);
-  const withinCaps = rows <= maxRows && projectedCostUsd <= maxSpendUsd;
+  const withinCaps = rows <= maxRows && projectedCostUsd <= maxSpendUsd && (!execution.batch || Math.ceil(rows / execution.batch.batchSize) <= 100);
+  if (execution.batch && flags.checkpoint !== undefined) throw new AppError("invalid_checkpoint", "Batch parents require a small-input review instead of a row checkpoint", 2);
   const dryRun = {
     workflow: slug,
     rows,
+    concurrency: execution.concurrency,
+    ...(execution.batch ? { batch: { ...execution.batch, count: Math.ceil(rows / execution.batch.batchSize) } } : {}),
     stages,
     maxRows,
     costPerRowUsd,
@@ -281,6 +288,7 @@ async function diagram(args: string[]) {
   const workflow = await findWorkflow(slug, stringFlag(flags, "url"));
   const source = await readFile(workflow, "utf8");
   const { graph } = extractGraph(source, workflowPath(workflow));
+  await attachChildGraphs(graph, (path) => readFile(join(root, "workflows", `${path}.ts`), "utf8"));
   const runKey = stringFlag(flags, "run");
   if (runKey) {
     await configureReadOnly(flags);
@@ -373,6 +381,16 @@ async function check() {
       throw new AppError("invalid_rows_input", `${relative(root, file)} rows input must include key`, 2);
     }
     validateWorkflowSource(file, source, expected);
+    const execution = executionShape(source);
+    if (execution.batch) {
+      const childFile = join(root, "workflows", `${execution.batch.childWorkflow}.ts`);
+      const childSource = await readFile(childFile, "utf8");
+      const child = executionShape(childSource);
+      const childTable = (headerValue(childSource, "Result table") ?? headerValue(childSource, "Table"))?.split("|")[0].trim();
+      if (child.batch || !/export\s+async\s+function\s+\w+[\s\S]*?["']use workflow["']/.test(childSource) || !/\brunRows\s*\(/.test(childSource) || childTable !== execution.batch.table) {
+        throw new AppError("invalid_child_workflow", "The child must export an ordinary runRows workflow using the parent's result table", 2);
+      }
+    }
     for (const finding of extractGraph(source, workflowPath(file)).findings) findings.push({ slug, finding });
   }
   if (findings.length > 0) {
@@ -462,10 +480,10 @@ function validateWorkflowSource(file: string, source: string, exportName: string
           2,
         );
       }
-      if (!/\brunRows\s*\(/.test(bodyText) && !/\bupdateRun\s*\(/.test(bodyText)) {
+      if (!/\b(?:runRows|runBatches)\s*\(/.test(bodyText) && !/\bupdateRun\s*\(/.test(bodyText)) {
         throw new AppError(
           "missing_terminal_bookkeeping",
-          `${path} must call runRows() or terminal updateRun()`,
+          `${path} must call runRows(), runBatches(), or terminal updateRun()`,
           2,
         );
       }
@@ -888,14 +906,14 @@ async function writeRowsFromRunInput(
   if (only === "all") {
     keys = body.rows.flatMap((row: any) => typeof row?.key === "string" ? [row.key] : []);
   } else if (only === "remaining") {
-    if (source.status !== "stopped") {
-      throw new AppError("invalid_source_run", "--only remaining requires a stopped source run", 2);
+    if (!["stopped", "cancelled", "timed_out", "failed"].includes(String(source.status))) {
+      throw new AppError("invalid_source_run", "--only remaining requires a terminal interrupted source run", 2);
     }
     keys = JSON.parse(String(source.remaining_keys ?? "[]"));
   } else {
     const status = only === "failed" ? "error" : "empty";
     const rows = await executeReadOnly(
-      `select distinct row_key from enrichment_runs where run_key = ${sqlLiteral(String(source.run_key))} and status = ${sqlLiteral(status)} and row_key is not null order by created_at, row_key`,
+      `select distinct row_key from enrichment_runs where ${runTreeSelection(String(source.run_key))} and status = ${sqlLiteral(status)} and row_key is not null order by created_at, row_key`,
     );
     keys = rows.map((row) => String(row.row_key));
   }
@@ -918,8 +936,12 @@ async function writeRowsFromRunInput(
 
 async function failedRunRows(runKey: string) {
   return executeReadOnly(
-    `select er.row_key as key, coalesce(er.step, wr.failed_step) as step, er.provider, er.endpoint, er.error from enrichment_runs er join workflow_runs wr on wr.run_key = er.run_key where er.run_key = ${sqlLiteral(runKey)} and er.status = 'error' order by er.created_at, er.id`,
+    `select er.row_key as key, coalesce(er.step, wr.failed_step) as step, er.provider, er.endpoint, er.error from enrichment_runs er join workflow_runs wr on wr.run_key = er.run_key where ${runTreeSelection(runKey, "er.")} and er.status = 'error' order by er.created_at, er.id`,
   );
+}
+
+function runTreeSelection(runKey: string, prefix = "") {
+  return `(${prefix}run_key = ${sqlLiteral(runKey)} or ${prefix}run_key in (select run_key from workflow_runs where parent_run_key = ${sqlLiteral(runKey)}))`;
 }
 
 async function configureReadOnly(flags: Flags) {
@@ -1002,8 +1024,14 @@ async function loadWorkflow(file: string, body: unknown) {
       throw new AppError("invalid_workflow", `${relative(root, file)} must export numeric ${name}`, 2);
     }
   }
-  const agents = describeCapabilities(loaded.AGENTS ?? []);
-  for (const definition of loaded.AGENTS ?? []) validateAgentSchemas(definition);
+  let definitions = loaded.AGENTS ?? [];
+  const shape = executionShape(await readFile(file, "utf8"));
+  if (shape.batch) {
+    const child = await import(pathToFileURL(join(root, "workflows", `${shape.batch.childWorkflow}.ts`)).href);
+    definitions = [...definitions, ...(child.AGENTS ?? [])];
+  }
+  const agents = describeCapabilities(definitions);
+  for (const definition of definitions) validateAgentSchemas(definition);
   if (agents.some((agent) => agent.maxSpendUsd > loaded.MAX_SPEND_USD)) {
     throw new AppError("agent_budget", "An agent definition exceeds the workflow MAX_SPEND_USD", 2);
   }
@@ -1013,7 +1041,7 @@ async function loadWorkflow(file: string, body: unknown) {
     costPerRowUsd: Number(loaded.COST_PER_ROW_USD),
     maxSpendUsd: Number(loaded.MAX_SPEND_USD),
     agents,
-    capabilitiesHash: createHash("sha256").update(JSON.stringify(loaded.AGENTS ?? [])).digest("hex"),
+    capabilitiesHash: createHash("sha256").update(JSON.stringify(definitions)).digest("hex"),
   };
 }
 
@@ -1085,8 +1113,12 @@ function runMarkdown(row: any) {
     `Cost: $${receipt.actual_cost_usd.toFixed(2)} actual${receipt.estimated_cost_usd === null ? "" : ` versus $${receipt.estimated_cost_usd.toFixed(2)} estimated`}; ${sources}; ${receipt.cache_hits} cache hits`,
   ];
   if (receipt.estimate_difference_reason) lines.push(`Difference: ${receipt.estimate_difference_reason}`);
+  if (row.result?.concurrency) lines.push(`Concurrency: ${row.result.concurrency} rows at a time`);
   if (row.stopReason ?? row.stop_reason) lines.push(`Stop reason: ${row.stopReason ?? row.stop_reason}`);
   if (row.waiting_reason) lines.push(`Waiting: ${row.waiting_reason}`);
+  if (row.children?.length) {
+    lines.push("", "Child batches", "", toMarkdown(row.children.map((child: any) => ({ run: child.runKey, status: child.status, completed: child.completed ?? 0, failed: child.failed ?? 0, cost: `$${Number(child.costUsd ?? 0).toFixed(2)}` }))));
+  }
   lines.push(`Next: \`${nextRunCommand(row)}\``);
   if (Array.isArray(row.failed_rows)) {
     lines.push("", "Failed calls", "", toMarkdown(row.failed_rows));

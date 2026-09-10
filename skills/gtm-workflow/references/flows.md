@@ -44,7 +44,7 @@ Bootstrap during the first create and keep the draft outside the repository unti
 ## Create
 
 1. Resolve workspace, owner, and kind. Read the owner's relevant ICP and persona files.
-2. Run `gtm check` before editing an existing project. Offer a v18 recopy when headers or content hashes differ; show the diff for every locally modified managed file first.
+2. Run `gtm check` before editing an existing project. Offer a current-generation recopy when headers or content hashes differ; show the diff for every locally modified managed file first.
 3. Resolve where it runs, offering `on this computer` or `hosted, in production`. For on-demand work, recommend this computer. For scheduled or triggered work, recommend hosted. In a sandbox, recommend hosted for every workflow because the sandbox never starts a real run. Explain that local scheduled work runs only when invoked and hosted model calls use the user's budgeted key. Ask this together with every other open decision in step 4 as one grouped message.
 4. Resolve the purpose, explicit input shape, stable row key, result columns, paid stages, adapter docs, caps, timing, approval stages, checkpoint, and external writes. Apply [workflow composition](capabilities.md) to choose fixed steps, an agent stage, or both. For agents, resolve selected skills/tools, argument scope, and cost uncertainty in this same proposal.
 5. When the workflow needs a provider, read [providers](providers.md) and run `npm run gtm -- providers list [keywords] --format json` before writing an adapter. Reuse a matching endpoint. List first before saying a capability is missing. Write a new adapter against the user's own credential only when no listed contract matches, then test it against fixtures.
@@ -61,8 +61,9 @@ Cancellation before step 11 writes no tracked bytes and no migration.
 ## Update
 
 1. Resolve the workflow and inspect its header, table, adapter, migrations, schedule, approvals, and deployment state.
-2. Compare every managed file with v18 by header and recorded hash. Show locally modified diffs and include any accepted recopy in the proposal.
+2. Compare every managed file by header and recorded hash against the current generation in the template `package.json` at `gtm.libVersion`. Show locally modified diffs and include any accepted recopy in the proposal.
 3. Agree the business change. A run-location switch is an update to the same workflow.
+   When a hosted run is waiting, state in the proposal that it finishes on the previous version and offer to cancel it first through the existing cancel gate.
 4. Change only the workflow, table, adapter, accepted ICP/persona context, environment names, cron entry, or deployment metadata required by the request. Reload context text so its changed content invalidates the model cache.
 5. New columns are nullable or defaulted. Use expand/contract for a rename: add, backfill, switch code, then drop after the old deployment is gone. Keep schedule headers, `scheduledInput`, and cron entries aligned.
 6. Run `gtm check`, `npm run build` including workflow initialization, and the dry run before the save proposal. On a keyboard, do not generate a migration yet; on a hosted surface, run `db:generate` in the scratch draft now so the request carries its SQL, journal, and snapshot.

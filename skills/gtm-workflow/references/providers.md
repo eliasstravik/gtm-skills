@@ -81,7 +81,9 @@ Never infer that a timeout was unbilled. Default to no retry.
 
 ## Rate and concurrency guidance
 
-Read the current endpoint documentation before writing the adapter. Keep concurrency below the documented account limit and preserve the provider's request identifier in a normal result field when it helps support. Use provider-supported idempotency keys for external writes. Derive them from stable workflow input and the run key only when the endpoint's contract permits it.
+Read the current endpoint documentation before writing the adapter. Keep concurrency below the documented account limit and preserve the provider's request identifier in a normal result field when it helps support. Use provider-supported idempotency keys for external writes.
+
+Inside a step, `getStepMetadata()` supplies `stepId` and `attempt` for per-attempt attribution. Where the endpoint permits it, derive an operation's idempotency key from the stable `stepId`; keep `attempt` in diagnostics, not in a key that must deduplicate retries. Distinguish multiple effects within one step with a stable operation key. Use stable business input and the run key when that matches the endpoint contract; use business identity alone when deduplication must span runs. Read the pinned `workflow/docs/api-reference/workflow/get-step-metadata.mdx` and `workflow/docs/foundations/idempotency.mdx` for identity and retry semantics.
 
 Do not create a generic rate-window table or lease. The workflow owns batching and concurrency, while the duplicate-run index prevents identical live runs.
 

@@ -21,7 +21,7 @@ permissions:
 jobs:
   templates:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,5 +33,6 @@ jobs:
         working-directory: skills/gtm-workflow/templates
       - run: node --test tests/workflow-runtime.test.mjs
       - run: node --test evals/gtm-workflow/scripts/test-migration-generation.mjs
-      - run: node --experimental-test-module-mocks --import ./skills/gtm-workflow/templates/node_modules/tsx/dist/loader.mjs --test tests/rows-lifecycle.test.mjs tests/agent-tools.test.mjs
+      - run: node --experimental-test-module-mocks --import ./skills/gtm-workflow/templates/node_modules/tsx/dist/loader.mjs --test tests/rows-lifecycle.test.mjs tests/agent-tools.test.mjs tests/execution-shape.test.mjs
+      - run: node --test tests/batch-runtime.test.mjs
       - run: node --test evals/gtm-workflow/scripts/test-templates.mjs

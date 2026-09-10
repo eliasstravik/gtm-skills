@@ -1,4 +1,4 @@
-// gtm-lib v20
+// gtm-lib v21
 export type DiagramPageInput = { path: string; label: string; search: string; origin: string };
 
 function escape(text: string): string {
@@ -31,6 +31,12 @@ export function diagramPage(input: DiagramPageInput): string {
   .card.start, .card.end { width: 140px; text-align: center; background: #f1f5f9; border-radius: 999px; padding: 8px 12px; }
   .card .label { font-weight: 600; font-size: 14px; }
   .card .sub { margin-top: 4px; font-size: 12px; color: #64748b; }
+  .card .child-toggle { pointer-events: auto; margin-top: 8px; padding: 0; border: 0; background: none; font: inherit; font-size: 12px; text-align: left; cursor: pointer; color: #1d4ed8; }
+  .child-panel { pointer-events: auto; position: fixed; margin: auto; width: min(760px, 85vw); max-height: 85vh; overflow: auto; padding: 20px; background: white; border: 1px solid #cbd5e1; border-radius: 12px; box-shadow: 0 12px 30px #0f172a22; }
+  .child-panel::backdrop { background: #0f172a66; }
+  .child-panel img { display: block; width: 100%; height: 68vh; object-fit: contain; }
+  .child-panel button { float: right; cursor: pointer; }
+  .batch-status { margin-top: 6px; font-size: 12px; }
   .group { border: 1.5px dashed #cbd5e1; border-radius: 16px; background: rgba(241, 245, 249, .6); }
   .group .title { position: absolute; top: 10px; left: 14px; font-size: 13px; font-weight: 600; color: #334155; }
 </style>
@@ -53,10 +59,18 @@ function subtitle(node) {
   return parts.join(" · ");
 }
 function Card({ data }) {
+  const childDialog = React.useRef(null);
   return h("div", { className: "card " + data.kind, style: { borderColor: data.status ? STATUS[data.status] : "#cbd5e1" } },
     h(Handle, { type: "target", position: Position.Top, style: { opacity: 0 } }),
     h("div", { className: "label" }, data.label),
     data.sub ? h("div", { className: "sub" }, data.sub) : null,
+    data.batches?.length ? h("div", { className: "batch-status" }, data.batches.map((batch, index) => h("div", { key: batch.runKey }, "Batch " + (index + 1) + ": " + batch.status + " · " + batch.completed + " done, " + batch.failed + " failed · $" + batch.costUsd.toFixed(2)))) : null,
+    data.childSvg ? h(React.Fragment, null,
+      h("button", { className: "child-toggle nodrag nowheel", onClick: () => childDialog.current.showModal() }, "▸ Child workflow: " + data.childGraph.workflow.label),
+      h("dialog", { ref: childDialog, className: "child-panel nodrag nowheel", "aria-label": data.childGraph.workflow.label + " workflow graph" },
+        h("button", { onClick: () => childDialog.current.close() }, "Close"),
+        h("strong", null, data.childGraph.workflow.label),
+        h("img", { src: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(data.childSvg), alt: data.childGraph.workflow.label + " workflow graph" }))) : null,
     h(Handle, { type: "source", position: Position.Bottom, style: { opacity: 0 } }));
 }
 function Group({ data }) {

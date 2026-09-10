@@ -1,7 +1,7 @@
-// gtm-lib v20
+// gtm-lib v21
 import { and, eq, or, sql } from "drizzle-orm";
 import { getWorkflowMetadata } from "workflow";
-import { getDb, getRunLedgerSummary, updateRunPlain } from "./db";
+import { cancelRunTree, getDb, getRunRow, getRunLedgerSummary, notifyBatchParent, runLedgerCondition, updateRunPlain } from "./db";
 import { redact, redactValue } from "./redact";
 import { enrichmentRuns, type WorkflowStatus } from "./schema";
 
@@ -40,6 +40,14 @@ export async function registerWorkflowRun(runKey: string): Promise<void> {
     runId: metadata.workflowRunId,
     runUrl: metadata.url,
   });
+  const row = await getRunRow(runKey);
+  if (row?.parentRunKey) {
+    const parent = await getRunRow(row.parentRunKey);
+    if (!parent || parent.cancelRequestedAt !== null || parent.finishedAt !== null) {
+      await cancelRunTree(runKey, "parent_cancelled");
+      throw new Error("Parent is no longer active");
+    }
+  }
 }
 
 export async function recordWorkflowProgressAndStatus(
@@ -49,6 +57,10 @@ export async function recordWorkflowProgressAndStatus(
   "use step";
   const now = Date.now();
   const metadata = getWorkflowMetadata();
+  const current = await getRunRow(runKey);
+  if (current?.cancelRequestedAt !== null && current?.cancelRequestedAt !== undefined && patch.finished) {
+    patch = { ...patch, status: "cancelling", stop_reason: current.stopReason, finished: false };
+  }
   const safeApproval = patch.approval
     ? (redactValue(patch.approval) as ApprovalState)
     : patch.approval;
@@ -86,9 +98,22 @@ export async function recordWorkflowProgressAndStatus(
     ...(patch.failed_step !== undefined ? { failedStep: patch.failed_step } : {}),
     ...(patch.finished ? { finishedAt: now } : {}),
   });
+  if (patch.finished) {
+    const row = await getRunRow(runKey);
+    if (row) await notifyBatchParent(row);
+  }
 }
 
 export const updateRun = recordWorkflowProgressAndStatus;
+
+/** Record a completed row before cancellation can discard workflow memory. */
+export async function recordCompletedRow(runKey: string, key: string): Promise<void> {
+  "use step";
+  const db = await getDb();
+  await db.run(sql`UPDATE workflow_runs SET completed = coalesce(completed, 0) + 1,
+    remaining_keys = (SELECT json_group_array(value) FROM json_each(workflow_runs.remaining_keys) WHERE value <> ${key})
+    WHERE run_key = ${runKey} AND EXISTS (SELECT 1 FROM json_each(workflow_runs.remaining_keys) WHERE value = ${key})`);
+}
 
 export async function getActualRunCostUsd(runKey: string): Promise<number> {
   "use step";
@@ -99,7 +124,7 @@ export async function getActualRunCostUsd(runKey: string): Promise<number> {
         costUsd: sql<number>`coalesce(sum(${enrichmentRuns.costUsd}), 0)`,
       })
       .from(enrichmentRuns)
-      .where(eq(enrichmentRuns.runKey, runKey))
+      .where(runLedgerCondition(runKey))
   )[0];
   return Number(row?.costUsd ?? 0);
 }

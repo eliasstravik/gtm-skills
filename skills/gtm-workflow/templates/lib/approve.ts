@@ -1,4 +1,4 @@
-// gtm-lib v20
+// gtm-lib v21
 import { defineHook, sleep } from "workflow";
 import { z } from "zod";
 import {
@@ -19,6 +19,7 @@ export const triggerHook = defineHook({
 export const cancellationHook = defineHook({
   schema: z.object({ reason: z.string().nullable().default(null) }),
 });
+export const batchCompletionHook = defineHook({ schema: z.object({ runKey: z.string() }) });
 
 export type WorkflowMeta = {
   runKey: string;
@@ -28,6 +29,7 @@ export type WorkflowMeta = {
   rowKey?: string;
   step?: string;
   maxSpendUsd?: number;
+  concurrency?: number;
 };
 
 export type ApprovalResult = {
@@ -100,6 +102,7 @@ export async function checkpoint(
     projectedSpentUsd: number;
     projectedRemainingUsd: number;
     table: string;
+    concurrency?: number;
   },
 ): Promise<ApprovalResult> {
   if (meta.checkpoint === null) {
@@ -129,7 +132,7 @@ export async function checkpoint(
   return approve({
     stage: "checkpoint",
     meta,
-    summary: `${done} rows done, ${state.failed} failed; found ${receipt.success} of ${foundTotal} (${hitRate}%); estimate $${state.projectedSpentUsd.toFixed(2)} versus actual $${spentUsd.toFixed(2)}${difference}; cost sources ${sources}; $${state.projectedRemainingUsd.toFixed(2)} projected for the remaining rows; open ${state.table} in Studio`,
+    summary: `${done} rows done, ${state.failed} failed; ${state.concurrency ?? 1} rows at a time${done > meta.checkpoint ? `; checkpoint after ${meta.checkpoint} rows rounded up to ${done} at the batch boundary` : ""}; found ${receipt.success} of ${foundTotal} (${hitRate}%); estimate $${state.projectedSpentUsd.toFixed(2)} versus actual $${spentUsd.toFixed(2)}${difference}; cost sources ${sources}; $${state.projectedRemainingUsd.toFixed(2)} projected for the remaining rows; open ${state.table} in Studio`,
   });
 }
 

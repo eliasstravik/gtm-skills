@@ -1,4 +1,4 @@
-// gtm-lib v20
+// gtm-lib v21
 import { executeSelect } from "./db";
 import type { DiagramStatus, WorkflowGraph } from "./diagram";
 
@@ -32,6 +32,9 @@ export async function overlayRun(graph: WorkflowGraph, runKey: string): Promise<
     byStep.set(String(row.step), entry);
   }
   const runStatus = String(run.status);
+  const children = graph.nodes.some((node) => node.childWorkflow) ? await executeSelect(
+    `select run_key, status, completed, failed, cost_usd from workflow_runs where parent_run_key = ${literal(String(run.run_key))} order by run_key`,
+  ) : [];
   const failedStep = run.failed_step ? String(run.failed_step) : null;
   const stepOrder = graph.nodes.filter((node) => node.step).map((node) => node.step!);
   const failedIndex = failedStep ? stepOrder.indexOf(failedStep) : -1;
@@ -48,6 +51,12 @@ export async function overlayRun(graph: WorkflowGraph, runKey: string): Promise<
     else if (ACTIVE.has(runStatus) && node.kind === "step" && !reachedFailure && !entry) status = "active";
     if (node.step === failedStep) reachedFailure = true;
     node.status = status;
+    if (node.childWorkflow) {
+      node.batches = children.map((child) => ({ runKey: String(child.run_key), status: String(child.status), completed: Number(child.completed ?? 0), failed: Number(child.failed ?? 0), costUsd: Number(child.cost_usd ?? 0) }));
+      node.spentUsd = node.batches.reduce((sum, child) => sum + child.costUsd, 0);
+      if (children.some((child) => ACTIVE.has(String(child.status)))) node.status = "active";
+      else if (children.some((child) => ["failed", "cancelled", "timed_out", "stopped"].includes(String(child.status)))) node.status = "failed";
+    }
     if (entry && node.kind === "step") node.spentUsd = entry.costUsd;
   }
   for (const group of graph.groups) {

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0, 2026-09-10
+
+Workflow library generation 21.
+
+- Workflow guidance resolves recopy targets and managed headers from the template generation. The offline compatibility check catches stale numeric targets and runs with regression tests in CI.
+- Authoring recipes cover batch rows, scheduled scans, one long-lived run per entity, and fixed pipelines with durable agent stages. Update proposals explain deployment pinning for waiting runs.
+- A dated Eve reference distinguishes hosting-agent capabilities from workflow resources and routes source changes through the host's declared permissions. Provider guidance clarifies step identity for idempotency and permanent errors under default retries.
+- Row workflows gain bounded concurrency with shared paid-call admission, batch-boundary checkpoints, and independent row failures. Child batches share the parent budget, propagate cancellation and deadlines, and expose child status in receipts and diagrams.
+- Agent deadlines use isolated durable timers that finish with the stage; cleanup does not wake parallel workflow delays. A local mock-model fixture covers early completion, expiry, and parallel stages.
+- Existing projects need the managed recopy and the additive `parent_run_key` migration. Runtime dependency pins and the skill description are unchanged. Skill evaluations and description optimization are excluded.
+
 ## 0.5.3, 2026-09-10
 
 Workflow library generation 20.

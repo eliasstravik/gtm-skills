@@ -1,9 +1,9 @@
-// gtm-lib v20
+// gtm-lib v21
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export type DiagramClaims = { path: string; run: string | null; exp: number };
 
-const RUN_KEY = /^[0-9a-f]{32}$/;
+const RUN_KEY = /^[0-9a-f]{32}(?:-batch-\d{3})?$/;
 
 function canonical(claims: DiagramClaims): string {
   return `diagram|${claims.path}|${claims.run ?? "-"}|${claims.exp}`;

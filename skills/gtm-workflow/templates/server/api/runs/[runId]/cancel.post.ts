@@ -1,10 +1,7 @@
-// gtm-lib v20
+// gtm-lib v21
 import { defineEventHandler } from "nitro/h3";
-import { getRun } from "workflow/api";
-import { HookNotFoundError } from "workflow/errors";
 import { z } from "zod";
-import { cancellationHook } from "../../../../lib/approve";
-import { getRunRow, reconcileRun, updateRunPlain } from "../../../../lib/db";
+import { cancelRunTree, getRunRow, reconcileRun } from "../../../../lib/db";
 import { redactValue } from "../../../../lib/redact";
 
 const decision = z.object({
@@ -39,28 +36,7 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  await updateRunPlain(row.runKey, {
-    status: "cancelling",
-    stopReason: parsed.data.reason ?? "operator_cancelled",
-    cancelRequestedAt: Date.now(),
-  });
-  const resumeCancellation = cancellationHook
-    .resume(`${row.workflow}.${row.runKey}.cancel`, {
-      reason: parsed.data.reason,
-    })
-    .catch((caught) => {
-      if (!HookNotFoundError.is(caught)) throw caught;
-    });
-  let cancelRun: Promise<unknown> = Promise.resolve();
-  if (row.runId) {
-    const run = getRun(row.runId);
-    if (await run.exists) {
-      cancelRun = run.cancel(
-        parsed.data.reason === null ? undefined : { cancelReason: parsed.data.reason },
-      );
-    }
-  }
-  await Promise.all([resumeCancellation, cancelRun]);
+  await cancelRunTree(row.runKey, parsed.data.reason);
 
   const cancelled = (await getRunRow(row.runKey))!;
   return Response.json(redactValue({
