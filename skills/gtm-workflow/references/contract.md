@@ -4,6 +4,18 @@ Use this contract for every workflow action.
 
 For stage selection, agent tools/skills, native workflow composition, and extension requirements, read [workflow composition](capabilities.md). For permanent event intake and standing authorization, read [event sources](events.md).
 
+## Contents
+
+- [Workspace and ownership](#workspace-and-ownership)
+- [Project shape and state](#project-shape-and-state)
+- [Versioned files](#versioned-files)
+- [Workflow and table contract](#workflow-and-table-contract)
+- [Runtime and run identity](#runtime-and-run-identity)
+- [Paid calls](#paid-calls)
+- [Environment](#environment)
+- [House rules](#house-rules)
+- [Safety and persistence](#safety-and-persistence)
+
 ## Workspace and ownership
 
 Resolve the workspace in this order: a repository named in the request, the connected repository, then canonical repositories under `~/.gtm/` whose root has `ORG.md`. If several remain, ask which one to use. If none exists, stop before writes and hand creation or connection to `gtm-workspace`.
@@ -144,6 +156,10 @@ Classic paid calls use `provider()` and short model calls use `agent()` inside a
 
 Adapter inputs are canonical and contain no credential. Pass accepted ICP and persona text to `agent({ context, contextId })`; both affect its cache key. For untrusted row or provider content, `claude` and `api` enforce `tools: "none"`; other local backends must fail before spawn unless the operator explicitly accepts `tools: "host-default"`. Paid steps set `maxRetries = 0`; bounded retries may rethrow only `RetryableError` after confirming the attempt was not billed. See [providers](providers.md).
 
+Choose short model steps with `agent({ model: "provider/model", reasoning: "high", prompt, context, contextId, schema, meta })`. Call arguments override `GTM_WORKFLOW_MODEL`, then the deprecated generation-22 `GTM_AGENT_MODEL` alias, then exported `DEFAULT_WORKFLOW_MODEL`. High reasoning is the default for every API generation call. Model and reasoning changes invalidate the paid cache. Preview's `paidStages` lists model and per-row cost so the run proposal names each paid stage. Durable stages still declare their model in `AGENTS`.
+
+`gtm diagram <slug> --format json` works in a scratch draft without a deployment. The returned graph, managed `layoutGraph`, SVG renderer, and bundled font are sufficient for host-side PNG generation through `renderDiagramPng(graph)` in `lib/diagram-svg`. It reads the bundled font relative to that module, with no server or credential. See the [host contract](../../../docs/gtm-agent-requirements.md) for draft pictures, same-thread background deployment/run watches, deployed preflight, and human-only approval text.
+
 ## Environment
 
 Absent `TURSO_DATABASE_URL` selects `file:./data/gtm.db`; empty tokens mean absent. `.env.local` is forbidden because Nitro could point local runs at the cloud database while local commands use the file. `GTM_SANDBOX=1` requires a remote database and `GTM_AGENT_BACKEND=api`; the sandbox authors, validates, dry-runs, and queries with read-only authority but starts no real run.
@@ -153,9 +169,9 @@ Absent `TURSO_DATABASE_URL` selects `file:./data/gtm.db`; empty tokens mean abse
 | Rule | Required behavior |
 | --- | --- |
 | Business stages define the graph | Use a named ordinary step or a declared managed agent stage for each operator stage. |
-| Steps carry labels | Every `"use step"` function has a JSDoc comment whose first line is a 3 to 80 character plain-language label; it is the card text on every diagram. `gtm check`: `step_label_missing`. |
+| Steps carry labels | Every `"use step"` function has a JSDoc first line of 3 to 80 characters starting with a business action verb, such as Find, Score, or Save. `gtm check`: `step_label_missing`, `step_label_not_verb`. |
 | Steps stay visible | Business steps are called from workflow context or a visible helper. Managed `durableAgent()` is a dynamic business stage whose inner model/tool steps are visible in native traces. Keep its loop outside a step. `gtm check`: `step_hidden_in_helper`, `step_unreachable`, `agent_boundary`. |
-| Paths are visible | A branch or loop that changes the path is an `if`, `for`, or `Promise.all` in the workflow body on step results, never a condition inside a step. A `//` comment on the line above names the decision or loop. |
+| Paths are visible | A branch or loop that changes the path is an `if`, `for`, or `Promise.all` in workflow context. A `//` comment names the loop or asks a yes/no decision question ending in `?`. `gtm check`: `decision_label_not_question`. |
 | Stages mark the timeline | The workflow calls `setAttributes({ stage })` at each stage; `runRows()` does this for row work. `gtm check`: `stage_attributes_missing`. |
 | Reachability controls bundles | Workflow and module-scope executable code use only the allowed workflow helpers and local steps. |
 | Rows have identity | Every result row has a stable `key`; reruns merge by it. |
@@ -177,6 +193,10 @@ For `migration_snapshot_drift`, compare the last complete snapshot, applied SQL,
 On `migration_timeout` or an agent command timeout, tell the user what stopped. Recheck any effects before continuing. The migration helper leaves the original artifacts intact on a generator failure; a generic command can have partial effects. A `migration_busy` result requires checking the existing generator before removing its stale lock. If interruption left `.gtm-migration-*` recovery directories, inspect them before cleanup; never delete the sole surviving migration history.
 
 Run `gtm run --dry-run` before every real run. It imports the workflow without starting it, validates the exported Zod input, counts only parsed `rows`, and checks caps; it does not check table existence or credentials. Gate the real run with rows, stages, projected cost, caps, external writes, and checkpoint position.
+
+Before save, `gtm check` also executes row fixtures under [the fixture contract](providers.md#fixture-first-tests). Trusted hosted preview additionally calls bearer-protected `GET /api/preflight/<workflow>` on the accepted deployment to check adapter environment names, result tables, and declared free auth checks. It reports missing pieces and providers with no free auth check; it spends nothing. New draft tables and credentials stay pending until the accepted version can be checked. After `Live.`, propose a separate one-row smoke run with checkpoint 1 and its total cost and call list; batch parents use a one-row input without a checkpoint.
+
+A v21 project lacks per-call short model selection, fixture row checks, preflight, and draft rendering with the explanatory diagram fields. Recopy generation 22 through update, rename `GTM_AGENT_MODEL` to `GTM_WORKFLOW_MODEL`, preserve authored files and migration history, add adapter auth metadata and row fixtures, and fix any diagram label findings. No schema migration is required for this upgrade.
 
 Use committed migrations only. `gtm check` rejects orphan artifacts and flags `DELETE`, `UPDATE`, `RENAME`, `DROP`, and `CREATE TRIGGER` for explicit destructive review. A destructive migration passes `gtm check` only when its first line is `-- gtm: destructive accepted`, added after the separate destructive choice is accepted; the hosted save still declares it destructive in the approval request. Use expand/contract for renames: add a compatible column, backfill in a separately reviewed migration, switch code, and drop only after the old deployment is gone. State anything beyond additive `CREATE TABLE` or `ADD COLUMN` in words in the proposal, naming the table or column and the rows affected, and show its SQL on request; apply with `db:migrate`, and run `db:verify`; nothing migrates as a build side effect.
 

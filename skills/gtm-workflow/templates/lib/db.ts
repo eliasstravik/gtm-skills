@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import {
   createClient as createWebClient,
   type Client,
@@ -36,6 +36,7 @@ async function getClient(): Promise<Client> {
 }
 
 async function getRuntime(): Promise<Runtime> {
+  if (process.env.GTM_PROVIDER_MODE === "fixture") throw new Error("Fixture row checks cannot access the database");
   if (!runtimePromise) {
     runtimePromise = (async () => {
       const config = getDatabaseConfig();
@@ -66,6 +67,7 @@ async function getRuntime(): Promise<Runtime> {
 }
 
 export async function getDb(): Promise<Database> {
+  if (process.env.GTM_PROVIDER_MODE === "fixture") throw new Error("Fixture row checks cannot access the database");
   return (await getRuntime()).database;
 }
 

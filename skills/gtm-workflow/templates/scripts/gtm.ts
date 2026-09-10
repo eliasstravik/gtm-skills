@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -8,7 +8,7 @@ import { pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
 import { createScanner, LanguageVariant, SyntaxKind } from "typescript/unstable/ast";
 import { executeReadOnly } from "../lib/db";
-import { extractGraph, type DiagramFinding } from "../lib/diagram";
+import { extractGraph, rowStepNames, type DiagramFinding } from "../lib/diagram";
 import { attachChildGraphs } from "../lib/diagram-children";
 import { executionShape } from "../lib/execution";
 import { overlayRun } from "../lib/diagram-overlay";
@@ -96,16 +96,12 @@ async function run(args: string[]) {
       2,
     );
   }
-  if (kind === "scheduled" && flags.checkpoint !== undefined) {
-    throw new AppError(
-      "invalid_checkpoint",
-      "scheduled workflows do not accept --checkpoint",
-      2,
-    );
-  }
   const body = JSON.parse(await readFile(resolve(inputPath), "utf8"));
   const loaded = await loadWorkflow(workflow, body);
   const rows = Array.isArray(loaded.input?.rows) ? loaded.input.rows.length : 1;
+  if (kind === "scheduled" && flags.checkpoint !== undefined && !(Array.isArray(loaded.input?.rows) && rows === 1 && flags.checkpoint === "1")) {
+    throw new AppError("invalid_checkpoint", "Scheduled manual checkpoints are only allowed for a one-row smoke run with --checkpoint 1", 2);
+  }
   const maxRows = loaded.maxRows;
   const costPerRowUsd = loaded.costPerRowUsd;
   const maxSpendUsd = loaded.maxSpendUsd;
@@ -114,7 +110,9 @@ async function run(args: string[]) {
   if (execution.batch) execution.concurrency = executionShape(await readFile(join(root, "workflows", `${execution.batch.childWorkflow}.ts`), "utf8")).concurrency;
   const stages = extractGraph(source, workflowPath(workflow)).graph.nodes
     .filter((node) => node.kind === "step" || node.kind === "save")
-    .map((node) => node.label);
+    .map((node) => node.model ? `${node.label} (${node.model})` : node.label);
+  const paidStages = extractGraph(source, workflowPath(workflow)).graph.nodes
+    .filter((node) => node.provider).flatMap((node) => (node.paidCalls ?? [{ provider: node.provider, model: node.model, unitCostUsd: node.unitCostUsd }]).map((call) => ({ label: node.label, ...call })));
   const withinCaps = rows <= maxRows && projectedCostUsd <= maxSpendUsd && (!execution.batch || Math.ceil(rows / execution.batch.batchSize) <= 100);
   if (execution.batch && flags.checkpoint !== undefined) throw new AppError("invalid_checkpoint", "Batch parents require a small-input review instead of a row checkpoint", 2);
   const dryRun = {
@@ -123,6 +121,7 @@ async function run(args: string[]) {
     concurrency: execution.concurrency,
     ...(execution.batch ? { batch: { ...execution.batch, count: Math.ceil(rows / execution.batch.batchSize) } } : {}),
     stages,
+    paidStages,
     maxRows,
     costPerRowUsd,
     projectedCostUsd,
@@ -434,7 +433,29 @@ async function check() {
     }
   }
   const warnings = versionWarnings(packageJson);
-  print({ ok: true, workflows: workflows.length, libVersion: expectedVersion, warnings });
+  let fixtureRows = 0;
+  for (const file of workflows) {
+    const names = rowStepNames(await readFile(file, "utf8"));
+    if (!names.length) continue;
+    const fixtures = join("providers", "__fixtures__", "rows", `${workflowPath(file)}.json`);
+    const result = await new Promise<{ checked: number; warnings: string[] }>((resolveResult, reject) => {
+      const child = spawn(process.execPath, ["--experimental-permission", "--allow-fs-read=*", "--allow-worker", "--import", "tsx", join(root, "lib/fixture-worker.ts"), file, fixtures, JSON.stringify(names)], {
+        cwd: root, env: { PATH: process.env.PATH, GTM_PROVIDER_MODE: "fixture", GTM_AGENT_BACKEND: "api", NODE_NO_WARNINGS: "1", TSX_DISABLE_CACHE: "1",
+          ...(process.env.GTM_WORKFLOW_MODEL ? { GTM_WORKFLOW_MODEL: process.env.GTM_WORKFLOW_MODEL } : {}),
+          ...(process.env.GTM_AGENT_MODEL ? { GTM_AGENT_MODEL: process.env.GTM_AGENT_MODEL } : {}) },
+        stdio: ["ignore", "pipe", "pipe"], timeout: 15_000,
+      });
+      let out = "", err = "";
+      child.stdout.on("data", (data) => { out += data; }); child.stderr.on("data", (data) => { err += data; });
+      child.on("error", reject);
+      child.on("close", (code) => {
+        if (code !== 0) return reject(new AppError("fixture_failed", redact(err) || `Fixture worker exited ${code}`, 2));
+        try { resolveResult(JSON.parse(out)); } catch { reject(new AppError("fixture_failed", "Invalid fixture worker result", 2)); }
+      });
+    });
+    warnings.push(...result.warnings); fixtureRows += result.checked;
+  }
+  print({ ok: true, workflows: workflows.length, libVersion: expectedVersion, fixtureRows, warnings });
 }
 
 /** First line an explicitly accepted destructive migration must carry. */
@@ -652,11 +673,11 @@ function versionWarnings(packageJson: any): string[] {
     drizzleKit: packageJson.devDependencies?.["drizzle-kit"],
     node: process.versions.node.split(".")[0],
   };
-  return Object.entries(expected).flatMap(([name, version]) =>
+  return [...(process.env.GTM_AGENT_MODEL ? ["GTM_AGENT_MODEL is deprecated in generation 22; rename it to GTM_WORKFLOW_MODEL before generation 23."] : []), ...Object.entries(expected).flatMap(([name, version]) =>
     String(actual[name as keyof typeof actual]) === String(version)
       ? []
       : [`${name} validated against ${version}, installed ${actual[name as keyof typeof actual] ?? "missing"}`],
-  );
+  )];
 }
 
 async function validateMigrationArtifacts() {

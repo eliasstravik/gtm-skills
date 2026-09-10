@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 

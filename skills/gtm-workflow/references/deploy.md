@@ -40,7 +40,7 @@ Do not configure a Vercel deploy token in Eve. Do not give the sandbox Vercel CL
 
 ## Wait for the exact commit
 
-After the save tool returns the new commit SHA, production is not yet live; tell the user `It will be live in production in a few minutes; ask me to check.` A trusted workflow start control must:
+After the save tool returns the new commit SHA, say `Saved. I'll follow up here when it's live.` The host registers a background deployment watch for that SHA and the original Slack thread. It posts `Live.` on readiness or `Not live after 10 minutes. Nothing ran. I'll look into it.` on timeout before any start. Investigate what the sandbox can reproduce; the no-deploy-token boundary stays. Never ask the user to poll. A trusted workflow start control must:
 
 1. repeat the zero-spend dry run against that exact committed checkout;
 2. poll the bearer-protected `GET /api/deployment` route with Eve's short-lived OIDC identity until it returns that exact SHA;
@@ -51,7 +51,8 @@ The run route returns `409 deployment_not_ready` if production changed between t
 
 ## Verify
 
-1. Start the first real run with a checkpoint after three rows through the trusted start action, or use the CLI against the production URL after its exact commit is live.
+1. Call bearer-protected `GET /api/preflight/<workflow>` on the exact deployed version. It checks every environment name declared by the workflow's adapters, result-table existence, and each declared free authentication check. Adapter metadata must name the cheapest free auth check where one exists; no paid endpoint runs. Trusted preview says `credentials and table verified` on success or names each missing piece, and discloses providers whose free auth check is unavailable. A new table or new adapter cannot be verified against the old deployment: keep that pre-save result pending and recheck after the accepted version is live.
+2. After `Live.`, automatically propose a one-row real smoke run as a separate approval stating its total cost, every call, and external effects. Use the existing start action with checkpoint 1. Free checks run without asking; accepted calls in the same smoke plan never prompt again. Batch parents use a one-row input without a checkpoint. Then inspect the saved result before proposing the larger run.
 2. Query the first rows and inspect the run.
 3. Ask for checkpoint approval and resume the same run. The trusted control resolves the hook token internally and never returns it.
 4. Stop a live run with the trusted cancel action or `npm run gtm -- cancel <runKey> --wait 30`; it is approval-gated, polls through `cancelling`, and reports terminal `cancelled`.
@@ -61,7 +62,7 @@ The run route returns `409 deployment_not_ready` if production changed between t
 
 ## Live state
 
-`Not yet live.` means the accepted `main` commit exists but the production deployment endpoint does not yet report that SHA. `Live.` means the exact SHA is in production, its migration has applied, and verification reached the expected database and workflow state; answer with one of those two words when the user asks. A draft outside Git is neither saved nor live.
+`Not live yet.` means the accepted commit exists but production does not yet report that SHA. `Live.` means that exact version is deployed and its accepted tables are present; the separately approved smoke run follows. A draft outside Git is neither saved nor live. Register run watches that post checkpoint, completion, failure, or cancellation in the same originating thread.
 
 The platform documentation sets the lowest-plan function cap at 300 seconds; `agent()` defaults below it at 240 seconds. Retained execution is temporary, while `workflow_runs`, the paid ledger, and business tables are the durable record; see the contract for plan retention, request-body, event, step, and child-workflow batching limits.
 

@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cp, mkdir, mkdtemp, readFile, readdir, rename, rm } from "node:fs/promises";

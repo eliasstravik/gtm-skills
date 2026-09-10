@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import { WorkflowAgent, Output } from "@ai-sdk/workflow";
 import { jsonSchema, stepCountIs, type ToolSet } from "ai";
 import { setAttributes } from "workflow";

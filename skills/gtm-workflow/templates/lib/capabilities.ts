@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import { z } from "zod";
 
 const dollars = z.number().finite().nonnegative();

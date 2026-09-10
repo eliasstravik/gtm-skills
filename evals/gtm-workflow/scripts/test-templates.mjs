@@ -129,11 +129,13 @@ test("current templates pass the deterministic workflow contract", async (contex
   await command("npm", ["run", "db:migrate"], { cwd: directory, env });
   await command("npm", ["run", "db:generate"], { cwd: directory, env });
   await command("npm", ["run", "db:migrate"], { cwd: directory, env });
-  const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env });
+  const check = await command("npm", ["run", "gtm", "--", "check"], { cwd: directory, env: { ...env, GTM_AGENT_MODEL: "fixture/legacy" } });
   const checked = JSON.parse(lastJsonLine(check.stdout));
   assert.equal(checked.ok, true);
   assert.equal(checked.workflows, 14);
   assert.equal(checked.libVersion, libVersion);
+  assert.ok(checked.warnings.some((warning) => /GTM_AGENT_MODEL is deprecated/.test(warning)));
+  assert.ok(checked.warnings.some((warning) => /SHOULD FIX: Add providers\/__fixtures__\/rows\/local-proof.json/.test(warning)));
   await assertVercelFunctionsTraceParser(directory, env);
   const providers = await gtm(directory, env, ["providers", "list", "organization", "--format", "json"]);
   assert.deepEqual(providers, [{
@@ -230,6 +232,16 @@ test("current templates pass the deterministic workflow contract", async (contex
   });
   assert.equal(deployment.status, 200);
   assert.deepEqual(await deployment.json(), { head: deploymentHead });
+  const deniedPreflight = await fetch(`${env.GTM_BASE_URL}/api/preflight/local-proof`);
+  assert.equal(deniedPreflight.status, 401);
+  const preflight = await fetch(`${env.GTM_BASE_URL}/api/preflight/local-proof`, { headers: { authorization: `Bearer ${secret}` } });
+  assert.equal(preflight.status, 200);
+  const preflightResult = await preflight.json();
+  assert.equal(preflightResult.ok, true);
+  assert.equal(preflightResult.head, deploymentHead);
+  assert.deepEqual(preflightResult.missing, []);
+  assert.ok(preflightResult.auth.some((item) => item.provider === "mock-data" && item.status === "unavailable"));
+  assert.doesNotMatch(JSON.stringify(preflightResult), /fixture-gateway-key|credential-to-redact/);
   const missingHeadStart = await fetch(`${env.GTM_BASE_URL}/api/run/local-proof`, {
     method: "POST",
     headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
@@ -258,7 +270,7 @@ test("current templates pass the deterministic workflow contract", async (contex
   assert.equal(dry.rows, 20);
   assert.equal(dry.projectedCostUsd, 2);
   assert.equal(dry.withinCaps, true);
-  assert.deepEqual(dry.stages, ["Enrich the account", "Save the account"]);
+  assert.deepEqual(dry.stages, ["Enrich the account (CLI default)", "Save to accounts"]);
   assert.equal(await ledgerCount(directory, env), 0);
 
   const paused = await gtm(directory, env, [
@@ -366,9 +378,9 @@ test("current templates pass the deterministic workflow contract", async (contex
     "flowchart TD",
     '  n1(["Rows"])',
     '  subgraph g1["For each row"]',
-    '    n2["Enrich the account"]',
-    '    n3[("Save the account")]',
-    '    n4{{"Checkpoint"}}',
+    '    n2["1. Enrich the account · mock-data · $0.02 per row · model · CLI default · $0.08 per row"]',
+    '    n3[("2. Save to accounts")]',
+    '    n4{{"3. Checkpoint"}}',
     "  end",
     '  n5(["Done"])',
     "  n1 --> n2",
@@ -379,7 +391,7 @@ test("current templates pass the deterministic workflow contract", async (contex
   ].join("\n"));
   const jsonDiagram = await command("npm", ["run", "gtm", "--", "diagram", "branching-proof", "--format", "json"], { cwd: directory, env });
   const graph = JSON.parse(lastJsonLine(jsonDiagram.stdout));
-  assert.deepEqual(graph.workflow, { path: "branching-proof", label: "Branching proof", runs: "on this computer", kind: "on-demand", table: "accounts" });
+  assert.deepEqual(graph.workflow, { path: "branching-proof", label: "Branching proof", runs: "on this computer", kind: "on-demand", table: "accounts", summary: "When started: look up each domain, save the known account, record the unknown domain, note the failure, record the unknown domain" });
   assert.deepEqual(graph.nodes.map((node) => [node.kind, node.label, node.group ?? null]), [
     ["start", "Rows", null],
     ["step", "Look up each domain", "g1"],
@@ -408,7 +420,7 @@ test("current templates pass the deterministic workflow contract", async (contex
   assert.deepEqual(rowGraph.nodes.map((node) => [node.kind, node.label, node.group ?? null, node.provider ?? null, node.unitCostUsd ?? null]), [
     ["start", "Rows", null, null, null],
     ["step", "Enrich the account", "g1", "mock-data", 0.02],
-    ["save", "Save the account", "g1", null, null],
+    ["save", "Save to accounts", "g1", null, null],
     ["wait", "Checkpoint", "g1", null, null],
     ["end", "Done", null, null, null],
   ]);
@@ -451,7 +463,7 @@ test("current templates pass the deterministic workflow contract", async (contex
     ["step", "Look up the row", "g1"],
     ["decision", "Was anything found?", "g1"],
     ["step", "Score the row", "g1"],
-    ["save", "Save the account", "g1"],
+    ["save", "Save to accounts", "g1"],
     ["wait", "Checkpoint", "g1"],
     ["end", "Done", null],
   ]);
@@ -472,9 +484,9 @@ test("current templates pass the deterministic workflow contract", async (contex
     "flowchart TD",
     '  n1(["Rows"])',
     '  subgraph g1["For each row: 20 done, 0 failed"]',
-    '    n2["[x] Enrich the account ($0.60)"]',
-    '    n3[("[x] Save the account")]',
-    '    n4{{"[x] Checkpoint"}}',
+    '    n2["1. [x] Enrich the account · mock-data · $0.02 per row · model · CLI default · $0.08 per row ($0.60)"]',
+    '    n3[("2. [x] Save to accounts")]',
+    '    n4{{"3. [x] Checkpoint"}}',
     "  end",
     '  n5(["[x] Done"])',
     "  n1 --> n2",
@@ -487,13 +499,13 @@ test("current templates pass the deterministic workflow contract", async (contex
   assert.equal(asciiDiagram.stdout.slice(asciiDiagram.stdout.indexOf("Rows")).trim(), [
     "Rows",
     "[Walk every supplied row]",
-    "  Look up each domain",
-    "  <Is the domain known?>",
-    "    yes: Save the known account",
-    "    no: Record the unknown domain",
+    "  1. Look up each domain",
+    "  <2. Is the domain known?>",
+    "    yes: 3. Save the known account",
+    "    no: 4. Record the unknown domain",
     "  (next: Look up each domain)",
-    "Note the failure",
-    "  on error: Record the unknown domain",
+    "5. Note the failure",
+    "  on error: 6. Record the unknown domain",
     "Done",
   ].join("\n"));
   const svgDiagram = await command("npm", ["run", "gtm", "--", "diagram", "branching-proof", "--format", "svg"], { cwd: directory, env });
@@ -1330,6 +1342,7 @@ async function filesContaining(directory, needle) {
 }
 
 const mockDataAdapter = `/**
+ * Auth check: none
  * Provider: mock-data
  * Endpoints: organization-lookup-v1
  * Environment: MOCK_VENDOR_URL

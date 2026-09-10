@@ -98,6 +98,8 @@ For an on-demand workflow, start with **On this computer**. The first create add
 
 Local agent work uses the first supported CLI already available on your `PATH`. You do not need Vercel or a separate model-provider key for this path.
 
+API model steps default to `deepseek/deepseek-v4.1-flash` with high reasoning. Set `GTM_WORKFLOW_MODEL` in the workflow project or select `model` per call. This model has 2x peak pricing on weekdays 01:00 to 04:00 and 06:00 to 10:00 UTC; account for those windows when scheduling and budgeting.
+
 The agent first runs a zero-spend preview:
 
 ```sh

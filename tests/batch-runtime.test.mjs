@@ -45,7 +45,8 @@ test('parallel rows, child batches, and early agent completion through the local
   await command(['npm', 'run', 'db:migrate']);
   await command(['npm', 'run', 'db:generate', '--', '--name', 'fixture_accounts']);
   await command(['npm', 'run', 'db:migrate']);
-  const check = await cli(['check']); assert.equal(check.ok, true); assert.equal(check.libVersion, 21);
+  const check = await cli(['check']); assert.equal(check.ok, true);
+  assert.equal(check.libVersion, JSON.parse(await readFile(join(templates, 'package.json'), 'utf8')).gtm.libVersion);
   await command(['npm', 'run', 'build']);
   const server = spawn(join(directory, 'node_modules/.bin/nitro'), ['dev', '--port', String(port)], {
     cwd: directory, env: { ...env, NODE_OPTIONS: `--import=${join(directory, 'fixture-preload.mjs')}` }, stdio: ['ignore', 'pipe', 'pipe'], detached: true,

@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import { defineConfig } from "nitro";
 
 export default defineConfig({
@@ -10,6 +10,7 @@ export default defineConfig({
   workflow: { dirs: ["workflows"] },
   serverAssets: [
     { baseName: "workflows", dir: "./workflows", pattern: "**/*.ts" },
+    { baseName: "providers", dir: "./providers", pattern: "**/*.ts" },
     { baseName: "fonts", dir: "./assets/fonts", pattern: "*.ttf" },
   ],
 } as any);
