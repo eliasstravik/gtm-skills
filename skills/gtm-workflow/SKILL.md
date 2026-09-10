@@ -36,6 +36,8 @@ The agent owns authoring, validation, dry runs, checkpointed runs, scoped change
 
 | Condition | Action |
 | --- | --- |
+| Any create, update, or run request | Decide first, then build: gather every open decision in one grouped message before reading references, scaffolding, installing, or writing code; after the answers arrive, run to the approval gate without further questions |
+| References are needed | Read them once, after decisions settle, concatenated in at most three shell commands; never reread a file already in context |
 | No action is clear | Use the guided menu in [flows](references/flows.md) |
 | Request concerns the hosting agent's own behavior: schedule, memory, connections, channels, tools, or browsing | Read [eve](references/eve.md) before answering; route agent-source changes per the host's standing instructions |
 | Create, update, or explain execution behavior | Apply [workflow composition](references/capabilities.md) to select ordinary, agent, or mixed stages and the supported native building blocks |
@@ -59,7 +61,8 @@ Report an active run by workflow name and start time. Follow up in the same thre
 ## QC
 
 - Secrets never appear in prompts, tracked files, conversation, or command output; values move from `.env` through the shell only.
-- Before editing any workflow or managed library file, read the pinned runtime's bundled documentation under `workflows/node_modules/workflow/docs/`; assume prior SDK knowledge is outdated.
+- [Composition](references/capabilities.md) is the runtime reference for workflow and managed library edits; open the bundled documentation under `workflows/node_modules/workflow/docs/` only for a building block it does not cover.
+- Before any save proposal, `npm run gtm -- verify <slug> --input <file>` must pass. It runs the offline check, the build with its initialization check, the zero-spend dry run, and the diagram export as one command and reports the first failing stage. Unverified work is not finished.
 - Run `gtm check` and compare every `// gtm-lib v<N>` header and recorded content hash against the current generation in the template `package.json` at `gtm.libVersion` before an action. Show locally modified diffs, offer a recopy, and never apply it silently.
 - Every business stage carries a plain-language label. Managed agents appear as dynamic stages; their tool calls are inspected in native traces.
 - Copy the versioned lib, routes, scripts, and config verbatim and edit workflow-owned tables, adapters, migrations, and workflow files instead.
@@ -73,4 +76,4 @@ Report an active run by workflow name and start time. Follow up in the same thre
 
 ## References
 
-Read [the contract](references/contract.md) for every action, [flows](references/flows.md) for create, update, inspect, delete, or run, [open](references/open.md) for open and local server work, [the shared interaction standard](../gtm-workspace/references/interaction.md) and [conversation](references/conversation.md) for visible messages, and [deploy](references/deploy.md) before hosting changes. Read [providers](references/providers.md) before adapter work and [agents](references/agents.md) when configuring command permissions.
+Read references once, after decisions settle, concatenated in as few shell commands as the host's output limit allows. Before the decision message, read only the matching section of [flows](references/flows.md). For create or update, then read [the contract](references/contract.md) and [composition](references/capabilities.md) together, and [conversation](references/conversation.md) with [deploy](references/deploy.md) for hosted work, [providers](references/providers.md) for adapter work, and [event sources](references/events.md) for triggered work. Read [open](references/open.md) for open and local server work, and [agents](references/agents.md) when configuring command permissions. Read [the shared interaction standard](../gtm-workspace/references/interaction.md) on a keyboard; a hosted agent's standing instructions already restate it.

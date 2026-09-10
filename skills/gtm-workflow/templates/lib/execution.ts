@@ -1,4 +1,4 @@
-// gtm-lib v22
+// gtm-lib v23
 import ts from "typescript-parser";
 
 export type ExecutionShape = {

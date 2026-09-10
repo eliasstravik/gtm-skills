@@ -1,4 +1,4 @@
-// gtm-lib v22
+// gtm-lib v23
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -62,14 +62,19 @@ async function main() {
   if (command === "cancel") return cancel(rest);
   if (command === "query") return query(rest);
   if (command === "check") return check();
+  if (command === "verify") return verify(rest);
   throw new AppError(
     "invalid_command",
-    "Use run, runs get, providers list, diagram, approve, cancel, query, or check.",
+    "Use run, runs get, providers list, diagram, approve, cancel, query, check, or verify.",
     2,
   );
 }
 
-async function run(args: string[]) {
+/**
+ * The zero-spend plan behind `run --dry-run`: parses the input, resolves caps, stages, and paid
+ * calls, and reports whether the input fits the accepted caps. Shared by run and verify.
+ */
+async function dryRunPlan(args: string[]) {
   const { positionals, flags } = parseArgs(args);
   const slug = positionals[0];
   let inputPath = stringFlag(flags, "input");
@@ -131,6 +136,11 @@ async function run(args: string[]) {
       costIsEstimate: loaded.agents.some((agent: { costIsEstimate: boolean }) => agent.costIsEstimate) } : {}),
     ...(sourceRun ? { rowsFromRun: sourceRun, only: stringFlag(flags, "only") ?? "failed", inputFile: relative(root, inputPath) } : {}),
   };
+  return { dryRun, withinCaps, workflow, body, flags };
+}
+
+async function run(args: string[]) {
+  const { dryRun, withinCaps, workflow, body, flags } = await dryRunPlan(args);
   if (flags["dry-run"]) {
     print(dryRun);
     if (!withinCaps) process.exitCode = 2;
@@ -280,14 +290,20 @@ async function providersList(args: string[]) {
   throw new AppError("invalid_format", "format must be table or json", 2);
 }
 
+/** The workflow's business graph with child graphs attached and no run overlay. */
+async function diagramGraph(slug: string, urlOverride?: string) {
+  const workflow = await findWorkflow(slug, urlOverride);
+  const source = await readFile(workflow, "utf8");
+  const { graph } = extractGraph(source, workflowPath(workflow));
+  await attachChildGraphs(graph, (path) => readFile(join(root, "workflows", `${path}.ts`), "utf8"));
+  return { workflow, graph };
+}
+
 async function diagram(args: string[]) {
   const { positionals, flags } = parseArgs(args);
   const slug = positionals[0];
   if (!slug) throw new AppError("invalid_workflow", "diagram requires <slug>", 2);
-  const workflow = await findWorkflow(slug, stringFlag(flags, "url"));
-  const source = await readFile(workflow, "utf8");
-  const { graph } = extractGraph(source, workflowPath(workflow));
-  await attachChildGraphs(graph, (path) => readFile(join(root, "workflows", `${path}.ts`), "utf8"));
+  const { workflow, graph } = await diagramGraph(slug, stringFlag(flags, "url"));
   const runKey = stringFlag(flags, "run");
   if (runKey) {
     await configureReadOnly(flags);
@@ -354,6 +370,11 @@ async function query(args: string[]) {
 }
 
 async function check() {
+  print(await runCheck());
+}
+
+/** Everything `check` enforces, returned instead of printed so verify can embed it. */
+async function runCheck() {
   await command(join(root, "node_modules", ".bin", "nitro"), ["build"]);
   await command(join(root, "node_modules", ".bin", "workflow"), ["validate"]);
   const workflows = await workflowFiles();
@@ -455,7 +476,75 @@ async function check() {
     });
     warnings.push(...result.warnings); fixtureRows += result.checked;
   }
-  print({ ok: true, workflows: workflows.length, libVersion: expectedVersion, fixtureRows, warnings });
+  return { ok: true as const, workflows: workflows.length, libVersion: expectedVersion as number, fixtureRows, warnings };
+}
+
+type VerifyStage = "check" | "build" | "dryRun" | "diagram";
+
+/**
+ * One command for the whole pre-save loop: check, the compiled-bundle initialization check that
+ * `npm run build` performs, an optional zero-spend dry run, and the draft diagram JSON. Prints one
+ * object that names the first failing stage, so no second command is needed to learn why.
+ */
+async function verify(args: string[]) {
+  const { positionals, flags } = parseArgs(args);
+  const slug = positionals[0];
+  if (!slug) throw new AppError("invalid_input", "verify requires <slug> [--input <file>] [--diagram <path>] [--skip-build]", 2);
+  const inputPath = stringFlag(flags, "input");
+  const diagramPath = resolve(stringFlag(flags, "diagram") ?? "draft-diagram.json");
+  const report: Record<string, unknown> = { ok: false, workflow: slug };
+  const fail = (stage: VerifyStage, caught: unknown) => {
+    const message = caught instanceof AppError ? `${caught.code}: ${caught.message}` : redact(caught);
+    report.failure = { stage, message };
+    print(report);
+    process.exitCode = 1;
+  };
+
+  try {
+    const check = await runCheck();
+    report.libVersion = check.libVersion;
+    report.check = check;
+  } catch (caught) {
+    return fail("check", caught);
+  }
+
+  if (flags["skip-build"]) report.build = { skipped: true };
+  else {
+    // runCheck already ran `nitro build`; the remaining half of `npm run build` is the compiled
+    // bundle initialization check, so run only that instead of building twice.
+    const startedAt = Date.now();
+    const build = await new Promise<{ ok: boolean; exitCode: number | null; durationMs: number; outputTail: string }>((resolveBuild) => {
+      const child = spawn(process.execPath, [join(root, "scripts", "check-workflow-runtime.mjs")], { cwd: root, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+      let output = "";
+      child.stdout.on("data", (chunk) => (output += chunk));
+      child.stderr.on("data", (chunk) => (output += chunk));
+      child.on("error", (error) => resolveBuild({ ok: false, exitCode: null, durationMs: Date.now() - startedAt, outputTail: redact(error) }));
+      child.on("close", (code) => resolveBuild({ ok: code === 0, exitCode: code, durationMs: Date.now() - startedAt, outputTail: redact(output.slice(-4_000)) }));
+    });
+    report.build = build;
+    if (!build.ok) return fail("build", new AppError("build_failed", build.outputTail || "Workflow initialization check failed", 2));
+  }
+
+  if (inputPath) {
+    try {
+      const { dryRun, withinCaps } = await dryRunPlan([slug, "--input", inputPath, "--dry-run"]);
+      report.dryRun = dryRun;
+      if (!withinCaps) return fail("dryRun", new AppError("caps_exceeded", "The input exceeds the accepted workflow caps.", 2));
+    } catch (caught) {
+      return fail("dryRun", caught);
+    }
+  }
+
+  try {
+    const { graph } = await diagramGraph(slug, stringFlag(flags, "url"));
+    await writeFile(diagramPath, `${JSON.stringify(redactValue(graph))}\n`);
+    report.diagram = { path: relative(root, diagramPath).split(sep).join("/") };
+  } catch (caught) {
+    return fail("diagram", caught);
+  }
+
+  report.ok = true;
+  print(report);
 }
 
 /** First line an explicitly accepted destructive migration must carry. */
@@ -673,7 +762,7 @@ function versionWarnings(packageJson: any): string[] {
     drizzleKit: packageJson.devDependencies?.["drizzle-kit"],
     node: process.versions.node.split(".")[0],
   };
-  return [...(process.env.GTM_AGENT_MODEL ? ["GTM_AGENT_MODEL is deprecated in generation 22; rename it to GTM_WORKFLOW_MODEL before generation 23."] : []), ...Object.entries(expected).flatMap(([name, version]) =>
+  return [...(process.env.GTM_AGENT_MODEL ? ["GTM_AGENT_MODEL is deprecated since generation 22; rename it to GTM_WORKFLOW_MODEL before generation 24."] : []), ...Object.entries(expected).flatMap(([name, version]) =>
     String(actual[name as keyof typeof actual]) === String(version)
       ? []
       : [`${name} validated against ${version}, installed ${actual[name as keyof typeof actual] ?? "missing"}`],

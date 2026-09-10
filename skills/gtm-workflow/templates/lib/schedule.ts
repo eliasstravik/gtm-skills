@@ -1,4 +1,4 @@
-// gtm-lib v22
+// gtm-lib v23
 /** Fixed UTC admission windows for subdaily cron routes; legacy routes remain daily. */
 export function scheduleWindow(now: number, cadence: string | null): string {
   if (cadence === null) return new Date(now).toISOString().slice(0, 10);

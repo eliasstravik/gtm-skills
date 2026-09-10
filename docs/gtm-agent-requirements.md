@@ -2,7 +2,9 @@
 
 This is the host contract for a small Eve Slack agent that authors the current `gtm-workflow` template generation in one connected GTM workspace and runs it on Vercel. Vercel deploys the workflow project from that same repository. The sandbox never starts a real run.
 
-This contract covers project 0.7.0, workflow library generation 22. Refresh it with each library bump. It preserves bounded row concurrency, child batches, deployment pinning, workflow shapes, and the Eve reference from generation 21.
+This contract covers project 0.8.0, workflow library generation 23. Refresh it with each library bump. It preserves bounded row concurrency, child batches, deployment pinning, workflow shapes, per-call model choices, preflight, and the Eve reference from generations 21 and 22.
+
+Hosts optimize for the user's waiting time. A create, update, or run request gets one grouped decision message before any reference reading, scaffolding, or code; after the answers, the host runs unattended to the approval card. References are read once, concatenated in as few commands as the host's output limit allows. Nothing is called finished before `gtm verify` passes and, for hosted work, before the separately approved one-row smoke run.
 
 ## What belongs in the reusable gtm-agent template
 
@@ -99,7 +101,7 @@ Preflight returns non-secret `modelDefaults` from the workflow deployment. Use t
 
 Trusted preview calls bearer-protected `GET /api/preflight/<workflow>` using the host bearer and OIDC identity. Bind the returned `head` to the accepted version. The route checks environment names from transitive adapter headers, result tables including child workflows, and declared free authentication checks. It returns `ok`, `missing`, and per-provider auth status without credential values or upstream error bodies. Say `credentials and table verified` only when `ok`; otherwise name the missing piece. Disclose `unavailable` free auth checks. Preflight spends nothing. A draft's new tables/adapters cannot be verified on an old deployment: mark them pending in the save preview and recheck on the accepted deployment before smoke approval.
 
-Before the save proposal, run `gtm check` in scratch. It executes declared row cases with `GTM_PROVIDER_MODE=fixture` using adapter fixtures and no credentials, live calls, or database. Missing fixtures are SHOULD FIX findings with paths; failures stop the proposal. This is deterministic template verification, not a skill eval.
+Before the save proposal, run `gtm verify <slug> --input <file>` in scratch: one command for the check, the build initialization check, the dry run, and the diagram JSON, reporting the first failing stage. Its check stage executes declared row cases with `GTM_PROVIDER_MODE=fixture` using adapter fixtures and no credentials, live calls, or database. Missing fixtures are SHOULD FIX findings with paths; failures stop the proposal. This is deterministic template verification, not a skill eval.
 
 Preview and start approval also preserve the dry run's concurrency (`N rows at a time`), batch size/count, and parent deadline. Bind these fields to the accepted preview when starting, alongside rows and cost. Show rounded row checkpoints; batch parents require a small-input preview instead of a row checkpoint. Parent receipts list child statuses, counts, cost, and remaining scope; cancellation stops active children. When saving an update with a waiting hosted run, explain that it finishes on the previous deployment and offer cancellation first.
 

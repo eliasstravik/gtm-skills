@@ -10,7 +10,7 @@ Offer a saved-but-not-deployed option only by keeping the draft outside the repo
 
 ## Before the commit
 
-1. Run `npm run gtm -- check` and the accepted production input through `gtm run --dry-run`.
+1. Run `npm run gtm -- verify <slug> --input <file>` with the accepted production input; it covers the check, the build initialization check, the dry run, and the diagram export.
 2. On a keyboard, generate committed migrations only after acceptance; on a hosted surface, generate them in the scratch draft before the request so the request already carries the SQL, journal, and snapshot. Inspect the SQL and require its journal entry plus numbered snapshot when schema DDL needs one. State each table change in words in the proposal and any destructive effect with the number of rows affected; show SQL on request; declare `DELETE`, `UPDATE`, `RENAME`, `DROP`, and `CREATE TRIGGER` destructive in the host request. Use expand/contract instead of an in-place rename.
 3. Apply new committed migrations to the workspace Turso database inside the approval-gated save operation, then verify every accepted SQL SHA-256 hash exists in `__drizzle_migrations` before creating the Git commit. A successful command without the ledger entries is a failed save. Migrations must be backward-compatible because an applied migration can outlive a failed commit or deployment. Nothing runs migration as a build side effect.
 4. Require the connected workflow project to expose Vercel system environment variables so `VERCEL_GIT_COMMIT_SHA` is available at runtime.

@@ -1,4 +1,4 @@
-// gtm-lib v22
+// gtm-lib v23
 import { defineEventHandler } from "nitro/h3";
 import { HookNotFoundError } from "workflow/errors";
 import { triggerHook } from "../../../../lib/approve";

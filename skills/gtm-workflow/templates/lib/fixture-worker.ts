@@ -1,4 +1,4 @@
-// gtm-lib v22
+// gtm-lib v23
 // Executed only by gtm check in a credential-free, read-only child process.
 import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0 - 2026-09-10
+
+- Add `gtm verify <slug> --input <file>`: one command for the offline check, the build initialization check, the zero-spend dry run, and the diagram export, with the first failing stage in one JSON result. Workflow library generation 23; no schema change and no managed-file behavior change beyond the new command and the alias warning wording.
+- Reshape create and update around the user's waiting time: every open decision is asked in one grouped message before any reference reading, scaffolding, or code, and the build phase runs unattended to the approval gate. References are read once, concatenated, after decisions settle; the bundled runtime docs are consulted only for building blocks the composition reference does not cover.
+- The host contract requires `gtm verify` before any save proposal and states the decide-first, build-async shape. Skill evals and description optimization were skipped at the user's request.
+
 ## 0.7.0 - 2026-09-10
 
 - Default short API model steps to DeepSeek V4.1 Flash with high reasoning. Add per-call model and reasoning choices, expose them in diagrams and previews, and rename the project default to `GTM_WORKFLOW_MODEL` with a generation-22 deprecation warning for `GTM_AGENT_MODEL`.

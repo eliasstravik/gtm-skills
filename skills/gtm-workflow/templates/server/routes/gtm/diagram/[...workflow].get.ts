@@ -1,4 +1,4 @@
-// gtm-lib v22
+// gtm-lib v23
 import { defineEventHandler } from "nitro/h3";
 import { diagramPage } from "../../../../lib/diagram-page";
 import { resolveDiagramRequest } from "../../../../lib/diagram-route";

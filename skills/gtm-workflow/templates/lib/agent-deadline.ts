@@ -1,4 +1,4 @@
-// gtm-lib v22
+// gtm-lib v23
 import { defineHook, sleep } from "workflow";
 import { z } from "zod";
 

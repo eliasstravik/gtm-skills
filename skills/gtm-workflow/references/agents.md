@@ -2,7 +2,7 @@
 
 ## Workflow model selection
 
-The `api` backend defaults to `deepseek/deepseek-v4.1-flash` with top-level AI SDK 7 `reasoning: "high"` on every generation call, including web research and its answer. `agent({ model: "provider/model", reasoning: "high", prompt, schema, meta })` overrides one step. Reasoning accepts the pinned AI SDK's reasoning effort type. Model precedence is the call argument, `GTM_WORKFLOW_MODEL`, deprecated `GTM_AGENT_MODEL`, then exported `DEFAULT_WORKFLOW_MODEL`. The alias remains valid only for generation 22, and `gtm check` warns to rename it before generation 23. Durable stages keep their explicit `AGENTS` models.
+The `api` backend defaults to `deepseek/deepseek-v4.1-flash` with top-level AI SDK 7 `reasoning: "high"` on every generation call, including web research and its answer. `agent({ model: "provider/model", reasoning: "high", prompt, schema, meta })` overrides one step. Reasoning accepts the pinned AI SDK's reasoning effort type. Model precedence is the call argument, `GTM_WORKFLOW_MODEL`, deprecated `GTM_AGENT_MODEL`, then exported `DEFAULT_WORKFLOW_MODEL`. The alias remains valid through generation 23, and `gtm check` warns to rename it before generation 24. Durable stages keep their explicit `AGENTS` models.
 
 The provider cache endpoint includes backend and model; reasoning is part of canonical input. Dry-run `paidStages` and diagram cards expose the chosen model. Use committed literal model values or constants so preview can resolve them; a dynamic expression is shown as `Selected at runtime` and must be resolved before a paid approval.
 

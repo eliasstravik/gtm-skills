@@ -1,4 +1,4 @@
-// gtm-lib v22
+// gtm-lib v23
 import { extractGraph, type WorkflowGraph } from "./diagram";
 import { layoutGraph } from "./layout";
 import { renderSvg } from "./diagram-svg";

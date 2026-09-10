@@ -1,4 +1,4 @@
-// gtm-lib v22
+// gtm-lib v23
 import { defineEventHandler } from "nitro/h3";
 import { useStorage } from "nitro/storage";
 import { executeReadOnly } from "../../../lib/db";

@@ -1,4 +1,4 @@
-// gtm-lib v22
+// gtm-lib v23
 import { createHash } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { redact } from "./redact";

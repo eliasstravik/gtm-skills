@@ -43,30 +43,36 @@ Bootstrap during the first create and keep the draft outside the repository unti
 
 ## Create
 
+Decide first, then build. The decision phase costs the user one message; the build phase runs without questions until the save gate.
+
+Decide:
+
 1. Resolve workspace, owner, and kind. Read the owner's relevant ICP and persona files.
-2. Run `gtm check` before editing an existing project. Offer a current-generation recopy when headers or content hashes differ; show the diff for every locally modified managed file first.
-3. Resolve where it runs, offering `on this computer` or `hosted, in production`. For on-demand work, recommend this computer. For scheduled or triggered work, recommend hosted. In a sandbox, recommend hosted for every workflow because the sandbox never starts a real run. Explain that local scheduled work runs only when invoked and hosted model calls use the user's budgeted key. Ask this together with every other open decision in step 4 as one grouped message.
-4. Resolve the purpose, explicit input shape, stable row key, result columns, paid stages, adapter docs, caps, timing, approval stages, checkpoint, and external writes. Apply [workflow composition](capabilities.md) to choose fixed steps, an agent stage, or both. For agents, resolve selected skills/tools, argument scope, and cost uncertainty in this same proposal.
+2. Ask every open decision in one grouped message with a recommendation for each, in the interaction standard's shape: purpose, explicit input shape and stable row key, result columns, paid stages and their providers, caps and timing, approval stages, checkpoint, external writes, and where it runs. Offer `on this computer` or `hosted, in production`: recommend this computer for on-demand keyboard work, hosted for scheduled or triggered work, and hosted for every sandbox workflow because the sandbox never starts a real run; explain that local scheduled work runs only when invoked and hosted model calls use the user's budgeted key. For agent stages, include selected skills/tools, argument scope, and cost uncertainty. Ask nothing the agent can research or default. Do not read further references, scaffold, install, or write code before the answers arrive.
+
+Build:
+
+3. Read [the contract](contract.md) and [workflow composition](capabilities.md) together, plus the references the design needs, once. Run `gtm check` before editing an existing project; offer a current-generation recopy when headers or content hashes differ, showing the diff for every locally modified managed file first.
+4. Apply composition to choose fixed steps, an agent stage, or both, using the accepted decisions.
 5. When the workflow needs a provider, read [providers](providers.md) and run `npm run gtm -- providers list [keywords] --format json` before writing an adapter. Reuse a matching endpoint. List first before saying a capability is missing. Write a new adapter against the user's own credential only when no listed contract matches, then test it against fixtures.
 6. Declare the result table, derive the model-facing business schema inside the agent step, and load the owner's accepted ICP and persona text into `context` with stable file paths in `contextId`. Add `key` and `updatedAt` only when saving.
 7. Write row work with `runRows()`. Add `scheduledInput` and matching cron entry for scheduled work. For a new run per event, follow [event sources](events.md). For a callback to an existing run, use `waitForTrigger()` and its protected route. Keep durable agent calls in workflow context and export their definitions in `AGENTS` for preview.
-8. Run `npm run gtm -- check`; it enforces export, input, compiler-level workflow, paid-step retry, table, bookkeeping, migration, version, and content-hash rules.
-9. Run `npm run build`; its workflow initialization check must pass before proposing a save. It executes the compiled bundle without credentials or step execution. Then run `gtm run --dry-run` against the accepted input. It validates the Zod schema and caps without spend; a fresh table and working credentials are not required.
-10. Present one save proposal per [conversation](conversation.md), as its bulleted list; no file names or commands. On a hosted surface, run `db:generate` in the scratch draft before building the request so it already carries the SQL, journal, and snapshot, and the proposal is the approval control's text.
-11. On a keyboard, on acceptance, copy the draft into the workspace, run `npm ci`, then `db:generate`. Inspect the generated SQL and its journal and snapshot artifacts; state any destructive effect in words and show SQL on request. Apply accepted migrations, run `db:verify`, and only then save; a hosted workflow's one atomic `main` commit puts it live in production.
-12. If the header says `Runs: on Vercel`, follow [deploy](deploy.md), close with `Saved. I'll follow up here when it's live.`, and register the deployment watch in the originating thread. After `Live.`, post the diagram link and automatically propose the separate one-row smoke run described in [conversation](conversation.md#save-gate), with its total cost and every call. Otherwise close with `Saved.` and enter the run gate. Ordinary runs retain the three-row checkpoint default.
+8. Run `npm run gtm -- verify <slug> --input <file>` with the accepted input. One command runs the offline check (export, input, compiler-level workflow, paid-step retry, table, bookkeeping, migration, version, content-hash, and fixture rules), the build with its initialization check (the compiled bundle executes without credentials or step execution), the zero-spend dry run (Zod schema and caps; no table or credentials required), and writes the diagram JSON. Its output names the first failing stage; fix and rerun until it passes.
+9. Present one save proposal per [conversation](conversation.md), as its bulleted list; no file names or commands. On a hosted surface, run `db:generate` in the scratch draft before building the request so it already carries the SQL, journal, and snapshot, and the proposal is the approval control's text.
+10. On a keyboard, on acceptance, copy the draft into the workspace, run `npm ci`, then `db:generate`. Inspect the generated SQL and its journal and snapshot artifacts; state any destructive effect in words and show SQL on request. Apply accepted migrations, run `db:verify`, and only then save; a hosted workflow's one atomic `main` commit puts it live in production.
+11. If the header says `Runs: on Vercel`, follow [deploy](deploy.md), close with `Saved. I'll follow up here when it's live.`, and register the deployment watch in the originating thread. After `Live.`, post the diagram link and automatically propose the separate one-row smoke run described in [conversation](conversation.md#save-gate), with its total cost and every call. Otherwise close with `Saved.` and enter the run gate. Ordinary runs retain the three-row checkpoint default.
 
-Cancellation before step 11 writes no tracked bytes and no migration.
+Cancellation before step 10 writes no tracked bytes and no migration.
 
 ## Update
 
 1. Resolve the workflow and inspect its header, table, adapter, migrations, schedule, approvals, and deployment state.
 2. Compare every managed file by header and recorded hash against the current generation in the template `package.json` at `gtm.libVersion`. Show locally modified diffs and include any accepted recopy in the proposal.
-3. Agree the business change. A run-location switch is an update to the same workflow.
+3. Agree the business change in one grouped message that carries every open decision with a recommendation, before editing or reading further references. A run-location switch is an update to the same workflow.
    When a hosted run is waiting, state in the proposal that it finishes on the previous version and offer to cancel it first through the existing cancel gate.
 4. Change only the workflow, table, adapter, accepted ICP/persona context, environment names, cron entry, or deployment metadata required by the request. Reload context text so its changed content invalidates the model cache.
 5. New columns are nullable or defaulted. Use expand/contract for a rename: add, backfill, switch code, then drop after the old deployment is gone. Keep schedule headers, `scheduledInput`, and cron entries aligned.
-6. Run `gtm check`, `npm run build` including workflow initialization, and the dry run before the save proposal. On a keyboard, do not generate a migration yet; on a hosted surface, run `db:generate` in the scratch draft now so the request carries its SQL, journal, and snapshot.
+6. Run `npm run gtm -- verify <slug> --input <file>` before the save proposal; it covers the check, the build with workflow initialization, the dry run, and the diagram export in one command. On a keyboard, do not generate a migration yet; on a hosted surface, run `db:generate` in the scratch draft now so the request carries its SQL, journal, and snapshot.
 7. Present one proposal stating the changed facts only, each `was X, now Y`, and each table change in words. On a keyboard, on acceptance, run `db:generate`, inspect the SQL, save its registered artifacts together, apply the migration, and run `db:verify`. The approval-gated hosted save verifies hashes before its `main` commit. If behavior changed, enter the checkpointed run gate.
 8. A `main` commit deploys when the accepted header says `Runs: on Vercel`; wait for that exact SHA before a real run. Then show the "Where to look" block.
 

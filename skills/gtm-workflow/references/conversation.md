@@ -15,6 +15,8 @@ Read the request and managed files before asking. Ask only for a missing decisio
 
 ## Questions
 
+For a create or update, ask every open decision in one message before any reference reading, scaffolding, or code, so the user answers once and the rest runs unattended to the gate.
+
 Begin a question-bearing message with one bold lead question. Put status, explanation, and the remaining facts wanted as bullets below it. Use at most one numbered block with at most one `(Recommended)`, then end that block exactly:
 
 ```text

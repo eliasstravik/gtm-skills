@@ -1,4 +1,4 @@
-// gtm-lib v22
+// gtm-lib v23
 import { posix } from "node:path";
 import ts from "typescript-parser";
 import { extractGraph } from "./diagram";

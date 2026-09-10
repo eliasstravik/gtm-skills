@@ -1,4 +1,4 @@
-// gtm-lib v22
+// gtm-lib v23
 import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
