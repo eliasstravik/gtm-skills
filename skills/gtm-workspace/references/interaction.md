@@ -22,16 +22,28 @@ Identify every artifact and organization node by its display name plus its full 
 
 The banned vocabulary on every ordinary user-facing surface is: git, commit, push, PR, branch, SHA, hash, ledger, checkout, migration, repository, path, tool name, host name. Keep precise diagnostics in tool results and logs. Apply the failure strings under [Closing](#closing) on every surface.
 
+Say outcomes and decisions, never mechanisms: what the user gets, what it costs, and what they decide next. How something is looked up, stored, linked, checked, or built stays out unless the user asks. On every ordinary surface, replace these words:
+
+| Instead of | Say |
+| --- | --- |
+| key, ID, identifier, row key | whatever identifies it: the link, the email, the name |
+| schema, column, field, payload, JSON | what gets saved, the details |
+| endpoint, API, adapter, provider, enrichment | look up, read, the data source (named only when the user named it) |
+| dry run, preview, validation, verify | test |
+| checkpoint | pause after N for your OK |
+| cron, webhook, trigger route, event source | schedule, trigger |
+| deployment, version, migration | nothing; `Saved.` and `Live.` carry it |
+
 ## Length and formatting
 
 Messages are read in a chat window, usually Slack, by someone deciding whether to approve. Every message is the shortest text that still names every artifact and every effect.
 
-An ordinary message targets 280 characters and never exceeds about 500. Proposal and approval text is exempt from the 280-character target and ordinary ceiling because it must name every artifact and effect; keep it as short as possible within the host limit. A run or checkpoint report has one headline line and at most two numbers. Give the breakdown only on request.
+An ordinary message targets 280 characters and never exceeds about 500, counting its numbered block. Decision messages, status, questions, and closings are ordinary messages. Only the gate's proposal and approval text is exempt, because it must name every artifact and effect; keep it as short as possible within the host limit. A run or checkpoint report has one headline line and at most two numbers. Give the breakdown only on request. An ordinary message carries at most two numbers; cost is one total.
 
 - One sentence per line. A paragraph is at most two lines. The body of a message, between its opener and its closing line, is at most 12 lines; a proposal that needs more is split per [Batching](#batching), never padded.
 - Three or more parallel items form a bulleted list, one item per line, never a sentence joined by commas. Numbered lists are for choices only.
 - In an ordinary message, bold one lead line and nothing else. Approval text carries no bold, per [Approval by surface](#approval-by-surface).
-- Cut before sending: any sentence about what does not change (`No other ICPs will be changed`); any research method, source, or classification; any restore reminder outside a delete closing; the adjectives researched, complete, and full; any scope phrase other than the fixed ones in [Proposal shape](#proposal-shape); and any restatement of the user's request.
+- Cut before sending: any sentence about what does not change (`No other ICPs will be changed`); any research method, source, or classification; any restore reminder outside a delete closing; the adjectives researched, complete, and full; any scope phrase other than the fixed ones in [Proposal shape](#proposal-shape); and any restatement of the user's request; any explanation of how the agent works, what it read, or why a default was chosen; any list of saved fields or columns; and any sentence about how a step is built.
 
 ## Proposal shape
 
@@ -71,15 +83,38 @@ Splitting follows artifact boundaries only: ICPs, personas, members, and suborga
 There are exactly two ways to ask the user for a decision, and the skill never invents a third:
 
 1. **A gate** for any durable action: the native approval control on a hosted surface, or the numbered `Save this?` block on a keyboard, per [Approval by surface](#approval-by-surface). Approve or 1 executes; Cancel or 3 writes nothing and the skill asks `**What would you like me to change?**`.
-2. **A numbered choice block** for every other decision, with option 1 the skill's recommendation ending `(Recommended)`.
+2. **A decision message** for everything else, in the shape below.
 
-An open question is only for a fact the user must type (a name, an email, a URL). Never ask a yes-or-no question, never ask `Shall I…?` or `Should I proceed?`, and never define a confirmation phrase such as `Say "add them"` or `Reply yes to continue`. The user's only ways to say yes are the gate and a number.
+Ask only when the answer changes the result and cannot be researched or defaulted. Choose a default for every other open decision; a default stands unless the user changes it. The gate names every fact later, so a decision message carries only defaults the user might realistically change: what it costs, what it touches outside the workspace, and what gets saved. When the request already pins those, ask nothing and go to the gate.
+
+The shape:
+
+```text
+**Build "Connections Enrichment" with these defaults?**
+
+Using GTM workspace: Stråvik
+
+- Reads a LinkedIn connections file; each row needs a profile link.
+- Saves a people table and a company table, linked both ways.
+- Up to 5 companies per person, 500 people and $30 per run, pausing after 3 for your OK.
+
+1. Build it (Recommended)
+2. Change a default (tell me which)
+3. Cancel
+
+Reply with a number, or type your answer.
+```
+
+- The bold lead question is the only question in the message. Bullets are statements, one line each: a chosen default or a fact. A bullet never ends with a question mark and never asks the user to pick or supply anything.
+- The numbered options answer the lead question. Option 1 is the recommendation and ends `(Recommended)`; nothing else does. The block ends exactly `Reply with a number, or type your answer.`
+- A fact the user must type (a name, an email, a link, a file) is asked as the lead question. That message lists any further facts wanted as bullets, has no numbered block, and has no reply line. Defaults it also carries stand unless changed.
+- A message never mixes the two: facts wanted mean no numbered block; a numbered block means bullets are defaults or facts only.
+- On a hosted surface the context line `Using GTM workspace: <root display name>` sits under the lead question; omit it when no workspace is resolved.
+- The whole message stays within the ordinary budget in [Length and formatting](#length-and-formatting).
+- Never ask `Shall I…?` or `Should I proceed?` as free text, and never define a confirmation phrase such as `Say "add them"` or `Reply yes to continue`. The user's only ways to say yes are the gate and a number.
+- Do not use `AskUserQuestion` or a host question tool.
 
 Once every fact a proposal needs is in hand, present the gate. Workflow draft pictures and links precede it at the moments defined in the workflow flow. Omit progress announcements that merely repeat the proposal.
-
-Ask only for a missing decision or fact that changes the result. Put every such question in one message: one bold lead question first, then the remaining facts wanted as a bulleted list (never numbered), each on one line with a fictional example where the flow already has one. At most one numbered choice block per message; only choice options are numbered, at most option 1 ends with `(Recommended)`, and the block ends exactly `Reply with a number, or type your answer.` A message with no choice block has no reply line.
-
-Do not ask for facts the agent can research or leave as `Unknown`. Do not use `AskUserQuestion` or a host question tool.
 
 ## Approval by surface
 
@@ -121,7 +156,7 @@ The model message that carries the control call contains no text and no other to
 
 If the complete plan exceeds the environment's per-message approval-text limit, split its human text along the batching boundaries above and use the part form on each. The host presents all parts as one approval plan, with one total cost and one accept/cancel decision covering the listed calls. Never ask again for a covered call. Count-only summaries are never acceptable because the gate must state exact scope. The first create proposal names the organization and says `plus the workspace's standard setup files` for boilerplate files, which are never named.
 
-Bold questions in ordinary messages (for example `**What would you like me to change?**`) are unchanged on both surfaces because those are posted as normal messages. On a hosted surface, grouped questions carry `Using GTM workspace: <root display name>` under the lead question. The context line is omitted whenever no workspace is resolved yet.
+Bold questions in ordinary messages (for example `**What would you like me to change?**`) are unchanged on both surfaces because those are posted as normal messages. On a hosted surface, decision messages carry `Using GTM workspace: <root display name>` under the lead question. The context line is omitted whenever no workspace is resolved yet.
 
 ## Closing
 

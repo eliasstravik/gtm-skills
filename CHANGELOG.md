@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0 - 2026-09-10
+
+- Define the decision message: the numbered options answer the bold lead question, bullets state defaults or facts and never ask, and a message asking for a typed fact has no numbered block. Grouped intake questions and the owner-choice numbered block are replaced by stated defaults.
+- Decision messages count toward the 280/500 ordinary budget. Add the outcomes-not-mechanisms word table and extend the cut list to explanations of how the agent works or why a default was chosen.
+- Run location is asked only on a keyboard, as the lead question with hosted and this-computer options; hosted surfaces always author `Runs: on Vercel` and never mention `on this computer`. Workflow library generation stays 23; no managed-file change.
+- Skill evals, description optimization, and new tests were skipped at the user's request.
+
 ## 0.8.0 - 2026-09-10
 
 - Add `gtm verify <slug> --input <file>`: one command for the offline check, the build initialization check, the zero-spend dry run, and the diagram export, with the first failing stage in one JSON result. Workflow library generation 23; no schema change and no managed-file behavior change beyond the new command and the alias warning wording.
