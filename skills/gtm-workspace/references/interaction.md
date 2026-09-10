@@ -22,7 +22,7 @@ Identify every artifact and organization node by its display name plus its full 
 
 The banned vocabulary on every ordinary user-facing surface is: git, commit, push, PR, branch, SHA, hash, ledger, checkout, migration, repository, path, tool name, host name. Keep precise diagnostics in tool results and logs. Apply the failure strings under [Closing](#closing) on every surface.
 
-Say outcomes and decisions, never mechanisms: what the user gets, what it costs, and what they decide next. How something is looked up, stored, linked, checked, or built stays out unless the user asks. On every ordinary surface, replace these words:
+Say outcomes and decisions, never mechanisms: what the user gets, what it costs, and what they decide next. How something is looked up, stored, linked, checked, or built stays out unless the user asks. A name the user supplied is quoted as given. On every ordinary surface, replace these words:
 
 | Instead of | Say |
 | --- | --- |
@@ -38,7 +38,7 @@ Say outcomes and decisions, never mechanisms: what the user gets, what it costs,
 
 Messages are read in a chat window, usually Slack, by someone deciding whether to approve. Every message is the shortest text that still names every artifact and every effect.
 
-An ordinary message targets 280 characters and never exceeds about 500, counting its numbered block. Decision messages, status, questions, and closings are ordinary messages. Only the gate's proposal and approval text is exempt, because it must name every artifact and effect; keep it as short as possible within the host limit. A run or checkpoint report has one headline line and at most two numbers. Give the breakdown only on request. An ordinary message carries at most two numbers; cost is one total.
+An ordinary message targets 280 characters and never exceeds about 500, counting its numbered block. Decision messages, status, questions, and closings are ordinary messages. Only the gate's proposal and approval text is exempt, because it must name every artifact and effect; keep it as short as possible within the host limit. A run or checkpoint report has one headline line and at most two numbers. Give the breakdown only on request. An ordinary message carries at most two numbers outside a limits bullet; cost is one total.
 
 - One sentence per line. A paragraph is at most two lines. The body of a message, between its opener and its closing line, is at most 12 lines; a proposal that needs more is split per [Batching](#batching), never padded.
 - Three or more parallel items form a bulleted list, one item per line, never a sentence joined by commas. Numbered lists are for choices only.
