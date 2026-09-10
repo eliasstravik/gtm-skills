@@ -1,4 +1,4 @@
-// gtm-lib v19
+// gtm-lib v20
 import { defineEventHandler } from "nitro/h3";
 
 export default defineEventHandler(async (event) => {

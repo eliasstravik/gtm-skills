@@ -32,5 +32,6 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
         working-directory: skills/gtm-workflow/templates
       - run: node --test tests/workflow-runtime.test.mjs
+      - run: node --test evals/gtm-workflow/scripts/test-migration-generation.mjs
       - run: node --experimental-test-module-mocks --import ./skills/gtm-workflow/templates/node_modules/tsx/dist/loader.mjs --test tests/rows-lifecycle.test.mjs tests/agent-tools.test.mjs
       - run: node --test evals/gtm-workflow/scripts/test-templates.mjs

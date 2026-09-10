@@ -1,4 +1,4 @@
-// gtm-lib v19
+// gtm-lib v20
 import { verifyMigrationLedger } from "../lib/migration-ledger";
 import { getDatabaseConfig } from "../lib/db-url";
 

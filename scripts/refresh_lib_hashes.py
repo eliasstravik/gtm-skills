@@ -3,7 +3,7 @@
 import hashlib, json, pathlib, sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1] / "skills/gtm-workflow/templates"
-FIXED = ["scripts/gtm.ts", "scripts/check-workflow-runtime.mjs", "scripts/migrate-cloud.ts", "scripts/verify-migrations.ts", "drizzle.config.ts", "nitro.config.ts"]
+FIXED = ["scripts/gtm.ts", "scripts/check-workflow-runtime.mjs", "scripts/generate-migration.mjs", "scripts/generate-migration-worker.ts", "scripts/migrate-cloud.ts", "scripts/verify-migrations.ts", "drizzle.config.ts", "nitro.config.ts"]
 
 def headered_files():
     files = []

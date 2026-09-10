@@ -1,4 +1,4 @@
-// gtm-lib v19
+// gtm-lib v20
 import { executeSelect } from "./db";
 import type { DiagramStatus, WorkflowGraph } from "./diagram";
 

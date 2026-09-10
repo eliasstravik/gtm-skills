@@ -1,4 +1,4 @@
-// gtm-lib v19
+// gtm-lib v20
 import type { DiagramEdge, DiagramGroup, DiagramNode, DiagramStatus, WorkflowGraph } from "./diagram";
 
 export function statusMarker(status?: DiagramStatus): string {

@@ -31,7 +31,7 @@ Ignore `node_modules/`, `.env*` except `.env.example`, `.vercel/`, `.well-known/
 
 ## Versioned files
 
-Every `lib/*.ts`, API route, page route under `server/routes`, managed script, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v18`. `package.json` carries `gtm.libVersion: 18`, SHA-256 entries under `gtm.libHashes`, and pinned versions under `gtm.validatedAgainst`. Run `gtm check` before every action: distinguish an old header from a locally modified hash, show the diff of a modified managed file before offering a recopy, and never overwrite it silently.
+Every `lib/*.ts`, API route, page route under `server/routes`, managed script, `drizzle.config.ts`, and `nitro.config.ts` starts with `// gtm-lib v20`. `package.json` carries `gtm.libVersion: 20`, SHA-256 entries under `gtm.libHashes`, and pinned versions under `gtm.validatedAgainst`. Run `gtm check` before every action: distinguish an old header from a locally modified hash, show the diff of a modified managed file before offering a recopy, and never overwrite it silently.
 
 Follow the [runtime upgrade procedure](../../../docs/runtime-upgrade.md) before changing a validated pin.
 
@@ -162,6 +162,12 @@ Absent `TURSO_DATABASE_URL` selects `file:./data/gtm.db`; empty tokens mean abse
 
 ## Safety and persistence
 
+Generate migrations with `npm run db:generate`, optionally `-- --name <slug>` or `-- --custom --name <slug>` for a data-only migration. The helper stages SQL, journal, and snapshot together, installs them only on confirmed success, and terminates generation after 60 seconds. It never connects to the database to apply a migration. Keep its command binding when updating an existing project.
+
+For `migration_input_required`, inspect the listed added and removed tables, views, or columns against the intended change and the previous snapshot. Unrelated fixed tables in that list indicate snapshot drift: resolve that discrepancy before generating a deletion. For independent additions/removals, generate the additions while retaining the old objects, then generate the separately reviewed removal. For renames, use the expand/contract sequence below. Ask the user only when data retention or intended behavior is unresolved. Retry only after that cause is resolved; use no pseudo-terminal or guessed keystrokes to force generation through a prompt. A custom migration is for reviewed data SQL, never a substitute for a schema snapshot.
+
+On `migration_timeout` or an agent command timeout, tell the user what stopped. Recheck any effects before continuing. The migration helper leaves the original artifacts intact on a generator failure; a generic command can have partial effects. A `migration_busy` result requires checking the existing generator before removing its stale lock. If interruption left `.gtm-migration-*` recovery directories, inspect them before cleanup; never delete the sole surviving migration history.
+
 Run `gtm run --dry-run` before every real run. It imports the workflow without starting it, validates the exported Zod input, counts only parsed `rows`, and checks caps; it does not check table existence or credentials. Gate the real run with rows, stages, projected cost, caps, external writes, and checkpoint position.
 
 Use committed migrations only. `gtm check` rejects orphan artifacts and flags `DELETE`, `UPDATE`, `RENAME`, `DROP`, and `CREATE TRIGGER` for explicit destructive review. A destructive migration passes `gtm check` only when its first line is `-- gtm: destructive accepted`, added after the separate destructive choice is accepted; the hosted save still declares it destructive in the approval request. Use expand/contract for renames: add a compatible column, backfill in a separately reviewed migration, switch code, and drop only after the old deployment is gone. State anything beyond additive `CREATE TABLE` or `ADD COLUMN` in words in the proposal, naming the table or column and the rows affected, and show its SQL on request; apply with `db:migrate`, and run `db:verify`; nothing migrates as a build side effect.
@@ -169,3 +175,5 @@ Use committed migrations only. `gtm check` rejects orphan artifacts and flags `D
 Secrets stay out of prompts, tracked files, step input and output, ledgers, comments, and command output; the library defensively redacts error paths. If a user pastes a credential into the conversation, treat it as compromised: help rotate it and store the replacement through the environment. Approval and trigger tokens only name a pending stage; the route bearer authorizes the action. A public per-run webhook URL remains a capability and must not be shared.
 
 A v17 project lacks compiled workflow initialization checks and a delivery callback before row-run completion. Recopy v18 through update, preserve workflow-owned files, and append `node scripts/check-workflow-runtime.mjs` after `nitro build` in any customized build command. Move post-save delivery into `runRows.afterSave`. No schema migration is required.
+
+A v19 project can block on an interactive migration prompt. Recopy v20 through update, set `db:generate` to `node scripts/generate-migration.mjs`, and ignore `.gtm-migration-*/` staging directories. Preserve workflow-owned files and existing migration history. No schema migration is required.

@@ -1,4 +1,4 @@
-// gtm-lib v19
+// gtm-lib v20
 import { Resvg } from "@resvg/resvg-js";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
