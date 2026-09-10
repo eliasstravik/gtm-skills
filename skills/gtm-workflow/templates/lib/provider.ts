@@ -1,7 +1,8 @@
-// gtm-lib v20
+// gtm-lib v21
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { getStepMetadata } from "workflow";
 import { getDb } from "./db";
 import { reserveAgentCall } from "./agent-ledger";
 import { redact, redactedError } from "./redact";
@@ -20,6 +21,7 @@ export type PaidCallMeta = {
   step?: string;
   /** Optional ceiling supplied by an accepted event source. */
   maxSpendUsd?: number;
+  concurrency?: number;
 };
 
 export class ProviderAuthError extends Error {
@@ -125,6 +127,13 @@ export async function provider<T extends z.ZodTypeAny>(
     }
   }
 
+  if (!input.admission && (input.meta.concurrency ?? 1) > 1) {
+    if (input.meta.maxSpendUsd === undefined) throw new Error("Parallel row calls require an accepted spending cap");
+    input = { ...input, admission: {
+      operation: `${getStepMetadata().stepId}:${input.name}:${input.endpoint}:${inputsHash}`,
+      maxSpendUsd: input.meta.maxSpendUsd, maxCalls: Number.MAX_SAFE_INTEGER,
+    } };
+  }
   const ledgerId = input.admission ? await reserveAgentCall({
     meta: input.meta, operation: input.admission.operation, provider: input.name, endpoint: input.endpoint,
     costUsd: input.costUsd ?? 0, costKind: acceptedCostSource === "projected" ? "estimate" : "upper-bound",

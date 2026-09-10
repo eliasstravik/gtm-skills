@@ -1,6 +1,6 @@
-# GTM agent requirements for workflow v17
+# GTM agent requirements for managed workflows
 
-This is the host contract for a small Eve Slack agent that authors the v17 `gtm-workflow` project in one connected GTM workspace and runs it on Vercel. Vercel deploys the workflow project from that same repository. The sandbox never starts a real run.
+This is the host contract for a small Eve Slack agent that authors the current `gtm-workflow` template generation in one connected GTM workspace and runs it on Vercel. Vercel deploys the workflow project from that same repository. The sandbox never starts a real run.
 
 This contract tracks the workflow library major version: refresh it in the same reviewed change as every `gtm-lib` bump, so it never describes a project shape the skill no longer authors.
 
@@ -33,6 +33,8 @@ The workflow Vercel project connects to the same workspace repository with Root 
 Do not hard-code a customer's URL, repository, tokens, model, identity, or Slack budget in `gtm-agent`.
 
 ## Host environment
+
+For questions about the agent's own capabilities, expose the host's pinned Eve version and declare which agent-source files, if any, its source editor may change. Route permitted edits through that editor's draft-review path and other agent-source work to an external coding session. The [Eve reference](../skills/gtm-workflow/references/eve.md) describes framework capabilities without granting edit authority.
 
 The sandbox runtime uses:
 
@@ -88,6 +90,8 @@ Vercel's Git integration deploys the commit. `api.vercel.com` stays closed to bo
 ## Run control
 
 Preview imports the committed workflow, validates its exported Zod input, performs the zero-spend dry run against one ignored input file, and reports parsed rows, stages, projected cost, caps, and checkpoint.
+
+Preview and start approval also preserve the dry run's concurrency (`N rows at a time`), batch size/count, and parent deadline. Bind these fields to the accepted preview when starting, alongside rows and cost. Show rounded row checkpoints; batch parents require a small-input preview instead of a row checkpoint. Parent receipts list child statuses, counts, cost, and remaining scope; cancellation stops active children. When saving an update with a waiting hosted run, explain that it finishes on the previous deployment and offer cancellation first.
 
 Agent previews also report selected tools, fixed arguments, destinations, effects, skill revisions, model/tool limits, deadline, and whether cost is estimated. The hash covers the full committed definitions, including skill content. Explain those facts in the same run approval. Workflow agents use the workflow project's credentials and execution tools; they never inherit Eve's connections or sandbox.
 

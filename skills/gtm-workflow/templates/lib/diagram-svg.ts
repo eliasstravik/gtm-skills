@@ -1,4 +1,4 @@
-// gtm-lib v20
+// gtm-lib v21
 import { Resvg } from "@resvg/resvg-js";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -26,6 +26,8 @@ function center(box: Box) {
 function subtitle(node: DiagramNode): string | null {
   const parts: string[] = [];
   if (node.provider) parts.push(node.provider);
+  if (node.childWorkflow) parts.push(node.childWorkflow);
+  if (node.batches?.length) parts.push(node.batches.map((batch, index) => `${index + 1}: ${batch.status}`).join(", "));
   if (node.unitCostUsd !== undefined) parts.push(`$${node.unitCostUsd.toFixed(2)} per call`);
   if (node.spentUsd !== undefined) parts.push(`spent $${node.spentUsd.toFixed(2)}`);
   return parts.length ? parts.join(" · ") : null;

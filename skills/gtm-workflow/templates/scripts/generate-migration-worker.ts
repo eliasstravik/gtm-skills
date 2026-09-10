@@ -1,4 +1,4 @@
-// gtm-lib v20
+// gtm-lib v21
 import { spawnSync } from "node:child_process";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";

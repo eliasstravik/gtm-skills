@@ -1,4 +1,4 @@
-// gtm-lib v20
+// gtm-lib v21
 import { createHash } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { redact } from "./redact";
@@ -50,7 +50,11 @@ export async function reserveAgentCall(call: AgentCall): Promise<string> {
        AND provider = 'agent-tool') < ${call.maxToolCalls ?? null})
     ON CONFLICT(id) DO NOTHING RETURNING id
   `);
-  if (rows.length !== 1) throw new Error("Agent call refused: limit, cancellation, or an already admitted operation; inspect the ledger before retrying");
+  if (rows.length !== 1) {
+    const spent = await db.all<{ cost: number }>(sql`SELECT coalesce(sum(cost_usd), 0) AS cost FROM enrichment_runs WHERE run_key = ${call.meta.runKey}`);
+    if (Number(spent[0]?.cost ?? 0) + call.costUsd > call.maxSpendUsd) throw new Error("[spend_cap] Call exceeds the remaining accepted budget");
+    throw new Error("Agent call refused: limit, cancellation, or an already admitted operation; inspect the ledger before retrying");
+  }
   return id;
 }
 

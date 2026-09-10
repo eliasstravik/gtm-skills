@@ -1,6 +1,7 @@
-// gtm-lib v20
+// gtm-lib v21
 import { useStorage } from "nitro/storage";
 import { extractGraph } from "./diagram";
+import { attachChildGraphs } from "./diagram-children";
 import { overlayRun } from "./diagram-overlay";
 import { layoutGraph, type LaidOutGraph } from "./layout";
 import { verifyDiagram, type DiagramClaims } from "./sign";
@@ -35,6 +36,7 @@ export async function resolveDiagramRequest(event: RouteEvent): Promise<DiagramR
   const source = await readWorkflowSource(path);
   if (source === null) return { ok: false, response: deny(404, "not_found", `No workflow named ${path}`) };
   const { graph } = extractGraph(source, path);
+  await attachChildGraphs(graph, readWorkflowSource);
   if (claims.run) {
     try {
       await overlayRun(graph, claims.run);

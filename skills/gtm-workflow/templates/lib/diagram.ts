@@ -1,4 +1,4 @@
-// gtm-lib v20
+// gtm-lib v21
 import ts from "typescript-parser";
 
 export type DiagramStatus = "pending" | "active" | "done" | "failed";
@@ -15,6 +15,10 @@ export type DiagramNode = {
   group?: string;
   status?: DiagramStatus;
   spentUsd?: number;
+  childWorkflow?: string;
+  childGraph?: WorkflowGraph;
+  childSvg?: string;
+  batches?: { runKey: string; status: string; completed: number; failed: number; costUsd: number }[];
 };
 export type DiagramGroup = {
   id: string;
@@ -151,7 +155,7 @@ class GraphBuilder {
     this.#tails = [{ id: start.id }];
     if (workflow?.body) {
       this.#statements(workflow.body.statements, undefined);
-      if (!/\b(?:runRows|setAttributes)\s*\(/.test(workflow.body.getText(this.file))) {
+      if (!/\b(?:runRows|runBatches|setAttributes)\s*\(/.test(workflow.body.getText(this.file))) {
         this.findings.push({
           code: "stage_attributes_missing",
           file: this.relativeFile,
@@ -256,6 +260,15 @@ class GraphBuilder {
           return this.#stepNode(name, group);
         }
         if (name === "runRows") return this.#runRows(current, group);
+        if (name === "runBatches") {
+          const argument = resolveLiteral(current.arguments[0], this.file);
+          const properties = argument && ts.isObjectLiteralExpression(argument) ? argument.properties : [];
+          const childWorkflow = stringProperty(properties, "childWorkflow");
+          const sizeNode = resolveLiteral(property(properties, "batchSize")?.initializer, this.file);
+          const size = sizeNode && ts.isNumericLiteral(sizeNode) ? Number(sizeNode.text) : "declared";
+          const batch = this.#node({ kind: "step", label: `Batches of ${size} rows`, step: "runBatches", childWorkflow }, group);
+          return this.#connect(batch.id);
+        }
         if (name === "durableAgent") {
           const definition = resolveLiteral(current.arguments[0], this.file);
           const properties = definition && ts.isObjectLiteralExpression(definition) ? definition.properties : [];
@@ -426,14 +439,16 @@ class GraphBuilder {
   }
 
   #runRows(call: ts.CallExpression, group: string | undefined) {
-    const argument = call.arguments[0];
+    const argument = resolveLiteral(call.arguments[0], this.file);
     const properties = argument && ts.isObjectLiteralExpression(argument) ? argument.properties : [];
     const rowStep = identifierProperty(properties, "rowStep");
     const afterSave = identifierProperty(properties, "afterSave");
     const table = objectProperty(properties, "table");
     const saveStep = table ? identifierProperty(table.properties, "save") : undefined;
     const tableName = table ? stringProperty(table.properties, "name") : undefined;
-    const loop = this.#group("loop", "For each row", group);
+    const width = resolveLiteral(property(properties, "concurrency")?.initializer, this.file);
+    const concurrency = width && ts.isNumericLiteral(width) ? Number(width.text) : 1;
+    const loop = this.#group("loop", concurrency > 1 ? `For each row · ${concurrency} rows at a time` : "For each row", group);
     const firstIndex = this.graph.nodes.length;
     if (rowStep && this.steps.has(rowStep)) this.#stepNode(rowStep, loop.id);
     // runRows() calls the row step in workflow context, so a plain helper there is drawn inline.
@@ -540,7 +555,7 @@ function containsStep(
     if (found) return;
     if (ts.isCallExpression(current)) {
       const name = calleeName(current);
-      if (name && (steps.has(name) || name === "runRows" || name === "durableAgent" || WAIT_CALLS[name])) found = true;
+      if (name && (steps.has(name) || name === "runRows" || name === "runBatches" || name === "durableAgent" || WAIT_CALLS[name])) found = true;
       const helper = name && !seen.has(name) ? helpers.get(name) : undefined;
       if (helper?.body && containsStep(helper.body, steps, helpers, new Set([...seen, name!]))) found = true;
     }

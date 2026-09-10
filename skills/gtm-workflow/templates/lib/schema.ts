@@ -1,4 +1,4 @@
-// gtm-lib v20
+// gtm-lib v21
 import { sql } from "drizzle-orm";
 import {
   index,
@@ -78,6 +78,7 @@ export const workflowRuns = sqliteTable(
   {
     runKey: text("run_key").primaryKey(),
     runId: text("run_id").unique(),
+    parentRunKey: text("parent_run_key"),
     workflow: text("workflow").notNull(),
     path: text("path").notNull(),
     method: text("method").$type<"GET" | "POST">().notNull(),
@@ -102,6 +103,7 @@ export const workflowRuns = sqliteTable(
     finishedAt: integer("finished_at"),
   },
   (table) => [
+    index("workflow_runs_parent_idx").on(table.parentRunKey),
     uniqueIndex("workflow_runs_live_idx")
       .on(table.path, table.inputHash)
       .where(sql`finished_at IS NULL`),

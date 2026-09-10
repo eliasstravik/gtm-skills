@@ -1,4 +1,4 @@
-// gtm-lib v20
+// gtm-lib v21
 import {
   createClient as createWebClient,
   type Client,
@@ -7,7 +7,7 @@ import { and, eq, getTableColumns, or, sql } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql/driver-core";
 import { drizzle as drizzleWeb } from "drizzle-orm/libsql/web";
 import { getRun } from "workflow/api";
-import { WorkflowRunFailedError } from "workflow/errors";
+import { HookNotFoundError, WorkflowRunFailedError } from "workflow/errors";
 import { getDatabaseConfig } from "./db-url";
 import { redact } from "./redact";
 import {
@@ -192,6 +192,44 @@ export async function getRunRow(
   )[0];
 }
 
+/** A batch parent has one level of ordinary row-workflow children. */
+export function runLedgerCondition(runKey: string) {
+  return sql`(${enrichmentRuns.runKey} = ${runKey} OR ${enrichmentRuns.runKey} IN
+    (SELECT run_key FROM workflow_runs WHERE parent_run_key = ${runKey}))`;
+}
+
+export async function getChildRuns(runKey: string): Promise<WorkflowRunRow[]> {
+  return (await getDb()).select().from(workflowRuns)
+    .where(eq(workflowRuns.parentRunKey, runKey)).orderBy(workflowRuns.runKey);
+}
+
+export async function notifyBatchParent(row: WorkflowRunRow): Promise<void> {
+  if (!row.parentRunKey || row.finishedAt === null) return;
+  const { batchCompletionHook } = await import("./approve");
+  await batchCompletionHook.resume(`${row.parentRunKey}.batch.${row.runKey}`, { runKey: row.runKey })
+    .catch((error) => { if (!HookNotFoundError.is(error)) throw error; });
+}
+
+/** Mark authority revoked before cancelling runtime work, including every child. */
+export async function cancelRunTree(runKey: string, reason: string | null): Promise<void> {
+  const row = await getRunRow(runKey);
+  if (!row) throw new Error(`Unknown run ${runKey}`);
+  if (row.finishedAt === null) await updateRunPlain(runKey, {
+    status: "cancelling", stopReason: reason ?? "operator_cancelled", cancelRequestedAt: Date.now(),
+  });
+  for (const child of await getChildRuns(runKey)) {
+    if (child.finishedAt === null) await cancelRunTree(child.runKey, reason);
+  }
+  if (row.finishedAt !== null) return;
+  const { cancellationHook } = await import("./approve");
+  await cancellationHook.resume(`${row.workflow}.${row.runKey}.cancel`, { reason })
+    .catch((error) => { if (!HookNotFoundError.is(error)) throw error; });
+  if (row.runId) {
+    const run = getRun(row.runId);
+    if (await run.exists) await run.cancel(reason === null ? undefined : { cancelReason: reason });
+  }
+}
+
 export async function getRunCostSources(runKey: string) {
   const db = await getDb();
   return db
@@ -201,7 +239,7 @@ export async function getRunCostSources(runKey: string) {
       costUsd: sql<number>`coalesce(sum(${enrichmentRuns.costUsd}), 0)`,
     })
     .from(enrichmentRuns)
-    .where(eq(enrichmentRuns.runKey, runKey))
+    .where(runLedgerCondition(runKey))
     .groupBy(enrichmentRuns.costSource);
 }
 
@@ -227,7 +265,7 @@ export async function getRunLedgerSummary(runKey: string): Promise<RunLedgerSumm
       costUsd: enrichmentRuns.costUsd,
     })
     .from(enrichmentRuns)
-    .where(eq(enrichmentRuns.runKey, runKey));
+    .where(runLedgerCondition(runKey));
 
   const keyed = new Map<string, Set<string>>();
   const unkeyed: Record<string, number> = {};
@@ -293,6 +331,21 @@ export async function reconcileRun(runKey: string): Promise<WorkflowRunRow> {
   }
 
   const now = Date.now();
+  const children = await getChildRuns(runKey);
+  if (children.length) {
+    const reconciled = [];
+    for (const child of children) reconciled.push(await reconcileRun(child.runKey));
+    const cost = await getRunCostSources(runKey);
+    const startedKeys = new Set(children.flatMap((child) => (JSON.parse(child.input).rows as { key: string }[]).map((row) => row.key)));
+    const unstartedKeys = (JSON.parse(row.input).rows as { key: string }[]).filter((row) => !startedKeys.has(row.key)).map((row) => row.key);
+    await updateRunPlain(runKey, {
+      completed: reconciled.reduce((sum, child) => sum + (child.completed ?? 0), 0),
+      failed: reconciled.reduce((sum, child) => sum + (child.failed ?? 0), 0),
+      costUsd: cost.reduce((sum, item) => sum + Number(item.costUsd), 0),
+      remainingKeys: JSON.stringify([...reconciled.flatMap((child) => child.remainingKeys ? JSON.parse(child.remainingKeys) : []), ...unstartedKeys]),
+    });
+    if (row.status === "cancelling" && reconciled.some((child) => child.finishedAt === null)) return (await getRunRow(runKey))!;
+  }
   if (!row.runId) {
     if (now - row.startedAt < 10 * 60_000) return row;
     row = (await getRunRow(runKey))!;
@@ -327,7 +380,7 @@ export async function reconcileRun(runKey: string): Promise<WorkflowRunRow> {
   const status: WorkflowStatus | undefined =
     row.status === "cancelling" &&
     ["completed", "failed", "cancelled"].includes(sdkStatus)
-      ? "cancelled"
+      ? row.stopReason === "parent_deadline" ? "timed_out" : row.stopReason === "parent_failed" ? "failed" : "cancelled"
       : sdkStatus === "completed"
       ? "completed"
       : sdkStatus === "failed"
@@ -397,9 +450,10 @@ async function finishRun(
     await db
       .select({ costUsd: sql<number>`coalesce(sum(${enrichmentRuns.costUsd}), 0)` })
       .from(enrichmentRuns)
-      .where(eq(enrichmentRuns.runKey, runKey))
+      .where(runLedgerCondition(runKey))
   )[0];
   await updateRunPlain(runKey, { ...patch, costUsd: Number(cost?.costUsd ?? 0) });
+  await notifyBatchParent((await getRunRow(runKey))!);
 }
 
 function inferFailedStep(cause: unknown): string | undefined {

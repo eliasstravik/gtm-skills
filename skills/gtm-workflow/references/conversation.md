@@ -40,9 +40,11 @@ On a hosted surface with a native approval control, write no proposal message: r
 
 When any affected workflow runs hosted, the proposal ends its workflow description with `Saving this also puts it live in production.` After the save, say `It will be live in production in a few minutes; ask me to check.`; when asked, answer `Live.` only after the production deployment reports the saved version, otherwise `Not yet live.`
 
+When a hosted run is waiting, add before that production sentence: `The waiting run will finish on the previous version; you can ask me to stop it first.` Identify it by workflow name and start time when needed; use the existing cancel gate if requested.
+
 ## Run gate
 
-After the read-only preview, the run proposal states rows, stages, projected cost, caps, external writes, and checkpoint position, and that the preview called no provider or model, did not check table existence, and did not test credentials. On a keyboard:
+After the read-only preview, the run proposal states rows, stages, projected cost, caps, external writes, and checkpoint position, and that the preview called no provider or model, did not check table existence, and did not test credentials. For row work, both save and run proposals say `N rows at a time`; when parallel, give the checkpoint's rounded count. For child batches, also state batch count and size, overall deadline, cancellation of active batches, and that an ordinary failed batch does not stop later batches. Batch parents have no row checkpoint: propose a small input first in place of the checkpoint option, then preview full scope separately. On a keyboard:
 
 ```text
 **Would you like to run this scope?**
@@ -89,7 +91,7 @@ Local links are `http://127.0.0.1:3000/gtm/diagram/<path>?…`, `http://127.0.0.
 
 Lead completion with the business result and `<n> completed, <m> failed`. Follow with `found <success> of <success + empty> (<hit-rate>%)`, rows written, table, cache hits, estimate versus actual, vendor and model cost, `reported | fixed | projected` cost sources, external systems changed, and delivery state. When estimate and actual differ by more than 20%, give one reason: cache hits, lower reported cost, or early stop. A projected cost is the accepted ceiling because the backend did not report billing.
 
-At a checkpoint, report `<n> rows done, <m> failed, found <x> of <y> (<z>%), $<a> estimated versus $<b> actual, <cost-source breakdown>, $<c> projected for the remaining rows`. On a hosted surface that report, ending `Cancel, then ask me to show the saved rows before deciding`, is the `summary` of the approve action with its closing line, and no text precedes it. On a keyboard it is a text report followed by:
+At a checkpoint, report `<n> rows done, <m> failed, found <x> of <y> (<z>%), $<a> estimated versus $<b> actual, <cost-source breakdown>, $<c> projected for the remaining rows`. Add `N rows at a time` and any rounding beyond the requested checkpoint count. Parent receipts include each batch's status, counts, and cost. On a hosted surface that report, ending `Cancel, then ask me to show the saved rows before deciding`, is the `summary` of the approve action with its closing line, and no text precedes it. On a keyboard it is a text report followed by:
 
 ```text
 1. Continue (Recommended)

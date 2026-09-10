@@ -1,4 +1,4 @@
-// gtm-lib v20
+// gtm-lib v21
 import type { DiagramEdge, DiagramGroup, DiagramNode, DiagramStatus, WorkflowGraph } from "./diagram";
 
 export function statusMarker(status?: DiagramStatus): string {
@@ -9,7 +9,8 @@ export function statusMarker(status?: DiagramStatus): string {
 function nodeText(node: DiagramNode): string {
   const marker = statusMarker(node.status);
   const cost = node.spentUsd !== undefined ? ` ($${node.spentUsd.toFixed(2)})` : "";
-  return `${marker ? `${marker} ` : ""}${node.label}${cost}`;
+  const batches = node.batches?.map((batch, index) => `batch ${index + 1}: ${batch.status}, ${batch.completed} done, ${batch.failed} failed`).join("; ");
+  return `${marker ? `${marker} ` : ""}${node.label}${cost}${node.childWorkflow ? ` → ${node.childWorkflow} (child graph collapsed)` : ""}${batches ? `; ${batches}` : ""}`;
 }
 
 function groupText(group: DiagramGroup): string {
