@@ -73,7 +73,7 @@ If verdicts feel miscalibrated, qualify 10–30 known-good and known-bad example
 - Use Insufficient Data only when the supplied entity's own identity remains unresolved.
 - Write nothing.
 - Put paid calls only behind the exact-scope identity or enrichment gate defined above, with its `gtm-workflow` pointer.
-- Follow the shared interaction standard for every question: one bold lead question, bulleted facts wanted, at most one numbered block with option 1 `(Recommended)`, and no `AskUserQuestion`.
+- Follow the shared interaction standard's decision message for every question: one bold lead question answered by its numbered options, bullets that state defaults or facts, and no `AskUserQuestion`.
 
 ## References
 
