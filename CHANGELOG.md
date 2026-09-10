@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.3, 2026-09-10
+
+Workflow library generation 20.
+
+- Migration generation returns structured schema decisions without terminal prompts, stages artifacts until success, and stops hung generators after 60 seconds.
+- Generation refuses a snapshot that has lost the shared runtime tables. Migration recovery guidance covers ambiguous changes, snapshot drift, and timeouts. Existing projects must use the managed `db:generate` helper; no schema migration is required for this update.
+
 ## 0.5.2, 2026-09-09
 
 Workflow library generation 19.

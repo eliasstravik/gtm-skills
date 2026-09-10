@@ -3,6 +3,7 @@
 .vercel/
 .well-known/
 node_modules/
+.gtm-migration-*/
 .workflow-data/
 .nitro/
 .output/

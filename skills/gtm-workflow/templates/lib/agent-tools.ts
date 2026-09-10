@@ -1,4 +1,4 @@
-// gtm-lib v19
+// gtm-lib v20
 import { createMCPClient } from "@ai-sdk/mcp";
 import Ajv from "ajv";
 import { agentDefinition, toolDefinition, type ToolDefinition } from "./capabilities";
