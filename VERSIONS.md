@@ -4,6 +4,7 @@ GTM Skills has one project version. Every installable skill ships at that versio
 
 | Project version | Released | Skills | Workflow library generation | Checked |
 | --- | --- | --- | --- | --- |
+| 0.9.0 | 2026-09-10 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 23 | 2026-09-10 |
 | 0.8.0 | 2026-09-10 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 23 | 2026-09-10 |
 | 0.7.0 | 2026-09-10 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 22 | 2026-09-10 |
 | 0.6.0 | 2026-09-10 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 21 | 2026-09-10 |
