@@ -48,7 +48,7 @@ Decide first, then build. The decision phase costs the user one message; the bui
 Decide:
 
 1. Resolve workspace, owner, and kind. Read the owner's relevant ICP and persona files.
-2. Ask every open decision in one grouped message with a recommendation for each, in the interaction standard's shape: purpose, explicit input shape and stable row key, result columns, paid stages and their providers, caps and timing, approval stages, checkpoint, external writes, and where it runs. Offer `on this computer` or `hosted, in production`: recommend this computer for on-demand keyboard work, hosted for scheduled or triggered work, and hosted for every sandbox workflow because the sandbox never starts a real run; explain that local scheduled work runs only when invoked and hosted model calls use the user's budgeted key. For agent stages, include selected skills/tools, argument scope, and cost uncertainty. Ask nothing the agent can research or default. Do not read further references, scaffold, install, or write code before the answers arrive.
+2. Choose a default for every open decision: input shape and what identifies a row, result tables, paid stages and their sources, caps and timing, checkpoint, external writes. Run location is never asked on a hosted surface: every sandbox workflow is hosted, because the sandbox never starts a real run. On a keyboard it is asked as the decision message's lead question `**Where should <workflow name> run?**` with options `1. Hosted, in production (Recommended)` and `2. On this computer`, recommending this computer instead for on-demand keyboard work, and the other defaults as stated bullets. On a hosted surface, send at most one decision message per the interaction standard, and only when a default changes cost, external effects, or what gets saved. For agent stages, the gate, not the message, carries selected skills/tools, argument scope, and cost uncertainty. Do not read further references, scaffold, install, or write code before the answer arrives.
 
 Build:
 
@@ -68,7 +68,7 @@ Cancellation before step 10 writes no tracked bytes and no migration.
 
 1. Resolve the workflow and inspect its header, table, adapter, migrations, schedule, approvals, and deployment state.
 2. Compare every managed file by header and recorded hash against the current generation in the template `package.json` at `gtm.libVersion`. Show locally modified diffs and include any accepted recopy in the proposal.
-3. Agree the business change in one grouped message that carries every open decision with a recommendation, before editing or reading further references. A run-location switch is an update to the same workflow.
+3. Agree the business change in at most one decision message per the standard, defaults stated, before editing or reading further references. A run-location switch is an update to the same workflow, offered only on a keyboard; on a hosted surface it is never mentioned.
    When a hosted run is waiting, state in the proposal that it finishes on the previous version and offer to cancel it first through the existing cancel gate.
 4. Change only the workflow, table, adapter, accepted ICP/persona context, environment names, cron entry, or deployment metadata required by the request. Reload context text so its changed content invalidates the model cache.
 5. New columns are nullable or defaulted. Use expand/contract for a rename: add, backfill, switch code, then drop after the old deployment is gone. Keep schedule headers, `scheduledInput`, and cron entries aligned.
@@ -162,7 +162,7 @@ When `GTM_SANDBOX=1`:
 3. Submit tracked bytes through the host approval tool. Run no `git push`, `git fetch`, `git remote`, or other remote Git command.
 4. A save containing `Runs: on Vercel` changes applies accepted migrations and commits once to `main`, which puts it live in production. The proposal ends its workflow description with `Saving this also puts it live in production.` and states each table change in words; the host request names every migration, carries its SQL, and declares destructive statements. Use trusted controls for read-only preview and status, and approval-gated start, approval, and cancel actions, each with the whole proposal as its approval text. Start waits for the exact committed HEAD. Keep the production run bearer and OIDC tokens in the host runtime; there is no deploy token.
 5. Use no Studio and expose no port. Relay `gtm query --format markdown`, `gtm runs get`, `workflow inspect run`, and `workflow inspect hooks` output.
-6. Start no real run in the sandbox. `Runs: on this computer` is a keyboard location; in the sandbox, recommend and deploy `Runs: on Vercel`. The sandbox database credential is read-only, so rows change only through hosted runs and accepted migrations.
+6. Start no real run in the sandbox. Every workflow authored in the sandbox is `Runs: on Vercel`; never ask where it runs and never offer `on this computer`, a keyboard-only header. The sandbox database credential is read-only, so rows change only through hosted runs and accepted migrations.
 
 ## Recovery
 

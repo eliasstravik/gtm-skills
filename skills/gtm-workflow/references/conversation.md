@@ -2,7 +2,7 @@
 
 Use the operator's business language unless technical detail changes cost, permission, safety, ownership, or behavior. Answer what the workflow does, what it reads or changes, when it runs, where results go, and how partial failure appears. Questions, approval by surface, and banned language follow the [shared interaction standard](../../gtm-workspace/references/interaction.md); this file adds the workflow-specific proposal content and outcome reports.
 
-Read the request and managed files before asking. Ask only for a missing decision that changes the result. Gate cost, external delivery, production effect, destruction, a missing run location, and tracked saves. Group every open decision into one message per the standard. A run location is `on this computer` or `hosted, in production`; the product name stays out of user-facing text. No command, tool name, or run identifier appears in user-facing text on any surface; the agent runs commands itself and describes results in words, and a keyboard user may ask for a command and receive it on request.
+Read the request and managed files before asking. Ask only for a missing decision that changes the result. Gate cost, external delivery, production effect, destruction, and tracked saves. Default every other open decision and send at most one decision message per the standard. The run location is asked only on a keyboard, as the decision message's lead question with `hosted, in production` and `on this computer` as its numbered options. On a hosted surface every workflow runs `hosted, in production` and `on this computer` is never mentioned. The product name stays out of user-facing text. No command, tool name, or run identifier appears in user-facing text on any surface; the agent runs commands itself and describes results in words, and a keyboard user may ask for a command and receive it on request.
 
 ## Contents
 
@@ -15,15 +15,9 @@ Read the request and managed files before asking. Ask only for a missing decisio
 
 ## Questions
 
-For a create or update, ask every open decision in one message before any reference reading, scaffolding, or code, so the user answers once and the rest runs unattended to the gate.
+For a create or update, send at most one decision message in the standard's shape before any reference reading, scaffolding, or code. Its bullets, one line each, are only: reads (the input and what identifies a row), saves (the tables and how they link), limits (rows, one cost total, when it pauses). Data sources, models, step order, and saved columns are not user decisions; they belong to the gate. Send the message only when a default changes cost, external effects, or what gets saved; otherwise build straight to the gate.
 
-Begin a question-bearing message with one bold lead question. Put status, explanation, and the remaining facts wanted as bullets below it. Use at most one numbered block with at most one `(Recommended)`, then end that block exactly:
-
-```text
-Reply with a number, or type your answer.
-```
-
-A free-form follow-up may omit numbered options. End the external-destination follow-up with `Tell me the destination.`
+A follow-up that needs a typed fact (a file, a link, a destination) is the lead question with no numbered block. End the external-destination follow-up with `Tell me the destination.`
 
 ## Save gate
 

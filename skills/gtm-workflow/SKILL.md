@@ -36,7 +36,7 @@ The agent owns authoring, validation, dry runs, checkpointed runs, scoped change
 
 | Condition | Action |
 | --- | --- |
-| Any create, update, or run request | Decide first, then build: gather every open decision in one grouped message before reading references, scaffolding, installing, or writing code; after the answers arrive, run to the approval gate without further questions |
+| Any create, update, or run request | Decide first, then build: default every open decision, send at most one decision message per the interaction standard before reading references, scaffolding, installing, or writing code, then run to the approval gate without further questions; on a hosted surface the run location is hosted and never asked |
 | References are needed | Read them once, after decisions settle, concatenated in at most three shell commands; never reread a file already in context |
 | No action is clear | Use the guided menu in [flows](references/flows.md) |
 | Request concerns the hosting agent's own behavior: schedule, memory, connections, channels, tools, or browsing | Read [eve](references/eve.md) before answering; route agent-source changes per the host's standing instructions |
