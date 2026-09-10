@@ -53,7 +53,7 @@ If no valid workspace is connected or discoverable, stop without writing and dir
 
 ## QC
 
-- Follow the shared interaction standard for every question, proposal, approval, and closing message; ask every missing result-changing fact in one grouped message and never use `AskUserQuestion`.
+- Follow the shared interaction standard for every question, proposal, approval, and closing message; ask every missing result-changing fact in one decision message and never use `AskUserQuestion`.
 - Preserve every supplied responsibility, influence fact, authority boundary, disqualifier, and uncertainty; organization facts and adjacent personas are a factual ceiling, never evidence for invented persona claims.
 - Keep all eight person-data fields in the required order for every new or fully researched `PERSONA.md`; preserve uncertainty and write `Unknown` instead of inventing or dropping unresolved criteria.
 - Describe every proposed artifact and exact effect before writing and never show complete bytes unless asked; create new personas only at the canonical nested path, preserve legacy reads and node-local visibility, and mutate only persona paths.
@@ -65,4 +65,4 @@ If no valid workspace is connected or discoverable, stop without writing and dir
 - Read [the shared person-data research contract](../gtm-workspace/references/person-data.md) before creating or fully researching a persona; apply its ordered fields as desired or accepted person criteria.
 - Read [the persona lifecycle flows](references/flows.md) after selecting the Procedure row; they define menu, create, update, delete, doctor, recovery, and closure.
 - Render [the persona draft template](templates/persona.md) only for create; it is a starting shape, not a schema or validity test.
-- Read [the shared interaction standard](../gtm-workspace/references/interaction.md) before any user-facing message; it defines audience language, length and formatting, proposal shape, batching, grouped questions, approval by surface, and closing.
+- Read [the shared interaction standard](../gtm-workspace/references/interaction.md) before any user-facing message; it defines audience language, length and formatting, proposal shape, batching, decision messages, approval by surface, and closing.

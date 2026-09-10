@@ -16,7 +16,7 @@ Use the matched flow from `SKILL.md`. Keep ownership through completion; these u
 
 ## Workspace rules
 
-- Every user-facing message follows the [shared interaction standard](interaction.md): its length and formatting caps, grouped questions, one plain-language proposal per batch, approval by surface, and a `Saved.` close. The rules below are the workspace-specific ones that remain.
+- Every user-facing message follows the [shared interaction standard](interaction.md): its length and formatting caps, decision messages, one plain-language proposal per batch, approval by surface, and a `Saved.` close. The rules below are the workspace-specific ones that remain.
 - Resolve the connected GTM workspace repo first: a repo explicitly named in the request, else the repo the hosting environment declares as connected, else canonical repos under `~/.gtm/` whose root contains `ORG.md`. If several valid repos exist and none was named, list their display names as numbered options. Treat roots with only legacy `org.md` as migration candidates, not canonical repos. Do not save a preferred repo. If update, delete, or doctor has no repo to use, explain that; on a keyboard surface offer create/import through the guided menu. On a fixed-connection surface, a connected repo whose root has neither `ORG.md` nor legacy `org.md` is not set up yet: offer create for that connected repo; otherwise use the surface refusal.
 - Discover organization nodes recursively from the root through repeated `suborgs/<suborg-slug>/` segments. Display each node by its display name plus owner chain, `Enterprise (Nimbus Labs)`, and each member the same way, `Jordan Lee (Nimbus Labs › Enterprise)`; paths stay internal. Resolve every member relative to its owning node; never collapse same-named nodes or members from different branches.
 - Never repeat or open an unsafe link. Follow `contract.md` link safety and continue using a plain-language source label.
@@ -55,7 +55,7 @@ Write nothing, draft nothing, and research nothing for the refused request; do n
 
 ## Create
 
-Create is one grouped intake, one research pass, one proposal, and one save.
+Create is one intake decision message, one research pass, one proposal, and one save.
 
 On a fixed-connection surface whose connected repo has no root `ORG.md` or legacy `org.md`, run this flow for that repo with these connected-repo substitutions and no others: skip the git check in step 1; the connected checkout is the target, so create no `~/.gtm/` directory and run no collision check in step 2; the first proposal in step 3 carries the root organization `plus the workspace's standard setup files` and any supplied suborganizations and members, and is saved through the environment's declared mechanism; in step 4 do not initialize a repo or set a repo-local identity; skip the sharing step 5 because the deployment already shares the repo; in step 6 say the workspace is saved in the connected repository instead of describing local or shared mode. Every question, research rule, and completion criterion stays as written.
 
