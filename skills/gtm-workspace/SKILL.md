@@ -39,7 +39,7 @@ The agent owns the selected lifecycle flow. The user accepts durable changes and
 | A fixed-connection deployment receives import, sharing setup, whole-workspace deletion, a create for a repo other than the connected one, or another connection-changing request | Refuse and redirect through the surface-refusal flow; perform nothing for that request |
 | Create is requested on a fixed-connection deployment whose connected repo has no root `ORG.md` or legacy `org.md` | Guide the create flow with its connected-repo substitutions; the first saved change writes `ORG.md` together with the contract files |
 | No lifecycle verb is clear | Guide the lifecycle menu and retain ownership of the selected flow |
-| Create is requested | Ask one grouped intake, research every supplied source, present one proposal for the organization and every supplied suborganization and member, save once, then offer sharing and close |
+| Create is requested | Send one intake decision message, research every supplied source, present one proposal for the organization and every supplied suborganization and member, save once, then offer sharing and close |
 | Import is requested | Guide a local copy or GitHub clone through inventory, accepted conversion, history, optional sharing, and summary |
 | Update is requested | Resolve the target, describe the changed facts, save the accepted changes, and close |
 | Delete is requested | Resolve the target, describe consequences, obtain the required confirmation, delete, and explain recovery where available |
@@ -55,7 +55,7 @@ If a required reference is unavailable, use `templates/AGENTS.md` as the minimum
 
 ## QC
 
-- Follow the shared interaction standard for every question, proposal, approval, and closing message; ask every missing result-changing fact in one grouped message and never use `AskUserQuestion`.
+- Follow the shared interaction standard for every question, proposal, approval, and closing message; ask every missing result-changing fact in one decision message and never use `AskUserQuestion`.
 - Describe every durable workspace action before writing and never show complete bytes unless asked; apply exactly the accepted proposal and preserve compatibility with the workspace contract. Name GitHub, the repository, or the folder only in import, sharing setup, whole-workspace deletion, and git-problem recovery; keep branch, remote, upstream, and command details internal unless a problem requires them or the user asks.
 - Keep all 13 company-data fields in the required order for every new or fully researched `ORG.md`; preserve uncertainty and write `Unknown` instead of inventing or dropping unresolved facts.
 - Keep all eight person-data fields in the required order for every new or fully researched `MEMBER.md`; retain the required supplied email outside that contract, preserve uncertainty, and write `Unknown` instead of inventing or dropping unresolved facts.
@@ -67,6 +67,6 @@ If a required reference is unavailable, use `templates/AGENTS.md` as the minimum
 - Read [the workspace contract](references/contract.md) for every flow; it defines storage, content, link safety, doctor checks, and persistence.
 - Read [the company-data research contract](references/company-data.md) before creating or fully researching an `ORG.md`; it defines the ordered fields, value shapes, uncertainty rules, and shared ICP semantics.
 - Read [the person-data research contract](references/person-data.md) before creating or fully researching a `MEMBER.md`; it defines the ordered fields, value shapes, uncertainty rules, supplied-email boundary, and shared persona semantics.
-- Read [the shared interaction standard](references/interaction.md) before any user-facing message; it defines audience language, length and formatting, proposal shape, batching, grouped questions, approval by surface, and closing.
+- Read [the shared interaction standard](references/interaction.md) before any user-facing message; it defines audience language, length and formatting, proposal shape, batching, decision messages, approval by surface, and closing.
 - Read [the guided flows](references/flows.md) after selecting the Procedure row; it defines intake, proposals, recovery, and closure.
 - Render [templates](templates/) when creating or restoring contract files, replacing placeholders and omitting empty optional fields or sections.

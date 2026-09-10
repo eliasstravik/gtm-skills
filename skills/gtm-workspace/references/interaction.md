@@ -74,7 +74,7 @@ All: Swedish businesses with 1–49 employees, with sector-specific fit signals 
 
 ## Batching
 
-When the user supplies several items in one or more messages, draft all of them and present one proposal. The save writes every accepted artifact in one durable change with one plain history entry such as `Add 3 personas`. Shared facts are stated once for the batch, never repeated per artifact. No skill offers a suggest or brainstorm step; with no supplied facts, the skill asks its grouped intake question below.
+When the user supplies several items in one or more messages, draft all of them and present one proposal. The save writes every accepted artifact in one durable change with one plain history entry such as `Add 3 personas`. Shared facts are stated once for the batch, never repeated per artifact. No skill offers a suggest or brainstorm step; with no supplied facts, the skill sends its intake decision message per [Questions](#questions).
 
 Splitting follows artifact boundaries only: ICPs, personas, members, and suborganization organization files may be split across parts; a workflow save (source, table, migration SQL, journal, snapshot) is never split; the first part of a workspace create always carries the root organization and the standard setup files. A workflow summary is bounded by construction (one workflow, one table, a handful of stages); if it would exceed the limit, trim prose, never scope, and never split.
 

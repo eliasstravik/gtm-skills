@@ -20,7 +20,7 @@ For stage selection, agent tools/skills, native workflow composition, and extens
 
 Resolve the workspace in this order: a repository named in the request, the connected repository, then canonical repositories under `~/.gtm/` whose root has `ORG.md`. If several remain, ask which one to use. If none exists, stop before writes and hand creation or connection to `gtm-workspace`.
 
-A named organization node wins. Otherwise use root unless the workflow belongs to exactly one suborganization. The project always lives at workspace root. Root workflows use `workflows/workflows/<slug>.ts`; suborganization paths omit physical `suborgs/` segments. Once resolved, place the context line `Using GTM workspace: <root display name>` under the bold opener of every proposal and grouped question; on a hosted surface the approval text opens `For <root display name>:` instead. Workflow counts are internal.
+A named organization node wins. Otherwise use root unless the workflow belongs to exactly one suborganization. The project always lives at workspace root. Root workflows use `workflows/workflows/<slug>.ts`; suborganization paths omit physical `suborgs/` segments. Once resolved, place the context line `Using GTM workspace: <root display name>` under the bold opener of every proposal and decision message; on a hosted surface the approval text opens `For <root display name>:` instead. Workflow counts are internal.
 
 ## Project shape and state
 

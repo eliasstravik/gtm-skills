@@ -10,7 +10,7 @@ A request-named organization node wins. Otherwise root is the default. For updat
 
 ICP visibility is node-local. Read exactly the target node's canonical `icps/*/ICP.md` artifacts plus legacy `icps/*.md` artifacts; root, ancestor, sibling, and descendant ICPs are not visible. Organization grounding may read only the root-to-target `ORG.md` chain. Persona and member files are not ICP inputs. Never scan `.git` contents or use broad recursive content reads that can expose artifacts outside that set.
 
-The context line is `Using GTM workspace: <root display name>`, placed directly under the bold opener of every proposal and of every grouped question once a workspace is resolved; on a hosted surface the approval text opens `For <root display name>:` instead. It always names the root; the owning node of each ICP is carried by its identity, `<display name> (<root> › <owner chain>)`. The qualified label (bare slug at root, `<org-path>/<slug>` below root with physical `suborgs/` segments omitted) is an internal identifier for overlap checks and is never shown.
+The context line is `Using GTM workspace: <root display name>`, placed directly under the bold opener of every proposal and of every decision message once a workspace is resolved; on a hosted surface the approval text opens `For <root display name>:` instead. It always names the root; the owning node of each ICP is carried by its identity, `<display name> (<root> › <owner chain>)`. The qualified label (bare slug at root, `<org-path>/<slug>` below root with physical `suborgs/` segments omitted) is an internal identifier for overlap checks and is never shown.
 
 ## Artifact contract
 

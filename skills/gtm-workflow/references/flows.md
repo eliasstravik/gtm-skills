@@ -101,7 +101,7 @@ For a run, use `npm run gtm -- runs get <runId|runKey> --format markdown`, resol
 
 1. Resolve the workflow and inspect its schedule, table, rows, adapter sharing, deployment state, and history recovery.
 2. Plan removal of the workflow and its schedule. Keep its result table and rows by default.
-3. Before the proposal, ask the grouped question `**Should the result table and its rows be removed too?**` with the row count in words and the options keep the table `(Recommended)` / remove it. An accepted drop uses a generated migration and never `db:push` or force.
+3. Before the proposal, ask the decision message `**Should the result table and its rows be removed too?**` with the row count in words and the options keep the table `(Recommended)` / remove it. An accepted drop uses a generated migration and never `db:push` or force.
 4. Present one deletion proposal per the standard: the workflow by name and owner, that it will no longer run, and, when accepted, that its table and its rows (count in words) will be removed. On acceptance, remove only selected files and cron entries. Generate and apply a drop migration only when the removal was chosen, and make its first line `-- gtm: destructive accepted` so `gtm check` records that acceptance; the hosted request declares `destructive: true`.
 5. Remove empty nested workflow directories and an empty `vercel.json`. Keep shared adapters, fixed tables, the deployment project, and unrelated workflows.
 6. Validate, save, and report what remains and how history restores source deletion. Schema and data do not roll back with source.
