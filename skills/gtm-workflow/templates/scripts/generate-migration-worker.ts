@@ -29,7 +29,10 @@ async function main() {
     for (const [i, file] of modules.entries()) {
       for (const [key, value] of Object.entries(await import(pathToFileURL(file).href))) exports[`${i}_${key}`] = value;
     }
-    const current = await generateSQLiteDrizzleJson(exports);
+    const current = await generateSQLiteDrizzleJson(exports) as {
+      tables: Record<string, { columns: Named }>;
+      views?: Named;
+    };
     const snapshots = (await readdir(join(candidate, "meta"))).filter((name) => /^\d+_snapshot\.json$/.test(name)).sort();
     const previous = snapshots.length ? JSON.parse(await readFile(join(candidate, "meta", snapshots.at(-1)!), "utf8")) : { tables: {}, views: {} };
     const decisions: { kind: string; table?: string; added: string[]; removed: string[] }[] = [];
