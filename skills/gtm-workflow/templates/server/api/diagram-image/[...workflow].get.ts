@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import { defineEventHandler } from "nitro/h3";
 import { readFontBytes, resolveDiagramRequest } from "../../../lib/diagram-route";
 import { renderPng, renderSvg } from "../../../lib/diagram-svg";

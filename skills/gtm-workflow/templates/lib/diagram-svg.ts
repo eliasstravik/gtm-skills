@@ -1,9 +1,10 @@
-// gtm-lib v21
+// gtm-lib v22
 import { Resvg } from "@resvg/resvg-js";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { DiagramEdge, DiagramNode, DiagramStatus } from "./diagram";
+import type { DiagramEdge, DiagramNode, DiagramStatus, WorkflowGraph } from "./diagram";
+import { layoutGraph } from "./layout";
 import type { Box, LaidOutGraph } from "./layout";
 
 const FONT = "Inter, system-ui, sans-serif";
@@ -25,10 +26,15 @@ function center(box: Box) {
 
 function subtitle(node: DiagramNode): string | null {
   const parts: string[] = [];
-  if (node.provider) parts.push(node.provider);
+  if (node.paidCalls?.length) parts.push(...node.paidCalls.map((call) => `${call.provider}${call.model ? ` · ${call.model}` : ""} · ${call.unitCostUsd === undefined ? "cost varies" : `$${Number(call.unitCostUsd.toPrecision(4))} per row`}`));
+  else {
+    if (node.provider) parts.push(node.provider);
+    if (node.model) parts.push(node.model);
+    if (node.unitCostUsd !== undefined) parts.push(`$${Number(node.unitCostUsd.toPrecision(4))} per row`);
+    else if (node.provider) parts.push("cost varies");
+  }
   if (node.childWorkflow) parts.push(node.childWorkflow);
   if (node.batches?.length) parts.push(node.batches.map((batch, index) => `${index + 1}: ${batch.status}`).join(", "));
-  if (node.unitCostUsd !== undefined) parts.push(`$${node.unitCostUsd.toFixed(2)} per call`);
   if (node.spentUsd !== undefined) parts.push(`spent $${node.spentUsd.toFixed(2)}`);
   return parts.length ? parts.join(" · ") : null;
 }
@@ -38,7 +44,8 @@ function nodeSvg(node: DiagramNode, box: Box): string {
   const c = center(box);
   const sub = subtitle(node);
   const labelY = sub ? c.y - 6 : c.y + 5;
-  const text = `<text x="${c.x}" y="${labelY}" text-anchor="middle" font-family="${FONT}" font-size="15" font-weight="600" fill="#0f172a">${escape(node.label)}</text>` +
+  const marker = { done: "[x]", failed: "[!]", active: "[~]", pending: "[ ]" }[node.status ?? "pending"];
+  const text = `<text x="${c.x}" y="${labelY}" text-anchor="middle" font-family="${FONT}" font-size="15" font-weight="600" fill="#0f172a">${escape(`${node.order ? `${node.order}. ` : ""}${marker} ${node.label}`)}</text>` +
     (sub ? `<text x="${c.x}" y="${c.y + 16}" text-anchor="middle" font-family="${FONT}" font-size="12" fill="#64748b">${escape(sub)}</text>` : "");
   if (node.kind === "decision") {
     const points = `${c.x},${box.y} ${box.x + box.width},${c.y} ${c.x},${box.y + box.height} ${box.x},${c.y}`;
@@ -51,7 +58,7 @@ function nodeSvg(node: DiagramNode, box: Box): string {
   return `<rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" rx="12" fill="${fill}" stroke="${stroke}" stroke-width="2"/>${text}`;
 }
 
-function edgeSvg(edge: DiagramEdge, from: Box, to: Box): string {
+function edgeSvg(edge: DiagramEdge, from: Box, to: Box, route?: LaidOutGraph["edgeRoutes"][number]): string {
   const a = center(from);
   const b = center(to);
   if (edge.back) {
@@ -62,9 +69,9 @@ function edgeSvg(edge: DiagramEdge, from: Box, to: Box): string {
   }
   const startY = from.y + from.height;
   const endY = to.y;
-  const path = `M ${a.x} ${startY} C ${a.x} ${(startY + endY) / 2}, ${b.x} ${(startY + endY) / 2}, ${b.x} ${endY}`;
+  const path = route?.points.length ? route.points.map((point, index) => `${index ? "L" : "M"} ${point.x} ${point.y}`).join(" ") : `M ${a.x} ${startY} C ${a.x} ${(startY + endY) / 2}, ${b.x} ${(startY + endY) / 2}, ${b.x} ${endY}`;
   const label = edge.label
-    ? `<text x="${(a.x + b.x) / 2 + 8}" y="${(startY + endY) / 2}" font-family="${FONT}" font-size="11" fill="#475569">${escape(edge.label)}</text>`
+    ? `<text x="${route?.x ?? (a.x + b.x) / 2 + 8}" y="${route?.y ?? (startY + endY) / 2}" font-family="${FONT}" font-size="11" fill="#475569">${escape(edge.label)}</text>`
     : "";
   return `<path d="${path}" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>${label}`;
 }
@@ -80,21 +87,33 @@ export function renderSvg(laidOut: LaidOutGraph): string {
     );
   }
   const byId = new Map(laidOut.nodes.map((node) => [node.id, node]));
-  for (const edge of laidOut.edges) {
+  for (const [index, edge] of laidOut.edges.entries()) {
     if (!byId.has(edge.from) || !byId.has(edge.to)) continue;
-    parts.push(edgeSvg(edge, laidOut.positions[edge.from], laidOut.positions[edge.to]));
+    parts.push(edgeSvg(edge, laidOut.positions[edge.from], laidOut.positions[edge.to], laidOut.edgeRoutes?.[index]));
   }
   for (const node of laidOut.nodes) parts.push(nodeSvg(node, laidOut.positions[node.id]));
   const title = laidOut.run
     ? `${laidOut.workflow.label} · ${laidOut.run.status} · $${laidOut.run.costUsd.toFixed(2)}`
     : laidOut.workflow.label;
+  const summary = laidOut.workflow.summary ?? title;
+  const width = Math.max(laidOut.size.width, summary.length * 7.5 + 64, 620);
+  const height = laidOut.size.height + 130;
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${laidOut.size.width}" height="${laidOut.size.height + 40}" viewBox="0 0 ${laidOut.size.width} ${laidOut.size.height + 40}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
     `<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/></marker></defs>` +
     `<rect width="100%" height="100%" fill="#ffffff"/>` +
-    `<text x="${laidOut.size.width / 2}" y="28" text-anchor="middle" font-family="${FONT}" font-size="16" font-weight="700" fill="#0f172a">${escape(title)}</text>` +
-    `<g transform="translate(0 40)">${parts.join("")}</g></svg>`
+    `<text x="${width / 2}" y="28" text-anchor="middle" font-family="${FONT}" font-size="16" font-weight="700" fill="#0f172a">${escape(title)}</text>` +
+    `<rect x="16" y="42" width="${width - 32}" height="36" rx="8" fill="#eff6ff"/>` +
+    `<text x="${width / 2}" y="65" text-anchor="middle" font-family="${FONT}" font-size="13" fill="#1e3a8a">${escape(summary)}</text>` +
+    `<g transform="translate(${(width - laidOut.size.width) / 2} 90)">${parts.join("")}</g>` +
+    `<text x="${width / 2}" y="${height - 12}" text-anchor="middle" font-family="${FONT}" font-size="12" fill="#475569">[x] Done   [!] Failed   [~] Active   [ ] Not reached</text></svg>`
   );
+}
+
+/** Render scratch-draft graph JSON without a deployment, server, or signed URL. */
+export function renderDiagramPng(graph: WorkflowGraph): Buffer {
+  const font = readFileSync(new URL("../assets/fonts/Inter-Regular.ttf", import.meta.url));
+  return renderPng(renderSvg(layoutGraph(graph)), font);
 }
 
 export function renderPng(svg: string, fontBytes: Uint8Array): Buffer {

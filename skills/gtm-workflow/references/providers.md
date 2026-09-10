@@ -2,6 +2,16 @@
 
 Read this reference before creating or changing an adapter.
 
+## Contents
+
+- [Adapter contract](#adapter-contract)
+- [Calling through the funnel](#calling-through-the-funnel)
+- [Slack Block Kit links](#slack-block-kit-links)
+- [Empty, error, and retry behavior](#empty,-error,-and-retry-behavior)
+- [Rate and concurrency guidance](#rate-and-concurrency-guidance)
+- [Fixture-first tests](#fixture-first-tests)
+- [Sandbox adapters](#sandbox-adapters)
+
 ## Adapter contract
 
 An adapter lives at `providers/<name>.ts` and exports one plain async function per endpoint. It has no `"use step"` directive. The workflow calls it through `provider()` inside a named business step.
@@ -33,6 +43,10 @@ Use these exact header labels so `gtm providers list` can index the adapter:
 Run `npm run gtm -- providers list [keywords] --format json` before adding an adapter. Reuse a listed endpoint when its contract matches. The command reports environment names and set/unset state, never values, plus fixture coverage and importing workflows.
 
 Mirror environment variable names empty into `.env.example`. Keep values in ignored `.env`, Vercel environment variables, or host-brokered headers. Adapter input never contains a credential because canonical input is stored in `enrichment_cache.inputs` and can be queried.
+
+For deployed preflight, also declare `Auth check: GET https://api.example.com/account free` and `Auth header: Authorization | COMPANY_DATA_API_KEY | Bearer` when the provider offers a free auth check. Choose the cheapest documented free check and list its credential in `Environment`. Omit the prefix for a raw API-key header. The URL has no query string or embedded credentials, redirects are refused, and the timeout is five seconds. Use `Auth check: none` only when no free check exists; preview discloses that limit. Preflight executes these declarations, never an adapter's paid function. Keep every adapter environment name in its header, including non-secret configuration.
+
+Short `agent()` calls on the `api` backend default to `deepseek/deepseek-v4.1-flash` and high reasoning. Choose `model` and `reasoning` per call or set `GTM_WORKFLOW_MODEL`; `GTM_AGENT_MODEL` is a deprecated generation-22 alias. See [model selection](agents.md#workflow-model-selection).
 
 ## Calling through the funnel
 
@@ -100,6 +114,10 @@ Tests live under `providers/__fixtures__/` and never call a paid service. Cover:
 - asynchronous poll or webhook completion when used.
 
 The eval suite may use a fictitious loopback service. No real endpoint shape or credential ships with the skill.
+
+`GTM_PROVIDER_MODE=fixture` makes `provider()` read `providers/__fixtures__/<encoded-provider>/<encoded-endpoint>.json`, an array of `{ "input": <canonical input>, "value": <validated output> }` cases. Names use `encodeURIComponent`. Matching is exact after stable key ordering. Optional `raw` exercises `parseRaw`; `error` may be `auth`, `quota`, or `permanent`. Fixture calls cost zero and never touch the database or call the adapter. Missing cases do not fall back to live calls.
+
+`gtm check` runs each `runRows.rowStep` in a credential-free child process with network, database, file writes, and child-process execution blocked. Export the row function or helper and add `providers/__fixtures__/rows/<workflow-path>.json` containing `{ "step": "enrichAccount", "row": { "key": "example" }, "expected": <row-step output> }` cases. Cover each row step, including child workflows. The worker supplies fixture metadata and an abort signal. Missing row or adapter cases are SHOULD FIX warnings naming the file to add; mismatched output or forbidden effects fail the check. These deterministic checks run before proposing a save. They are not skill evals.
 
 ## Sandbox adapters
 

@@ -1,9 +1,11 @@
-// gtm-lib v21
+// gtm-lib v22
 import ts from "typescript-parser";
+import { workflowModel } from "./model";
 
 export type DiagramStatus = "pending" | "active" | "done" | "failed";
 export type NodeKind = "start" | "step" | "decision" | "wait" | "save" | "end";
 export type GroupKind = "loop" | "parallel";
+export type PaidStage = { provider: string; model?: string; unitCostUsd?: number };
 
 export type DiagramNode = {
   id: string;
@@ -11,6 +13,9 @@ export type DiagramNode = {
   label: string;
   step?: string;
   provider?: string;
+  model?: string;
+  order?: number;
+  paidCalls?: PaidStage[];
   unitCostUsd?: number;
   group?: string;
   status?: DiagramStatus;
@@ -30,7 +35,7 @@ export type DiagramGroup = {
 };
 export type DiagramEdge = { from: string; to: string; label?: string; back?: boolean };
 export type WorkflowGraph = {
-  workflow: { path: string; label: string; runs: string; kind: string; table: string | null };
+  workflow: { path: string; label: string; runs: string; kind: string; table: string | null; summary?: string };
   nodes: DiagramNode[];
   groups: DiagramGroup[];
   edges: DiagramEdge[];
@@ -38,6 +43,8 @@ export type WorkflowGraph = {
 };
 export type FindingCode =
   | "step_label_missing"
+  | "step_label_not_verb"
+  | "decision_label_not_question"
   | "step_hidden_in_helper"
   | "step_unreachable"
   | "stage_attributes_missing";
@@ -64,7 +71,7 @@ const WAIT_CALLS: Record<string, string> = {
 const LABEL_MIN = 3;
 const LABEL_MAX = 80;
 
-type StepInfo = { name: string; label: string | null; line: number; provider?: string; unitCostUsd?: number };
+type StepInfo = { name: string; label: string | null; line: number; provider?: string; model?: string; unitCostUsd?: number; paidCalls?: PaidStage[] };
 type Tail = { id: string; label?: string };
 
 export function humanize(value: string): string {
@@ -89,7 +96,13 @@ export function extractGraph(source: string, workflowPath: string): ExtractResul
   }
 
   for (const step of steps.values()) {
-    if (step.label) continue;
+    if (step.label) {
+      if (!/^(?:add|apply|approve|archive|assign|build|calculate|cancel|check|classify|clean|collect|compare|count|create|deduplicate|delete|deliver|detect|download|draft|enrich|evaluate|extract|fail|fetch|filter|find|format|generate|get|group|handle|identify|import|inspect|join|keep|list|load|look up|lookup|map|match|merge|normalize|note|notify|parse|pick|poll|prepare|publish|qualify|rank|read|record|recover|remove|request|research|resolve|retry|return|review|run|save|scan|schedule|score|search|select|send|sort|start|stop|store|summarize|sync|tag|transform|update|upload|validate|verify|wait|write)\b/i.test(step.label)) {
+        findings.push({ code: "step_label_not_verb", file: relativeFile, line: step.line,
+          message: `${step.name} label must be a verb phrase.`, fix: 'Start with an action, such as "Find new posts" or "Score each account".' });
+      }
+      continue;
+    }
     findings.push({
       code: "step_label_missing",
       file: relativeFile,
@@ -115,6 +128,10 @@ export function extractGraph(source: string, workflowPath: string): ExtractResul
   };
   const builder = new GraphBuilder(graph, steps, helpers, file, source, relativeFile, findings);
   builder.build(workflow);
+  let order = 0;
+  for (const node of graph.nodes) if (node.kind !== "start" && node.kind !== "end") node.order = ++order;
+  const trigger = headerValue(source, "Schedule") ?? (graph.workflow.kind === "scheduled" ? "On schedule" : "When started");
+  graph.workflow.summary = headerValue(source, "Summary") ?? `${trigger}: ${graph.nodes.filter((node) => node.kind === "step" || node.kind === "save").map((node) => node.label.toLowerCase()).join(", ")}`;
   // A helper the workflow reaches is drawn inline, so only the ones it never reaches hide steps.
   for (const [name, helper] of helpers) {
     if (builder.inlined.has(name)) continue;
@@ -326,6 +343,8 @@ class GraphBuilder {
         label: info.label ?? humanize(name),
         step: name,
         ...(info.provider ? { provider: info.provider } : {}),
+        ...(info.model ? { model: info.model } : {}),
+        ...(info.paidCalls ? { paidCalls: info.paidCalls } : {}),
         ...(info.unitCostUsd !== undefined ? { unitCostUsd: info.unitCostUsd } : {}),
       },
       group,
@@ -342,6 +361,9 @@ class GraphBuilder {
       { kind: "decision", label: leadingComment(this.source, node) ?? `${condensed(node.expression.getText(this.file))}?` },
       group,
     );
+    if (!decision.label.endsWith("?")) this.findings.push({ code: "decision_label_not_question", file: this.relativeFile,
+      line: lineOf(this.file, node), message: "Decision label must end with a question mark.",
+      fix: 'Write a yes/no question above the if, such as // Does the account fit?' });
     this.#connect(decision.id);
     const after: Tail[] = [];
     this.#tails = [{ id: decision.id, label: "yes" }];
@@ -457,7 +479,7 @@ class GraphBuilder {
     const save = this.#node(
       {
         kind: "save",
-        label: saveInfo?.label ?? (tableName ? `Save to ${tableName}` : "Save the row"),
+        label: tableName ? `Save to ${humanize(tableName).toLowerCase()}` : saveInfo?.label ?? "Save the row",
         ...(saveStep ? { step: saveStep } : {}),
       },
       loop.id,
@@ -478,6 +500,21 @@ function directiveOf(body: ts.Block): string | undefined {
   return undefined;
 }
 
+export function rowStepNames(source: string): string[] {
+  const file = ts.createSourceFile("workflow.ts", source, ts.ScriptTarget.ES2022, true);
+  const names = new Set<string>();
+  const visit = (node: ts.Node) => {
+    if (ts.isCallExpression(node) && calleeName(node) === "runRows") {
+      const arg = resolveLiteral(node.arguments[0], file);
+      const name = arg && ts.isObjectLiteralExpression(arg) ? identifierProperty(arg.properties, "rowStep") : undefined;
+      if (name) names.add(name);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return [...names];
+}
+
 function stepInfo(fn: ts.FunctionDeclaration, file: ts.SourceFile): StepInfo {
   const docs = ts.getJSDocCommentsAndTags(fn).filter(ts.isJSDoc);
   const comment = docs.length > 0 ? docs[docs.length - 1].comment : undefined;
@@ -487,14 +524,23 @@ function stepInfo(fn: ts.FunctionDeclaration, file: ts.SourceFile): StepInfo {
   const info: StepInfo = { name: fn.name!.text, label, line: lineOf(file, fn) };
   const visit = (node: ts.Node) => {
     if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-      const argument = node.arguments[0];
+      const argument = resolveLiteral(node.arguments[0], file);
       const properties = argument && ts.isObjectLiteralExpression(argument) ? argument.properties : [];
-      if (node.expression.text === "provider" && info.provider === undefined) {
-        info.provider = stringProperty(properties, "name") ?? "provider";
-        info.unitCostUsd = numberProperty(properties, "costUsd");
-      } else if (node.expression.text === "agent" && info.provider === undefined) {
-        info.provider = "model";
-        info.unitCostUsd = numberProperty(properties, "maxUsd");
+      if (node.expression.text === "provider") {
+        const provider = stringProperty(properties, "name") ?? "provider";
+        const cost = resolveLiteral(property(properties, "costUsd")?.initializer, file);
+        const unitCostUsd = cost && ts.isNumericLiteral(cost) ? Number(cost.text) : undefined;
+        (info.paidCalls ??= []).push({ provider, unitCostUsd });
+        if (!info.provider) { info.provider = provider; info.unitCostUsd = unitCostUsd; }
+      } else if (node.expression.text === "agent") {
+        const model = resolveLiteral(property(properties, "model")?.initializer, file);
+        const selected = model && ts.isStringLiteral(model) ? model.text : property(properties, "model") ? "Selected at runtime" :
+          process.env.GTM_AGENT_BACKEND && process.env.GTM_AGENT_BACKEND !== "api" ? process.env.GTM_WORKFLOW_MODEL ?? process.env.GTM_AGENT_MODEL ?? "CLI default" : workflowModel();
+        const cost = resolveLiteral(property(properties, "maxUsd")?.initializer, file);
+        const unitCostUsd = cost && ts.isNumericLiteral(cost) ? Number(cost.text) : undefined;
+        (info.paidCalls ??= []).push({ provider: "model", model: selected, unitCostUsd });
+        info.model = [...new Set(info.paidCalls.flatMap((call) => call.model ? [call.model] : []))].join(", ");
+        if (!info.provider) { info.provider = "model"; info.unitCostUsd = unitCostUsd; }
       }
     }
     ts.forEachChild(node, visit);

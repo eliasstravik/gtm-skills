@@ -4,6 +4,15 @@ Use the operator's business language unless technical detail changes cost, permi
 
 Read the request and managed files before asking. Ask only for a missing decision that changes the result. Gate cost, external delivery, production effect, destruction, a missing run location, and tracked saves. Group every open decision into one message per the standard. A run location is `on this computer` or `hosted, in production`; the product name stays out of user-facing text. No command, tool name, or run identifier appears in user-facing text on any surface; the agent runs commands itself and describes results in words, and a keyboard user may ask for a command and receive it on request.
 
+## Contents
+
+- [Questions](#questions)
+- [Save gate](#save-gate)
+- [Run gate](#run-gate)
+- [Business diagrams](#business-diagrams)
+- [Where to look](#where-to-look)
+- [Outcome reports](#outcome-reports)
+
 ## Questions
 
 Begin a question-bearing message with one bold lead question. Put status, explanation, and the remaining facts wanted as bullets below it. Use at most one numbered block with at most one `(Recommended)`, then end that block exactly:
@@ -38,13 +47,15 @@ After acceptance, save the accepted bytes without asking again. A change respons
 
 On a hosted surface with a native approval control, write no proposal message: run `db:generate` in the scratch draft first so the request already carries the SQL, journal, and snapshot, then put the whole proposal in the write control's `summary` as plain text, first line `For <root display name>:`, last line `Approve to save, or Cancel and tell me what to change.`, and make that tool call the only action of the message that carries it. `db:verify` and the ledger check stay inside the host tool.
 
-When any affected workflow runs hosted, the proposal ends its workflow description with `Saving this also puts it live in production.` After the save, say `It will be live in production in a few minutes; ask me to check.`; when asked, answer `Live.` only after the production deployment reports the saved version, otherwise `Not yet live.`
+When any affected workflow runs hosted, the proposal ends its workflow description with `Saving this also puts it live in production.` After the save, say `Saved. I'll follow up here when it's live.` Register the host's deployment watch in the originating thread. It posts `Live.` after the accepted version is ready, or `Not live after 10 minutes. Nothing ran. I'll look into it.` Investigate from the sandbox without a deploy token. An interim status is `Not live yet.`
+
+After `Live.`, automatically propose a one-row real smoke run through the existing start action with checkpoint 1. Preview exactly one row first and state its total cost and every model/provider call and external effect. This is a separate approval from saving. Free checks run immediately; paid work gets one approval for the whole smoke plan, and covered calls never prompt again. Scheduled workflows may use a one-row manual POST smoke run with checkpoint 1; scheduled GET delivery still has no checkpoint. Batch parents use a one-row input without a checkpoint, as required by their execution contract.
 
 When a hosted run is waiting, add before that production sentence: `The waiting run will finish on the previous version; you can ask me to stop it first.` Identify it by workflow name and start time when needed; use the existing cancel gate if requested.
 
 ## Run gate
 
-After the read-only preview, the run proposal states rows, stages, projected cost, caps, external writes, and checkpoint position, and that the preview called no provider or model, did not check table existence, and did not test credentials. For row work, both save and run proposals say `N rows at a time`; when parallel, give the checkpoint's rounded count. For child batches, also state batch count and size, overall deadline, cancellation of active batches, and that an ordinary failed batch does not stop later batches. Batch parents have no row checkpoint: propose a small input first in place of the checkpoint option, then preview full scope separately. On a keyboard:
+After the read-only preview, the run proposal states rows, stages with each chosen model, projected cost, caps, external writes, and checkpoint position. A local dry run does not check credentials or tables. A trusted hosted preview also calls deployed preflight and reports `credentials and table verified` only on success; otherwise name the missing piece. Free authentication checks call no paid endpoint. For row work, both save and run proposals say `N rows at a time`; when parallel, give the checkpoint's rounded count. For child batches, also state batch count and size, overall deadline, cancellation of active batches, and that an ordinary failed batch does not stop later batches. Batch parents have no row checkpoint: propose a small input first in place of the checkpoint option, then preview full scope separately. On a keyboard:
 
 ```text
 **Would you like to run this scope?**
@@ -69,7 +80,7 @@ Approval-gated actions use these closing lines: checkpoint continue `Approve to 
 
 ## Business diagrams
 
-For `show me the workflow`, show the generated picture (PNG on a surface that displays images, otherwise the ASCII form) and follow it with the "Where to look" block. When the operator wants status and spend overlaid, use the run they name by workflow name and time; the picture then carries `[x]` done, `[!]` failed, `[~]` active, `[ ]` not reached, spend per paid stage, and rows done and failed on each loop. Hide schemas, storage writes, model settings, and telemetry.
+For `show me the workflow`, show the generated picture and the "Where to look" block. Every diagram has a one-line summary strip, numbered steps in run order, provider/model and cost per row on paid cards, yes/no decision questions, a save node named for the business table, and a legend for `[x]` done, `[!]` failed, `[~]` active, `[ ]` not reached. Use the named run for status and spend overlays. Keep schemas and telemetry out of the picture.
 
 Add a short caption with the trigger, inputs or changes, saved result, and partial-failure behavior. Provide technical control flow only when requested.
 
@@ -89,9 +100,9 @@ Local links are `http://127.0.0.1:3000/gtm/diagram/<path>?…`, `http://127.0.0.
 
 ## Outcome reports
 
-Lead completion with the business result and `<n> completed, <m> failed`. Follow with `found <success> of <success + empty> (<hit-rate>%)`, rows written, table, cache hits, estimate versus actual, vendor and model cost, `reported | fixed | projected` cost sources, external systems changed, and delivery state. When estimate and actual differ by more than 20%, give one reason: cache hits, lower reported cost, or early stop. A projected cost is the accepted ceiling because the backend did not report billing.
+Use one headline line and at most two numbers, for example `Accounts saved. 12 rows, $0.24 spent.` Name a failure or partial external effect in business words when present. Give cache hits, hit rate, estimate versus actual, cost sources, and batch details only on request. If cost is projected, say `estimated` instead of `spent`.
 
-At a checkpoint, report `<n> rows done, <m> failed, found <x> of <y> (<z>%), $<a> estimated versus $<b> actual, <cost-source breakdown>, $<c> projected for the remaining rows`. Add `N rows at a time` and any rounding beyond the requested checkpoint count. Parent receipts include each batch's status, counts, and cost. On a hosted surface that report, ending `Cancel, then ask me to show the saved rows before deciding`, is the `summary` of the approve action with its closing line, and no text precedes it. On a keyboard it is a text report followed by:
+At a checkpoint, use the same headline-plus-two-numbers format. The continuation approval states the remaining plan, calls, effects, total cost, concurrency, and any checkpoint rounding under the approval-text exception. On a hosted surface it is the approve action's `summary` with its required closing line. On a keyboard use:
 
 ```text
 1. Continue (Recommended)
@@ -107,4 +118,4 @@ While cancellation is pending, say `<workflow> is cancelling` and that a second 
 
 For a duplicate run, say `<workflow> is already running`, naming it by workflow name and start time. Offer to show its progress first. If the operator wants to abandon a stuck run, offer to stop the stuck run and tidy up, then do both. A user refers to a run by workflow name and time ("the account-scoring run from this morning"); the agent resolves the run internally.
 
-Keep ports, process controls, run identifiers, project identifiers, environment names, branch names, token counts, and telemetry in internal diagnostics unless requested or needed to disambiguate an action. Keep production bearers, OIDC tokens, and public per-run webhook URLs out of messages and tool results. Approval and trigger tokens merely name the pending stage; trusted controls may still resolve them internally to keep the operator interaction concise. Close with `Saved.`
+Keep ports, process controls, identifiers, environment names, token counts, and telemetry in diagnostics. Keep production bearers, OIDC tokens, and public per-run webhook URLs out of messages and tool results. Background run watches post a report in the originating Slack thread when the run reaches a checkpoint, completes, fails, or is cancelled. Slack threads are one level deep: every update uses the original conversation's thread timestamp, never a reply's timestamp as a new thread. A run report uses its actual outcome, not the save closing.

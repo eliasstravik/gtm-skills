@@ -54,7 +54,7 @@ Bootstrap during the first create and keep the draft outside the repository unti
 9. Run `npm run build`; its workflow initialization check must pass before proposing a save. It executes the compiled bundle without credentials or step execution. Then run `gtm run --dry-run` against the accepted input. It validates the Zod schema and caps without spend; a fresh table and working credentials are not required.
 10. Present one save proposal per [conversation](conversation.md), as its bulleted list; no file names or commands. On a hosted surface, run `db:generate` in the scratch draft before building the request so it already carries the SQL, journal, and snapshot, and the proposal is the approval control's text.
 11. On a keyboard, on acceptance, copy the draft into the workspace, run `npm ci`, then `db:generate`. Inspect the generated SQL and its journal and snapshot artifacts; state any destructive effect in words and show SQL on request. Apply accepted migrations, run `db:verify`, and only then save; a hosted workflow's one atomic `main` commit puts it live in production.
-12. If the header says `Runs: on Vercel`, follow [deploy](deploy.md) and close with `Saved.` and `It will be live in production in a few minutes; ask me to check.` Otherwise close with `Saved.` and enter the run gate. The first real run defaults to a checkpoint after three rows. Then show the "Where to look" block.
+12. If the header says `Runs: on Vercel`, follow [deploy](deploy.md), close with `Saved. I'll follow up here when it's live.`, and register the deployment watch in the originating thread. After `Live.`, post the diagram link and automatically propose the separate one-row smoke run described in [conversation](conversation.md#save-gate), with its total cost and every call. Otherwise close with `Saved.` and enter the run gate. Ordinary runs retain the three-row checkpoint default.
 
 Cancellation before step 11 writes no tracked bytes and no migration.
 
@@ -103,7 +103,7 @@ For a run, use `npm run gtm -- runs get <runId|runKey> --format markdown`, resol
 ## Run
 
 1. Resolve the workflow and either an explicit `--input` file or `--rows-from-run <runKey> --only failed|empty|remaining|all`. A scheduled workflow also requires `--input`; write `scheduledInput` to an ignored file for a manual run.
-2. Refuse `--checkpoint` for scheduled work. Refuse local start or server reuse while `.env.local` exists.
+2. Scheduled delivery has no checkpoint; a one-row manual smoke run accepts checkpoint 1. Refuse local start or server reuse while `.env.local` exists.
 3. For local work, start or reuse the server through [open](open.md). For Vercel, use the recorded production URL through the trusted workflow control when it is available.
 4. Run the dry run locally, or call the trusted workflow control's preview action when the sandbox cannot hold the production bearer:
 
@@ -111,14 +111,14 @@ For a run, use `npm run gtm -- runs get <runId|runKey> --format markdown`, resol
 npm run gtm -- run <slug> --input <file> --dry-run
 ```
 
-5. Describe rows, stages, projected cost, caps, external writes, and checkpoint position in words. State that the preview calls no provider or model, does not check table existence, and does not test credentials.
+5. Describe rows, stages and models, projected cost, caps, external writes, and checkpoint position. Local dry runs check neither tables nor credentials. Trusted hosted preview also performs deployed preflight; say `credentials and table verified` on success or name the missing piece. No paid call runs in preview.
 6. Present the run gate from [conversation](conversation.md): on a keyboard the numbered block; on a hosted surface the whole proposal as the start control's `summary` with its closing line and the tool call as the only action of that turn. Show the trim option only when the projection exceeds `MAX_SPEND_USD` or the operator's stated budget. For a trim, propose first N rows or a filter on the input, write the trimmed input, rerun the dry run, and present the gate again. Omit the checkpoint option for scheduled work. If the user chooses full scope, start without a checkpoint.
 
 7. Start with `npm run gtm -- run <slug> --input <file> --checkpoint 3 --wait 30`, or use the trusted workflow control's approved start action for Vercel. A bounded wait returns the latest row with `still_active: true`; check `status` before treating the run as finished.
-8. At a checkpoint or approval, report saved rows, failures, hit rate, estimate versus actual, spend and cost sources, and the remaining projection, and offer to show the saved rows, in the checkpoint shape from [conversation](conversation.md). Continue the same run with `npm run gtm -- approve <token> --yes --wait 30`, or the trusted workflow control's approved decision action, only after their answer. The token names the pending stage; the bearer authorizes it.
+8. At a checkpoint, report one headline and at most two numbers. The continuation proposal names remaining scope, effects and total cost under the approval-text exception. Continue the same run through `gtm approve` or the trusted decision action when covered by acceptance. Give the full receipt only on request.
 9. If start returns `run_in_progress`, say which run is already running by workflow name and start time and do not retry. Offer to show its progress. Offer to stop it and tidy up only when the operator chooses to abandon it.
 10. To stop a live run, use `npm run gtm -- cancel <runKey> --wait 30` or the trusted approval-gated cancel action. Poll through `cancelling`; a second start is held until terminal `cancelled`. Saved rows and prior spend remain.
-11. Report the honest terminal state: `completed`, `stopped`, `timed_out`, `failed`, or `cancelled`; include stop reason, remaining keys, failed step, rows written, hit rate, estimate versus actual with the reported reason when the difference exceeds 20%, cache hits, cost-source breakdown, and external changes.
+11. Register a background watch for checkpoints and terminal states. Report the actual outcome in the originating thread with one headline and at most two numbers, following [conversation](conversation.md#outcome-reports). Keep the detailed receipt available on request.
 
 For a missed scheduled day, write `scheduledInput` to an ignored file, dry-run it, then use `--scheduled-for <YYYY-MM-DD>` through the same run gate. A second start for that workflow and date returns `already_ran_today`.
 
@@ -137,12 +137,15 @@ Show the "Where to look" block from [conversation](conversation.md#where-to-look
 | Flow | Moment | Diagram form |
 | --- | --- | --- |
 | Inspect, `show me the workflow` | immediately | picture plus the block |
-| Create | with the save proposal: a picture of the draft from `gtm diagram <slug> --format png` (or `ascii`) run in the draft; after `Saved.` (hosted: after `Live.`): the block | draft picture, then links to the saved workflow |
-| Update | with the proposal: a picture of the changed flow; after the save: the block | same |
+| Create, first draft ready | before the save proposal | draft picture plus `Data:` and `Runs:` links derived from configuration, no deployment required |
+| Create or update, draft changed | before the revised proposal, in the same thread | new draft picture and a one-line caption saying what changed |
+| Hosted version live | with `Live.` | `Diagram:` link to the accepted version |
 | Run | at start, at each checkpoint report, and at completion | block with `--run <runKey>` so the diagram carries status and spend |
 | Open | always | block only |
 
 Mint the diagram link with `npm run gtm -- diagram <slug> --format web --no-open [--run <runKey>]` and use the printed URL. On a hosted surface the trusted workflow control's read-only diagram action returns the link and the picture; the sandbox never mints links.
+
+For a scratch draft, `gtm diagram <slug> --format json` supplies the graph without a deployment. The host renders it with managed `renderDiagramPng(graph)` and the bundled font. Post the picture and configuration-derived links in a separate message before the approval card: the message carrying the approval call has no text. "Thread" always means the original Slack conversation thread; Slack has one level of replies, so revisions and watch updates reuse its original timestamp.
 
 ## Sandbox branches
 

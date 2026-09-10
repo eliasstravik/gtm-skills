@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.0 - 2026-09-10
+
+- Default short API model steps to DeepSeek V4.1 Flash with high reasoning. Add per-call model and reasoning choices, expose them in diagrams and previews, and rename the project default to `GTM_WORKFLOW_MODEL` with a generation-22 deprecation warning for `GTM_AGENT_MODEL`.
+- Add credential-free row fixture checks and bearer-protected deployed preflight for adapter environment names, result tables, and declared free auth checks. Propose a separate one-row smoke run after the accepted version is live.
+- Add host-side scratch-draft PNG rendering, summary strips, numbered business steps, provider/model and row costs, decision questions, table names, and status legends. Require draft pictures and links before approval, with revisions and background deployment/run follow-ups in the originating Slack thread.
+- Set concise message budgets and exact save/failure/live wording. Require human-only, nonempty approval text and one approval covering each complete plan's calls, effects, and total cost.
+- Ship workflow library generation 22 without a schema change; preserve bounded concurrency, child batches, deployment pinning, workflow shapes, and the Eve reference.
+- Skill evals, benchmarks, trigger optimization, and eval evidence updates were skipped at the user's request. Verification uses offline compatibility, template build/check, deterministic fixtures, and diagram review.
+
 ## 0.6.0, 2026-09-10
 
 Workflow library generation 21.

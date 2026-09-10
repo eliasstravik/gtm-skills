@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import { setAttributes, sleep } from "workflow";
 import { batchCompletionHook, cancellationHook, cancellationToken, type WorkflowMeta } from "./approve";
 import { getActualRunCostUsd, registerWorkflowRun, updateRun } from "./steps";

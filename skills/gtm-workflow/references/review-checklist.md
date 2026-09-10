@@ -22,6 +22,7 @@ Use this checklist when an operator asks to audit or review a workflow. Run `npm
 - Managed header and version drift. Managed files must carry the current header and recorded hash under [versioned files](contract.md#versioned-files). `gtm check`: `lib_version_mismatch`, `lib_hash_missing`, and `lib_modified`.
 - Migration integrity. Generated SQL, journal entries, and snapshots must stay registered under [safety and persistence](contract.md#safety-and-persistence). `gtm check`: `invalid_migration_artifacts` and `destructive_migration`.
 - Diagram rules. Every step carries a JSDoc label, every step call sits in the workflow body or a `lib/` helper, and the workflow marks stages under [house rules](contract.md#house-rules). `gtm check`: `diagram_rules`, one line per finding with its fix.
+- Operator diagram. Labels read as an operator would say them. Steps use verb phrases; decisions ask yes/no questions ending in `?`. `gtm check` reports `step_label_not_verb` and `decision_label_not_question` with fixes. Review the summary, numbered order, provider/model and cost per row, table name, and status legend in the rendered picture.
 
 ## SHOULD FIX
 
@@ -31,5 +32,4 @@ Use this checklist when an operator asks to audit or review a workflow. Run `npm
 
 ## NICE TO HAVE
 
-- Operator diagram. Decision and loop comments should read as questions and phrases an operator would say, so `gtm diagram <slug> --format ascii` needs no explanation. Review the ASCII output manually.
 - Receipt quality. A fixture run should produce a useful hit rate, estimate-versus-actual reason, cost-source breakdown, cache-hit count, and next command under [runtime identity](contract.md#runtime-and-run-identity). Review `gtm runs get <runKey> --format markdown` manually.

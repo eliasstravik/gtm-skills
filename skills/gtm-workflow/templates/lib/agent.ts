@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 // Call agent() from inside a "use step" function; see the workflow contract for the step rules.
 import { spawn } from "node:child_process";
 import { constants } from "node:fs";
@@ -13,6 +13,8 @@ import {
   type PaidCallMeta,
 } from "./provider";
 import { redact } from "./redact";
+import { workflowModel } from "./model";
+export { DEFAULT_WORKFLOW_MODEL } from "./model";
 
 export type AgentTools = "none" | "web" | "host-default";
 
@@ -23,6 +25,8 @@ export interface AgentInput<T extends z.ZodTypeAny> {
   schema: T;
   meta: PaidCallMeta;
   tools?: AgentTools;
+  model?: string;
+  reasoning?: Parameters<typeof generateText>[0]["reasoning"];
   /** Claude checks this between turns. Other backends do not honor it. */
   maxUsd?: number;
   timeoutMs?: number;
@@ -163,9 +167,9 @@ const CLI: Record<string, CliBackend> = {
 const CLI_ORDER = ["claude", "codex", "cursor", "gemini", "opencode"];
 
 /**
- * GTM_AGENT_MODEL configures the Claude CLI or API model. The api backend uses
+ * GTM_WORKFLOW_MODEL configures the Claude CLI or API model. The api backend uses
  * AI_GATEWAY_API_KEY with Vercel AI Gateway and defaults to
- * anthropic/claude-opus-5. Gateway web search runs one search call and one tool-free answer call.
+ * DEFAULT_WORKFLOW_MODEL. Gateway web search runs one search call and one tool-free answer call.
  */
 const API_BACKEND = "api";
 
@@ -183,6 +187,8 @@ export async function agent<T extends z.ZodTypeAny>(
     maxUsd: input.maxUsd,
     timeoutMs: input.timeoutMs,
     signal: input.signal,
+    model: workflowModel(input.model),
+    reasoning: input.reasoning ?? "high",
   };
   const backend = await pickBackend();
   if (
@@ -194,9 +200,9 @@ export async function agent<T extends z.ZodTypeAny>(
       `${backend} cannot enforce tools: "none". Use claude or api for untrusted input, or pass tools: "host-default" only after accepting host tool access.`,
     );
   }
-  const model =
-    process.env.GTM_AGENT_MODEL ??
-    (backend === API_BACKEND ? "anthropic/claude-opus-5" : "default");
+  const model = backend === API_BACKEND ? runtimeInput.model :
+    input.model ?? process.env.GTM_WORKFLOW_MODEL ?? process.env.GTM_AGENT_MODEL ?? "default";
+  runtimeInput.model = model;
   const result = await provider({
     name: "agent",
     endpoint: `${backend}/${model}`,
@@ -205,6 +211,7 @@ export async function agent<T extends z.ZodTypeAny>(
       contextId: input.contextId ?? null,
       schema: schemaJson,
       tools: runtimeInput.tools,
+      reasoning: runtimeInput.reasoning,
     },
     schema: input.schema,
     ttlMs: input.ttlMs ?? 30 * 24 * 60 * 60 * 1_000,
@@ -226,6 +233,8 @@ export async function agent<T extends z.ZodTypeAny>(
 }
 
 type RuntimeInput = {
+  model: string;
+  reasoning: AgentInput<z.ZodTypeAny>["reasoning"];
   prompt: string;
   schemaJson: Record<string, unknown>;
   tools: AgentTools;
@@ -243,7 +252,7 @@ async function pickBackend(): Promise<string> {
   }
   if (explicit) {
     if (explicit === API_BACKEND) {
-      if (!process.env.AI_GATEWAY_API_KEY) {
+      if (!process.env.AI_GATEWAY_API_KEY && process.env.GTM_PROVIDER_MODE !== "fixture") {
         throw new Error(
           "The api agent backend needs AI_GATEWAY_API_KEY with a spending budget.",
         );
@@ -299,8 +308,8 @@ async function viaCli(name: string, input: RuntimeInput) {
       NO_COLOR: "1",
       TERM: "dumb",
     };
-    if (name === "claude" && process.env.GTM_AGENT_MODEL) {
-      env.ANTHROPIC_MODEL = process.env.GTM_AGENT_MODEL;
+    if (name === "claude" && input.model !== "default") {
+      env.ANTHROPIC_MODEL = input.model;
     }
     const stdout = await run(backend.bin, backend.args(context), {
       cwd,
@@ -315,7 +324,7 @@ async function viaCli(name: string, input: RuntimeInput) {
 }
 
 async function viaApi(input: RuntimeInput): Promise<BackendResult> {
-  const model = process.env.GTM_AGENT_MODEL ?? "anthropic/claude-opus-5";
+  const { model, reasoning } = input;
   const timeoutSignal = AbortSignal.timeout(input.timeoutMs ?? 240_000);
   const abortSignal = input.signal
     ? AbortSignal.any([timeoutSignal, input.signal])
@@ -328,7 +337,7 @@ async function viaApi(input: RuntimeInput): Promise<BackendResult> {
   };
 
   if (input.tools !== "web") {
-    const result = await generateText({ model, prompt: input.prompt, output, abortSignal });
+    const result = await generateText({ model, reasoning, prompt: input.prompt, output, abortSignal });
     record(result);
     return finish(result.output, costs);
   }
@@ -339,6 +348,7 @@ async function viaApi(input: RuntimeInput): Promise<BackendResult> {
   // answers from that evidence with no tools.
   const search = await generateText({
     model,
+    reasoning,
     prompt: [
       "Make exactly one Exa search call using one comprehensive query for the task below. Do not answer the task in this turn.",
       input.prompt,
@@ -367,6 +377,7 @@ async function viaApi(input: RuntimeInput): Promise<BackendResult> {
   record(search);
   const answer = await generateText({
     model,
+    reasoning,
     messages: [
       ...search.response.messages,
       {

@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import { useStorage } from "nitro/storage";
 import { extractGraph } from "./diagram";
 import { attachChildGraphs } from "./diagram-children";

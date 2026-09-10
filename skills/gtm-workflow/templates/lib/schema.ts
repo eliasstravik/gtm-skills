@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import { sql } from "drizzle-orm";
 import {
   index,

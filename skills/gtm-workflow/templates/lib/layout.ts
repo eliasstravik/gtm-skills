@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import dagre from "@dagrejs/dagre";
 import type { DiagramNode, WorkflowGraph } from "./diagram";
 
@@ -7,6 +7,7 @@ export type LaidOutGraph = WorkflowGraph & {
   positions: Record<string, Box>;
   groupBounds: Record<string, Box>;
   size: { width: number; height: number };
+  edgeRoutes: Record<number, { points: { x: number; y: number }[]; x?: number; y?: number }>;
 };
 
 const SIZES: Record<DiagramNode["kind"], { width: number; height: number }> = {
@@ -28,7 +29,9 @@ export function layoutGraph(graph: WorkflowGraph): LaidOutGraph {
     if (group.parent) g.setParent(group.id, group.parent);
   }
   for (const node of graph.nodes) {
-    g.setNode(node.id, { ...SIZES[node.kind], ...(node.childWorkflow ? { height: 116 + Math.min(node.batches?.length ?? 0, 100) * 20, width: 310 } : {}), label: node.label });
+    const subtitle = [node.paidCalls?.length ? node.paidCalls.map((call) => `${call.provider}${call.model ? ` · ${call.model}` : ""} · ${call.unitCostUsd === undefined ? "cost varies" : `$${call.unitCostUsd} per row`}`).join(" · ") : [node.provider, node.model, node.unitCostUsd !== undefined ? `$${node.unitCostUsd} per row` : ""].filter(Boolean).join(" · "), node.spentUsd !== undefined ? `spent $${node.spentUsd.toFixed(2)}` : ""].filter(Boolean).join(" · ");
+    const width = Math.max(SIZES[node.kind].width, (node.label.length + 12) * 8 + 40, subtitle.length * 7 + 40);
+    g.setNode(node.id, { ...SIZES[node.kind], ...(node.childWorkflow ? { height: 116 + Math.min(node.batches?.length ?? 0, 100) * 20 } : {}), width: node.kind === "decision" ? width * 1.5 : width, label: node.label });
     if (node.group) g.setParent(node.id, node.group);
   }
   graph.edges.forEach((edge, index) => {
@@ -47,10 +50,17 @@ export function layoutGraph(graph: WorkflowGraph): LaidOutGraph {
     groupBounds[group.id] = { x: placed.x - placed.width / 2, y: placed.y - placed.height / 2, width: placed.width, height: placed.height };
   }
   const info = g.graph();
+  const edgeRoutes: LaidOutGraph["edgeRoutes"] = {};
+  graph.edges.forEach((edge, index) => {
+    if (edge.back) return;
+    const route = g.edge({ v: edge.from, w: edge.to, name: `e${index}` });
+    if (route) edgeRoutes[index] = { points: route.points, x: route.x, y: route.y };
+  });
   return {
     ...graph,
     positions,
     groupBounds,
+    edgeRoutes,
     size: { width: Math.ceil(info.width ?? 0), height: Math.ceil(info.height ?? 0) },
   };
 }

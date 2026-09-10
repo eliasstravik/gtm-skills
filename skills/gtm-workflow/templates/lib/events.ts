@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { start } from "workflow/api";

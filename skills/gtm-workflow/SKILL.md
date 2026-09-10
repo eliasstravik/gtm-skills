@@ -54,7 +54,7 @@ Produce an accepted workflow change, committed migration, validation result, dep
 
 ## Exceptions
 
-Report a run still active after the bounded poll as still running by workflow name and start time, and offer to check again. A duplicate live run is reported by workflow name and start time. Leave tracked state unchanged when persistence fails.
+Report an active run by workflow name and start time. Follow up in the same thread when it reaches a checkpoint, completes, fails, or is cancelled. Use the shared standard's failure strings and reconcile unknown save outcomes before retrying. A duplicate live run is reported by workflow name and start time.
 
 ## QC
 

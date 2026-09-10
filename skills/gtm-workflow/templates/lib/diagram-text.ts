@@ -1,4 +1,4 @@
-// gtm-lib v21
+// gtm-lib v22
 import type { DiagramEdge, DiagramGroup, DiagramNode, DiagramStatus, WorkflowGraph } from "./diagram";
 
 export function statusMarker(status?: DiagramStatus): string {
@@ -10,7 +10,8 @@ function nodeText(node: DiagramNode): string {
   const marker = statusMarker(node.status);
   const cost = node.spentUsd !== undefined ? ` ($${node.spentUsd.toFixed(2)})` : "";
   const batches = node.batches?.map((batch, index) => `batch ${index + 1}: ${batch.status}, ${batch.completed} done, ${batch.failed} failed`).join("; ");
-  return `${marker ? `${marker} ` : ""}${node.label}${cost}${node.childWorkflow ? ` → ${node.childWorkflow} (child graph collapsed)` : ""}${batches ? `; ${batches}` : ""}`;
+  const paid = (node.paidCalls ?? (node.provider ? [node] : [])).map((call) => ` · ${call.provider}${call.model ? ` · ${call.model}` : ""} · ${call.unitCostUsd === undefined ? "cost varies" : `$${call.unitCostUsd} per row`}`).join("");
+  return `${node.order ? `${node.order}. ` : ""}${marker ? `${marker} ` : ""}${node.label}${paid}${cost}${node.childWorkflow ? ` → ${node.childWorkflow} (child graph collapsed)` : ""}${batches ? `; ${batches}` : ""}`;
 }
 
 function groupText(group: DiagramGroup): string {
@@ -76,7 +77,7 @@ function edgeText(edge: DiagramEdge): string {
 }
 
 export function toAscii(graph: WorkflowGraph): string {
-  const lines: string[] = [];
+  const lines: string[] = [graph.workflow.summary ?? graph.workflow.label, "[x] Done  [!] Failed  [~] Active  [ ] Not reached"];
   const groupById = new Map(graph.groups.map((group) => [group.id, group]));
   const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
   const chain = (groupId: string | undefined): string[] =>
