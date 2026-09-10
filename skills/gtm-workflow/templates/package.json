@@ -73,7 +73,7 @@
       "lib/steps.ts": "27e7ddc2eecf866dbb135874b6f2f740c3b1b018c36c7461f02ad3851d5eb3f6",
       "nitro.config.ts": "1a864d70d4b41ec9accb3d3d2a81cf71ea1b0be3905fb06c6ab4d0920b4807ff",
       "scripts/check-workflow-runtime.mjs": "b2232fd32a615cc9640984e8adc9f2ae3158c54b79d03dc9280d375dfc6b0a94",
-      "scripts/generate-migration-worker.ts": "22e7cfd11287b65626fcf29588663c145f7464a95af154d1bbd7865832930c08",
+      "scripts/generate-migration-worker.ts": "3ef035ebde33402b61a5b9842199fc1fcd4bf65365b042edb741b87fec3d4683",
       "scripts/generate-migration.mjs": "0cb0cdcf61f5c1528ac7db026348494c3fbb18fd348aa780d39d08c61fb39589",
       "scripts/gtm.ts": "2878bd942cf1c08ba1b1dd0b6e031113274d2b7f69371801083653aa3c21f479",
       "scripts/migrate-cloud.ts": "0ba9ec8e8bff50a68908c2e23f0ab6f0563e3098cfbd306da97dd662c5af1bd1",

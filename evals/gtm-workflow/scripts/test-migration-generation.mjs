@@ -36,6 +36,16 @@ test("real generator reports schema decisions without prompts or partial artifac
   const added = generate("--name", "add_accounts");
   assert.equal(added.ok, true, JSON.stringify(added));
   const before = await artifacts();
+  const meta = join(root, "drizzle/meta");
+  const latest = (await readdir(meta)).filter((name) => name.endsWith("_snapshot.json")).sort().at(-1);
+  const snapshotBytes = await readFile(join(meta, latest), "utf8");
+  const corrupt = JSON.parse(snapshotBytes);
+  delete corrupt.tables.enrichment_cache;
+  await writeFile(join(meta, latest), JSON.stringify(corrupt));
+  const corruptHash = await artifacts();
+  assert.equal(generate().error.code, "migration_snapshot_drift");
+  assert.equal(await artifacts(), corruptHash);
+  await writeFile(join(meta, latest), snapshotBytes);
   await writeFile(tableFile, table("customers"));
   const rename = generate();
   assert.equal(rename.error.code, "migration_input_required");

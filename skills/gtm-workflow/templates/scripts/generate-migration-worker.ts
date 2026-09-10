@@ -35,6 +35,13 @@ async function main() {
     };
     const snapshots = (await readdir(join(candidate, "meta"))).filter((name) => /^\d+_snapshot\.json$/.test(name)).sort();
     const previous = snapshots.length ? JSON.parse(await readFile(join(candidate, "meta", snapshots.at(-1)!), "utf8")) : { tables: {}, views: {} };
+    const missingFixedTables = ["enrichment_cache", "enrichment_runs", "workflow_runs"].filter((name) => !(name in previous.tables));
+    if (snapshots.length && missingFixedTables.length) return {
+      ok: false, error: {
+        code: "migration_snapshot_drift", missingFixedTables,
+        message: "The latest snapshot omits shared runtime tables. No artifacts were changed. Compare the previous complete snapshot, committed SQL, declarations, and live schema before repairing snapshot metadata. Do not generate CREATE statements for tables that already exist.",
+      },
+    };
     const decisions: { kind: string; table?: string; added: string[]; removed: string[] }[] = [];
     for (const kind of ["tables", "views"] as const) {
       const delta = difference(previous[kind] ?? {}, current[kind] ?? {});
