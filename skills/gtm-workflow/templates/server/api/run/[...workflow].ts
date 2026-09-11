@@ -1,4 +1,3 @@
-// gtm-lib v23
 import { createHash, randomBytes } from "node:crypto";
 import { defineEventHandler } from "nitro/h3";
 import { start } from "workflow/api";
@@ -9,6 +8,7 @@ import {
   reconcileRun,
   updateRunPlain,
 } from "../../../lib/db";
+import { headCheck } from "../../../lib/head-check";
 import { redact } from "../../../lib/redact";
 import { scheduleWindow } from "../../../lib/schedule";
 
@@ -33,20 +33,8 @@ export default defineEventHandler(async (event) => {
 
   const expectedHead = event.req.headers.get("x-gtm-workspace-head");
   const deployedHead = process.env.VERCEL_GIT_COMMIT_SHA;
-  if (method === "POST" && deployedHead && expectedHead === null) {
-    return error(
-      409,
-      "deployment_head_required",
-      "Production starts require the accepted workspace commit.",
-    );
-  }
-  if (method === "POST" && expectedHead !== null && expectedHead !== deployedHead) {
-    return error(
-      409,
-      "deployment_not_ready",
-      "Production is not serving the requested workspace commit.",
-    );
-  }
+  const refused = headCheck({ method, expectedHead, deployedHead });
+  if (refused) return error(refused.status, refused.code, refused.message);
 
   const workflowPath = event.context.params?.workflow;
   if (!workflowPath) return error(400, "invalid_workflow", "workflow path required");
@@ -70,12 +58,7 @@ export default defineEventHandler(async (event) => {
   if (requestedDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
     return error(400, "invalid_scheduled_for", "scheduled-for must be YYYY-MM-DD");
   }
-  let scheduledFor: string | null;
-  try {
-    scheduledFor = method === "GET" ? scheduleWindow(Date.now(), requestUrl.searchParams.get("cadence-minutes")) : requestedDate;
-  } catch {
-    return error(400, "invalid_cadence", "cadence-minutes must be a positive divisor of 1440");
-  }
+  const scheduledFor = method === "GET" ? scheduleWindow(Date.now()) : requestedDate;
   if (scheduledFor) {
     const existing = await findScheduledRun(workflowPath, scheduledFor);
     if (existing) {
@@ -100,6 +83,7 @@ export default defineEventHandler(async (event) => {
     input,
     inputHash,
     status: "running" as const,
+    workspaceHead: expectedHead ?? deployedHead ?? null,
     checkpoint,
     scheduledFor,
     startedAt: Date.now(),

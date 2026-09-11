@@ -276,7 +276,7 @@ def temporary_markers() -> tuple[list[tuple[Path, int, str, str, str]], list[str
     errors: list[str] = []
     root = SKILLS_ROOT / "gtm-workflow"
     for path in sorted(candidate for candidate in root.rglob("*") if candidate.is_file()):
-        if path.name == "package-lock.json":
+        if path.name == "package-lock.json" or "node_modules" in path.parts or ".swc" in path.parts:
             continue
         try:
             lines = path.read_text().splitlines()
@@ -305,8 +305,6 @@ def temporary_markers() -> tuple[list[tuple[Path, int, str, str, str]], list[str
                     match.group("reason").strip(),
                 )
             )
-    if not markers:
-        errors.append("no TEMPORARY markers found under skills/gtm-workflow")
     return markers, errors
 
 

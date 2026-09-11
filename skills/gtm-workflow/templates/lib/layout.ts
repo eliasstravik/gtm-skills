@@ -1,6 +1,5 @@
-// gtm-lib v23
 import dagre from "@dagrejs/dagre";
-import type { DiagramNode, WorkflowGraph } from "./diagram";
+import type { DiagramNode, WorkflowGraph } from "./diagram-spec";
 
 export type Box = { x: number; y: number; width: number; height: number };
 export type LaidOutGraph = WorkflowGraph & {
@@ -31,7 +30,7 @@ export function layoutGraph(graph: WorkflowGraph): LaidOutGraph {
   for (const node of graph.nodes) {
     const subtitle = [node.paidCalls?.length ? node.paidCalls.map((call) => `${call.provider}${call.model ? ` · ${call.model}` : ""} · ${call.unitCostUsd === undefined ? "cost varies" : `$${call.unitCostUsd} per row`}`).join(" · ") : [node.provider, node.model, node.unitCostUsd !== undefined ? `$${node.unitCostUsd} per row` : ""].filter(Boolean).join(" · "), node.spentUsd !== undefined ? `spent $${node.spentUsd.toFixed(2)}` : ""].filter(Boolean).join(" · ");
     const width = Math.max(SIZES[node.kind].width, (node.label.length + 12) * 8 + 40, subtitle.length * 7 + 40);
-    g.setNode(node.id, { ...SIZES[node.kind], ...(node.childWorkflow ? { height: 116 + Math.min(node.batches?.length ?? 0, 100) * 20 } : {}), width: node.kind === "decision" ? width * 1.5 : width, label: node.label });
+    g.setNode(node.id, { ...SIZES[node.kind], width: node.kind === "decision" ? width * 1.5 : width, label: node.label });
     if (node.group) g.setParent(node.id, node.group);
   }
   graph.edges.forEach((edge, index) => {

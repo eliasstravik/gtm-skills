@@ -1,4 +1,3 @@
-// gtm-lib v23
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export type DiagramClaims = { path: string; run: string | null; exp: number };

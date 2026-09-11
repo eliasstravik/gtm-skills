@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import re
-import json
 import shutil
 import sys
 import tempfile
@@ -13,14 +12,6 @@ from urllib.parse import unquote, urlsplit
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-GENERATION_TARGETS = (
-    re.compile(r"\bgtm-lib\s+v(?P<generation>\d+)\b", re.IGNORECASE),
-    re.compile(r"\bv(?P<generation>\d+)\s+(?:recopy|re-scaffold)\b", re.IGNORECASE),
-    re.compile(
-        r"\b(?:recopy|re-scaffold)\s+(?:to\s+)?(?:the\s+)?v(?P<generation>\d+)\b",
-        re.IGNORECASE,
-    ),
-)
 SKILLS_ROOT = REPO_ROOT / "skills"
 LOADER_ROOTS = (Path(".agents/skills"), Path(".claude/skills"))
 CONTRACT_FIELDS = ("Reads", "Writes", "Outputs", "Approval", "Persists", "Handoff")
@@ -84,9 +75,15 @@ INTERACTION_POINTERS = {
     Path("gtm-persona/SKILL.md"): "../gtm-workspace/references/interaction.md",
     Path("gtm-persona/references/contract.md"): "../../gtm-workspace/references/interaction.md",
     Path("gtm-workflow/SKILL.md"): "../gtm-workspace/references/interaction.md",
-    Path("gtm-workflow/references/conversation.md"): "../../gtm-workspace/references/interaction.md",
     Path("gtm-qualify-prospects/SKILL.md"): "../gtm-workspace/references/interaction.md",
 }
+DELETED_TOOL_NAMES = (
+    "apply_gtm_workspace_changes",
+    "operate_gtm_workflow",
+    "approve_gtm_plan",
+    "render_gtm_draft",
+    "watch_gtm_",
+)
 
 
 def parse_frontmatter(skill_md: Path, errors: list[str]) -> dict[str, str]:
@@ -335,26 +332,12 @@ def check_shared_references(skills_root: Path, errors: list[str]) -> None:
             errors.append(f"{path}: missing interaction standard pointer {pointer!r}")
 
 
-def workflow_generation_errors(workflow_root: Path) -> list[str]:
-    """Compare prose targets with the template, preserving historical defects."""
-    package = workflow_root / "templates/package.json"
-    generation = json.loads(package.read_text())["gtm"]["libVersion"]
-    errors: list[str] = []
-    paths = [workflow_root / "SKILL.md", *sorted((workflow_root / "references").rglob("*.md"))]
-    for path in paths:
-        # Markdown emphasis and inline code do not change a prose target's meaning.
-        source = re.sub(r"[`*_]", "", path.read_text())
-        for pattern in GENERATION_TARGETS:
-            for match in pattern.finditer(source):
-                if int(match.group("generation")) == generation:
-                    continue
-                line = source.count("\n", 0, match.start()) + 1
-                errors.append(
-                    f"{path.relative_to(workflow_root)}:{line}: stale generation target "
-                    f"{match.group(0)!r}; template gtm.libVersion is {generation}. "
-                    "Refer to the current generation instead."
-                )
-    return errors
+def check_deleted_tool_names(skills_root: Path, errors: list[str]) -> None:
+    for path in skills_root.rglob("*.md"):
+        text = path.read_text()
+        for name in DELETED_TOOL_NAMES:
+            if name in text:
+                errors.append(f"{path}: references deleted tool {name!r}")
 
 
 def main() -> int:
@@ -368,7 +351,7 @@ def main() -> int:
     check_company_data_contract(SKILLS_ROOT, errors)
     check_person_data_contract(SKILLS_ROOT, errors)
     check_shared_references(SKILLS_ROOT, errors)
-    errors.extend(workflow_generation_errors(SKILLS_ROOT / "gtm-workflow"))
+    check_deleted_tool_names(SKILLS_ROOT, errors)
 
     with tempfile.TemporaryDirectory(prefix="gtm-skill-loaders-") as temporary:
         install_root = Path(temporary)
@@ -382,6 +365,7 @@ def main() -> int:
             check_company_data_contract(install_root / loader_root, errors)
             check_person_data_contract(install_root / loader_root, errors)
             check_shared_references(install_root / loader_root, errors)
+            check_deleted_tool_names(install_root / loader_root, errors)
 
     if errors:
         print("Skill compatibility check failed:")

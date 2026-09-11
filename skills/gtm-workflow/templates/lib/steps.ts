@@ -1,7 +1,6 @@
-// gtm-lib v23
 import { and, eq, or, sql } from "drizzle-orm";
 import { getWorkflowMetadata } from "workflow";
-import { cancelRunTree, getDb, getRunRow, getRunLedgerSummary, notifyBatchParent, runLedgerCondition, updateRunPlain } from "./db";
+import { getDb, getRunRow, getRunLedgerSummary, runLedgerCondition, updateRunPlain } from "./db";
 import { redact, redactValue } from "./redact";
 import { enrichmentRuns, type WorkflowStatus } from "./schema";
 
@@ -40,14 +39,6 @@ export async function registerWorkflowRun(runKey: string): Promise<void> {
     runId: metadata.workflowRunId,
     runUrl: metadata.url,
   });
-  const row = await getRunRow(runKey);
-  if (row?.parentRunKey) {
-    const parent = await getRunRow(row.parentRunKey);
-    if (!parent || parent.cancelRequestedAt !== null || parent.finishedAt !== null) {
-      await cancelRunTree(runKey, "parent_cancelled");
-      throw new Error("Parent is no longer active");
-    }
-  }
 }
 
 export async function recordWorkflowProgressAndStatus(
@@ -98,10 +89,6 @@ export async function recordWorkflowProgressAndStatus(
     ...(patch.failed_step !== undefined ? { failedStep: patch.failed_step } : {}),
     ...(patch.finished ? { finishedAt: now } : {}),
   });
-  if (patch.finished) {
-    const row = await getRunRow(runKey);
-    if (row) await notifyBatchParent(row);
-  }
 }
 
 export const updateRun = recordWorkflowProgressAndStatus;

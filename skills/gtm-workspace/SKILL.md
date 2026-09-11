@@ -20,7 +20,7 @@ Own the plain-Markdown workspace at `~/.gtm/<org-slug>/` across creation, import
 | Reads | The user's accepted organization facts, repository connection rules, valid local workspaces, and safe supplied sources |
 | Writes | Workspace contract files, organization nodes, member files, repository configuration, and accepted structural repairs |
 | Outputs | The requested workspace state summarized by display name and owner chain, a complete health report, or a fixed-connection refusal |
-| Approval | The user accepts a plain-language proposal naming each artifact and its exact effect before every durable change and any whole-workspace deletion; a hosted surface's native approval control may be that acceptance |
+| Approval | The agent prepares, stages, inspects, and commits locally, then the user approves one plain-language card immediately before the push; whole-workspace deletion keeps its typed confirmation |
 | Persists | Accepted workspace files and configuration in `main` Git history; no hidden coordination state |
 | Handoff | `gtm-icp` for market definitions, `gtm-persona` for buyer definitions, and `gtm-workflow` for saved workflows |
 
@@ -30,7 +30,7 @@ Use the user's request and accepted facts, the hosting environment's repo connec
 
 ## Roles
 
-The agent owns the selected lifecycle flow. The user accepts durable changes and whole-workspace deletion. The hosting environment declares fixed connections and any replacement persistence mechanism.
+The agent owns the selected lifecycle flow. The user approves one plain-language card immediately before the push that saves the prepared local commit; whole-workspace deletion keeps its typed confirmation. The hosting environment declares fixed connections.
 
 ## Procedure
 
@@ -39,7 +39,7 @@ The agent owns the selected lifecycle flow. The user accepts durable changes and
 | A fixed-connection deployment receives import, sharing setup, whole-workspace deletion, a create for a repo other than the connected one, or another connection-changing request | Refuse and redirect through the surface-refusal flow; perform nothing for that request |
 | Create is requested on a fixed-connection deployment whose connected repo has no root `ORG.md` or legacy `org.md` | Guide the create flow with its connected-repo substitutions; the first saved change writes `ORG.md` together with the contract files |
 | No lifecycle verb is clear | Guide the lifecycle menu and retain ownership of the selected flow |
-| Create is requested | Send one intake decision message, research every supplied source, present one proposal for the organization and every supplied suborganization and member, save once, then offer sharing and close |
+| Create is requested | Send one intake decision message, research every supplied source, prepare one local commit for the organization and every supplied suborganization and member, show one card, push once on approval, then close |
 | Import is requested | Guide a local copy or GitHub clone through inventory, accepted conversion, history, optional sharing, and summary |
 | Update is requested | Resolve the target, describe the changed facts, save the accepted changes, and close |
 | Delete is requested | Resolve the target, describe consequences, obtain the required confirmation, delete, and explain recovery where available |
@@ -51,15 +51,15 @@ Produce the requested workspace state and a plain-language summary by display na
 
 ## Exceptions
 
-If a required reference is unavailable, use `templates/AGENTS.md` as the minimum contract, keep every member under its owning organization node at `members/<member-slug>/MEMBER.md`, stay on `main`, and write nothing until the user accepts the proposal. If the environment cannot durably save an accepted operation, stop and offer the prescribed CLI recovery; never report it as saved.
+If a required reference is unavailable, use `templates/AGENTS.md` as the minimum contract, keep every member under its owning organization node at `members/<member-slug>/MEMBER.md`, and stay on `main`. If the environment cannot push the prepared commit after approval, stop and offer the prescribed CLI recovery; never report it as saved.
 
 ## QC
 
 - Follow the shared interaction standard for every question, proposal, approval, and closing message; ask every missing result-changing fact in one decision message and never use `AskUserQuestion`.
-- Describe every durable workspace action before writing and never show complete bytes unless asked; apply exactly the accepted proposal and preserve compatibility with the workspace contract. Name GitHub, the repository, or the folder only in import, sharing setup, whole-workspace deletion, and git-problem recovery; keep branch, remote, upstream, and command details internal unless a problem requires them or the user asks.
+- Prepare only the requested workspace action locally and never show complete bytes unless asked; the card must describe exactly what the prepared commit changes. Name GitHub, the repository, or the folder only in import, sharing setup, whole-workspace deletion, and git-problem recovery; keep branch, remote, upstream, and command details internal unless a problem requires them or the user asks.
 - Keep all 13 company-data fields in the required order for every new or fully researched `ORG.md`; preserve uncertainty and write `Unknown` instead of inventing or dropping unresolved facts.
 - Keep all eight person-data fields in the required order for every new or fully researched `MEMBER.md`; retain the required supplied email outside that contract, preserve uncertainty, and write `Unknown` instead of inventing or dropping unresolved facts.
-- Keep accepted changes on `main`, stage only accepted paths, inspect the staged diff, and close a verified durable result with `Saved.`
+- Stage only named paths, inspect the diff, commit locally, then show one card naming what changes and invoke `git push` with that card as the approval summary. Close a verified push with `Saved.`
 - Close only after every selected-flow completion criterion in `references/flows.md` is satisfied.
 
 ## References

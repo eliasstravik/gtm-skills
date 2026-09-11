@@ -2,45 +2,17 @@
 
 GTM Skills has one project version. Every installable skill ships at that version, and the release tag is `v<version>` on the reviewed `main` commit.
 
-| Project version | Released | Skills | Workflow library generation | Checked |
-| --- | --- | --- | --- | --- |
-| 0.9.0 | 2026-09-10 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 23 | 2026-09-10 |
-| 0.8.0 | 2026-09-10 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 23 | 2026-09-10 |
-| 0.7.0 | 2026-09-10 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 22 | 2026-09-10 |
-| 0.6.0 | 2026-09-10 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 21 | 2026-09-10 |
-| 0.5.3 | 2026-09-10 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 20 | 2026-09-10 |
-| 0.5.2 | 2026-09-09 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 19 | 2026-09-09 |
-| 0.5.1 | 2026-09-09 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 18 | 2026-09-09 |
-| 0.5.0 | 2026-09-09 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 17 | 2026-09-09 |
-| 0.4.4 | 2026-09-09 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 16 | 2026-09-09 |
-| 0.4.3 | 2026-09-09 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 16 | 2026-09-09 |
-| 0.4.2 | 2026-09-09 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 16 | 2026-09-09 |
-| 0.4.1 | 2026-09-09 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 15 | 2026-09-09 |
-| 0.4.0 | 2026-09-09 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 14 | 2026-09-09 |
-| 0.3.2 | 2026-09-09 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 13 | 2026-09-09 |
-| 0.3.1 | 2026-09-09 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 13 | 2026-09-09 |
-| 0.3.0 | 2026-09-08 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 13 | 2026-09-08 |
-| 0.2.1 | 2026-09-05 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 13 | 2026-09-05 |
-| 0.2.0 | 2026-09-02 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 13 | 2026-09-02 |
-| 0.1.2 | 2026-09-01 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 13 | 2026-09-01 |
-| 0.1.1 | 2026-09-01 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 12 | 2026-09-01 |
-| 0.1.0 | 2026-09-01 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 11 | 2026-09-01 |
+| Project version | Released | Skills | Checked |
+| --- | --- | --- | --- |
+| 1.0.0 | 2026-09-11 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 2026-09-11 |
+| 0.9.0 | 2026-09-10 | `gtm-workspace`, `gtm-icp`, `gtm-persona`, `gtm-qualify-prospects`, `gtm-workflow` | 2026-09-10 |
+| 0.8.0 | 2026-09-10 | same five skills | 2026-09-10 |
+| 0.7.0 | 2026-09-10 | same five skills | 2026-09-10 |
+| 0.6.0 | 2026-09-10 | same five skills | 2026-09-10 |
+| 0.5.3 | 2026-09-10 | same five skills | 2026-09-10 |
+| 0.5.2 | 2026-09-09 | same five skills | 2026-09-09 |
+| 0.5.1 | 2026-09-09 | same five skills | 2026-09-09 |
+| 0.5.0 | 2026-09-09 | same five skills | 2026-09-09 |
+| 0.4.4–0.1.0 | 2026-09-01–09 | earlier compatible releases | see tag history |
 
-## What each number means
-
-- **Project version** is the only version to track. It covers all five skills, their references, and the workflow templates as one release. Downstream hosts such as `gtm-agent` vendor the tagged commit.
-- **Workflow library generation** is an internal compatibility marker for the managed workflow files. It appears as the `// gtm-lib v<N>` header, `gtm.libVersion` in the template `package.json`, and the content hashes under `gtm.libHashes`. `gtm check` compares a project against it and offers a recopy when headers or hashes differ. It increments only when a managed file changes; it is not a version to install or announce.
-
-The offline compatibility check copies all five skills into both loader directory shapes, parses every `SKILL.md`, validates the common Contract fields, the shared data contracts, and every skill's pointer to the shared interaction standard, and resolves each local reference. Run it with:
-
-```sh
-python3 scripts/check_skill_compatibility.py
-```
-
-## Release procedure
-
-1. Update this table and [CHANGELOG.md](CHANGELOG.md) in the reviewed change. When managed workflow files change, also bump the library generation, every managed header, `gtm.libVersion`, and `gtm.libHashes`.
-2. Merge the change to `main`.
-3. Create the annotated tag `v<version>` on that merge commit and push the tag.
-
-Earlier releases used per-skill versions and `gtm-lib-v<generation>` tags. The `gtm-lib-v10` tag remains in history; new releases use project tags only.
+Downstream hosts pin the release tag whose skill text they install. Workflow projects own their copied template and use `gtm upgrade` to replace only library-owned files while preserving workflow, table, and provider files.

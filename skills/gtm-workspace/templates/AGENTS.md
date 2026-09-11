@@ -50,5 +50,5 @@ Every newly created or fully researched `MEMBER.md` and `PERSONA.md` has a `## P
 - Work only on `main`.
 - Describe durable changes in chat as a plain-language proposal and write them only after acceptance; a hosting environment's native approval control is that acceptance.
 - Commit each accepted proposal as one history entry. Git history is the undo mechanism.
-- Persist accepted changes with the durable-write mechanism your environment declares; otherwise, if a remote exists, pull with rebase and push. Never force-push, and never report an unsaved change as saved.
+- Prepare requested changes locally, stage named paths, inspect the diff, and commit. Show one plain-language card; on approval push with the mechanism your environment declares. Never force-push, and never report an unpushed change as saved.
 - Say what changed and close with `Saved.` Name the repository, folder, or GitHub only for import, sharing setup, whole-workspace deletion, and git-problem recovery; keep branch, remote, upstream, commit, path, and command details internal unless a problem requires them or the user asks.

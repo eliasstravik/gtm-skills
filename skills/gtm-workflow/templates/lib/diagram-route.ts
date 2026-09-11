@@ -1,10 +1,9 @@
-// gtm-lib v23
 import { useStorage } from "nitro/storage";
-import { extractGraph } from "./diagram";
-import { attachChildGraphs } from "./diagram-children";
+import { parseDiagramSpec } from "./diagram-spec";
 import { overlayRun } from "./diagram-overlay";
 import { layoutGraph, type LaidOutGraph } from "./layout";
 import { verifyDiagram, type DiagramClaims } from "./sign";
+import { ensureMigrated } from "./db";
 
 const PATH_PATTERN = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)*[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -26,6 +25,7 @@ export function publicOrigin(event: RouteEvent): string {
 }
 
 export async function resolveDiagramRequest(event: RouteEvent): Promise<DiagramRequest> {
+  await ensureMigrated();
   const secret = process.env.GTM_RUN_SECRET;
   if (!secret) return { ok: false, response: deny(503, "unconfigured", "The run secret is not configured.") };
   const path = event.context.params?.workflow ?? "";
@@ -35,8 +35,7 @@ export async function resolveDiagramRequest(event: RouteEvent): Promise<DiagramR
   if (!claims) return { ok: false, response: deny(401, "unauthorized", "A valid signed link is required.") };
   const source = await readWorkflowSource(path);
   if (source === null) return { ok: false, response: deny(404, "not_found", `No workflow named ${path}`) };
-  const { graph } = extractGraph(source, path);
-  await attachChildGraphs(graph, readWorkflowSource);
+  const graph = parseDiagramSpec(source, path);
   if (claims.run) {
     try {
       await overlayRun(graph, claims.run);

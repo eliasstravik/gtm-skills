@@ -1,12 +1,9 @@
-// gtm-lib v23
 import { createHash, randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getStepMetadata } from "workflow";
 import { getDb } from "./db";
-import { reserveAgentCall } from "./agent-ledger";
+import { reserveSpend } from "./spend";
 import { redact, redactedError } from "./redact";
 import {
   enrichmentCache,
@@ -50,6 +47,7 @@ export class ProviderPreCallError extends Error {
 }
 
 export type ProviderInput<T extends z.ZodTypeAny> = {
+  step?: string;
   name: string;
   endpoint: string;
   input: unknown;
@@ -79,7 +77,7 @@ export type PaidCallResult<T> = {
 export async function provider<T extends z.ZodTypeAny>(
   input: ProviderInput<T>,
 ): Promise<PaidCallResult<z.infer<T>>> {
-  if (process.env.GTM_PROVIDER_MODE === "fixture") return fixtureResult(input);
+  input = { ...input, meta: { ...input.meta, step: input.meta.step ?? input.step } };
   const db = await getDb();
   const canonical = stableJson(input.input);
   const inputsHash = createHash("sha256").update(canonical).digest("hex");
@@ -137,9 +135,9 @@ export async function provider<T extends z.ZodTypeAny>(
       maxSpendUsd: input.meta.maxSpendUsd, maxCalls: Number.MAX_SAFE_INTEGER,
     } };
   }
-  const ledgerId = input.admission ? await reserveAgentCall({
+  const ledgerId = input.admission ? await reserveSpend({
     meta: input.meta, operation: input.admission.operation, provider: input.name, endpoint: input.endpoint,
-    costUsd: input.costUsd ?? 0, costKind: acceptedCostSource === "projected" ? "estimate" : "upper-bound",
+    estimateUsd: input.costUsd ?? 0,
     maxSpendUsd: Math.min(input.admission.maxSpendUsd, input.meta.maxSpendUsd ?? input.admission.maxSpendUsd),
     maxCalls: input.admission.maxCalls,
   }) : randomUUID();
@@ -219,25 +217,6 @@ export async function provider<T extends z.ZodTypeAny>(
       .where(eq(enrichmentRuns.id, ledgerId));
     throw redactedError(error);
   }
-}
-
-/** Exact canonical input matching; fixture calls never open a database or invoke call(). */
-async function fixtureResult<T extends z.ZodTypeAny>(input: ProviderInput<T>): Promise<PaidCallResult<z.infer<T>>> {
-  const path = join("providers", "__fixtures__", encodeURIComponent(input.name), `${encodeURIComponent(input.endpoint)}.json`);
-  let cases: { input: unknown; value?: unknown; raw?: unknown; error?: "auth" | "quota" | "permanent" }[];
-  try { cases = JSON.parse(await readFile(path, "utf8")); }
-  catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new ProviderPreCallError(`fixture_missing: Add ${path}`);
-    throw error;
-  }
-  if (!Array.isArray(cases)) throw new ProviderPreCallError(`Invalid fixture array in ${path}`);
-  const fixture = cases.find((item) => stableJson(item.input) === stableJson(input.input));
-  if (!fixture) throw new ProviderPreCallError(`fixture_missing: Add the canonical input to ${path}`);
-  if (fixture.error === "auth") throw new ProviderAuthError("Fixture authentication failure");
-  if (fixture.error === "quota") throw new ProviderQuotaError("Fixture quota failure");
-  if (fixture.error) throw new Error("Fixture permanent failure");
-  const value = input.schema.parse(input.parseRaw && fixture.raw !== undefined ? input.parseRaw(fixture.raw) : fixture.value);
-  return { value, costUsd: 0, costSource: "fixed", status: (input.isEmpty?.(value) ?? isEmpty(value)) ? "empty" : "success" };
 }
 
 async function insertLedger(

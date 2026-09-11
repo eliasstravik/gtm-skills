@@ -93,3 +93,14 @@ test('caps and concurrency reject before any row work', async () => {
   await assert.rejects(runRows({ ...parallelInput(), caps: { maxRows: 2, maxSpendUsd: 1, costPerRowUsd: 0 }, rowStep: async () => { calls++; } }), /limits/);
   assert.equal(calls, 0);
 });
+test('a failed row leaves its plain reason on the run so runs get can show it', async () => {
+  const result = await runRows({ ...input(), rowStep: async () => { throw new Error('Add an AI key to .env, or set GTM_HOST.'); } });
+  assert.equal(result.status, 'failed');
+  assert.match(String(terminal.error), /Add an AI key to \.env, or set GTM_HOST\./);
+  assert.equal(terminal.failed_step, 'rowStep');
+});
+test('the runtime retry wrapper is stripped so the run shows the plain reason', async () => {
+  const result = await runRows({ ...input(), rowStep: async () => { throw new Error('Step "step//./workflows/score//scoreCompany" failed after 3 retries: Add an AI key to .env, or set GTM_HOST.'); } });
+  assert.equal(result.status, 'failed');
+  assert.equal(terminal.error, 'Add an AI key to .env, or set GTM_HOST.');
+});

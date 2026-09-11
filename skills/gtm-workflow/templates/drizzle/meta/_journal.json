@@ -36,6 +36,13 @@
       "when": 1789048555595,
       "tag": "0004_child_batches",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789124048760,
+      "tag": "0005_fearless_angel",
+      "breakpoints": true
     }
   ]
 }

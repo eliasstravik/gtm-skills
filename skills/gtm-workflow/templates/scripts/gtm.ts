@@ -1,1385 +1,159 @@
-// gtm-lib v23
-import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
+import { createHash, randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { basename, join, relative, resolve, sep } from "node:path";
+import { cp, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { createServer } from "node:net";
+import { basename, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { parseEnv } from "node:util";
-import { createScanner, LanguageVariant, SyntaxKind } from "typescript/unstable/ast";
-import { executeReadOnly } from "../lib/db";
-import { extractGraph, rowStepNames, type DiagramFinding } from "../lib/diagram";
-import { attachChildGraphs } from "../lib/diagram-children";
-import { executionShape } from "../lib/execution";
+import { executeReadOnly, ensureMigrated, readAppliedMigrationHashes } from "../lib/db";
+import { HELP, backgroundArgv, pendingFrom } from "../lib/cli-helpers";
+import { ensureRunSecret } from "../lib/local-env";
+import { diagramCost, parseDiagramSpec } from "../lib/diagram-spec";
 import { overlayRun } from "../lib/diagram-overlay";
 import { renderPng, renderSvg } from "../lib/diagram-svg";
-import { toAscii, toMermaid } from "../lib/diagram-text";
 import { layoutGraph } from "../lib/layout";
-import { redact, redactValue } from "../lib/redact";
-import { describeCapabilities } from "../lib/capabilities";
-import { validateAgentSchemas } from "../lib/agent-tools";
-import { diagramQuery } from "../lib/sign";
+import { redact } from "../lib/redact";
+import { childEnv } from "../lib/agent";
 
 type Flags = Record<string, string | boolean>;
-type ProviderListRow = {
-  name: string;
-  endpoints: string[];
-  cost_per_request: string;
-  cache_ttl: string;
-  environment: { name: string; set: boolean }[];
-  mode: string;
-  fixture_covered: boolean;
-  workflows: string[];
-};
-class AppError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly exitCode = 1,
-  ) {
-    super(message);
-  }
-}
-
 const root = process.cwd();
+class AppError extends Error { constructor(readonly code: string, message: string, readonly exitCode = 1) { super(message); } }
 
-main().catch((caught) => {
-  const error =
-    caught instanceof AppError
-      ? caught
-      : new AppError("internal_error", redact(caught));
-  process.stderr.write(`${JSON.stringify({ error: { code: error.code, message: error.message } })}\n`);
-  process.exitCode = error.exitCode;
-});
+main().catch((caught) => { const error = caught instanceof AppError ? caught : new AppError("internal_error", redact(caught)); process.stderr.write(`${JSON.stringify({ error: { code: error.code, message: error.message } })}\n`); process.exitCode = error.exitCode; });
 
 async function main() {
-  const [command, ...rest] = process.argv.slice(2);
+  const [command = "help", ...rest] = process.argv.slice(2);
+  if (["help", "--help", "-h"].includes(command) || rest.includes("--help")) return help();
   if (command === "run") return run(rest);
   if (command === "runs" && rest[0] === "get") return runsGet(rest.slice(1));
-  if (command === "providers" && rest[0] === "list") return providersList(rest.slice(1));
+  if (command === "query") return query(rest);
+  if (command === "check") return print(await check());
+  if (command === "verify") return verify(rest);
   if (command === "diagram") return diagram(rest);
   if (command === "approve") return approve(rest);
   if (command === "cancel") return cancel(rest);
-  if (command === "query") return query(rest);
-  if (command === "check") return check();
-  if (command === "verify") return verify(rest);
-  throw new AppError(
-    "invalid_command",
-    "Use run, runs get, providers list, diagram, approve, cancel, query, check, or verify.",
-    2,
-  );
+  if (command === "upgrade") return upgrade(rest);
+  throw new AppError("invalid_command", "Use run, runs get, query, check, verify, diagram, approve, cancel, upgrade, or help.", 2);
 }
 
-/**
- * The zero-spend plan behind `run --dry-run`: parses the input, resolves caps, stages, and paid
- * calls, and reports whether the input fits the accepted caps. Shared by run and verify.
- */
-async function dryRunPlan(args: string[]) {
-  const { positionals, flags } = parseArgs(args);
-  const slug = positionals[0];
-  let inputPath = stringFlag(flags, "input");
-  const sourceRun = stringFlag(flags, "rows-from-run");
-  if (!slug) throw new AppError("invalid_input", "run requires <slug> and an input source", 2);
-  if (inputPath && sourceRun) {
-    throw new AppError("invalid_input", "Use either --input or --rows-from-run, not both.", 2);
-  }
-  if (flags.only !== undefined && !sourceRun) {
-    throw new AppError("invalid_input", "--only requires --rows-from-run", 2);
-  }
-  const workflow = await findWorkflow(slug, stringFlag(flags, "url"));
-  const source = await readFile(workflow, "utf8");
-  const kind = header(source, "Kind");
-  if (sourceRun) {
-    inputPath = await writeRowsFromRunInput(slug, sourceRun, stringFlag(flags, "only") ?? "failed", flags);
-  }
-  if (!inputPath) {
-    throw new AppError(
-      "invalid_input",
-      kind === "scheduled"
-        ? "scheduled workflows need --input; write scheduledInput to a file"
-        : "run requires <slug> --input <file>",
-      2,
-    );
-  }
-  const body = JSON.parse(await readFile(resolve(inputPath), "utf8"));
-  const loaded = await loadWorkflow(workflow, body);
-  const rows = Array.isArray(loaded.input?.rows) ? loaded.input.rows.length : 1;
-  if (kind === "scheduled" && flags.checkpoint !== undefined && !(Array.isArray(loaded.input?.rows) && rows === 1 && flags.checkpoint === "1")) {
-    throw new AppError("invalid_checkpoint", "Scheduled manual checkpoints are only allowed for a one-row smoke run with --checkpoint 1", 2);
-  }
-  const maxRows = loaded.maxRows;
-  const costPerRowUsd = loaded.costPerRowUsd;
-  const maxSpendUsd = loaded.maxSpendUsd;
+function help() { process.stdout.write(HELP); }
+function parse(args: string[]) { const positionals: string[] = [], flags: Flags = {}; for (let i = 0; i < args.length; i++) { const value = args[i]; if (!value.startsWith("--")) positionals.push(value); else { const key = value.slice(2); flags[key] = args[i + 1] && !args[i + 1].startsWith("--") ? args[++i] : true; } } return { positionals, flags }; }
+function text(flags: Flags, name: string) { const value = flags[name]; return typeof value === "string" ? value : undefined; }
+function print(value: unknown) { process.stdout.write(`${JSON.stringify(value, null, 2)}\n`); }
+function workflowPath(file: string) { return relative(join(root, "workflows"), file).replace(/\.ts$/, "").split("\\").join("/"); }
+async function workflowFile(slug: string) { const matches = await walk(join(root, "workflows"), (file) => file.endsWith(`${slug}.ts`)); if (!matches.length) throw new AppError("not_found", `No workflow named ${slug}.`, 2); if (matches.length > 1) throw new AppError("ambiguous_workflow", `More than one workflow is named ${slug}.`, 2); return matches[0]; }
+async function walk(directory: string, accept: (path: string) => boolean): Promise<string[]> { if (!existsSync(directory)) return []; const result: string[] = []; for (const entry of await readdir(directory, { withFileTypes: true })) { const path = join(directory, entry.name); if (entry.isDirectory()) result.push(...await walk(path, accept)); else if (accept(path)) result.push(path); } return result; }
+
+async function dryPlan(slug: string, inputFile: string) {
+  const file = await workflowFile(slug), source = await readFile(file, "utf8"), module = await import(`${pathToFileURL(file).href}?t=${Date.now()}`);
+  const body = JSON.parse(await readFile(resolve(inputFile), "utf8"));
+  const parsed = module.input?.parse ? module.input.parse(body) : body;
+  const rows = Array.isArray(parsed?.rows) ? parsed.rows.length : 1;
+  const graph = parseDiagramSpec(source, workflowPath(file));
+  const costPerRowUsd = diagramCost(graph), maxRows = Number(module.MAX_ROWS ?? rows), maxSpendUsd = Number(module.MAX_SPEND_USD ?? rows * costPerRowUsd);
   const projectedCostUsd = rows * costPerRowUsd;
-  const execution = executionShape(source);
-  if (execution.batch) execution.concurrency = executionShape(await readFile(join(root, "workflows", `${execution.batch.childWorkflow}.ts`), "utf8")).concurrency;
-  const stages = extractGraph(source, workflowPath(workflow)).graph.nodes
-    .filter((node) => node.kind === "step" || node.kind === "save")
-    .map((node) => node.model ? `${node.label} (${node.model})` : node.label);
-  const paidStages = extractGraph(source, workflowPath(workflow)).graph.nodes
-    .filter((node) => node.provider).flatMap((node) => (node.paidCalls ?? [{ provider: node.provider, model: node.model, unitCostUsd: node.unitCostUsd }]).map((call) => ({ label: node.label, ...call })));
-  const withinCaps = rows <= maxRows && projectedCostUsd <= maxSpendUsd && (!execution.batch || Math.ceil(rows / execution.batch.batchSize) <= 100);
-  if (execution.batch && flags.checkpoint !== undefined) throw new AppError("invalid_checkpoint", "Batch parents require a small-input review instead of a row checkpoint", 2);
-  const dryRun = {
-    workflow: slug,
-    rows,
-    concurrency: execution.concurrency,
-    ...(execution.batch ? { batch: { ...execution.batch, count: Math.ceil(rows / execution.batch.batchSize) } } : {}),
-    stages,
-    paidStages,
-    maxRows,
-    costPerRowUsd,
-    projectedCostUsd,
-    maxSpendUsd,
-    withinCaps,
-    ...(loaded.agents.length ? { agents: loaded.agents, capabilitiesHash: loaded.capabilitiesHash,
-      costIsEstimate: loaded.agents.some((agent: { costIsEstimate: boolean }) => agent.costIsEstimate) } : {}),
-    ...(sourceRun ? { rowsFromRun: sourceRun, only: stringFlag(flags, "only") ?? "failed", inputFile: relative(root, inputPath) } : {}),
-  };
-  return { dryRun, withinCaps, workflow, body, flags };
+  return { file, source, body, graph, plan: { workflow: slug, rows, paidStages: graph.nodes.filter((node) => node.unitCostUsd !== undefined).map((node) => ({ label: node.label, cost: `${node.upperBound ? "up to " : ""}$${node.unitCostUsd}/row` })), maxRows, costPerRowUsd, projectedCostUsd, maxSpendUsd, withinCaps: rows <= maxRows && projectedCostUsd <= maxSpendUsd } };
 }
 
 async function run(args: string[]) {
-  const { dryRun, withinCaps, workflow, body, flags } = await dryRunPlan(args);
-  if (flags["dry-run"]) {
-    print(dryRun);
-    if (!withinCaps) process.exitCode = 2;
-    return;
-  }
-  if (!withinCaps) {
-    throw new AppError("caps_exceeded", "The input exceeds the accepted workflow caps.", 2);
-  }
+  const { positionals, flags } = parse(args), slug = positionals[0], inputFile = text(flags, "input");
+  if (!slug || !inputFile) throw new AppError("invalid_input", "run requires <workflow> --input <file>.", 2);
+  const dry = await dryPlan(slug, inputFile); if (flags["dry-run"]) return print(dry.plan); if (!dry.plan.withinCaps) throw new AppError("caps_exceeded", "The input exceeds the accepted workflow caps.", 2);
+  if (flags.background) return background(slug, args);
+  const origin = await originFor(flags); if (flags["wait-live"]) await waitLive(origin);
+  const url = new URL(`/api/run/${workflowPath(dry.file)}`, origin); const checkpoint = text(flags, "checkpoint"); if (checkpoint) url.searchParams.set("checkpoint", checkpoint);
+  const result = await request(url, { method: "POST", headers: { ...auth(), "x-gtm-workspace-head": await gitHead() }, body: JSON.stringify(dry.body) });
+  print(result);
+}
 
-  const origin = await resolveOrigin(workflow, flags);
-  const path = workflowPath(workflow);
-  const checkpoint = stringFlag(flags, "checkpoint");
-  const url = new URL(`/api/run/${path}`, origin);
-  if (checkpoint) url.searchParams.set("checkpoint", checkpoint);
-  const scheduledFor = stringFlag(flags, "scheduled-for");
-  if (scheduledFor) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(scheduledFor)) {
-      throw new AppError("invalid_scheduled_for", "--scheduled-for must be YYYY-MM-DD", 2);
-    }
-    url.searchParams.set("scheduled-for", scheduledFor);
-  }
-  const workspaceHead = await deploymentHead(workflow, origin);
-  const started = await request(url, {
-    method: "POST",
-    headers: {
-      ...authHeaders(),
-      ...(workspaceHead ? { "x-gtm-workspace-head": workspaceHead } : {}),
-    },
-    body: JSON.stringify(body),
-  });
-  if (!flags.wait) return print(started);
-  print(await runSummary(await poll(origin, started.runKey ?? started.runId, waitSeconds(flags))));
+/** Start the same run in a detached process and return at once; the caller watches /api/runs/latest for it. */
+async function background(slug: string, args: string[]) {
+  const head = await gitHead(); await mkdir(join(root, "data"), { recursive: true });
+  const log = join(root, "data", `background-${slug}.log`); const { openSync } = await import("node:fs"); const fd = openSync(log, "a");
+  const child = spawn(process.execPath, [...process.execArgv, process.argv[1], "run", ...backgroundArgv(args)], { cwd: root, env: process.env, detached: true, stdio: ["ignore", fd, fd] });
+  child.unref();
+  print({ background: true, workflow: slug, head, log: relative(root, log) });
 }
 
 async function runsGet(args: string[]) {
-  const { positionals, flags } = parseArgs(args);
-  const identifier = positionals[0];
-  if (!identifier) throw new AppError("invalid_run", "runs get requires a run id or run key", 2);
-  const origin = await resolveOrigin(undefined, flags);
-  let result = flags.wait
-    ? await poll(origin, identifier, waitSeconds(flags))
-    : await request(new URL(`/api/runs/${encodeURIComponent(identifier)}`, origin), {
-        headers: authHeaders(),
-      });
-  result = await runSummary(withRunState(result, false));
-  if (flags.failed) {
-    await configureReadOnly(flags);
-    result.failed_rows = await failedRunRows(result.runKey);
+  const { positionals, flags } = parse(args), id = positionals[0]; if (!id) throw new AppError("invalid_run", "runs get requires an id.", 2);
+  const origin = await originFor(flags), seconds = Number(text(flags, "wait") ?? 0), deadline = Date.now() + seconds * 1000;
+  while (true) { const row = await request(new URL(`/api/runs/${encodeURIComponent(id)}`, origin), { headers: auth() }); if (!seconds || !["running", "waiting", "cancelling"].includes(row.status) || Date.now() >= deadline) return print(row); await new Promise((resolve) => setTimeout(resolve, 2000)); }
+}
+async function approve(args: string[]) { const { positionals, flags } = parse(args), token = positionals[0]; if (!token || Boolean(flags.yes) === Boolean(flags.no)) throw new AppError("invalid_decision", "approve requires a token and exactly one of --yes or --no.", 2); const origin = await originFor(flags); print(await request(new URL(`/api/approve/${encodeURIComponent(token)}`, origin), { method: "POST", headers: auth(), body: JSON.stringify({ approved: Boolean(flags.yes), comment: text(flags, "comment") ?? null }) })); }
+async function cancel(args: string[]) { const { positionals, flags } = parse(args), id = positionals[0]; if (!id) throw new AppError("invalid_run", "cancel requires an id.", 2); const origin = await originFor(flags); print(await request(new URL(`/api/runs/${encodeURIComponent(id)}/cancel`, origin), { method: "POST", headers: auth(), body: JSON.stringify({ reason: text(flags, "reason") ?? null }) })); }
+async function query(args: string[]) { const { flags } = parse(args), sql = text(flags, "sql"); if (!sql) throw new AppError("invalid_query", "query requires --sql.", 2); if (flags.cloud) loadTurso(); const rows = await executeReadOnly(sql); const format = text(flags, "format") ?? "json"; if (format === "json") return print(rows); if (format === "markdown") return process.stdout.write(markdown(rows)); if (format === "csv") return process.stdout.write(csv(rows)); throw new AppError("invalid_format", "Use json, markdown, or csv.", 2); }
+
+async function check() {
+  await command(join(root, "node_modules/.bin/nitro"), ["build"]);
+  const files = await walk(join(root, "workflows"), (file) => file.endsWith(".ts")); const warnings: string[] = [];
+  for (const file of files) {
+    const source = await readFile(file, "utf8"), slug = basename(file, ".ts"), expected = slug.replace(/-([a-z0-9])/g, (_, letter) => letter.toUpperCase());
+    if (!new RegExp(`export\\s+async\\s+function\\s+${expected}\\s*\\(`).test(source)) throw new AppError("invalid_export", `${relative(root, file)} must export ${expected}.`, 2);
+    if (!/\binput\.parse\s*\(/.test(source)) throw new AppError("invalid_input_parse", `${relative(root, file)} must parse input.`, 2);
+    const graph = parseDiagramSpec(source, workflowPath(file)); const functions = new Set([...source.matchAll(/(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/g)].map((match) => match[1]));
+    for (const node of graph.nodes) if (node.step && !functions.has(node.step)) throw new AppError("diagram_step_missing", `${node.step} in the Diagram header is not a function.`, 2);
+    const paid = [...source.matchAll(/\b(provider|agent|agentStage|withSpend)\s*\(\s*\{[\s\S]{0,500}?\bstep\s*:\s*["']([^"']+)/g)].map((match) => match[2]);
+    for (const step of paid) { const node = graph.nodes.find((item) => item.step === step); if (!node) warnings.push(`Paid step ${step} has no Diagram node.`); else if (node.unitCostUsd === undefined) throw new AppError("diagram_cost_missing", `${step} needs [cost: $X/row] in the Diagram header.`, 2); }
+    if (graph.workflow.schedule) { const vercel = JSON.parse(await readFile(join(root, "vercel.json"), "utf8").catch(() => "{}")); if (!(vercel.crons ?? []).some((cron: any) => cron.schedule === graph.workflow.schedule)) throw new AppError("schedule_missing", `Add ${graph.workflow.schedule} to vercel.json crons.`, 2); }
   }
-  const format = stringFlag(flags, "format") ?? "json";
-  if (format === "json") return print(result);
-  if (format === "markdown") return process.stdout.write(`${runMarkdown(result)}\n`);
-  throw new AppError("invalid_format", "format must be json or markdown", 2);
+  const pending = await pendingMigrations();
+  for (const file of pending.files) { const sql = await readFile(file, "utf8"); if (/\b(?:DROP\s+TABLE|DROP\s+COLUMN|DELETE|TRUNCATE|RENAME)\b/i.test(sql)) warnings.push(`removes_data: ${relative(root, file)}`); }
+  if ((process.env.TURSO_DATABASE_URL ?? "file:").startsWith("file:") && process.env.GTM_SANDBOX !== "1") await ensureMigrated();
+  return { ok: true, workflows: files.length, warnings, pendingMigrations: pending.files.map((file) => relative(root, file)), pendingSource: pending.source };
 }
 
-async function approve(args: string[]) {
-  const { positionals, flags } = parseArgs(args);
-  const token = positionals[0];
-  if (!token) throw new AppError("invalid_token", "approve requires a token", 2);
-  if (Boolean(flags.yes) === Boolean(flags.no)) {
-    throw new AppError("invalid_decision", "approve requires exactly one of --yes or --no", 2);
-  }
-  const slug = token.split(".")[0];
-  const runKey = token.split(".")[1];
-  const workflow = await findWorkflow(slug, stringFlag(flags, "url"));
-  const origin = await resolveOrigin(workflow, flags);
-  await request(new URL(`/api/approve/${encodeURIComponent(token)}`, origin), {
-    method: "POST",
-    headers: authHeaders(),
-    body: JSON.stringify({
-      approved: Boolean(flags.yes),
-      comment: stringFlag(flags, "comment") ?? null,
-    }),
-  });
-  if (!flags.wait) return print({ approved: Boolean(flags.yes) });
-
-  print(await runSummary(await poll(origin, runKey, waitSeconds(flags), token)));
-}
-
-async function cancel(args: string[]) {
-  const { positionals, flags } = parseArgs(args);
-  const identifier = positionals[0];
-  if (!identifier) throw new AppError("invalid_run", "cancel requires a run id or run key", 2);
-  const origin = await resolveOrigin(undefined, flags);
-  const row = await request(new URL(`/api/runs/${encodeURIComponent(identifier)}/cancel`, origin), {
-    method: "POST",
-    headers: authHeaders(),
-    body: JSON.stringify({ reason: stringFlag(flags, "reason") ?? null }),
-  });
-  if (!flags.wait) return print(row);
-  print(await runSummary(await poll(origin, row.runKey ?? identifier, waitSeconds(flags))));
-}
-
-async function providersList(args: string[]) {
-  const { positionals, flags } = parseArgs(args);
-  const directory = join(root, "providers");
-  const fixtureDirectory = join(directory, "__fixtures__");
-  const fixtures = existsSync(fixtureDirectory)
-    ? await walk(fixtureDirectory, () => true)
-    : [];
-  const workflows = await Promise.all(
-    (await workflowFiles()).map(async (file) => ({ file, source: await readFile(file, "utf8") })),
-  );
-  const adapters = existsSync(directory)
-    ? await walk(directory, (file) => file.endsWith(".ts") && !file.includes(`${sep}__fixtures__${sep}`))
-    : [];
-  const keywords = positionals.map((value) => value.toLowerCase());
-  const rows: ProviderListRow[] = [];
-  for (const file of adapters) {
-    const source = await readFile(file, "utf8");
-    const name = basename(file, ".ts");
-    const endpoints = listHeader(source, "Endpoints", /endpoint\s*:\s*["']([^"']+)["']/g);
-    const envNames = listHeader(source, "Environment", /process\.env\.([A-Z][A-Z0-9_]*)/g);
-    const row = {
-      name,
-      endpoints,
-      cost_per_request: headerValue(source, "Cost per request") ?? headerValue(source, "Cost") ?? "not documented",
-      cache_ttl: headerValue(source, "Cache TTL") ?? "not documented",
-      environment: envNames.map((envName) => ({
-        name: envName,
-        set: typeof process.env[envName] === "string" && process.env[envName]!.length > 0,
-      })),
-      mode: headerValue(source, "Mode") ?? "not documented",
-      fixture_covered: fixtures.some((fixture) => relative(fixtureDirectory, fixture).toLowerCase().includes(name.toLowerCase())),
-      workflows: workflows
-        .filter(({ source: workflowSource }) => workflowImportsProvider(workflowSource, name))
-        .map(({ file: workflowFile }) => workflowPath(workflowFile)),
-    };
-    const haystack = `${name}\n${source}`.toLowerCase();
-    if (keywords.every((keyword) => haystack.includes(keyword))) rows.push(row);
-  }
-  rows.sort((left, right) => left.name.localeCompare(right.name));
-  const format = stringFlag(flags, "format") ?? "table";
-  if (format === "json") return print(rows);
-  if (format === "table") {
-    return process.stdout.write(`${toMarkdown(rows.map((row) => ({
-      adapter: row.name,
-      endpoints: row.endpoints.join(", "),
-      cost: row.cost_per_request,
-      cache_ttl: row.cache_ttl,
-      environment: row.environment.map(({ name, set }) => `${name}=${set ? "set" : "unset"}`).join(", "),
-      fixtures: row.fixture_covered ? "yes" : "no",
-      workflows: row.workflows.join(", ") || "none",
-      mode: row.mode,
-    })))}\n`);
-  }
-  throw new AppError("invalid_format", "format must be table or json", 2);
-}
-
-/** The workflow's business graph with child graphs attached and no run overlay. */
-async function diagramGraph(slug: string, urlOverride?: string) {
-  const workflow = await findWorkflow(slug, urlOverride);
-  const source = await readFile(workflow, "utf8");
-  const { graph } = extractGraph(source, workflowPath(workflow));
-  await attachChildGraphs(graph, (path) => readFile(join(root, "workflows", `${path}.ts`), "utf8"));
-  return { workflow, graph };
+async function verify(args: string[]) {
+  const { positionals, flags } = parse(args), slug = positionals[0], inputFile = text(flags, "input"); if (!slug || !inputFile) throw new AppError("invalid_input", "verify requires <workflow> --input <file>.", 2);
+  const checked = await check(), dry = await dryPlan(slug, inputFile); await mkdir(join(root, "data"), { recursive: true }); await writeFile(join(root, "data/draft-diagram.json"), JSON.stringify(dry.graph, null, 2));
+  let missing: string[] = [];
+  const origin = text(flags, "url"); if (origin) { const names = await environmentNames(dry.file, dry.source); const result = await request(new URL(`/api/deployment?names=${encodeURIComponent(names.join(","))}`, origin), { headers: auth() }); missing = result.missing ?? []; }
+  print({ ok: dry.plan.withinCaps, check: checked, dryRun: dry.plan, missing, diagram: "data/draft-diagram.json" }); if (!dry.plan.withinCaps) process.exitCode = 2;
 }
 
 async function diagram(args: string[]) {
-  const { positionals, flags } = parseArgs(args);
-  const slug = positionals[0];
-  if (!slug) throw new AppError("invalid_workflow", "diagram requires <slug>", 2);
-  const { workflow, graph } = await diagramGraph(slug, stringFlag(flags, "url"));
-  const runKey = stringFlag(flags, "run");
-  if (runKey) {
-    await configureReadOnly(flags);
-    try {
-      await overlayRun(graph, runKey);
-    } catch (caught) {
-      const message = redact(caught);
-      // overlayRun marks the one case the CLI has always reported separately: a real run that
-      // belongs to a different workflow, which is a bad argument rather than a missing run.
-      if (message.startsWith("workflow_mismatch:")) {
-        throw new AppError("workflow_mismatch", message.slice("workflow_mismatch:".length).trim(), 2);
-      }
-      throw new AppError("not_found", message, 6);
-    }
-  }
-  const format = stringFlag(flags, "format") ?? "mermaid";
-  if (format === "json") return print(graph);
-  if (format === "mermaid") return process.stdout.write(`${toMermaid(graph)}\n`);
-  if (format === "ascii") return process.stdout.write(`${toAscii(graph)}\n`);
-  if (format === "web") {
-    const origin = await resolveOrigin(workflow, flags);
-    const secret = process.env.GTM_RUN_SECRET;
-    if (!secret) throw new AppError("unauthorized", "GTM_RUN_SECRET is missing from .env", 3);
-    const hours = Number(stringFlag(flags, "expires") ?? 24);
-    if (!Number.isFinite(hours) || hours <= 0) throw new AppError("invalid_input", "--expires must be a positive number of hours", 2);
-    const exp = Math.floor(Date.now() / 1000) + Math.round(hours * 3600);
-    const claims = { path: workflowPath(workflow), run: graph.run?.runKey ?? null, exp };
-    const url = `${origin}/gtm/diagram/${claims.path}?${diagramQuery(claims, secret)}`;
-    if (!flags["no-open"]) {
-      spawn(process.platform === "darwin" ? "open" : "xdg-open", [url], { detached: true, stdio: "ignore" }).unref();
-    }
-    // The signed query is the capability itself and redact() strips query strings from URLs, so
-    // this payload is written directly. Both fields are built here, from the path and the clock.
-    process.stdout.write(`${JSON.stringify({ url, expiresAt: new Date(exp * 1000).toISOString() })}\n`);
-    return;
-  }
-  if (format === "svg" || format === "png") {
-    const svg = renderSvg(layoutGraph(graph));
-    const directory = join(root, "data", "diagrams");
-    await mkdir(directory, { recursive: true });
-    const name = `${slug}${runKey ? `-${graph.run?.runKey ?? runKey}` : ""}.${format}`;
-    const target = join(directory, name);
-    if (format === "svg") await writeFile(target, svg);
-    else {
-      const font = await readFile(join(root, "assets", "fonts", "Inter-Regular.ttf"));
-      await writeFile(target, renderPng(svg, font));
-    }
-    return print({ path: relative(root, target).split(sep).join("/") });
-  }
-  throw new AppError("invalid_format", "format must be mermaid, ascii, json, svg, png, or web", 2);
+  const { positionals, flags } = parse(args), slug = positionals[0]; if (!slug) throw new AppError("invalid_workflow", "diagram requires a workflow.", 2);
+  const file = await workflowFile(slug), graph = parseDiagramSpec(await readFile(file, "utf8"), workflowPath(file)), run = text(flags, "run"); if (run) await overlayRun(graph, run);
+  const format = text(flags, "format") ?? "json"; if (format === "json") return print(graph);
+  if (format === "web") { const origin = await originFor(flags); return print(await request(new URL(`/api/links/${workflowPath(file)}${run ? `?run=${encodeURIComponent(run)}` : ""}`, origin), { headers: auth() })); }
+  const svg = renderSvg(layoutGraph(graph)), directory = join(root, "data/diagrams"); await mkdir(directory, { recursive: true }); const target = join(directory, `${slug}.${format}`);
+  if (format === "svg") await writeFile(target, svg); else if (format === "png") await writeFile(target, renderPng(svg, await readFile(join(root, "assets/fonts/Inter-Regular.ttf")))); else throw new AppError("invalid_format", "Use json, svg, png, or web.", 2); print({ path: relative(root, target) });
 }
 
-async function query(args: string[]) {
-  const { flags } = parseArgs(args);
-  const statement = stringFlag(flags, "sql");
-  if (!statement) throw new AppError("invalid_query", "query requires --sql", 2);
-  await configureReadOnly(flags);
-  const rows = await executeReadOnly(statement);
-  const format = stringFlag(flags, "format") ?? "json";
-  if (format === "json") return print(rows);
-  if (format === "csv") return process.stdout.write(`${toCsv(rows)}\n`);
-  if (format === "markdown") return process.stdout.write(`${toMarkdown(rows)}\n`);
-  throw new AppError("invalid_format", "format must be json, csv, or markdown", 2);
+async function upgrade(args: string[]) {
+  const { positionals, flags } = parse(args), ref = positionals[0] ?? "main"; const temporary = await mkdtemp(join(root, ".gtm-upgrade-"));
+  await command("curl", ["-fsSL", `https://github.com/eliasstravik/gtm-skills/archive/${ref}.tar.gz`, "-o", join(temporary, "skills.tgz")]); await command("tar", ["-xzf", join(temporary, "skills.tgz"), "-C", temporary]);
+  const sourceRoot = (await walk(temporary, (path) => path.endsWith("/skills/gtm-workflow/templates/package.json")))[0]?.replace(/\/package\.json$/, ""); if (!sourceRoot) throw new AppError("upgrade_failed", "The release does not contain the workflow template.");
+  if (!flags.yes) return print({ ref, replaces: ["lib", "server", "scripts", "nitro.config.ts", "drizzle.config.ts"], preserves: ["workflows", "db/tables", "providers", "drizzle", "data", ".env"] });
+  for (const path of ["lib", "server", "scripts", "nitro.config.ts", "drizzle.config.ts"]) await cp(join(sourceRoot, path), join(root, path), { recursive: true, force: true });
+  const current = JSON.parse(await readFile(join(root, "package.json"), "utf8")), next = JSON.parse(await readFile(join(sourceRoot, "package.json"), "utf8")); current.dependencies = { ...current.dependencies, ...next.dependencies }; current.devDependencies = { ...current.devDependencies, ...next.devDependencies }; current.gtm = { ...(current.gtm ?? {}), skillsRelease: ref }; await writeFile(join(root, "package.json"), `${JSON.stringify(current, null, 2)}\n`); process.stdout.write("Run npm ci.\n");
 }
 
-async function check() {
-  print(await runCheck());
+async function originFor(flags: Flags) {
+  const explicit = text(flags, "url") ?? process.env.GTM_BASE_URL;
+  if (explicit) { if (isLoopback(explicit)) await ensureRunSecret(root); return explicit; }
+  if (process.env.GTM_SANDBOX === "1") throw new AppError("hosted_url_required", "The hosted agent needs the workflow project URL.", 2);
+  const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8")); if (pkg.gtm?.vercel?.url) return pkg.gtm.vercel.url;
+  return startLocal();
 }
-
-/** Everything `check` enforces, returned instead of printed so verify can embed it. */
-async function runCheck() {
-  await command(join(root, "node_modules", ".bin", "nitro"), ["build"]);
-  await command(join(root, "node_modules", ".bin", "workflow"), ["validate"]);
-  const workflows = await workflowFiles();
-  const findings: { slug: string; finding: DiagramFinding }[] = [];
-  for (const file of workflows) {
-    const source = await readFile(file, "utf8");
-    const slug = basename(file, ".ts");
-    const expected = slug.replace(/-([a-z0-9])/g, (_, character) => character.toUpperCase());
-    if (!new RegExp(`export\\s+async\\s+function\\s+${expected}\\s*\\(`).test(source)) {
-      throw new AppError("invalid_export", `${relative(root, file)} must export ${expected}`, 2);
-    }
-    if (!/\barg\s*=\s*input\.parse\s*\(\s*arg\s*\)/.test(source)) {
-      throw new AppError(
-        "invalid_input_parse",
-        `${relative(root, file)} must assign arg = input.parse(arg) inside the workflow body`,
-        2,
-      );
-    }
-    if (
-      /rows\s*:\s*z\.array/.test(source) &&
-      !/\.pick\s*\(\s*\{[^}]*key\s*:/s.test(source) &&
-      !/rows\s*:\s*z\.array\s*\(\s*z\.object\s*\(\s*\{[^}]*key\s*:/s.test(source)
-    ) {
-      throw new AppError("invalid_rows_input", `${relative(root, file)} rows input must include key`, 2);
-    }
-    validateWorkflowSource(file, source, expected);
-    const execution = executionShape(source);
-    if (execution.batch) {
-      const childFile = join(root, "workflows", `${execution.batch.childWorkflow}.ts`);
-      const childSource = await readFile(childFile, "utf8");
-      const child = executionShape(childSource);
-      const childTable = (headerValue(childSource, "Result table") ?? headerValue(childSource, "Table"))?.split("|")[0].trim();
-      if (child.batch || !/export\s+async\s+function\s+\w+[\s\S]*?["']use workflow["']/.test(childSource) || !/\brunRows\s*\(/.test(childSource) || childTable !== execution.batch.table) {
-        throw new AppError("invalid_child_workflow", "The child must export an ordinary runRows workflow using the parent's result table", 2);
-      }
-    }
-    for (const finding of extractGraph(source, workflowPath(file)).findings) findings.push({ slug, finding });
-  }
-  if (findings.length > 0) {
-    const slugs = [...new Set(findings.map((entry) => entry.slug))];
-    const lines = findings.map(
-      ({ finding }) => `${finding.code} ${finding.file}:${finding.line} ${finding.message} Fix: ${finding.fix}`,
-    );
-    throw new AppError(
-      "diagram_rules",
-      [
-        `${findings.length} diagram rule finding${findings.length === 1 ? "" : "s"}.`,
-        ...lines,
-        ...slugs.map((slug) => `Run npm run gtm -- diagram ${slug} --format ascii after fixing to confirm the shape.`),
-      ].join("\n"),
-      2,
-    );
-  }
-  await validateTableSources();
-  await validateMigrationArtifacts();
-
-  const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
-  const expectedVersion = packageJson.gtm?.libVersion;
-  for (const file of await headeredFiles()) {
-    const contents = await readFile(file, "utf8");
-    const first = contents.split("\n", 1)[0];
-    if (first !== `// gtm-lib v${expectedVersion}`) {
-      throw new AppError(
-        "lib_version_mismatch",
-        `${relative(root, file)} has ${first || "no header"}; expected gtm-lib v${expectedVersion}`,
-        2,
-      );
-    }
-    const path = relative(root, file).split(sep).join("/");
-    const expectedHash = packageJson.gtm?.libHashes?.[path];
-    const actualHash = createHash("sha256").update(contents).digest("hex");
-    if (!expectedHash) {
-      throw new AppError("lib_hash_missing", `${path} has no gtm.libHashes entry`, 2);
-    }
-    if (expectedHash !== actualHash) {
-      throw new AppError("lib_modified", `${path} was modified locally`, 2);
-    }
-  }
-  const warnings = versionWarnings(packageJson);
-  let fixtureRows = 0;
-  for (const file of workflows) {
-    const names = rowStepNames(await readFile(file, "utf8"));
-    if (!names.length) continue;
-    const fixtures = join("providers", "__fixtures__", "rows", `${workflowPath(file)}.json`);
-    const result = await new Promise<{ checked: number; warnings: string[] }>((resolveResult, reject) => {
-      const child = spawn(process.execPath, ["--experimental-permission", "--allow-fs-read=*", "--allow-worker", "--import", "tsx", join(root, "lib/fixture-worker.ts"), file, fixtures, JSON.stringify(names)], {
-        cwd: root, env: { PATH: process.env.PATH, GTM_PROVIDER_MODE: "fixture", GTM_AGENT_BACKEND: "api", NODE_NO_WARNINGS: "1", TSX_DISABLE_CACHE: "1",
-          ...(process.env.GTM_WORKFLOW_MODEL ? { GTM_WORKFLOW_MODEL: process.env.GTM_WORKFLOW_MODEL } : {}),
-          ...(process.env.GTM_AGENT_MODEL ? { GTM_AGENT_MODEL: process.env.GTM_AGENT_MODEL } : {}) },
-        stdio: ["ignore", "pipe", "pipe"], timeout: 15_000,
-      });
-      let out = "", err = "";
-      child.stdout.on("data", (data) => { out += data; }); child.stderr.on("data", (data) => { err += data; });
-      child.on("error", reject);
-      child.on("close", (code) => {
-        if (code !== 0) return reject(new AppError("fixture_failed", redact(err) || `Fixture worker exited ${code}`, 2));
-        try { resolveResult(JSON.parse(out)); } catch { reject(new AppError("fixture_failed", "Invalid fixture worker result", 2)); }
-      });
-    });
-    warnings.push(...result.warnings); fixtureRows += result.checked;
-  }
-  return { ok: true as const, workflows: workflows.length, libVersion: expectedVersion as number, fixtureRows, warnings };
+function isLoopback(origin: string) { try { const host = new URL(origin).hostname; return host === "127.0.0.1" || host === "localhost" || host === "::1"; } catch { return false; } }
+async function startLocal() { await ensureRunSecret(root); const stateFile = join(root, ".gtm-local.json"); try { const state = JSON.parse(await readFile(stateFile, "utf8")); if (await alive(state.url)) return state.url; } catch {} const port = await freePort(); const child = spawn("npm", ["run", "dev", "--", "--port", String(port), "--host", "127.0.0.1"], { cwd: root, env: childEnv(), detached: true, stdio: "ignore" }); child.unref(); const url = `http://127.0.0.1:${port}`; await writeFile(stateFile, JSON.stringify({ url, pid: child.pid })); for (let i = 0; i < 60 && !(await alive(url)); i++) await new Promise((resolve) => setTimeout(resolve, 500)); if (!(await alive(url))) throw new AppError("server_failed", "The local server did not start."); process.stdout.write("Started the local server.\n"); return url; }
+async function waitLive(origin: string) { const expected = await gitHead(), deadline = Date.now() + 480_000; while (Date.now() < deadline) { try { const result = await request(new URL("/api/deployment", origin), { headers: auth() }); if (String(result.migration).startsWith("failed")) throw new AppError("migration_failed", "Saved, but the new table could not be created. Ask whoever set this up to check the database."); if (result.head === expected && result.migration === "ok") return; } catch (error) { if (error instanceof AppError && error.code === "migration_failed") throw error; } await new Promise((resolve) => setTimeout(resolve, 3000)); } throw new AppError("deployment_timeout", "Saved, but the hosted copy did not come live in 8 minutes. Ask whoever set this up to check the Vercel build."); }
+async function alive(origin: string) { try { const response = await fetch(new URL("/api/deployment", origin), { headers: auth(), signal: AbortSignal.timeout(1000) }); return response.status !== 404; } catch { return false; } }
+function freePort() { return new Promise<number>((resolvePort, reject) => { const server = createServer(); server.once("error", reject); server.listen(0, "127.0.0.1", () => { const address = server.address(); const port = typeof address === "object" && address ? address.port : 3000; server.close(() => resolvePort(port)); }); }); }
+function auth() { return { authorization: `Bearer ${process.env.GTM_SANDBOX === "1" ? "gtm-sandbox" : process.env.GTM_RUN_SECRET ?? ""}` }; }
+async function request(url: URL, init: RequestInit = {}) { const response = await fetch(url, { ...init, signal: init.signal ?? AbortSignal.timeout(600_000), headers: { "content-type": "application/json", ...(init.headers ?? {}) } }); const body = await response.json().catch(() => ({})) as any; if (!response.ok) { if (response.status === 409 && body.error?.code === "deployment_not_ready") throw new AppError("deployment_not_ready", "Someone saved a newer version. Say run again to use it."); throw new AppError(body.error?.code ?? `http_${response.status}`, body.error?.message ?? `Request failed with ${response.status}.`); } return body; }
+async function command(bin: string, args: string[]) { await new Promise<void>((resolveCommand, reject) => { const child = spawn(bin, args, { cwd: root, stdio: "inherit", env: process.env }); child.on("error", reject); child.on("close", (code) => code === 0 ? resolveCommand() : reject(new AppError("command_failed", `${basename(bin)} exited ${code}.`, 2))); }); }
+async function gitHead() { return (await capture("git", ["rev-parse", "HEAD"])).trim(); }
+async function capture(bin: string, args: string[]) { return new Promise<string>((resolveCapture, reject) => { const child = spawn(bin, args, { cwd: root, stdio: ["ignore", "pipe", "pipe"] }); let output = "", error = ""; child.stdout.on("data", (data) => output += data); child.stderr.on("data", (data) => error += data); child.on("close", (code) => code === 0 ? resolveCapture(output) : reject(new AppError("command_failed", error.trim()))); }); }
+/** Migrations the card must mention: files not on origin/main, or, without a remote, files the local ledger has not applied. */
+async function pendingMigrations(): Promise<{ files: string[]; source: "origin/main" | "ledger" }> {
+  try { const output = await capture("git", ["diff", "--name-only", "origin/main", "--", "drizzle"]); return { files: output.split("\n").filter((name) => name.endsWith(".sql")).map((name) => join(root, name)), source: "origin/main" }; } catch {}
+  const files = await walk(join(root, "drizzle"), (file) => file.endsWith(".sql"));
+  const hashed = await Promise.all(files.map(async (file) => ({ file, hash: createHash("sha256").update(await readFile(file, "utf8")).digest("hex") })));
+  return { files: pendingFrom(hashed, await readAppliedMigrationHashes()), source: "ledger" };
 }
-
-type VerifyStage = "check" | "build" | "dryRun" | "diagram";
-
-/**
- * One command for the whole pre-save loop: check, the compiled-bundle initialization check that
- * `npm run build` performs, an optional zero-spend dry run, and the draft diagram JSON. Prints one
- * object that names the first failing stage, so no second command is needed to learn why.
- */
-async function verify(args: string[]) {
-  const { positionals, flags } = parseArgs(args);
-  const slug = positionals[0];
-  if (!slug) throw new AppError("invalid_input", "verify requires <slug> [--input <file>] [--diagram <path>] [--skip-build]", 2);
-  const inputPath = stringFlag(flags, "input");
-  const diagramPath = resolve(stringFlag(flags, "diagram") ?? "draft-diagram.json");
-  const report: Record<string, unknown> = { ok: false, workflow: slug };
-  const fail = (stage: VerifyStage, caught: unknown) => {
-    const message = caught instanceof AppError ? `${caught.code}: ${caught.message}` : redact(caught);
-    report.failure = { stage, message };
-    print(report);
-    process.exitCode = 1;
-  };
-
-  try {
-    const check = await runCheck();
-    report.libVersion = check.libVersion;
-    report.check = check;
-  } catch (caught) {
-    return fail("check", caught);
-  }
-
-  if (flags["skip-build"]) report.build = { skipped: true };
-  else {
-    // runCheck already ran `nitro build`; the remaining half of `npm run build` is the compiled
-    // bundle initialization check, so run only that instead of building twice.
-    const startedAt = Date.now();
-    const build = await new Promise<{ ok: boolean; exitCode: number | null; durationMs: number; outputTail: string }>((resolveBuild) => {
-      const child = spawn(process.execPath, [join(root, "scripts", "check-workflow-runtime.mjs")], { cwd: root, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
-      let output = "";
-      child.stdout.on("data", (chunk) => (output += chunk));
-      child.stderr.on("data", (chunk) => (output += chunk));
-      child.on("error", (error) => resolveBuild({ ok: false, exitCode: null, durationMs: Date.now() - startedAt, outputTail: redact(error) }));
-      child.on("close", (code) => resolveBuild({ ok: code === 0, exitCode: code, durationMs: Date.now() - startedAt, outputTail: redact(output.slice(-4_000)) }));
-    });
-    report.build = build;
-    if (!build.ok) return fail("build", new AppError("build_failed", build.outputTail || "Workflow initialization check failed", 2));
-  }
-
-  if (inputPath) {
-    try {
-      const { dryRun, withinCaps } = await dryRunPlan([slug, "--input", inputPath, "--dry-run"]);
-      report.dryRun = dryRun;
-      if (!withinCaps) return fail("dryRun", new AppError("caps_exceeded", "The input exceeds the accepted workflow caps.", 2));
-    } catch (caught) {
-      return fail("dryRun", caught);
-    }
-  }
-
-  try {
-    const { graph } = await diagramGraph(slug, stringFlag(flags, "url"));
-    await writeFile(diagramPath, `${JSON.stringify(redactValue(graph))}\n`);
-    report.diagram = { path: relative(root, diagramPath).split(sep).join("/") };
-  } catch (caught) {
-    return fail("diagram", caught);
-  }
-
-  report.ok = true;
-  print(report);
-}
-
-/** First line an explicitly accepted destructive migration must carry. */
-const DESTRUCTIVE_ACCEPTANCE_LINE = "-- gtm: destructive accepted";
-const DESTRUCTIVE_ACCEPTANCE_PATTERN = /^-- gtm: destructive accepted\b/;
-
-function validateWorkflowSource(file: string, source: string, exportName: string) {
-  const path = relative(root, file);
-  const tokens = compilerTokens(source);
-  const functions = functionBodies(source, tokens);
-  if (/\bdurableAgent\s*\(/.test(source) && !/export\s+const\s+AGENTS\b/.test(source)) {
-    throw new AppError("agent_manifest", `${path} must export AGENTS with the committed definitions used by durableAgent`, 2);
-  }
-  for (const fn of functions) {
-    const { name, directive: directiveText, body: bodyText } = fn;
-    if (directiveText === "use step" && /\b(?:durableAgent|WorkflowAgent)\s*\(/.test(bodyText)) {
-      throw new AppError("agent_boundary", `${path} calls a durable agent inside a step; call durableAgent from workflow context`, 2);
-    }
-    if (directiveText === "use workflow" && /\bdurableAgent\s*\(/.test(bodyText) && !/export\s+const\s+AGENTS\b/.test(source)) {
-      throw new AppError("agent_manifest", `${path} must export AGENTS with the committed agent definitions for preview`, 2);
-    }
-    if (directiveText === "use step" && /\b(?:provider|agent)\s*\(/.test(bodyText)) {
-      const noRetry = new RegExp(`\\b${name}\\.maxRetries\\s*=\\s*0\\b`).test(source);
-      const retryableOnly = /catch\s*\([^)]*\)\s*\{[\s\S]*RetryableError[\s\S]*throw/.test(
-        bodyText,
-      );
-      if (!noRetry && !retryableOnly) {
-        throw new AppError(
-          "paid_step_retries",
-          `${path} paid step ${name} must set maxRetries = 0 or rethrow only RetryableError`,
-          2,
-        );
-      }
-    }
-    if (directiveText === "use workflow") {
-      const violations = ["Date.now", "Math.random", "fetch"].filter((call) =>
-        new RegExp(`\\b${call.replace(".", "\\.")}\\s*\\(`).test(bodyText),
-      );
-      if (violations.length) {
-        throw new AppError(
-          "nondeterministic_workflow",
-          `${path} workflow body calls ${[...new Set(violations)].join(", ")}`,
-          2,
-        );
-      }
-      if (!/\b(?:runRows|runBatches)\s*\(/.test(bodyText) && !/\bupdateRun\s*\(/.test(bodyText)) {
-        throw new AppError(
-          "missing_terminal_bookkeeping",
-          `${path} must call runRows(), runBatches(), or terminal updateRun()`,
-          2,
-        );
-      }
-    }
-  }
-  if (!functions.some((fn) => fn.name === exportName)) {
-    throw new AppError("invalid_export", `${path} must export ${exportName}`, 2);
-  }
-
-  let braceDepth = 0;
-  for (let index = 0; index < tokens.length; index += 1) {
-    const token = tokens[index];
-    if (token.kind === SyntaxKind.OpenBraceToken) braceDepth += 1;
-    if (token.kind === SyntaxKind.CloseBraceToken) braceDepth -= 1;
-    if (braceDepth !== 0 || token.kind !== SyntaxKind.OpenParenToken) continue;
-    const previous = tokens[index - 1];
-    if (!previous || previous.kind !== SyntaxKind.Identifier) continue;
-    if (tokens.slice(Math.max(0, index - 4), index).some((item) => item.kind === SyntaxKind.FunctionKeyword)) {
-      continue;
-    }
-    let rootIndex = index - 1;
-    while (
-      rootIndex >= 2 &&
-      tokens[rootIndex - 1].kind === SyntaxKind.DotToken &&
-      tokens[rootIndex - 2].kind === SyntaxKind.Identifier
-    ) {
-      rootIndex -= 2;
-    }
-    const safeHookDefinition = tokens[rootIndex].text === "defineHook" &&
-      /import\s*\{[^}]*\bdefineHook\b[^}]*\}\s*from\s*["']workflow["']/.test(source);
-    if (tokens[rootIndex].text !== "z" && !safeHookDefinition) {
-      throw new AppError(
-        "invalid_module_scope",
-        `${path} executes ${tokens[rootIndex].text} at module scope`,
-        2,
-      );
-    }
-  }
-}
-
-async function validateTableSources() {
-  const directory = join(root, "db", "tables");
-  if (!existsSync(directory)) return;
-  for (const file of await walk(directory, (candidate) => candidate.endsWith(".ts"))) {
-    const source = await readFile(file, "utf8");
-    compilerTokens(source);
-    if (!/\bkey\s*:\s*[^,\n]+\.primaryKey\s*\(/.test(source)) {
-      throw new AppError(
-        "invalid_result_table",
-        `${relative(root, file)} table must declare key as the primary key`,
-        2,
-      );
-    }
-    if (!/\bupdatedAt\s*:\s*[^,\n]+\.notNull\s*\(/.test(source)) {
-      throw new AppError(
-        "invalid_result_table",
-        `${relative(root, file)} table must declare non-null updatedAt`,
-        2,
-      );
-    }
-  }
-}
-
-type CompilerToken = { kind: SyntaxKind; text: string; value: string; start: number; end: number };
-
-/** Token kinds after which a slash is division rather than a regular expression. */
-const EXPRESSION_END_KINDS = new Set<SyntaxKind>([
-  SyntaxKind.Identifier,
-  SyntaxKind.NumericLiteral,
-  SyntaxKind.BigIntLiteral,
-  SyntaxKind.StringLiteral,
-  SyntaxKind.NoSubstitutionTemplateLiteral,
-  SyntaxKind.TemplateTail,
-  SyntaxKind.RegularExpressionLiteral,
-  SyntaxKind.CloseParenToken,
-  SyntaxKind.CloseBracketToken,
-  SyntaxKind.CloseBraceToken,
-  SyntaxKind.ThisKeyword,
-  SyntaxKind.TrueKeyword,
-  SyntaxKind.FalseKeyword,
-  SyntaxKind.NullKeyword,
-  SyntaxKind.PlusPlusToken,
-  SyntaxKind.MinusMinusToken,
-]);
-
-function compilerTokens(source: string): CompilerToken[] {
-  const scanner = createScanner(true, LanguageVariant.Standard, source);
-  const tokens: CompilerToken[] = [];
-  // Brace depth inside each open template substitution, innermost last. A
-  // closing brace at depth zero ends the substitution and must be rescanned as
-  // a template middle or tail; otherwise its brace desynchronizes every
-  // function body that follows it.
-  const substitutions: number[] = [];
-  while (true) {
-    let kind = scanner.scan();
-    if (kind === SyntaxKind.EndOfFile) break;
-    const previous = tokens[tokens.length - 1]?.kind;
-    if (
-      (kind === SyntaxKind.SlashToken || kind === SyntaxKind.SlashEqualsToken) &&
-      (previous === undefined || !EXPRESSION_END_KINDS.has(previous))
-    ) {
-      kind = scanner.reScanSlashToken();
-    }
-    const substitution = substitutions.length - 1;
-    if (kind === SyntaxKind.CloseBraceToken && substitution >= 0 && substitutions[substitution] === 0) {
-      kind = scanner.reScanTemplateToken(false);
-      if (kind === SyntaxKind.TemplateTail) substitutions.pop();
-    } else if (kind === SyntaxKind.TemplateHead) {
-      substitutions.push(0);
-    } else if (kind === SyntaxKind.OpenBraceToken && substitution >= 0) {
-      substitutions[substitution] += 1;
-    } else if (kind === SyntaxKind.CloseBraceToken && substitution >= 0) {
-      substitutions[substitution] -= 1;
-    }
-    tokens.push({
-      kind,
-      text: scanner.getTokenText(),
-      value: scanner.getTokenValue(),
-      start: scanner.getTokenStart(),
-      end: scanner.getTokenEnd(),
-    });
-  }
-  return tokens;
-}
-
-function functionBodies(source: string, tokens: CompilerToken[]) {
-  const bodies: { name: string; directive?: string; body: string }[] = [];
-  for (let index = 0; index < tokens.length; index += 1) {
-    if (tokens[index].kind !== SyntaxKind.FunctionKeyword) continue;
-    const name = tokens[index + 1];
-    if (!name || name.kind !== SyntaxKind.Identifier) continue;
-    const openIndex = tokens.findIndex(
-      (token, candidate) => candidate > index && token.kind === SyntaxKind.OpenBraceToken,
-    );
-    if (openIndex < 0) continue;
-    let depth = 0;
-    let closeIndex = -1;
-    for (let candidate = openIndex; candidate < tokens.length; candidate += 1) {
-      if (tokens[candidate].kind === SyntaxKind.OpenBraceToken) depth += 1;
-      if (tokens[candidate].kind === SyntaxKind.CloseBraceToken) depth -= 1;
-      if (depth === 0) {
-        closeIndex = candidate;
-        break;
-      }
-    }
-    if (closeIndex < 0) continue;
-    const first = tokens[openIndex + 1];
-    bodies.push({
-      name: name.text,
-      directive: first?.kind === SyntaxKind.StringLiteral ? first.value : undefined,
-      body: source.slice(tokens[openIndex].start, tokens[closeIndex].end),
-    });
-    index = closeIndex;
-  }
-  return bodies;
-}
-
-function versionWarnings(packageJson: any): string[] {
-  const expected = packageJson.gtm?.validatedAgainst ?? {};
-  const actual = {
-    workflow: packageJson.dependencies?.workflow,
-    ai: packageJson.dependencies?.ai,
-    workflowAgent: packageJson.dependencies?.["@ai-sdk/workflow"],
-    mcp: packageJson.dependencies?.["@ai-sdk/mcp"],
-    nitro: packageJson.dependencies?.nitro,
-    drizzleKit: packageJson.devDependencies?.["drizzle-kit"],
-    node: process.versions.node.split(".")[0],
-  };
-  return [...(process.env.GTM_AGENT_MODEL ? ["GTM_AGENT_MODEL is deprecated since generation 22; rename it to GTM_WORKFLOW_MODEL before generation 24."] : []), ...Object.entries(expected).flatMap(([name, version]) =>
-    String(actual[name as keyof typeof actual]) === String(version)
-      ? []
-      : [`${name} validated against ${version}, installed ${actual[name as keyof typeof actual] ?? "missing"}`],
-  )];
-}
-
-async function validateMigrationArtifacts() {
-  const directory = join(root, "drizzle");
-  const migrationFiles = (await readdir(directory))
-    .filter((file) => file.endsWith(".sql"))
-    .sort();
-  const journalPath = join(directory, "meta", "_journal.json");
-  let journal: any;
-  try {
-    journal = JSON.parse(await readFile(journalPath, "utf8"));
-  } catch {
-    throw new AppError(
-      "invalid_migration_artifacts",
-      "drizzle/meta/_journal.json is missing or invalid",
-      2,
-    );
-  }
-  if (!Array.isArray(journal.entries)) {
-    throw new AppError(
-      "invalid_migration_artifacts",
-      "drizzle/meta/_journal.json must contain an entries array",
-      2,
-    );
-  }
-  const tags = new Set<string>(
-    journal.entries.flatMap((entry: any) =>
-      entry && typeof entry.tag === "string" ? [entry.tag] : [],
-    ),
-  );
-  const files = new Set(migrationFiles.map((file) => basename(file, ".sql")));
-  for (const tag of tags) {
-    if (!files.has(tag)) {
-      throw new AppError(
-        "invalid_migration_artifacts",
-        `Drizzle journal entry ${tag} has no matching migration SQL`,
-        2,
-      );
-    }
-  }
-  for (const file of migrationFiles) {
-    const tag = basename(file, ".sql");
-    const sequence = /^(\d{4})_.+/.exec(tag)?.[1];
-    if (!sequence || !tags.has(tag)) {
-      throw new AppError(
-        "invalid_migration_artifacts",
-        `${file} is not registered in drizzle/meta/_journal.json; generate migrations with db:generate`,
-        2,
-      );
-    }
-    const sql = await readFile(join(directory, file), "utf8");
-    const accepted = DESTRUCTIVE_ACCEPTANCE_PATTERN.test(sql);
-    const visibleSql = sql.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ");
-    const destructive = visibleSql.match(
-      /\b(?:delete|update|rename|drop)\b|\bcreate\s+trigger\b/i,
-    );
-    if (destructive && !accepted) {
-      throw new AppError(
-        "destructive_migration",
-        `${file} contains destructive SQL (${destructive[0].toUpperCase()}); after the separate destructive choice is accepted, make its first line "${DESTRUCTIVE_ACCEPTANCE_LINE}"`,
-        2,
-      );
-    }
-    const changesSchema = /\b(?:create|alter|drop)\s+(?:table|index|view|trigger)\b/i.test(
-      visibleSql,
-    );
-    if (changesSchema && !existsSync(join(directory, "meta", `${sequence}_snapshot.json`))) {
-      throw new AppError(
-        "invalid_migration_artifacts",
-        `${file} has no matching drizzle/meta/${sequence}_snapshot.json`,
-        2,
-      );
-    }
-  }
-}
-
-async function poll(
-  origin: string,
-  identifier: string,
-  seconds: number,
-  previousApprovalToken?: string,
-) {
-  const deadline = Date.now() + seconds * 1_000;
-  while (true) {
-    const row = await request(new URL(`/api/runs/${encodeURIComponent(identifier)}`, origin), {
-      headers: authHeaders(),
-    });
-    const newApproval = row.status === "waiting" && (
-      previousApprovalToken === undefined || row.approval?.token !== previousApprovalToken
-    );
-    if (terminal(row.status) || newApproval) return withRunState(row, false);
-    if (Date.now() >= deadline) return withRunState(row, true);
-    await delay(500);
-  }
-}
-
-function withRunState(row: any, stillActive: boolean) {
-  const waitingReason = waitingReasonFor(row);
-  const state = {
-    ...row,
-    still_active: stillActive || !terminal(row.status),
-    ...(waitingReason ? { waiting_reason: waitingReason } : {}),
-  };
-  if (row.status !== "waiting") return state;
-  if (row.approval?.token) {
-    return {
-      ...state,
-      operatorCommand: `npm run gtm -- approve ${row.approval.token} --yes --wait 30`,
-    };
-  }
-  return state;
-}
-
-function waitingReasonFor(row: any): string | undefined {
-  if (row.status === "cancelling") return "cancelling";
-  if (row.status === "running") {
-    const step = row.ledger_summary?.activeStep ?? row.failedStep ?? row.failed_step;
-    return step ? `step running (${step})` : "step running";
-  }
-  if (row.status !== "waiting") return undefined;
-  const stage = row.approval?.stage;
-  if (stage === "checkpoint") {
-    return `checkpoint pending after ${Number(row.completed ?? 0) + Number(row.failed ?? 0)} rows`;
-  }
-  if (stage) return `approval pending (stage ${stage})`;
-  if (row.trigger_token ?? row.triggerToken) return "step running (wait for trigger)";
-  return "step running";
-}
-
-async function request(url: URL, init: RequestInit) {
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      ...init,
-      headers: { "content-type": "application/json", ...(init.headers ?? {}) },
-    });
-  } catch {
-    throw new AppError(
-      "network_error",
-      `Cannot reach ${url.origin}; start the workflow project or pass --url.`,
-      5,
-    );
-  }
-  const payload = await response.json().catch(() => ({}));
-  if (response.ok) return payload as any;
-  const code = payload?.error?.code ?? `http_${response.status}`;
-  const exitCode = response.status === 401 ? 3 : response.status === 404 ? 6 : response.status === 429 ? 4 : 1;
-  throw new AppError(code, redact(payload?.error?.message ?? response.statusText), exitCode);
-}
-
-async function resolveOrigin(workflow: string | undefined, flags: Flags): Promise<string> {
-  const override = stringFlag(flags, "url") ?? process.env.GTM_BASE_URL;
-  if (override) return override;
-  const candidates = workflow ? [workflow] : await workflowFiles();
-  const locations = new Set<string>();
-  for (const file of candidates) locations.add(header(await readFile(file, "utf8"), "Runs"));
-  if (locations.size !== 1) {
-    throw new AppError("ambiguous_origin", "Pass --url when workflows use more than one origin.", 2);
-  }
-  if ([...locations][0] === "on this computer") {
-    if (existsSync(join(root, ".env.local"))) {
-      throw new AppError(
-        "cloud_env_local",
-        ".env.local would point local runs at the cloud database; remove it before starting Nitro.",
-        2,
-      );
-    }
-    return "http://127.0.0.1:3000";
-  }
-  const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
-  const url = packageJson.gtm?.vercel?.url;
-  if (!url) throw new AppError("not_deployed", "This workflow has no recorded production URL.", 2);
-  return url.startsWith("http") ? url : `https://${url}`;
-}
-
-async function findWorkflow(slug: string, urlOverride?: string) {
-  const matches = (await workflowFiles()).filter((file) => basename(file, ".ts") === slug);
-  if (matches.length === 0) throw new AppError("not_found", `No workflow named ${slug}`, 6);
-  if (matches.length > 1 && !urlOverride && !process.env.GTM_BASE_URL) {
-    throw new AppError("ambiguous_workflow", `More than one ${slug} exists; pass --url.`, 2);
-  }
-  return matches[0];
-}
-
-async function workflowFiles() {
-  const directory = join(root, "workflows");
-  if (!existsSync(directory)) return [];
-  return walk(directory, (file) => file.endsWith(".ts"));
-}
-
-async function headeredFiles() {
-  const routesDirectory = join(root, "server", "routes");
-  const files = (await walk(join(root, "lib"), (file) => file.endsWith(".ts")))
-    .concat(await walk(join(root, "server", "api"), (file) => file.endsWith(".ts")))
-    .concat(existsSync(routesDirectory) ? await walk(routesDirectory, (file) => file.endsWith(".ts")) : [])
-    .concat([
-      join(root, "scripts", "gtm.ts"),
-      join(root, "scripts", "migrate-cloud.ts"),
-      join(root, "scripts", "verify-migrations.ts"),
-      join(root, "scripts", "check-workflow-runtime.mjs"),
-      join(root, "scripts", "generate-migration.mjs"),
-      join(root, "scripts", "generate-migration-worker.ts"),
-      join(root, "drizzle.config.ts"),
-      join(root, "nitro.config.ts"),
-    ]);
-  return files.sort();
-}
-
-async function walk(directory: string, accept: (file: string) => boolean): Promise<string[]> {
-  const found: string[] = [];
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) found.push(...(await walk(path, accept)));
-    else if (accept(path)) found.push(path);
-  }
-  return found.sort();
-}
-
-async function writeRowsFromRunInput(
-  slug: string,
-  identifier: string,
-  only: string,
-  flags: Flags,
-) {
-  if (!new Set(["failed", "empty", "remaining", "all"]).has(only)) {
-    throw new AppError("invalid_selection", "--only must be failed, empty, remaining, or all", 2);
-  }
-  await configureReadOnly(flags);
-  const source = (
-    await executeReadOnly(
-      `select run_key, workflow, input, status, remaining_keys from workflow_runs where run_key = ${sqlLiteral(identifier)} or run_id = ${sqlLiteral(identifier)} limit 1`,
-    )
-  )[0];
-  if (!source) throw new AppError("not_found", `Unknown run ${identifier}`, 6);
-  if (source.workflow !== slug) {
-    throw new AppError(
-      "workflow_mismatch",
-      `Run ${identifier} belongs to ${String(source.workflow)}, not ${slug}`,
-      2,
-    );
-  }
-  const body = JSON.parse(String(source.input));
-  if (!Array.isArray(body?.rows)) {
-    throw new AppError("invalid_source_run", `Run ${identifier} has no rows input`, 2);
-  }
-  let keys: string[];
-  if (only === "all") {
-    keys = body.rows.flatMap((row: any) => typeof row?.key === "string" ? [row.key] : []);
-  } else if (only === "remaining") {
-    if (!["stopped", "cancelled", "timed_out", "failed"].includes(String(source.status))) {
-      throw new AppError("invalid_source_run", "--only remaining requires a terminal interrupted source run", 2);
-    }
-    keys = JSON.parse(String(source.remaining_keys ?? "[]"));
-  } else {
-    const status = only === "failed" ? "error" : "empty";
-    const rows = await executeReadOnly(
-      `select distinct row_key from enrichment_runs where ${runTreeSelection(String(source.run_key))} and status = ${sqlLiteral(status)} and row_key is not null order by created_at, row_key`,
-    );
-    keys = rows.map((row) => String(row.row_key));
-  }
-  const selected = new Set(keys);
-  const rows = body.rows.filter((row: any) => typeof row?.key === "string" && selected.has(row.key));
-  if (rows.length !== selected.size) {
-    throw new AppError(
-      "missing_source_rows",
-      `The source input is missing ${selected.size - rows.length} selected row keys`,
-      2,
-    );
-  }
-  const safeRunKey = String(source.run_key).replace(/[^A-Za-z0-9._-]/g, "_");
-  const directory = join(root, "data", "reruns");
-  const path = join(directory, `${slug}-${safeRunKey}-${only}.json`);
-  await mkdir(directory, { recursive: true });
-  await writeFile(path, `${JSON.stringify({ ...body, rows }, null, 2)}\n`, { mode: 0o600 });
-  return path;
-}
-
-async function failedRunRows(runKey: string) {
-  return executeReadOnly(
-    `select er.row_key as key, coalesce(er.step, wr.failed_step) as step, er.provider, er.endpoint, er.error from enrichment_runs er join workflow_runs wr on wr.run_key = er.run_key where ${runTreeSelection(runKey, "er.")} and er.status = 'error' order by er.created_at, er.id`,
-  );
-}
-
-function runTreeSelection(runKey: string, prefix = "") {
-  return `(${prefix}run_key = ${sqlLiteral(runKey)} or ${prefix}run_key in (select run_key from workflow_runs where parent_run_key = ${sqlLiteral(runKey)}))`;
-}
-
-async function configureReadOnly(flags: Flags) {
-  let databaseUrl = process.env.TURSO_DATABASE_URL?.trim();
-  let readOnlyToken = process.env.TURSO_READ_ONLY_AUTH_TOKEN?.trim();
-  if (flags.cloud) {
-    const path = join(root, ".env.turso");
-    if (!existsSync(path)) {
-      throw new AppError("missing_cloud_env", ".env.turso is required with --cloud", 2);
-    }
-    const values = parseEnv(await readFile(path, "utf8"));
-    databaseUrl = values.TURSO_DATABASE_URL?.trim();
-    readOnlyToken = values.TURSO_READ_ONLY_AUTH_TOKEN?.trim();
-  }
-  if (flags.cloud && !databaseUrl) {
-    throw new AppError("missing_cloud_url", "TURSO_DATABASE_URL is required with --cloud", 2);
-  }
-  if (!databaseUrl || databaseUrl.startsWith("file:")) return;
-  if (!readOnlyToken && process.env.GTM_SANDBOX !== "1") {
-    throw new AppError(
-      "missing_read_only_token",
-      "TURSO_READ_ONLY_AUTH_TOKEN is required for remote read-only commands; the write token is never used.",
-      2,
-    );
-  }
-  process.env.TURSO_DATABASE_URL = databaseUrl;
-  // The hosted sandbox holds no read-only token: its firewall attaches the brokered read-only
-  // credential, so the client must connect with no local token rather than the write token.
-  if (readOnlyToken) process.env.TURSO_AUTH_TOKEN = readOnlyToken;
-  else delete process.env.TURSO_AUTH_TOKEN;
-}
-
-function sqlLiteral(value: string) {
-  return `'${value.replaceAll("'", "''")}'`;
-}
-
-function headerValue(source: string, name: string) {
-  return source.match(new RegExp(`^\\s*\\*\\s+${name}:\\s*(.+)$`, "mi"))?.[1].trim();
-}
-
-function listHeader(source: string, name: string, fallback: RegExp) {
-  const documented = headerValue(source, name) ?? (name === "Environment" ? headerValue(source, "Env") : undefined);
-  const values = documented
-    ? documented.split(",").map((value) => value.trim()).filter(Boolean)
-    : [...source.matchAll(fallback)].map((match) => match[1]);
-  return [...new Set(values)].sort();
-}
-
-function workflowImportsProvider(source: string, name: string) {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`from\\s+["'][^"']*\\/providers\\/${escaped}(?:\\.ts)?["']`).test(source);
-}
-
-function workflowPath(file: string) {
-  return relative(join(root, "workflows"), file).slice(0, -3).split(sep).join("/");
-}
-
-async function loadWorkflow(file: string, body: unknown) {
-  let loaded: any;
-  try {
-    loaded = await import(`${pathToFileURL(file).href}?gtm-dry-run=${Date.now()}`);
-  } catch (caught) {
-    throw new AppError("invalid_workflow", `Cannot import ${relative(root, file)}: ${redact(caught)}`, 2);
-  }
-  if (!loaded.input?.safeParse) {
-    throw new AppError("invalid_workflow", `${relative(root, file)} must export a Zod input schema`, 2);
-  }
-  const parsed = loaded.input.safeParse(body);
-  if (!parsed.success) {
-    throw new AppError(
-      "invalid_input_schema",
-      parsed.error.issues
-        .map((issue: any) => `${issue.path.join(".") || "input"}: ${issue.message}`)
-        .join("; "),
-      2,
-    );
-  }
-  for (const name of ["MAX_ROWS", "COST_PER_ROW_USD", "MAX_SPEND_USD"]) {
-    if (!Number.isFinite(loaded[name])) {
-      throw new AppError("invalid_workflow", `${relative(root, file)} must export numeric ${name}`, 2);
-    }
-  }
-  let definitions = loaded.AGENTS ?? [];
-  const shape = executionShape(await readFile(file, "utf8"));
-  if (shape.batch) {
-    const child = await import(pathToFileURL(join(root, "workflows", `${shape.batch.childWorkflow}.ts`)).href);
-    definitions = [...definitions, ...(child.AGENTS ?? [])];
-  }
-  const agents = describeCapabilities(definitions);
-  for (const definition of definitions) validateAgentSchemas(definition);
-  if (agents.some((agent) => agent.maxSpendUsd > loaded.MAX_SPEND_USD)) {
-    throw new AppError("agent_budget", "An agent definition exceeds the workflow MAX_SPEND_USD", 2);
-  }
-  return {
-    input: parsed.data,
-    maxRows: Number(loaded.MAX_ROWS),
-    costPerRowUsd: Number(loaded.COST_PER_ROW_USD),
-    maxSpendUsd: Number(loaded.MAX_SPEND_USD),
-    agents,
-    capabilitiesHash: createHash("sha256").update(JSON.stringify(definitions)).digest("hex"),
-  };
-}
-
-async function runSummary(row: any) {
-  const ledger = row.ledger_summary ?? {};
-  const resultCounts = row.result?.counts;
-  const success = Number(resultCounts?.success ?? ledger.success ?? 0);
-  const empty = Number(resultCounts?.empty ?? ledger.empty ?? 0);
-  const foundTotal = success + empty;
-  const hitRate = foundTotal === 0 ? 0 : Math.round((success / foundTotal) * 100);
-  const actualCostUsd = Number(row.costUsd ?? row.cost_usd ?? 0);
-  let estimatedCostUsd: number | null = null;
-  try {
-    const workflow = (await workflowFiles()).find(
-      (file) => workflowPath(file) === row.path || basename(file, ".ts") === row.workflow,
-    );
-    if (workflow && row.input) {
-      const loaded = await loadWorkflow(workflow, row.input);
-      const rows = Array.isArray(loaded.input?.rows) ? loaded.input.rows.length : 1;
-      estimatedCostUsd = rows * loaded.costPerRowUsd;
-    }
-  } catch {
-    estimatedCostUsd = null;
-  }
-  const differenceReason = costDifferenceReason(row, estimatedCostUsd, actualCostUsd);
-  return {
-    ...row,
-    receipt: {
-      success,
-      empty,
-      hit_rate: { found: success, total: foundTotal, percent: hitRate },
-      cache_hits: Number(ledger.cacheHits ?? 0),
-      estimated_cost_usd: estimatedCostUsd,
-      actual_cost_usd: actualCostUsd,
-      cost_sources: row.cost_sources ?? ledger.costSources ?? [],
-      ...(differenceReason ? { estimate_difference_reason: differenceReason } : {}),
-    },
-  };
-}
-
-function costDifferenceReason(row: any, estimated: number | null, actual: number) {
-  if (!terminal(row.status) || estimated === null || estimated <= 0 || Math.abs(actual - estimated) / estimated <= 0.2) {
-    return undefined;
-  }
-  if (Number(row.ledger_summary?.cacheHits ?? 0) > 0) return "cache hits cost $0";
-  if (row.status !== "completed") return "the run stopped before full scope completed";
-  if (
-    actual < estimated &&
-    (row.cost_sources ?? []).some((source: any) => source.source === "reported")
-  ) {
-    return "reported cost was lower than the fixed estimate";
-  }
-  return actual < estimated
-    ? "actual cost was lower than the fixed estimate"
-    : "actual cost exceeded the fixed estimate";
-}
-
-function runMarkdown(row: any) {
-  const receipt = row.receipt;
-  const sources = (receipt.cost_sources as any[]).length
-    ? (receipt.cost_sources as any[])
-        .map((source) => `${source.source} $${Number(source.costUsd ?? source.cost_usd ?? 0).toFixed(2)}`)
-        .join(", ")
-    : "none $0.00";
-  const lines = [
-    `${row.workflow} ${row.runKey}: ${row.status}`,
-    `Rows: ${Number(row.completed ?? 0)} completed, ${Number(row.failed ?? 0)} failed, ${receipt.empty} empty`,
-    `Hit rate: found ${receipt.hit_rate.found} of ${receipt.hit_rate.total} (${receipt.hit_rate.percent}%)`,
-    `Cost: $${receipt.actual_cost_usd.toFixed(2)} actual${receipt.estimated_cost_usd === null ? "" : ` versus $${receipt.estimated_cost_usd.toFixed(2)} estimated`}; ${sources}; ${receipt.cache_hits} cache hits`,
-  ];
-  if (receipt.estimate_difference_reason) lines.push(`Difference: ${receipt.estimate_difference_reason}`);
-  if (row.result?.concurrency) lines.push(`Concurrency: ${row.result.concurrency} rows at a time`);
-  if (row.stopReason ?? row.stop_reason) lines.push(`Stop reason: ${row.stopReason ?? row.stop_reason}`);
-  if (row.waiting_reason) lines.push(`Waiting: ${row.waiting_reason}`);
-  if (row.children?.length) {
-    lines.push("", "Child batches", "", toMarkdown(row.children.map((child: any) => ({ run: child.runKey, status: child.status, completed: child.completed ?? 0, failed: child.failed ?? 0, cost: `$${Number(child.costUsd ?? 0).toFixed(2)}` }))));
-  }
-  lines.push(`Next: \`${nextRunCommand(row)}\``);
-  if (Array.isArray(row.failed_rows)) {
-    lines.push("", "Failed calls", "", toMarkdown(row.failed_rows));
-  }
-  return lines.join("\n");
-}
-
-function nextRunCommand(row: any) {
-  if (row.approval?.token) return `npm run gtm -- approve ${row.approval.token} --yes --wait 30`;
-  if (["running", "cancelling"].includes(row.status)) {
-    return `npm run gtm -- runs get ${row.runKey} --wait 30 --format markdown`;
-  }
-  if ((row.stopReason ?? row.stop_reason) && (row.remaining_keys?.length ?? 0) > 0) {
-    return `npm run gtm -- run ${row.workflow} --rows-from-run ${row.runKey} --only remaining --dry-run`;
-  }
-  if (Number(row.failed ?? 0) > 0) {
-    return `npm run gtm -- runs get ${row.runKey} --failed --format markdown`;
-  }
-  return `npm run gtm -- diagram ${row.workflow} --run ${row.runKey}`;
-}
-
-async function deploymentHead(workflow: string, origin: string): Promise<string | undefined> {
-  if (process.env.VERCEL_GIT_COMMIT_SHA) return process.env.VERCEL_GIT_COMMIT_SHA;
-  const source = await readFile(workflow, "utf8");
-  if (header(source, "Runs") !== "on Vercel") return undefined;
-  const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
-  const recorded = packageJson.gtm?.vercel?.url;
-  if (!recorded) return undefined;
-  const recordedOrigin = new URL(recorded.startsWith("http") ? recorded : `https://${recorded}`).origin;
-  if (new URL(origin).origin !== recordedOrigin) return undefined;
-
-  const status = await commandOutput("git", ["status", "--porcelain"]);
-  if (status.trim()) {
-    throw new AppError(
-      "deployment_workspace_dirty",
-      "Refusing production start because the workspace has uncommitted changes.",
-      2,
-    );
-  }
-  const head = (await commandOutput("git", ["rev-parse", "HEAD"])).trim();
-  const main = (await commandOutput("git", ["rev-parse", "origin/main"])).trim();
-  if (head !== main) {
-    throw new AppError(
-      "deployment_head_not_pushed",
-      "Refusing production start because HEAD is not the pushed origin/main commit.",
-      2,
-    );
-  }
-  return head;
-}
-
-function header(source: string, name: string) {
-  const match = source.match(new RegExp(`^\\s*\\*\\s+${name}:\\s*(.+)$`, "m"));
-  if (!match) throw new AppError("invalid_workflow", `Missing ${name}: header`, 2);
-  return match[1].trim();
-}
-
-function authHeaders() {
-  const secret = process.env.GTM_RUN_SECRET;
-  if (!secret) throw new AppError("unauthorized", "GTM_RUN_SECRET is missing from .env", 3);
-  return { authorization: `Bearer ${secret}` };
-}
-
-function parseArgs(args: string[]) {
-  const positionals: string[] = [];
-  const flags: Flags = {};
-  for (let index = 0; index < args.length; index += 1) {
-    const value = args[index];
-    if (!value.startsWith("--")) {
-      positionals.push(value);
-      continue;
-    }
-    const key = value.slice(2);
-    const next = args[index + 1];
-    if (next && !next.startsWith("--")) {
-      flags[key] = next;
-      index += 1;
-    } else flags[key] = true;
-  }
-  return { positionals, flags };
-}
-
-function stringFlag(flags: Flags, name: string) {
-  return typeof flags[name] === "string" ? flags[name] : undefined;
-}
-
-function waitSeconds(flags: Flags) {
-  const raw = flags.wait === true ? "30" : stringFlag(flags, "wait");
-  const seconds = Number(raw);
-  if (!Number.isFinite(seconds) || seconds < 0) {
-    throw new AppError("invalid_wait", "--wait requires a non-negative number of seconds", 2);
-  }
-  return seconds;
-}
-
-function terminal(status: string) {
-  return ["completed", "stopped", "timed_out", "failed", "cancelled"].includes(status);
-}
-
-async function command(executable: string, args: string[]) {
-  await new Promise<void>((resolvePromise, reject) => {
-    const child = spawn(executable, args, { cwd: root, stdio: ["ignore", "pipe", "pipe"] });
-    let stderr = "";
-    child.stderr.on("data", (chunk) => (stderr += chunk));
-    child.on("error", reject);
-    child.on("close", (code) =>
-      code === 0
-        ? resolvePromise()
-        : reject(new AppError("check_failed", stderr.slice(-2_000) || `${basename(executable)} failed`, 2)),
-    );
-  });
-}
-
-async function commandOutput(executable: string, args: string[]): Promise<string> {
-  return new Promise((resolvePromise, reject) => {
-    const child = spawn(executable, args, { cwd: root, stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => (stdout += chunk));
-    child.stderr.on("data", (chunk) => (stderr += chunk));
-    child.on("error", reject);
-    child.on("close", (code) =>
-      code === 0
-        ? resolvePromise(stdout)
-        : reject(new AppError("git_check_failed", redact(stderr) || `${executable} failed`, 2)),
-    );
-  });
-}
-
-function toCsv(rows: Record<string, unknown>[]) {
-  if (rows.length === 0) return "";
-  const columns = Object.keys(rows[0]);
-  const quote = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
-  return [columns.map(quote).join(","), ...rows.map((row) => columns.map((column) => quote(row[column])).join(","))].join("\n");
-}
-
-function toMarkdown(rows: Record<string, unknown>[]) {
-  if (rows.length === 0) return "No rows.";
-  const columns = Object.keys(rows[0]);
-  const cell = (value: unknown) => String(value ?? "").replaceAll("|", "\\|");
-  return [
-    `| ${columns.join(" | ")} |`,
-    `| ${columns.map(() => "---").join(" | ")} |`,
-    ...rows.map((row) => `| ${columns.map((column) => cell(row[column])).join(" | ")} |`),
-  ].join("\n");
-}
-
-function print(value: unknown) {
-  process.stdout.write(`${JSON.stringify(redactValue(value))}\n`);
-}
-
-function delay(ms: number) {
-  return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
-}
+async function environmentNames(workflow: string, source: string) { const providers = await walk(join(root, "providers"), (file) => file.endsWith(".ts")); const corpus = [source, await readFile(join(root, "lib/provider.ts"), "utf8"), ...await Promise.all(providers.map((file) => readFile(file, "utf8")))].join("\n"); return [...new Set([...corpus.matchAll(/(?:process\.env(?:\.|\[["'])|\benv\.)([A-Z][A-Z0-9_]*)/g)].map((match) => match[1]))].sort(); }
+function loadTurso() { const file = join(root, ".env.turso"); if (!existsSync(file)) throw new AppError("cloud_env_missing", "Add .env.turso first."); }
+function markdown(rows: Record<string, unknown>[]) { if (!rows.length) return "No rows.\n"; const keys = Object.keys(rows[0]); return `| ${keys.join(" | ")} |\n| ${keys.map(() => "---").join(" | ")} |\n${rows.map((row) => `| ${keys.map((key) => String(row[key] ?? "")).join(" | ")} |`).join("\n")}\n`; }
+function csv(rows: Record<string, unknown>[]) { if (!rows.length) return ""; const keys = Object.keys(rows[0]), cell = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`; return `${keys.map(cell).join(",")}\n${rows.map((row) => keys.map((key) => cell(row[key])).join(",")).join("\n")}\n`; }

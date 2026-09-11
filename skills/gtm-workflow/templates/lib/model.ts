@@ -1,4 +1,3 @@
-// gtm-lib v23
 /** Default for short API model steps; durable agents declare their own model. */
 export const DEFAULT_WORKFLOW_MODEL = "deepseek/deepseek-v4.1-flash";
 

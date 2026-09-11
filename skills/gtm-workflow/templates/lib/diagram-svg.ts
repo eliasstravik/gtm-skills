@@ -1,9 +1,8 @@
-// gtm-lib v23
 import { Resvg } from "@resvg/resvg-js";
 import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { DiagramEdge, DiagramNode, DiagramStatus, WorkflowGraph } from "./diagram";
+import type { DiagramEdge, DiagramNode, DiagramStatus, WorkflowGraph } from "./diagram-spec";
 import { layoutGraph } from "./layout";
 import type { Box, LaidOutGraph } from "./layout";
 
@@ -33,8 +32,6 @@ function subtitle(node: DiagramNode): string | null {
     if (node.unitCostUsd !== undefined) parts.push(`$${Number(node.unitCostUsd.toPrecision(4))} per row`);
     else if (node.provider) parts.push("cost varies");
   }
-  if (node.childWorkflow) parts.push(node.childWorkflow);
-  if (node.batches?.length) parts.push(node.batches.map((batch, index) => `${index + 1}: ${batch.status}`).join(", "));
   if (node.spentUsd !== undefined) parts.push(`spent $${node.spentUsd.toFixed(2)}`);
   return parts.length ? parts.join(" · ") : null;
 }

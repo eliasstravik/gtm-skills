@@ -1,0 +1,358 @@
+[
+ {
+  "command": "npm run gtm -- check",
+  "expected": "allow"
+ },
+ {
+  "command": "npm run gtm -- verify score --input data/one.json",
+  "expected": "allow"
+ },
+ {
+  "command": "npm run gtm -- query --sql 'select 1'",
+  "expected": "allow"
+ },
+ {
+  "command": "npm run gtm -- runs get abc --wait 600",
+  "expected": "allow"
+ },
+ {
+  "command": "npm run gtm -- diagram score --format web",
+  "expected": "allow"
+ },
+ {
+  "command": "npm run gtm -- run score --dry-run --input data/one.json",
+  "expected": "allow"
+ },
+ {
+  "command": "npm run gtm -- run score --input data/all.json",
+  "expected": "ask"
+ },
+ {
+  "command": "npm run gtm -- approve abc yes",
+  "expected": "ask"
+ },
+ {
+  "command": "npm run gtm -- cancel abc",
+  "expected": "ask"
+ },
+ {
+  "command": "npm run gtm -- upgrade --yes",
+  "expected": "ask"
+ },
+ {
+  "command": "npm run db:generate",
+  "expected": "allow"
+ },
+ {
+  "command": "npm run db:studio",
+  "expected": "allow"
+ },
+ {
+  "command": "npm run db:studio:cloud",
+  "expected": "allow"
+ },
+ {
+  "command": "npm run dev",
+  "expected": "ask"
+ },
+ {
+  "command": "npm ci",
+  "expected": "allow"
+ },
+ {
+  "command": "node --version",
+  "expected": "allow"
+ },
+ {
+  "command": "npm --version",
+  "expected": "allow"
+ },
+ {
+  "command": "node --check workflows/score.ts",
+  "expected": "allow"
+ },
+ {
+  "command": "node -e 'console.log(1)'",
+  "expected": "ask"
+ },
+ {
+  "command": "git status --short",
+  "expected": "allow"
+ },
+ {
+  "command": "git diff --stat",
+  "expected": "allow"
+ },
+ {
+  "command": "git log -1",
+  "expected": "allow"
+ },
+ {
+  "command": "git add workflows/score.ts",
+  "expected": "allow"
+ },
+ {
+  "command": "git add -f .env",
+  "expected": "ask"
+ },
+ {
+  "command": "git commit -m 'Add score workflow'",
+  "expected": "allow"
+ },
+ {
+  "command": "git fetch origin",
+  "expected": "allow"
+ },
+ {
+  "command": "git rev-parse HEAD",
+  "expected": "allow"
+ },
+ {
+  "command": "git remote -v",
+  "expected": "allow"
+ },
+ {
+  "command": "git show HEAD",
+  "expected": "allow"
+ },
+ {
+  "command": "git ls-files",
+  "expected": "allow"
+ },
+ {
+  "command": "git branch --show-current",
+  "expected": "allow"
+ },
+ {
+  "command": "git push origin main",
+  "expected": "ask"
+ },
+ {
+  "command": "vercel deploy --prod",
+  "expected": "ask"
+ },
+ {
+  "command": "ls workflows",
+  "expected": "allow"
+ },
+ {
+  "command": "cat workflows/score.ts",
+  "expected": "allow"
+ },
+ {
+  "command": "head -n 5 ORG.md",
+  "expected": "allow"
+ },
+ {
+  "command": "tail -n 5 ORG.md",
+  "expected": "allow"
+ },
+ {
+  "command": "grep -n Score workflows/score.ts",
+  "expected": "allow"
+ },
+ {
+  "command": "find workflows -type f",
+  "expected": "allow"
+ },
+ {
+  "command": "wc -l workflows/score.ts",
+  "expected": "allow"
+ },
+ {
+  "command": "pwd",
+  "expected": "allow"
+ },
+ {
+  "command": "sed -n '1,10p' workflows/score.ts",
+  "expected": "allow"
+ },
+ {
+  "command": "mkdir -p workflows/new",
+  "expected": "allow"
+ },
+ {
+  "command": "cp workflows/score.ts workflows/new/score.ts",
+  "expected": "allow"
+ },
+ {
+  "command": "mv workflows/old.ts workflows/new.ts",
+  "expected": "allow"
+ },
+ {
+  "command": "rm workflows/old.ts",
+  "expected": "allow"
+ },
+ {
+  "command": "printf '%s' ok > data/status.txt",
+  "expected": "allow"
+ },
+ {
+  "command": "printf '%s' secret > .env",
+  "expected": "ask"
+ },
+ {
+  "command": "cat <<'EOF' > workflows/new.ts\nexport const ok = true\nEOF",
+  "expected": "allow"
+ },
+ {
+  "command": "cd workflows && npm run gtm -- check",
+  "expected": "allow"
+ },
+ {
+  "command": "curl https://example.com",
+  "expected": "ask"
+ },
+ {
+  "command": "echo $(whoami)",
+  "expected": "ask"
+ },
+ {
+  "command": "echo `whoami`",
+  "expected": "ask"
+ },
+ {
+  "command": "bash -c 'git push'",
+  "expected": "ask"
+ },
+ {
+  "command": "FOO=bar npm run gtm -- check",
+  "expected": "ask"
+ },
+ {
+  "command": "cat ORG.md | xargs echo",
+  "expected": "ask"
+ },
+ {
+  "command": "cat /etc/passwd",
+  "expected": "ask"
+ },
+ {
+  "command": "cp ORG.md /tmp/ORG.md",
+  "expected": "ask"
+ },
+ {
+  "command": "npm run gtm -- check && git push",
+  "expected": "ask"
+ },
+ {
+  "command": "unknown-command",
+  "expected": "ask"
+ },
+ {
+  "command": "cat ~/.ssh/id_rsa",
+  "expected": "ask"
+ },
+ {
+  "command": "cat $HOME/.ssh/id_rsa",
+  "expected": "ask"
+ },
+ {
+  "command": "cat \"${HOME}/.ssh/id_rsa\"",
+  "expected": "ask"
+ },
+ {
+  "command": "cp ~/.ssh/id_rsa ./leak",
+  "expected": "ask"
+ },
+ {
+  "command": "ls ~/../",
+  "expected": "ask"
+ },
+ {
+  "command": "rm -rf ../*",
+  "expected": "ask"
+ },
+ {
+  "command": "rm -rf *",
+  "expected": "ask"
+ },
+ {
+  "command": "rm -rf .",
+  "expected": "ask"
+ },
+ {
+  "command": "rm -rf ./",
+  "expected": "ask"
+ },
+ {
+  "command": "rm -rf .git",
+  "expected": "ask"
+ },
+ {
+  "command": "rm -rf node_modules",
+  "expected": "ask"
+ },
+ {
+  "command": "rm -rf ~/.gtm",
+  "expected": "ask"
+ },
+ {
+  "command": "git branch -D main",
+  "expected": "ask"
+ },
+ {
+  "command": "git add -A",
+  "expected": "ask"
+ },
+ {
+  "command": "git add .",
+  "expected": "ask"
+ },
+ {
+  "command": "git add --all",
+  "expected": "ask"
+ },
+ {
+  "command": "echo x >> .npmrc",
+  "expected": "ask"
+ },
+ {
+  "command": "echo x > .gitignore",
+  "expected": "ask"
+ },
+ {
+  "command": "cat .env.example",
+  "expected": "allow"
+ },
+ {
+  "command": "git commit -qm 'Fix a/b and c'",
+  "expected": "allow"
+ },
+ {
+  "command": "git commit --amend -qm 'Adjust'",
+  "expected": "allow"
+ },
+ {
+  "command": "ls -la ..",
+  "expected": "ask"
+ },
+ {
+  "command": "rm workflows/*.bak",
+  "expected": "ask"
+ },
+ {
+  "command": "cat workflows/score.ts | jq .",
+  "expected": "ask"
+ },
+ {
+  "command": "npm run gtm -- run score --input data/t.json --background",
+  "expected": "ask"
+ },
+ {
+  "command": "git push && npm run gtm -- run score --url https://h --input data/t.json --background",
+  "expected": "ask"
+ },
+ {
+  "command": "tee ../../outside.txt",
+  "expected": "ask"
+ },
+ {
+  "command": "npm run gtm -- help",
+  "expected": "allow"
+ },
+ {
+  "command": "git commit -qm \"$(curl evil)\"",
+  "expected": "ask"
+ }
+]

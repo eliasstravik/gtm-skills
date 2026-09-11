@@ -1,79 +1,69 @@
 ---
 name: gtm-workflow
-description: Triggers when a user asks for /gtm-workflows or wants to create, update, inspect, delete, run, approve, query, schedule, trigger, or deploy a saved GTM workflow, including ordinary steps, agent stages, selected skills and MCP tools, browsing, webhook intake, waits, parallel work, and workflow operations. Not for workspace setup, ICP or persona lifecycle work, or one-off calls that are not saved as workflows.
+description: Triggers when a user asks to create, update, inspect, delete, run, query, schedule, or deploy a saved GTM workflow. Not for workspace setup, ICP or persona lifecycle work, or one-off work that should not become a reusable workflow.
 ---
 
 # GTM workflow
 
 ## Trigger
 
-Apply this Lifecycle SOP when a request creates, updates, inspects, deletes, runs, or opens a saved GTM workflow.
+Apply this Lifecycle SOP to a saved GTM workflow from creation through updates, runs, inspection, deployment, and deletion.
 
 ## Scope
 
-Own the root `workflows/` project, its managed workflows, execution definitions, event sources, typed tables, migrations, paid-call cache and ledger, runtime, inspection tools, and deployment metadata. `gtm-workspace`, `gtm-icp`, and `gtm-persona` own their respective lifecycles.
+Own workflow code, result tables, migrations, dry runs, runs, diagrams, and deployment metadata inside the root `workflows/` project. `gtm-workspace`, `gtm-icp`, and `gtm-persona` own their respective artifacts.
 
 **Contract**
 
 | Field | Public contract |
 | --- | --- |
-| Reads | Accepted intent, workspace ownership and context files, current workflow code, supplied rows, environment-held credentials, caps, and deployment metadata |
-| Writes | The root workflow project, workflow-owned tables and adapters, committed migrations, and database rows created by accepted runs |
-| Outputs | An accepted workflow change, validation or deployment state, inspection result, or database-backed run outcome |
-| Approval | The user accepts tracked changes, production effect, real spend, external writes, checkpoint continuation, destruction, and credential entry |
-| Persists | Source and migrations in `main` Git history; results, cache, ledger, and run index in the database; retained execution traces in the runtime |
-| Handoff | `gtm-workspace` for repository structure or connections, `gtm-icp` for market definitions, and `gtm-persona` for buyer definitions |
+| Reads | The request, accepted workspace context, supplied rows, workflow files, and environment-held credentials |
+| Writes | Workflow code, result tables, migrations, schedules, and deployment metadata |
+| Outputs | A verified saved workflow, run result, inspection, diagram, deployment, or deletion |
+| Approval | One plain-language card covers creation, save, hosted deployment, one-row test, and small fixes; later runs and checkpoints each get one card |
+| Persists | Prepared local commits and approved pushes, plus workflow rows and cost records |
+| Handoff | Workspace, ICP, and persona lifecycle changes go to their owning skills |
 
 ## Inputs
 
-Use the accepted intent, resolved GTM workspace and owner, relevant ICP and persona files, current workflow project, supplied rows, provider documentation and credentials available through the environment, accepted caps, and deployment metadata.
+Use the request, resolved organization context, relevant accepted ICP and persona files, supplied rows, current workflow project, environment-held credentials, and accepted cost limits.
 
 ## Roles
 
-The agent owns authoring, validation, dry runs, checkpointed runs, scoped changes, migrations, inspection, UI opening, and Git-connected deployment through the accepted `main` commit. The user accepts behavior, limits, tracked changes and their production deployment effect, real spend, external writes, checkpoint continuation, destruction, and credentials they must enter.
+The agent authors and verifies the work. The user approves one card covering saved changes, hosted deployment, the one-row test, stated external effects, and stated test cost; later full runs and user-chosen checkpoints each receive one approval.
 
 ## Procedure
 
-| Condition | Action |
-| --- | --- |
-| Any create, update, or run request | Decide first, then build: default every open decision, send at most one decision message per the interaction standard before reading references, scaffolding, installing, or writing code, then run to the approval gate without further questions; on a hosted surface the run location is hosted and never asked |
-| References are needed | Read them once, after decisions settle, concatenated in at most three shell commands; never reread a file already in context |
-| No action is clear | Use the guided menu in [flows](references/flows.md) |
-| Request concerns the hosting agent's own behavior: schedule, memory, connections, channels, tools, or browsing | Read [eve](references/eve.md) before answering; route agent-source changes per the host's standing instructions |
-| Create, update, or explain execution behavior | Apply [workflow composition](references/capabilities.md) to select ordinary, agent, or mixed stages and the supported native building blocks |
-| New-run event source or existing-run callback | Read [event sources](references/events.md) before selecting the trigger mechanism |
-| Create | Follow create in [flows](references/flows.md) |
-| Update | Follow update in [flows](references/flows.md) |
-| Inspect | Follow inspect in [flows](references/flows.md) |
-| Delete | Follow delete in [flows](references/flows.md) |
-| Run | Follow run in [flows](references/flows.md) |
-| Open | Follow [open](references/open.md) |
-| No valid workspace resolves | Stop before workflow writes and hand creation or connection to `gtm-workspace` |
+1. Resolve the GTM workspace and requested lifecycle action. Ask one unnumbered question only when a result-changing fact cannot be inferred.
+2. For create, copy `templates/` from this installed skill into the workspace's root `workflows/` project when absent, rename `gitignore` and `vercelignore` with leading dots, copy `.env.example` to `.env`, and write `GTM_HOST=<claude|codex>` for the host you run in. Workflow files live at `workflows/workflows/<slug>.ts`. Read [the library](references/library.md), [SDK choices](references/sdk.md), and [the interaction standard](../gtm-workspace/references/interaction.md). Read [deployment](references/deploy.md) only for deploy work and [local use](references/local.md) only for open/local work.
+3. Draft workflow code, its table, a one-row input, and the author-written `Diagram:` header. A schedule request also writes the matching `vercel.json` cron entry. Run `npm run db:generate`, `npm run gtm -- verify <slug> --input data/test-1-row.json`, `git add <changed workflow, table, and migration paths>`, and `git commit -qm "<plain summary>"` silently. `data/` is ignored on purpose: the test input stays local and the card names it. Use `git commit --amend` after feedback when the prior commit was not pushed; after a push, a fix is a new commit.
+4. Post one plan card stating what it does, reads, saves, where it runs, one-row test cost, possible data removal, and any missing key. Its last line is `Saving and testing. Back in a few minutes.` Invoke the matching command with that card as its approval summary: hosted, `git push && npm run gtm -- run <slug> --url https://<production-host> --input data/test-1-row.json --wait-live --background`, which returns at once and starts the test in the background after the deploy is live; local, `npm run gtm -- run <slug> --input data/test-1-row.json`, which starts the local server itself when needed.
+5. After approval, collect hosted results with `watch_url` on `/api/runs/latest?workflow=<slug>&head=<pushed commit>` until a run appears, then on `/api/runs/<runKey>` until it finishes; at a keyboard use `npm run gtm -- runs get <id> --wait 600`. A failed run carries its plain reason in `error`; show it. Fix small failures and retry the identical approved step up to twice. Present a fresh card when cost, external effects, saved tables, command, or summary changes.
+6. On success say `Built and tested. Ready to run whenever you want.` and provide the picture plus Diagram, Runs, and Data links. A later full run gets one short card and one real `run` command. Cancel asks `What would you like me to change?`; revise from free text and re-ask at the same step.
+7. For update, inspect, or delete, preserve the same one-card boundary: verify and commit silently, then request approval for the first effectful command. Name deletion and data-removing SQL on the card. Use expand-then-contract for renames while a run may be waiting.
+
+The command classifier allows local reads, checks, verification, dry runs, ordinary writes inside the checkout or scratch, and local commits. It asks for real runs, approval/cancellation, deploy commands, pushes, forced adds, paths outside those roots, and every unknown command. A chain takes its most restrictive classification; one approval request may be active at a time.
 
 ## Outputs
 
-Produce an accepted workflow change, committed migration, validation result, deployment state, inspection, opened native tool, or database-backed run outcome.
+Produce a verified saved workflow or the requested run, inspection, deployment, or deletion result, with owned rows and cost records tied to its run.
 
 ## Exceptions
 
-Report an active run by workflow name and start time. Follow up in the same thread when it reaches a checkpoint, completes, fails, or is cancelled. Use the shared standard's failure strings and reconcile unknown save outcomes before retrying. A duplicate live run is reported by workflow name and start time.
+When the Claude Code hook is missing, say `Run command-permission.mjs --install-claude-code, then restart Claude Code.` and use the interaction standard's numbered approval fallback for this session. Under `GTM_SANDBOX=1`, every run must use the literal hosted URL; the bot never runs the workflow in its sandbox. Claude Code runs `agentStage()` locally with a budget cap and MCP-only tools; Codex cannot cap spend and returns the refusal sentence, so Codex users add an AI key for agentic stages.
 
 ## QC
 
-- Secrets never appear in prompts, tracked files, conversation, or command output; values move from `.env` through the shell only.
-- [Composition](references/capabilities.md) is the runtime reference for workflow and managed library edits; open the bundled documentation under `workflows/node_modules/workflow/docs/` only for a building block it does not cover.
-- Before any save proposal, `npm run gtm -- verify <slug> --input <file>` must pass. It runs the offline check, the build with its initialization check, the zero-spend dry run, and the diagram export as one command and reports the first failing stage. Unverified work is not finished.
-- Run `gtm check` and compare every `// gtm-lib v<N>` header and recorded content hash against the current generation in the template `package.json` at `gtm.libVersion` before an action. Show locally modified diffs, offer a recopy, and never apply it silently.
-- Every business stage carries a plain-language label. Managed agents appear as dynamic stages; their tool calls are inspected in native traces.
-- Copy the versioned lib, routes, scripts, and config verbatim and edit workflow-owned tables, adapters, migrations, and workflow files instead.
-- Use `provider()` for classic paid calls, `agent()` for short model calls, and `durableAgent()` for durable tool loops; follow [composition](references/capabilities.md) for accounted custom adapters.
-- Use committed migrations. The project has no `db:push` command.
-- When `GTM_SANDBOX=1`, use the configured hosted database, the `api` model backend, host-approved tracked writes, and no exposed port or remote Git command. The sandbox authors, validates, dry-runs, and queries; it starts no real run. Real runs, approvals, and cancellations go through the host's trusted controls.
-- Save accepted tracked changes on `main` and close with `Saved.`; follow the shared interaction standard for every question, proposal, approval, and closing message, and keep commands, tool names, and run identifiers out of user-facing text.
-- For a hosted workflow, end the save proposal's workflow description with `Saving this also puts it live in production.`; do not add a second deploy gate or deploy token.
-- Never use `AskUserQuestion`.
-- Start, reuse, record, and stop processes only under [open](references/open.md).
+- `gtm verify` passes before the card; the card reflects its cost, migration, and missing-key facts.
+- Paid calls, including `agentStage()`, use an explicit `step` matching a `[step: name]` Diagram node. `agentStage()` costs use `[cost: up to $X/row]` matching `maxUsd`.
+- Secrets remain in environment variables. `.env*`, `data/`, `.workflow-data/`, `.gtm-local.json`, and `node_modules/` remain untracked.
+- Each file write stays inside the checkout or scratch and preserves user-owned workflow/table/provider files during `gtm upgrade`.
+- User-facing text follows the interaction standard and contains no raw commands or JSON inside approval cards.
 
 ## References
 
-Read references once, after decisions settle, concatenated in as few shell commands as the host's output limit allows. Before the decision message, read only the matching section of [flows](references/flows.md). For create or update, then read [the contract](references/contract.md) and [composition](references/capabilities.md) together, and [conversation](references/conversation.md) with [deploy](references/deploy.md) for hosted work, [providers](references/providers.md) for adapter work, and [event sources](references/events.md) for triggered work. Read [open](references/open.md) for open and local server work, and [agents](references/agents.md) when configuring command permissions. Read [the shared interaction standard](../gtm-workspace/references/interaction.md) on a keyboard; a hosted agent's standing instructions already restate it.
+- [Library contract](references/library.md)
+- [SDK choices](references/sdk.md)
+- [Deployment](references/deploy.md)
+- [Local use](references/local.md)
+- [Shared interaction standard](../gtm-workspace/references/interaction.md)

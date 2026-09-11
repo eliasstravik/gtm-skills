@@ -36,3 +36,13 @@ yarn-error.log*
 .LSOverride
 Icon?
 ._*
+
+# Runtime artifacts a local build or check leaves inside the copied-in template.
+skills/gtm-workflow/templates/.env
+skills/gtm-workflow/templates/.env.turso
+skills/gtm-workflow/templates/.output/
+skills/gtm-workflow/templates/.nitro/
+skills/gtm-workflow/templates/.swc/
+skills/gtm-workflow/templates/.workflow-data/
+skills/gtm-workflow/templates/.gtm-local.json
+skills/gtm-workflow/templates/data/
