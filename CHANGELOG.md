@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 - 2026-09-11
+
+- The `.env` file that receives a generated local run secret is written owner-readable only.
+
 ## 1.0.0 - 2026-09-11
 
 - Replace the workflow template's parallel orchestration paths with one Vercel Workflow runtime, one typed stage interface, one diagram specification, one startup migration path, and a small CLI.

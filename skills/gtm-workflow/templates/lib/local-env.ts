@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { chmod, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 /**
@@ -18,7 +18,8 @@ export async function ensureRunSecret(root: string, env: Record<string, string |
   const next = /^GTM_RUN_SECRET=.*$/m.test(content)
     ? content.replace(/^GTM_RUN_SECRET=.*$/m, line)
     : `${content}${content && !content.endsWith("\n") ? "\n" : ""}${line}\n`;
-  await writeFile(file, next);
+  await writeFile(file, next, { mode: 0o600 });
+  await chmod(file, 0o600);
   env.GTM_RUN_SECRET = secret;
   return secret;
 }

@@ -44,3 +44,12 @@ test('never writes a secret inside the hosted sandbox', async () => {
   await assert.rejects(readFile(join(root, '.env'), 'utf8'));
   await rm(root, { recursive: true, force: true });
 });
+
+test('the .env file holding the secret is readable by its owner only', async () => {
+  const { stat } = await import('node:fs/promises');
+  const root = await scratch();
+  await writeFile(join(root, '.env'), 'GTM_RUN_SECRET=\n', { mode: 0o644 });
+  await ensureRunSecret(root, {});
+  assert.equal((await stat(join(root, '.env'))).mode & 0o777, 0o600);
+  await rm(root, { recursive: true, force: true });
+});
