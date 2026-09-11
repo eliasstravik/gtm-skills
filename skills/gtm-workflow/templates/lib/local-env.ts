@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { chmod, readFile, writeFile } from "node:fs/promises";
+import { readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 /**
@@ -18,8 +18,10 @@ export async function ensureRunSecret(root: string, env: Record<string, string |
   const next = /^GTM_RUN_SECRET=.*$/m.test(content)
     ? content.replace(/^GTM_RUN_SECRET=.*$/m, line)
     : `${content}${content && !content.endsWith("\n") ? "\n" : ""}${line}\n`;
-  await writeFile(file, next, { mode: 0o600 });
-  await chmod(file, 0o600);
+  // Create the replacement owner-only and move it into place, so the secret never sits in a file with wider permissions.
+  const temporary = `${file}.${process.pid}.tmp`;
+  await writeFile(temporary, next, { mode: 0o600, flag: "wx" });
+  await rename(temporary, file);
   env.GTM_RUN_SECRET = secret;
   return secret;
 }
