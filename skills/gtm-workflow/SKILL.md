@@ -1,6 +1,6 @@
 ---
 name: gtm-workflow
-description: Triggers when a user asks to create, update, inspect, delete, run, query, schedule, or deploy a saved GTM workflow. Not for workspace setup, ICP or persona lifecycle work, or one-off work that should not become a reusable workflow.
+description: Triggers when a user asks to create, update, inspect, delete, run, query, schedule, or deploy a saved GTM workflow. Not for workspace setup, ICP or persona lifecycle work, other workflow engines, or one-off calls that are not saved as workflows.
 ---
 
 # GTM workflow

@@ -1,6 +1,6 @@
 ---
 name: gtm-qualify-prospects
-description: Triggers when a user asks to qualify, score, or fit-check supplied leads, accounts, contacts, people, or companies in either supported mode, people against a connected GTM workspace's saved personas or companies against its saved ICPs. Includes "is X a fit for us" requests. Not for creating or editing ICPs or personas, saved or scheduled scoring at volume (use gtm-workflow), intent or engagement scoring, or workspace repair.
+description: Triggers when a user asks to qualify, score, or fit-check supplied leads, accounts, contacts, people, or companies in either supported mode, people against a connected GTM workspace's saved personas or companies against its saved ICPs, including "is X a fit for us" requests. Not for creating or editing ICPs or personas, saved or scheduled scoring at volume (use gtm-workflow), intent or engagement scoring, or workspace repair.
 ---
 
 # GTM Qualify Prospects
