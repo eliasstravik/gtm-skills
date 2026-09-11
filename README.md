@@ -37,6 +37,10 @@ node ~/.agents/skills/gtm-workflow/scripts/command-permission.mjs --install-clau
 
 Follow [Getting started](docs/getting-started.md) for prerequisites and the visible flow.
 
+## What changed in v1
+
+The workflow template now keeps one Vercel runtime, one typed execution path, one diagram specification, and one startup migration path. It removes the alternate durable-agent runner, event and preflight wrappers, migration-ledger workers, extra diagram renderers, and the old host-specific tool protocol. The skills now describe the same card-and-push flow on every surface.
+
 GTM Skills is free, open source, and MIT licensed. Model, provider, Vercel, and Turso usage may cost money under the limits you choose.
 
 Project records: [versions](VERSIONS.md) · [changelog](CHANGELOG.md) · [security](SECURITY.md) · [contributing](CONTRIBUTING.md)

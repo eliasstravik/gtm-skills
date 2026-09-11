@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.0 - 2026-09-11
+
+- Replace the workflow template's parallel orchestration paths with one Vercel Workflow runtime, one typed stage interface, one diagram specification, one startup migration path, and a small CLI.
+- Remove the durable-agent runner, capability and event registries, preflight and execution wrappers, migration-ledger workers, redundant diagram renderers, and the former host-tool protocol.
+- Rewrite the five skills around the same plain-language card-and-push flow for keyboard and hosted agents. The generated workflow template is 2,165 nonblank TypeScript/JavaScript lines with 14 direct dependencies; the package-manager installation still resolves optional platform packages beyond the measured dependency target.
+- Record the CLI, AI Gateway, skills-bundling, firewall, blocking-command, and Slack callback spikes. Evals, test suites, and CI were skipped at the client's request.
+
 ## 0.9.0 - 2026-09-10
 
 - Define the decision message: the numbered options answer the bold lead question, bullets state defaults or facts and never ask, and a message asking for a typed fact has no numbered block. Grouped intake questions and the owner-choice numbered block are replaced by stated defaults.
