@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { HELP, backgroundArgv, pendingFrom } from '../skills/gtm-workflow/templates/lib/cli-helpers.ts';
+import { HELP, UPGRADE_REPLACES, backgroundArgv, pendingFrom } from '../skills/gtm-workflow/templates/lib/cli-helpers.ts';
 
 test('pending migrations are the files whose hash is not in the ledger', () => {
   const files = [{ file: 'drizzle/0000_a.sql', hash: 'h1' }, { file: 'drizzle/0001_b.sql', hash: 'h2' }];
@@ -19,4 +19,9 @@ test('help lists every flag and diagram format', () => {
   for (const item of ['--dry-run', '--wait-live', '--background', '--checkpoint', '--url', '--wait', '--format', '--yes', '--sql', 'json', 'svg', 'png', 'web', 'markdown', 'csv', 'upgrade', 'help']) {
     assert.ok(HELP.includes(item), `help should mention ${item}`);
   }
+});
+
+test('upgrade replaces the template lockfile so a regenerated one cannot drop platform binaries', () => {
+  assert.ok(UPGRADE_REPLACES.includes('package-lock.json'));
+  assert.ok(!UPGRADE_REPLACES.includes('package.json'), 'package.json is merged, not replaced');
 });

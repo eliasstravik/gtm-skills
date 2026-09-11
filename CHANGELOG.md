@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `gtm upgrade` also replaces `package-lock.json` from the template. Merging dependencies and regenerating the lockfile locally could drop every platform-specific optional package, after which the Vercel build failed with `Cannot find module '@swc/core-linux-x64-gnu'`.
+
 ## 1.0.2 - 2026-09-11
 
 - A database connection failure during the startup migration is retried on the next request instead of being cached for the life of the server instance.
