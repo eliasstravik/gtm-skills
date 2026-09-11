@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 - unreleased
+## 1.0.0 - 2026-09-11
 
 - Replace the workflow template's parallel orchestration paths with one Vercel Workflow runtime, one typed stage interface, one diagram specification, one startup migration path, and a small CLI.
 - Remove the durable-agent runner, capability and event registries, preflight and execution wrappers, migration-ledger workers, redundant diagram renderers, and the former host-tool protocol.
