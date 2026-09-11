@@ -33,6 +33,7 @@ async function getRuntime(): Promise<Runtime> {
     const client = createWebClient({ url: config.url, authToken: config.authToken });
     return { client, database: drizzleWeb(client, { schema }) };
   })();
+  runtimePromise.catch(() => { runtimePromise = undefined; });
   return runtimePromise;
 }
 
@@ -85,7 +86,13 @@ export async function ensureMigrated(): Promise<void> {
         if (last) throw last;
       }
       migrationStatus = "ok";
-    } catch (error) { migrationStatus = `failed: ${redact(error).split("\n")[0]}`; throw error; }
+    } catch (error) {
+      // A connection failure at boot must not poison this instance: the next request tries again.
+      migrationStatus = `failed: ${redact(error).split("\n")[0]}`;
+      migrationPromise = undefined;
+      runtimePromise = undefined;
+      throw error;
+    }
   })();
   return migrationPromise;
 }

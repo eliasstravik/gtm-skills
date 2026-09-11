@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2 - 2026-09-11
+
+- A database connection failure during the startup migration is retried on the next request instead of being cached for the life of the server instance.
+- The `.env` file that receives a generated local run secret is replaced atomically.
+
 ## 1.0.1 - 2026-09-11
 
 - The `.env` file that receives a generated local run secret is written owner-readable only.
