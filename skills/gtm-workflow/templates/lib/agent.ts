@@ -10,6 +10,7 @@ import { workflowModel } from "./model";
 export { DEFAULT_WORKFLOW_MODEL } from "./model";
 
 export type AgentTools = "none" | "web" | "host-default";
+export type McpServer = { name: string; url: string; headers?: Record<string, string> };
 export type Backend = "gateway" | "claude" | "codex";
 export type CliCapability = { bin: string; headless: true; canDisableTools: boolean; canRestrictTools: boolean; budgetFlag?: string; turnsFlag?: string; mcpHeaders: boolean };
 export const CLI_CAPABILITIES: Record<Exclude<Backend, "gateway">, CliCapability> = {
@@ -29,6 +30,37 @@ export async function resolveBackend(): Promise<Backend> {
   if (process.env.GTM_HOST === "claude" || process.env.GTM_HOST === "codex") return process.env.GTM_HOST;
   if (process.env.GTM_HOST === "eve") throw new Error("This needs an AI key on the hosted project.");
   throw new Error("Add an AI key to .env, or set GTM_HOST.");
+}
+
+/** An agentic stage needs a spend cap and MCP-only tools; the Gateway and Claude Code offer both, Codex does not. */
+export function canRunStage(backend: Backend): boolean {
+  if (backend === "gateway") return true;
+  const capability = CLI_CAPABILITIES[backend];
+  return Boolean(capability.budgetFlag && capability.canRestrictTools && capability.mcpHeaders);
+}
+
+/** Headless Claude Code arguments for one agentic stage: structured output, budget cap, MCP tools only, no built-ins. */
+export function claudeStageArgs(input: { prompt: string; schemaJson: unknown; maxUsd: number; mcpConfigFile: string }): string[] {
+  return ["-p", input.prompt, "--output-format", "json", "--json-schema", JSON.stringify(input.schemaJson), "--permission-mode", "dontAsk", "--no-session-persistence",
+    "--tools", "", "--allowedTools", "mcp__*", "--mcp-config", input.mcpConfigFile, "--strict-mcp-config", "--max-budget-usd", String(input.maxUsd)];
+}
+
+/** MCP client configuration shared by the CLI and Gateway backends; header values are environment-variable names. */
+export function mcpConfig(servers: McpServer[], env: Record<string, string | undefined> = process.env) {
+  return { mcpServers: Object.fromEntries(servers.map((server) => [server.name, { type: "http", url: server.url, ...(server.headers ? { headers: resolveHeaders(server.headers, env) } : {}) }])) };
+}
+
+export function resolveHeaders(headers: Record<string, string> = {}, env: Record<string, string | undefined> = process.env): Record<string, string> {
+  return Object.fromEntries(Object.entries(headers).map(([name, environmentVariable]) => {
+    const value = env[environmentVariable];
+    if (!value) throw new Error(`Configure ${environmentVariable} on the workflow project.`);
+    return [name, value];
+  }));
+}
+
+/** Run a headless CLI with an allow-listed environment and a hard timeout; returns stdout. */
+export function runCli(name: Exclude<Backend, "gateway">, args: string[], options: { cwd: string; timeoutMs: number; signal?: AbortSignal; extraEnv?: Record<string, string> }): Promise<string> {
+  return run(CLI_CAPABILITIES[name].bin, args, { cwd: options.cwd, env: childEnv([], options.extraEnv ?? {}), timeoutMs: options.timeoutMs, signal: options.signal });
 }
 
 export async function agent<T extends z.ZodTypeAny>(input: AgentInput<T>): Promise<z.infer<T>> {

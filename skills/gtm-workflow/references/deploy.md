@@ -8,7 +8,7 @@ The workspace needs a pushable `origin`. When absent, repository setup is a sepa
 2. Paste workflow-specific provider keys that the verification card names.
 3. Confirm the Git commit author is a member of the Vercel team.
 
-Vercel supplies AI Gateway authentication through project OIDC; no Gateway key is required. A locally tested AI step switches to the hosted Gateway model after deployment, and the one-row hosted test proves that path.
+Set `AI_GATEWAY_API_KEY` on the workflow project unless the deployment already authenticates to AI Gateway with OIDC; if the one-row hosted test fails with an authentication error, the key is the fix. A locally tested AI step switches to the hosted Gateway model after deployment, and the one-row hosted test proves that path.
 
 ## Dashboard path
 
@@ -17,7 +17,7 @@ Vercel supplies AI Gateway authentication through project OIDC; no Gateway key i
 3. Settings → General → Node.js Version → 22.x.
 4. Storage → Marketplace → Turso → connect the database.
 5. Settings → Environment Variables → add `GTM_RUN_SECRET`.
-6. Add `CRON_SECRET`.
+6. Add `CRON_SECRET` and, unless OIDC Gateway auth is confirmed, `AI_GATEWAY_API_KEY`.
 7. Add provider keys named by `gtm verify --url`.
 8. Settings → Deployment → enable System Environment Variables.
 9. Settings → Deployment Protection → turn protection off for Production.

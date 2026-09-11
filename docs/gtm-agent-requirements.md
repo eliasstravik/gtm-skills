@@ -24,7 +24,11 @@ Import the classifier from `agent/skills/gtm-workflow/scripts/command-permission
 
 ## URL watcher
 
-`watch_url` may make GET requests only to `/api/runs/*` and `/api/deployment` on the configured workflow host. It must not accept arbitrary headers or hosts.
+`watch_url` may make GET requests only to `/api/deployment`, `/api/runs/latest?workflow=<slug>&head=<sha>`, and `/api/runs/<id>` on the configured workflow host. It must not accept arbitrary headers or hosts. The hosted create command ends with `--background`, so the bash call returns at once and the run is found through `/api/runs/latest`.
+
+## CLI capabilities (recorded 2026-09-11 from `claude --help` and `codex exec --help`)
+
+Claude Code 2.1.268: `--max-budget-usd`, `--tools`, `--allowedTools`, `--disallowedTools`, `--mcp-config`, `--strict-mcp-config`, `--json-schema`, `--output-format json`; no turn cap. It runs `agentStage()` locally. Codex 0.154.0: `--output-schema`, `--sandbox`, `--json`; no budget or turn cap and no way to disable reads. It refuses `agentStage()` without an AI key.
 
 ## Skills fetch spike
 

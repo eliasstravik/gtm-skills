@@ -78,6 +78,7 @@ export const workflowRuns = sqliteTable(
     runKey: text("run_key").primaryKey(),
     runId: text("run_id").unique(),
     parentRunKey: text("parent_run_key"),
+    workspaceHead: text("workspace_head"),
     workflow: text("workflow").notNull(),
     path: text("path").notNull(),
     method: text("method").$type<"GET" | "POST">().notNull(),

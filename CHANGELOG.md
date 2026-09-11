@@ -1,11 +1,12 @@
 # Changelog
 
-## 1.0.0 - 2026-09-11
+## 1.0.0 - unreleased
 
 - Replace the workflow template's parallel orchestration paths with one Vercel Workflow runtime, one typed stage interface, one diagram specification, one startup migration path, and a small CLI.
 - Remove the durable-agent runner, capability and event registries, preflight and execution wrappers, migration-ledger workers, redundant diagram renderers, and the former host-tool protocol.
-- Rewrite the five skills around the same plain-language card-and-push flow for keyboard and hosted agents. The generated workflow template is 2,165 nonblank TypeScript/JavaScript lines with 14 direct dependencies; the package-manager installation still resolves optional platform packages beyond the measured dependency target.
-- Record the CLI, AI Gateway, skills-bundling, firewall, blocking-command, and Slack callback spikes. Evals, test suites, and CI were skipped at the client's request.
+- Rewrite the five skills around the same plain-language card-and-push flow for keyboard and hosted agents.
+- Fix round after review: local runs no longer fail on the workspace-head check or an empty run secret (the first local command writes one); the run route stores the workspace commit and `GET /api/runs/latest` finds the newest run for it; `gtm run --background` returns at once for hosted creates; a failed row keeps its plain reason on the run; `agentStage()` runs locally on Claude Code with a budget cap and MCP-only tools, and refuses on Codex; migrations retry through a locked database so several instances can boot at once; the command classifier no longer lets `~`, `$VAR`, globs, `git add -A`, `git branch -D`, or writes to `.npmrc` through; `check` reports pending migrations from the ledger when there is no remote; the local server binds to loopback; `help` lists every flag.
+- Tests: head check, local secret, CLI helpers, migrations including two concurrent processes, classifier corpus of 90 commands, diagram header parsing, row failure surfacing, model cache. CI runs them and the Python checks.
 
 ## 0.9.0 - 2026-09-10
 

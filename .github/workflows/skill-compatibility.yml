@@ -29,3 +29,4 @@ jobs:
           python-version: "3.13"
       - run: python3 scripts/check_skill_compatibility.py
       - run: python3 -m unittest discover -s tests -p test_skill_compatibility.py
+      - run: python3 evals/run_quality.py

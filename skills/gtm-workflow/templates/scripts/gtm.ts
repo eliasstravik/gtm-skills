@@ -5,7 +5,9 @@ import { cp, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promis
 import { createServer } from "node:net";
 import { basename, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { executeReadOnly, ensureMigrated } from "../lib/db";
+import { executeReadOnly, ensureMigrated, readAppliedMigrationHashes } from "../lib/db";
+import { HELP, backgroundArgv, pendingFrom } from "../lib/cli-helpers";
+import { ensureRunSecret } from "../lib/local-env";
 import { diagramCost, parseDiagramSpec } from "../lib/diagram-spec";
 import { overlayRun } from "../lib/diagram-overlay";
 import { renderPng, renderSvg } from "../lib/diagram-svg";
@@ -34,7 +36,7 @@ async function main() {
   throw new AppError("invalid_command", "Use run, runs get, query, check, verify, diagram, approve, cancel, upgrade, or help.", 2);
 }
 
-function help() { process.stdout.write("gtm run <workflow> --input <file> [--dry-run|--wait-live]\ngtm runs get <id> [--wait 600]\ngtm verify <workflow> --input <file> [--url <origin>]\ngtm check | query | diagram | approve | cancel | upgrade\n"); }
+function help() { process.stdout.write(HELP); }
 function parse(args: string[]) { const positionals: string[] = [], flags: Flags = {}; for (let i = 0; i < args.length; i++) { const value = args[i]; if (!value.startsWith("--")) positionals.push(value); else { const key = value.slice(2); flags[key] = args[i + 1] && !args[i + 1].startsWith("--") ? args[++i] : true; } } return { positionals, flags }; }
 function text(flags: Flags, name: string) { const value = flags[name]; return typeof value === "string" ? value : undefined; }
 function print(value: unknown) { process.stdout.write(`${JSON.stringify(value, null, 2)}\n`); }
@@ -57,10 +59,20 @@ async function run(args: string[]) {
   const { positionals, flags } = parse(args), slug = positionals[0], inputFile = text(flags, "input");
   if (!slug || !inputFile) throw new AppError("invalid_input", "run requires <workflow> --input <file>.", 2);
   const dry = await dryPlan(slug, inputFile); if (flags["dry-run"]) return print(dry.plan); if (!dry.plan.withinCaps) throw new AppError("caps_exceeded", "The input exceeds the accepted workflow caps.", 2);
+  if (flags.background) return background(slug, args);
   const origin = await originFor(flags); if (flags["wait-live"]) await waitLive(origin);
   const url = new URL(`/api/run/${workflowPath(dry.file)}`, origin); const checkpoint = text(flags, "checkpoint"); if (checkpoint) url.searchParams.set("checkpoint", checkpoint);
   const result = await request(url, { method: "POST", headers: { ...auth(), "x-gtm-workspace-head": await gitHead() }, body: JSON.stringify(dry.body) });
   print(result);
+}
+
+/** Start the same run in a detached process and return at once; the caller watches /api/runs/latest for it. */
+async function background(slug: string, args: string[]) {
+  const head = await gitHead(); await mkdir(join(root, "data"), { recursive: true });
+  const log = join(root, "data", `background-${slug}.log`); const { openSync } = await import("node:fs"); const fd = openSync(log, "a");
+  const child = spawn(process.execPath, [...process.execArgv, process.argv[1], "run", ...backgroundArgv(args)], { cwd: root, env: process.env, detached: true, stdio: ["ignore", fd, fd] });
+  child.unref();
+  print({ background: true, workflow: slug, head, log: relative(root, log) });
 }
 
 async function runsGet(args: string[]) {
@@ -85,18 +97,18 @@ async function check() {
     for (const step of paid) { const node = graph.nodes.find((item) => item.step === step); if (!node) warnings.push(`Paid step ${step} has no Diagram node.`); else if (node.unitCostUsd === undefined) throw new AppError("diagram_cost_missing", `${step} needs [cost: $X/row] in the Diagram header.`, 2); }
     if (graph.workflow.schedule) { const vercel = JSON.parse(await readFile(join(root, "vercel.json"), "utf8").catch(() => "{}")); if (!(vercel.crons ?? []).some((cron: any) => cron.schedule === graph.workflow.schedule)) throw new AppError("schedule_missing", `Add ${graph.workflow.schedule} to vercel.json crons.`, 2); }
   }
-  const migrations = await pendingMigrations();
-  for (const file of migrations) { const sql = await readFile(file, "utf8"); if (/\b(?:DROP\s+TABLE|DROP\s+COLUMN|DELETE|TRUNCATE|RENAME)\b/i.test(sql)) warnings.push(`removes_data: ${relative(root, file)}`); }
+  const pending = await pendingMigrations();
+  for (const file of pending.files) { const sql = await readFile(file, "utf8"); if (/\b(?:DROP\s+TABLE|DROP\s+COLUMN|DELETE|TRUNCATE|RENAME)\b/i.test(sql)) warnings.push(`removes_data: ${relative(root, file)}`); }
   if ((process.env.TURSO_DATABASE_URL ?? "file:").startsWith("file:") && process.env.GTM_SANDBOX !== "1") await ensureMigrated();
-  return { ok: true, workflows: files.length, warnings, pendingMigrations: migrations.map((file) => relative(root, file)) };
+  return { ok: true, workflows: files.length, warnings, pendingMigrations: pending.files.map((file) => relative(root, file)), pendingSource: pending.source };
 }
 
 async function verify(args: string[]) {
   const { positionals, flags } = parse(args), slug = positionals[0], inputFile = text(flags, "input"); if (!slug || !inputFile) throw new AppError("invalid_input", "verify requires <workflow> --input <file>.", 2);
-  const checked = await check(), dry = await dryPlan(slug, inputFile); await writeFile(join(root, "draft-diagram.json"), JSON.stringify(dry.graph, null, 2));
+  const checked = await check(), dry = await dryPlan(slug, inputFile); await mkdir(join(root, "data"), { recursive: true }); await writeFile(join(root, "data/draft-diagram.json"), JSON.stringify(dry.graph, null, 2));
   let missing: string[] = [];
   const origin = text(flags, "url"); if (origin) { const names = await environmentNames(dry.file, dry.source); const result = await request(new URL(`/api/deployment?names=${encodeURIComponent(names.join(","))}`, origin), { headers: auth() }); missing = result.missing ?? []; }
-  print({ ok: dry.plan.withinCaps, check: checked, dryRun: dry.plan, missing, diagram: "draft-diagram.json" }); if (!dry.plan.withinCaps) process.exitCode = 2;
+  print({ ok: dry.plan.withinCaps, check: checked, dryRun: dry.plan, missing, diagram: "data/draft-diagram.json" }); if (!dry.plan.withinCaps) process.exitCode = 2;
 }
 
 async function diagram(args: string[]) {
@@ -117,8 +129,15 @@ async function upgrade(args: string[]) {
   const current = JSON.parse(await readFile(join(root, "package.json"), "utf8")), next = JSON.parse(await readFile(join(sourceRoot, "package.json"), "utf8")); current.dependencies = { ...current.dependencies, ...next.dependencies }; current.devDependencies = { ...current.devDependencies, ...next.devDependencies }; current.gtm = { ...(current.gtm ?? {}), skillsRelease: ref }; await writeFile(join(root, "package.json"), `${JSON.stringify(current, null, 2)}\n`); process.stdout.write("Run npm ci.\n");
 }
 
-async function originFor(flags: Flags) { const explicit = text(flags, "url") ?? process.env.GTM_BASE_URL; if (explicit) return explicit; if (process.env.GTM_SANDBOX === "1") throw new AppError("hosted_url_required", "The hosted agent needs the workflow project URL.", 2); const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8")); if (pkg.gtm?.vercel?.url) return pkg.gtm.vercel.url; return startLocal(); }
-async function startLocal() { const stateFile = join(root, ".gtm-local.json"); try { const state = JSON.parse(await readFile(stateFile, "utf8")); if (await alive(state.url)) return state.url; } catch {} const port = await freePort(); const child = spawn("npm", ["run", "dev", "--", "--port", String(port)], { cwd: root, env: childEnv(), detached: true, stdio: "ignore" }); child.unref(); const url = `http://127.0.0.1:${port}`; await writeFile(stateFile, JSON.stringify({ url, pid: child.pid })); for (let i = 0; i < 60 && !(await alive(url)); i++) await new Promise((resolve) => setTimeout(resolve, 500)); if (!(await alive(url))) throw new AppError("server_failed", "The local server did not start."); process.stdout.write("Started the local server.\n"); return url; }
+async function originFor(flags: Flags) {
+  const explicit = text(flags, "url") ?? process.env.GTM_BASE_URL;
+  if (explicit) { if (isLoopback(explicit)) await ensureRunSecret(root); return explicit; }
+  if (process.env.GTM_SANDBOX === "1") throw new AppError("hosted_url_required", "The hosted agent needs the workflow project URL.", 2);
+  const pkg = JSON.parse(await readFile(join(root, "package.json"), "utf8")); if (pkg.gtm?.vercel?.url) return pkg.gtm.vercel.url;
+  return startLocal();
+}
+function isLoopback(origin: string) { try { const host = new URL(origin).hostname; return host === "127.0.0.1" || host === "localhost" || host === "::1"; } catch { return false; } }
+async function startLocal() { await ensureRunSecret(root); const stateFile = join(root, ".gtm-local.json"); try { const state = JSON.parse(await readFile(stateFile, "utf8")); if (await alive(state.url)) return state.url; } catch {} const port = await freePort(); const child = spawn("npm", ["run", "dev", "--", "--port", String(port), "--host", "127.0.0.1"], { cwd: root, env: childEnv(), detached: true, stdio: "ignore" }); child.unref(); const url = `http://127.0.0.1:${port}`; await writeFile(stateFile, JSON.stringify({ url, pid: child.pid })); for (let i = 0; i < 60 && !(await alive(url)); i++) await new Promise((resolve) => setTimeout(resolve, 500)); if (!(await alive(url))) throw new AppError("server_failed", "The local server did not start."); process.stdout.write("Started the local server.\n"); return url; }
 async function waitLive(origin: string) { const expected = await gitHead(), deadline = Date.now() + 480_000; while (Date.now() < deadline) { try { const result = await request(new URL("/api/deployment", origin), { headers: auth() }); if (String(result.migration).startsWith("failed")) throw new AppError("migration_failed", "Saved, but the new table could not be created. Ask whoever set this up to check the database."); if (result.head === expected && result.migration === "ok") return; } catch (error) { if (error instanceof AppError && error.code === "migration_failed") throw error; } await new Promise((resolve) => setTimeout(resolve, 3000)); } throw new AppError("deployment_timeout", "Saved, but the hosted copy did not come live in 8 minutes. Ask whoever set this up to check the Vercel build."); }
 async function alive(origin: string) { try { const response = await fetch(new URL("/api/deployment", origin), { headers: auth(), signal: AbortSignal.timeout(1000) }); return response.status !== 404; } catch { return false; } }
 function freePort() { return new Promise<number>((resolvePort, reject) => { const server = createServer(); server.once("error", reject); server.listen(0, "127.0.0.1", () => { const address = server.address(); const port = typeof address === "object" && address ? address.port : 3000; server.close(() => resolvePort(port)); }); }); }
@@ -127,7 +146,13 @@ async function request(url: URL, init: RequestInit = {}) { const response = awai
 async function command(bin: string, args: string[]) { await new Promise<void>((resolveCommand, reject) => { const child = spawn(bin, args, { cwd: root, stdio: "inherit", env: process.env }); child.on("error", reject); child.on("close", (code) => code === 0 ? resolveCommand() : reject(new AppError("command_failed", `${basename(bin)} exited ${code}.`, 2))); }); }
 async function gitHead() { return (await capture("git", ["rev-parse", "HEAD"])).trim(); }
 async function capture(bin: string, args: string[]) { return new Promise<string>((resolveCapture, reject) => { const child = spawn(bin, args, { cwd: root, stdio: ["ignore", "pipe", "pipe"] }); let output = "", error = ""; child.stdout.on("data", (data) => output += data); child.stderr.on("data", (data) => error += data); child.on("close", (code) => code === 0 ? resolveCapture(output) : reject(new AppError("command_failed", error.trim()))); }); }
-async function pendingMigrations() { try { const output = await capture("git", ["diff", "--name-only", "origin/main", "--", "drizzle"]); return output.split("\n").filter((name) => name.endsWith(".sql")).map((name) => join(root, name)); } catch { return walk(join(root, "drizzle"), (file) => file.endsWith(".sql")); } }
+/** Migrations the card must mention: files not on origin/main, or, without a remote, files the local ledger has not applied. */
+async function pendingMigrations(): Promise<{ files: string[]; source: "origin/main" | "ledger" }> {
+  try { const output = await capture("git", ["diff", "--name-only", "origin/main", "--", "drizzle"]); return { files: output.split("\n").filter((name) => name.endsWith(".sql")).map((name) => join(root, name)), source: "origin/main" }; } catch {}
+  const files = await walk(join(root, "drizzle"), (file) => file.endsWith(".sql"));
+  const hashed = await Promise.all(files.map(async (file) => ({ file, hash: createHash("sha256").update(await readFile(file, "utf8")).digest("hex") })));
+  return { files: pendingFrom(hashed, await readAppliedMigrationHashes()), source: "ledger" };
+}
 async function environmentNames(workflow: string, source: string) { const providers = await walk(join(root, "providers"), (file) => file.endsWith(".ts")); const corpus = [source, await readFile(join(root, "lib/provider.ts"), "utf8"), ...await Promise.all(providers.map((file) => readFile(file, "utf8")))].join("\n"); return [...new Set([...corpus.matchAll(/(?:process\.env(?:\.|\[["'])|\benv\.)([A-Z][A-Z0-9_]*)/g)].map((match) => match[1]))].sort(); }
 function loadTurso() { const file = join(root, ".env.turso"); if (!existsSync(file)) throw new AppError("cloud_env_missing", "Add .env.turso first."); }
 function markdown(rows: Record<string, unknown>[]) { if (!rows.length) return "No rows.\n"; const keys = Object.keys(rows[0]); return `| ${keys.join(" | ")} |\n| ${keys.map(() => "---").join(" | ")} |\n${rows.map((row) => `| ${keys.map((key) => String(row[key] ?? "")).join(" | ")} |`).join("\n")}\n`; }

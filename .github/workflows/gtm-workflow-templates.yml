@@ -5,14 +5,14 @@ on:
     paths:
       - "skills/gtm-workflow/**"
       - "tests/**"
-      - "evals/gtm-workflow/scripts/**"
+      - "evals/gtm-workflow/fixtures/commands.json"
       - ".github/workflows/gtm-workflow-templates.yml"
   push:
     branches: [main]
     paths:
       - "skills/gtm-workflow/**"
       - "tests/**"
-      - "evals/gtm-workflow/scripts/**"
+      - "evals/gtm-workflow/fixtures/commands.json"
       - ".github/workflows/gtm-workflow-templates.yml"
 
 permissions:
@@ -21,7 +21,10 @@ permissions:
 jobs:
   templates:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,8 +34,15 @@ jobs:
           cache-dependency-path: skills/gtm-workflow/templates/package-lock.json
       - run: npm ci --ignore-scripts --no-audit --no-fund
         working-directory: skills/gtm-workflow/templates
-      - run: node --test tests/workflow-runtime.test.mjs
-      - run: node --test evals/gtm-workflow/scripts/test-migration-generation.mjs
-      - run: node --experimental-test-module-mocks --import ./skills/gtm-workflow/templates/node_modules/tsx/dist/loader.mjs --test tests/rows-lifecycle.test.mjs tests/agent-tools.test.mjs tests/execution-shape.test.mjs tests/model-cache.test.mjs tests/preflight.test.mjs tests/diagram-draft.test.mjs tests/provider-fixtures.test.mjs
-      - run: node --test tests/batch-runtime.test.mjs
-      - run: node --test evals/gtm-workflow/scripts/test-templates.mjs
+      - name: Template unit tests
+        run: >
+          node --experimental-test-module-mocks
+          --import ./skills/gtm-workflow/templates/node_modules/tsx/dist/loader.mjs
+          --test tests/*.test.mjs
+      - name: Template builds and checks an empty project
+        working-directory: skills/gtm-workflow/templates
+        run: |
+          cp .env.example .env
+          npm run build
+          npm run gtm -- check
+          npm run gtm -- help

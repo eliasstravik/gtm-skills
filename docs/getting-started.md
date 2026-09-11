@@ -37,9 +37,9 @@ A later full run gets one approval. Each checkpoint you chose gets one approval.
 
 ## Local and hosted workflows
 
-Local runs auto-start the workflow server and use the first supported Claude Code or Codex CLI on your path for short trusted `agent()` calls. Fully agentic `agentStage()` work uses Vercel AI Gateway so its tools, turns, and spend can be capped consistently.
+Local runs start the workflow server themselves and use the AI tool you are already in: the skill writes `GTM_HOST=claude` or `GTM_HOST=codex` when it copies the template. In Claude Code, fully agentic steps also run locally with a spend cap and only their declared tools. In Codex, agentic steps need an AI key because Codex cannot cap spend; short AI steps work on both.
 
-For hosted setup, run `skills/gtm-workflow/scripts/setup-workflow-project.sh` from the workspace checkout. The script creates and configures the Vercel project and then tells you which dashboard-only steps remain. Vercel supplies AI Gateway authentication through project OIDC, so deployments do not require a separate Gateway key.
+For hosted setup, run `skills/gtm-workflow/scripts/setup-workflow-project.sh` from the workspace checkout. The script creates and configures the Vercel project and then tells you which dashboard-only steps remain. Add an `AI_GATEWAY_API_KEY` to the workflow project unless your Vercel deployment already authenticates to AI Gateway with OIDC; the one-row test after deploy shows which.
 
 ## Codex permission count
 

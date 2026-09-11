@@ -149,7 +149,7 @@ export async function runRows<TRow extends { key: string }>(input: {
         } else {
           held ??= heldReason(outcome.reason);
           if (heldReason(outcome.reason) === "spend_cap") { unfinished.push(row.key); continue; }
-          failed.push({ key: row.key, error: redact(outcome.reason) });
+          failed.push({ key: row.key, error: plainReason(redact(outcome.reason)) });
           failedStep = input.rowStep.name || "rowStep";
         }
       }
@@ -213,6 +213,7 @@ export async function runRows<TRow extends { key: string }>(input: {
     stop_reason: stopReason,
     remaining_keys: remainingKeys,
     failed_step: failedStep,
+    ...(failed.length ? { error: failed.length === 1 ? failed[0].error : `${failed.length} rows failed. First: ${failed[0].error}` } : {}),
     finished: status !== "cancelling",
   });
   return {
@@ -224,6 +225,11 @@ export async function runRows<TRow extends { key: string }>(input: {
     stopReason,
     remainingKeys,
   };
+}
+
+/** Drop the runtime's retry wrapper so the run keeps only the sentence a person can act on. */
+function plainReason(message: string): string {
+  return message.replace(/^Step "[^"]*" failed after \d+ retr(?:y|ies): /, "").trim();
 }
 
 function heldReason(error: unknown): "provider_auth" | "provider_quota" | "spend_cap" | undefined {

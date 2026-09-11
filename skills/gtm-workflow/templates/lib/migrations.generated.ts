@@ -28,5 +28,11 @@ export const migrations = [
     "hash": "a0e4718ee3b1528e2db708473715a27eab94742fc0b8e3a78f1ac4c11a18d608",
     "sql": "ALTER TABLE `workflow_runs` ADD `parent_run_key` text;--> statement-breakpoint\nCREATE INDEX `workflow_runs_parent_idx` ON `workflow_runs` (`parent_run_key`);",
     "createdAt": 1789048555595
+  },
+  {
+    "tag": "0005_fearless_angel",
+    "hash": "ed723963bbd16160fa8eaace35ca27d602d87da270764e679f3bfdf8282bf73a",
+    "sql": "ALTER TABLE `workflow_runs` ADD `workspace_head` text;",
+    "createdAt": 1789124048760
   }
 ] as const;

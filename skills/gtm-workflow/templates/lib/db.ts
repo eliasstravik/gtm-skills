@@ -1,5 +1,5 @@
 import { createClient as createWebClient, type Client } from "@libsql/client/web";
-import { and, eq, getTableColumns, or, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, or, sql } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql/driver-core";
 import { drizzle as drizzleWeb } from "drizzle-orm/libsql/web";
 import { getRun } from "workflow/api";
@@ -22,8 +22,12 @@ async function getRuntime(): Promise<Runtime> {
     if (config.dialect === "sqlite") {
       const [{ createClient }, { drizzle }] = await Promise.all([importLocal<typeof import("@libsql/client")>("@libsql/client"), importLocal<typeof import("drizzle-orm/libsql")>("drizzle-orm/libsql")]);
       const client = createClient({ url: config.url });
-      await client.execute("PRAGMA journal_mode=WAL");
+      // busy_timeout first: a second process opening the same fresh file must wait, not fail, while the first sets WAL.
       await client.execute("PRAGMA busy_timeout=5000");
+      for (let attempt = 0; ; attempt += 1) {
+        try { await client.execute("PRAGMA journal_mode=WAL"); break; }
+        catch (error) { if (attempt >= 20 || !/SQLITE_BUSY|database is locked/i.test(String(error))) throw error; await new Promise((resolve) => setTimeout(resolve, 100 + Math.floor(Math.random() * 200))); }
+      }
       return { client, database: drizzle(client, { schema }) as Database };
     }
     const client = createWebClient({ url: config.url, authToken: config.authToken });
@@ -34,37 +38,63 @@ async function getRuntime(): Promise<Runtime> {
 
 export function getMigrationStatus() { return migrationStatus; }
 
+async function readApplied(client: Client): Promise<Set<string>> {
+  return new Set((await client.execute("SELECT hash FROM __drizzle_migrations")).rows.map((row) => String(row.hash)));
+}
+
+const RETRYABLE = /SQLITE_BUSY|database is locked|already exists|duplicate column/i;
+
+/**
+ * Apply every committed migration that the ledger does not list yet. Several
+ * server instances may boot at once, so a locked database or a migration that
+ * another instance just applied is retried with a short pause, not treated as
+ * a failure. Only a migration that is still pending after the retries fails.
+ */
 export async function ensureMigrated(): Promise<void> {
   migrationPromise ??= (async () => {
     try {
       const { client } = await getRuntime();
       const { migrations } = await import("./migrations.generated");
-      await client.execute("CREATE TABLE IF NOT EXISTS __drizzle_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, hash TEXT NOT NULL, created_at INTEGER)");
-      const applied = new Set((await client.execute("SELECT hash FROM __drizzle_migrations")).rows.map((row) => String(row.hash)));
+      for (let attempt = 0; ; attempt += 1) {
+        try { await client.execute("CREATE TABLE IF NOT EXISTS __drizzle_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, hash TEXT NOT NULL, created_at INTEGER)"); break; }
+        catch (error) { if (attempt >= 20 || !RETRYABLE.test(String(error))) throw error; await pause(); }
+      }
+      let applied = await readApplied(client);
       for (const migration of migrations) {
         if (applied.has(migration.hash)) continue;
         let last: unknown;
-        for (let attempt = 0; attempt < 2; attempt += 1) {
+        for (let attempt = 0; attempt < 30; attempt += 1) {
           try {
             const tx = await client.transaction("write");
             try {
               for (const statement of migration.sql.split("--> statement-breakpoint").map((item) => item.trim()).filter(Boolean)) await tx.execute(statement);
               await tx.execute({ sql: "INSERT INTO __drizzle_migrations(hash, created_at) VALUES (?, ?)", args: [migration.hash, migration.createdAt] });
               await tx.commit();
-            } catch (error) { await tx.rollback(); throw error; }
-            last = undefined; break;
-          } catch (error) { last = error; if (!String(error).includes("SQLITE_BUSY") || attempt === 1) break; }
+            } catch (error) { await tx.rollback().catch(() => undefined); throw error; }
+            last = undefined;
+            console.log(`Applied migration ${migration.tag}.`);
+            break;
+          } catch (error) {
+            last = error;
+            if (!RETRYABLE.test(String(error))) break;
+            await pause();
+            applied = await readApplied(client).catch(() => applied);
+            if (applied.has(migration.hash)) { last = undefined; break; }
+          }
         }
-        if (last) {
-          const nowApplied = new Set((await client.execute("SELECT hash FROM __drizzle_migrations")).rows.map((row) => String(row.hash)));
-          if (!migrations.every((item) => nowApplied.has(item.hash))) throw last;
-        }
-        console.log(`Applied migration ${migration.tag}.`);
+        if (last) throw last;
       }
       migrationStatus = "ok";
     } catch (error) { migrationStatus = `failed: ${redact(error).split("\n")[0]}`; throw error; }
   })();
   return migrationPromise;
+}
+
+function pause() { return new Promise((resolve) => setTimeout(resolve, 100 + Math.floor(Math.random() * 200))); }
+
+/** Hashes already recorded in the ledger, or an empty set when the ledger does not exist yet. */
+export async function readAppliedMigrationHashes(): Promise<Set<string>> {
+  try { const { client } = await getRuntime(); return await readApplied(client); } catch { return new Set(); }
 }
 
 export async function getDb(): Promise<Database> { await ensureMigrated(); return (await getRuntime()).database; }
@@ -95,6 +125,13 @@ export async function updateRunPlain(runKey: string, patch: Partial<Omit<Workflo
 }
 export async function findLiveRun(path: string, inputHash: string) { return (await (await getDb()).select().from(workflowRuns).where(and(eq(workflowRuns.path, path), eq(workflowRuns.inputHash, inputHash), sql`${workflowRuns.finishedAt} IS NULL`)).limit(1))[0]; }
 export async function findScheduledRun(path: string, scheduledFor: string) { return (await (await getDb()).select().from(workflowRuns).where(and(eq(workflowRuns.path, path), eq(workflowRuns.scheduledFor, scheduledFor))).limit(1))[0]; }
+/** Newest run for a workflow, optionally limited to runs started from one workspace commit. */
+export async function findLatestRun(workflow: string, workspaceHead?: string) {
+  const db = await getDb();
+  const conditions = [or(eq(workflowRuns.workflow, workflow), eq(workflowRuns.path, workflow))];
+  if (workspaceHead) conditions.push(eq(workflowRuns.workspaceHead, workspaceHead));
+  return (await db.select().from(workflowRuns).where(and(...conditions)).orderBy(desc(workflowRuns.startedAt)).limit(1))[0];
+}
 export async function getRunRow(identifier: string) { return (await (await getDb()).select().from(workflowRuns).where(or(eq(workflowRuns.runKey, identifier), eq(workflowRuns.runId, identifier))).limit(1))[0]; }
 export const runLedgerCondition = (runKey: string) => eq(enrichmentRuns.runKey, runKey);
 
