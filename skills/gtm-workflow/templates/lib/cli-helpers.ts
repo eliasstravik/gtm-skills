@@ -19,3 +19,6 @@ export function pendingFrom(files: { file: string; hash: string }[], applied: Se
 export function backgroundArgv(args: string[]): string[] {
   return args.filter((value) => value !== "--background");
 }
+
+/** Paths `gtm upgrade` replaces from the template. The lockfile is authored content: a regenerated one can drop the platform binaries Linux builds need. */
+export const UPGRADE_REPLACES = ["lib", "server", "scripts", "nitro.config.ts", "drizzle.config.ts", "package-lock.json"] as const;

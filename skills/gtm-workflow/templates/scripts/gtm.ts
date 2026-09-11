@@ -6,7 +6,7 @@ import { createServer } from "node:net";
 import { basename, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { executeReadOnly, ensureMigrated, readAppliedMigrationHashes } from "../lib/db";
-import { HELP, backgroundArgv, pendingFrom } from "../lib/cli-helpers";
+import { HELP, UPGRADE_REPLACES, backgroundArgv, pendingFrom } from "../lib/cli-helpers";
 import { ensureRunSecret } from "../lib/local-env";
 import { diagramCost, parseDiagramSpec } from "../lib/diagram-spec";
 import { overlayRun } from "../lib/diagram-overlay";
@@ -124,8 +124,8 @@ async function upgrade(args: string[]) {
   const { positionals, flags } = parse(args), ref = positionals[0] ?? "main"; const temporary = await mkdtemp(join(root, ".gtm-upgrade-"));
   await command("curl", ["-fsSL", `https://github.com/eliasstravik/gtm-skills/archive/${ref}.tar.gz`, "-o", join(temporary, "skills.tgz")]); await command("tar", ["-xzf", join(temporary, "skills.tgz"), "-C", temporary]);
   const sourceRoot = (await walk(temporary, (path) => path.endsWith("/skills/gtm-workflow/templates/package.json")))[0]?.replace(/\/package\.json$/, ""); if (!sourceRoot) throw new AppError("upgrade_failed", "The release does not contain the workflow template.");
-  if (!flags.yes) return print({ ref, replaces: ["lib", "server", "scripts", "nitro.config.ts", "drizzle.config.ts"], preserves: ["workflows", "db/tables", "providers", "drizzle", "data", ".env"] });
-  for (const path of ["lib", "server", "scripts", "nitro.config.ts", "drizzle.config.ts"]) await cp(join(sourceRoot, path), join(root, path), { recursive: true, force: true });
+  if (!flags.yes) return print({ ref, replaces: UPGRADE_REPLACES, preserves: ["workflows", "db/tables", "providers", "drizzle", "data", ".env"] });
+  for (const path of UPGRADE_REPLACES) await cp(join(sourceRoot, path), join(root, path), { recursive: true, force: true });
   const current = JSON.parse(await readFile(join(root, "package.json"), "utf8")), next = JSON.parse(await readFile(join(sourceRoot, "package.json"), "utf8")); current.dependencies = { ...current.dependencies, ...next.dependencies }; current.devDependencies = { ...current.devDependencies, ...next.devDependencies }; current.gtm = { ...(current.gtm ?? {}), skillsRelease: ref }; await writeFile(join(root, "package.json"), `${JSON.stringify(current, null, 2)}\n`); process.stdout.write("Run npm ci.\n");
 }
 
