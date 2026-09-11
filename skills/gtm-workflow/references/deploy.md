@@ -1,69 +1,26 @@
-# Deploy GTM workflows to Vercel
+# Deploy
 
-Use this flow for accepted workflow bytes that say `Runs: on Vercel`. The workflow project is the connected workspace repository with Vercel Root Directory `workflows`, production branch `main`, and builds skipped when that directory is unchanged.
+The workspace needs a pushable `origin`. When absent, repository setup is a separate card before deployment.
 
-## One save-and-deploy gate
+## Scripted path
 
-There is no separate deployment action. The save proposal ends its workflow description with `Saving this also puts it live in production.` It states, in words, what the workflow does, where it runs, what it costs per run, what it writes, each table change, the dry-run scope, and that validation passed; it names no files, migrations, or commands.
+1. Run `scripts/setup-workflow-project.sh` from the workspace checkout. Its one approval creates and configures the workflow project.
+2. Paste workflow-specific provider keys that the verification card names.
+3. Confirm the Git commit author is a member of the Vercel team.
 
-Offer a saved-but-not-deployed option only by keeping the draft outside the repository. Do not commit a Vercel workflow draft to another branch or add a second deployment repository.
+Vercel supplies AI Gateway authentication through project OIDC; no Gateway key is required. A locally tested AI step switches to the hosted Gateway model after deployment, and the one-row hosted test proves that path.
 
-## Before the commit
+## Dashboard path
 
-1. Run `npm run gtm -- verify <slug> --input <file>` with the accepted production input; it covers the check, the build initialization check, the dry run, and the diagram export.
-2. On a keyboard, generate committed migrations only after acceptance; on a hosted surface, generate them in the scratch draft before the request so the request already carries the SQL, journal, and snapshot. Inspect the SQL and require its journal entry plus numbered snapshot when schema DDL needs one. State each table change in words in the proposal and any destructive effect with the number of rows affected; show SQL on request; declare `DELETE`, `UPDATE`, `RENAME`, `DROP`, and `CREATE TRIGGER` destructive in the host request. Use expand/contract instead of an in-place rename.
-3. Apply new committed migrations to the workspace Turso database inside the approval-gated save operation, then verify every accepted SQL SHA-256 hash exists in `__drizzle_migrations` before creating the Git commit. A successful command without the ledger entries is a failed save. Migrations must be backward-compatible because an applied migration can outlive a failed commit or deployment. Nothing runs migration as a build side effect.
-4. Require the connected workflow project to expose Vercel system environment variables so `VERCEL_GIT_COMMIT_SHA` is available at runtime.
+1. Vercel → Add New → Project → import the workspace repository.
+2. Set Root Directory to `workflows`.
+3. Settings → General → Node.js Version → 22.x.
+4. Storage → Marketplace → Turso → connect the database.
+5. Settings → Environment Variables → add `GTM_RUN_SECRET`.
+6. Add `CRON_SECRET`.
+7. Add provider keys named by `gtm verify --url`.
+8. Settings → Deployment → enable System Environment Variables.
+9. Settings → Deployment Protection → turn protection off for Production.
+10. Record team, project, and production URL under `gtm.vercel` in `package.json`, then redeploy.
 
-In a sandbox, submit the tracked batch through the environment's native approval control; its approval text is the whole proposal per the shared interaction standard, and the tool call is the only action of the message that carries it. The request names every migration file it carries, includes the generated journal plus any schema snapshot, and declares whether any statement drops a table or column. The tool stages the accepted workflow tree, applies its new migrations through a write credential that exists only for that step, verifies their hashes in the ledger, then atomically commits to `main`. It never receives a Vercel token and never opens `api.vercel.com`.
-
-Build the save manifest from the final payload: exactly one `write` entry for every path in `additions` and one `delete` entry for every path in `deletions`, with no duplicates or extra paths. Include migration SQL, journals, and snapshots in this same mapping. If the host rejects the request before approval, correct the reported missing, extra, or mismatched entries and resubmit the complete request for approval. A rejected request has saved nothing.
-
-On a laptop, place these three non-empty values in ignored `.env.turso`: `TURSO_DATABASE_URL`, the write-only `TURSO_AUTH_TOKEN` used by `db:migrate:cloud`, and `TURSO_READ_ONLY_AUTH_TOKEN` used by `gtm query --cloud` and `db:studio:cloud`. Neither inspection command may fall back to the write token. Run the cloud migration; its credential preflight, exit status, and ledger verification must all pass before committing and pushing the accepted batch to `main`.
-
-## Git-connected project setup
-
-Initial setup is a keyboard operation, not a Slack workflow action:
-
-1. Create or select one Vercel project for the workspace workflows.
-2. Connect it to the same workspace repository.
-3. Set Root Directory to `workflows` and Production Branch to `main`.
-4. Configure the project to skip a build when `workflows/` is unchanged.
-5. Configure Eve's commit-author name and verified Git email to map to the Vercel project owner on Hobby, or a project team member on Pro. The GitHub App remains the committer.
-6. Install Turso or add `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for production.
-7. Add `GTM_RUN_SECRET`, set `CRON_SECRET` to the same value for schedules, and add any Gateway or provider variables named by `.env.example`.
-8. Enable Vercel system environment variables and record the non-secret team, project, and production URL under `package.json` `gtm.vercel`.
-9. Add a Trusted Sources rule permitting the Eve production project to call this protected workflow production project with OIDC.
-10. Set Deployment Protection so production is reachable without a Vercel login: choose **Only Preview Deployments** for Vercel Authentication, or attach a production custom domain. Run routes stay bearer-protected; the diagram routes are protected by their signed links. With protection left on, Slack viewers who open a diagram link see a Vercel login instead of the diagram, and the trusted diagram action reports `protected`.
-
-Do not configure a Vercel deploy token in Eve. Do not give the sandbox Vercel CLI access. `api.vercel.com` stays closed.
-
-## Wait for the exact commit
-
-After the save tool returns the new commit SHA, say `Saved. I'll follow up here when it's live.` The host registers a background deployment watch for that SHA and the original Slack thread. It posts `Live.` on readiness or `Not live after 10 minutes. Nothing ran. I'll look into it.` on timeout before any start. Investigate what the sandbox can reproduce; the no-deploy-token boundary stays. Never ask the user to poll. A trusted workflow start control must:
-
-1. repeat the zero-spend dry run against that exact committed checkout;
-2. poll the bearer-protected `GET /api/deployment` route with Eve's short-lived OIDC identity until it returns that exact SHA;
-3. time out without starting when the SHA never becomes live; and
-4. send the same SHA in `x-gtm-workspace-head` on `POST /api/run/<workflow>` so the runtime rechecks it atomically; production refuses a missing header as well as a mismatch.
-
-The run route returns `409 deployment_not_ready` if production changed between the poll and the start. Never fall back to an older deployment or silently run a different commit.
-
-## Verify
-
-1. Call bearer-protected `GET /api/preflight/<workflow>` on the exact deployed version. It checks every environment name declared by the workflow's adapters, result-table existence, and each declared free authentication check. Adapter metadata must name the cheapest free auth check where one exists; no paid endpoint runs. Trusted preview says `credentials and table verified` on success or names each missing piece, and discloses providers whose free auth check is unavailable. A new table or new adapter cannot be verified against the old deployment: keep that pre-save result pending and recheck after the accepted version is live.
-2. After `Live.`, automatically propose a one-row real smoke run as a separate approval stating its total cost, every call, and external effects. Use the existing start action with checkpoint 1. Free checks run without asking; accepted calls in the same smoke plan never prompt again. Batch parents use a one-row input without a checkpoint. Then inspect the saved result before proposing the larger run.
-2. Query the first rows and inspect the run.
-3. Ask for checkpoint approval and resume the same run. The trusted control resolves the hook token internally and never returns it.
-4. Stop a live run with the trusted cancel action or `npm run gtm -- cancel <runKey> --wait 30`; it is approval-gated, polls through `cancelling`, and reports terminal `cancelled`.
-5. Require a terminal `workflow_runs` row, expected business rows, and a visible run in Vercel Observability.
-6. For a scheduled workflow, invoke its GET route once with `CRON_SECRET`; a second GET for the same UTC date must return `already_ran_today`, even after completion. Verify a missed-date catch-up with reviewed input and `--scheduled-for`.
-7. For a triggered workflow, require `runs get` to show a pending trigger, POST one fixture payload to the bearer-protected trigger route, and require completion. Use a public webhook only when the caller cannot send the bearer, and validate its payload.
-
-## Live state
-
-`Not live yet.` means the accepted commit exists but production does not yet report that SHA. `Live.` means that exact version is deployed and its accepted tables are present; the separately approved smoke run follows. A draft outside Git is neither saved nor live. Register run watches that post checkpoint, completion, failure, or cancellation in the same originating thread.
-
-The platform documentation sets the lowest-plan function cap at 300 seconds; `agent()` defaults below it at 240 seconds. Retained execution is temporary, while `workflow_runs`, the paid ledger, and business tables are the durable record; see the contract for plan retention, request-body, event, step, and child-workflow batching limits.
-
-Cron may double-fire or miss. The `scheduled_for` unique key covers same-day overlap and completed duplicates; delivery payloads use that UTC date, not the SDK run id, for receiver deduplication.
+The Diagram and Runs links require a Vercel login. Data requires a Turso login. A deploy that does not become live in eight minutes reports: `Saved, but the hosted copy did not come live in 8 minutes. Ask whoever set this up to check the Vercel build.`

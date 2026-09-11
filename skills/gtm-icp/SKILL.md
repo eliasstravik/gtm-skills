@@ -20,7 +20,7 @@ Own node-local, freeform Markdown ICPs at `icps/<icp-slug>/ICP.md` across creati
 | Reads | Accepted ICP facts and uncertainty, the root-to-owner `ORG.md` chain, owner-local ICPs, and safe supplied sources |
 | Writes | Only the selected owner's canonical ICP path, or scoped ICP repairs during doctor |
 | Outputs | An accepted node-owned ICP identified by display name and owner chain, a complete health report, or a scoped handoff |
-| Approval | The user accepts a plain-language proposal naming each artifact and its exact effect before any durable write or deletion; a hosted surface's native approval control may be that acceptance |
+| Approval | The agent prepares, stages, inspects, and commits the scoped change locally, then the user approves one plain-language card immediately before the push |
 | Persists | Accepted ICP files in `main` Git history; no hidden coordination state |
 | Handoff | `gtm-workspace` for repository structure or connections, `gtm-persona` for buyers, and `gtm-workflow` for saved operational work |
 
@@ -30,7 +30,7 @@ Use the user's accepted ICP facts and uncertainty, the hosting environment's con
 
 ## Roles
 
-The agent owns the selected ICP lifecycle flow. The user accepts durable changes. `gtm-workspace` owns repository structure and connections; the hosting environment declares fixed connections and any replacement persistence mechanism.
+The agent owns the selected ICP lifecycle flow. The user approves one plain-language card immediately before the push that saves the prepared local commit. `gtm-workspace` owns repository structure and connections.
 
 ## Procedure
 
@@ -56,8 +56,8 @@ If no valid workspace is connected or discoverable, stop without writing and dir
 - Follow the shared interaction standard for every question, proposal, approval, and closing message; ask every missing result-changing fact in one decision message and never use `AskUserQuestion`.
 - Preserve every supplied qualification, disqualifier, and uncertainty; organization facts and adjacent ICPs are a factual ceiling, never evidence for invented ICP claims.
 - Keep all 13 company-data fields in the required order for every new or fully researched `ICP.md`; write `Unknown` instead of inventing or dropping unresolved criteria.
-- Describe every proposed artifact and exact effect before writing and never show complete bytes unless asked; create new ICPs only at the canonical nested path, preserve legacy reads and node-local visibility, and mutate only ICP paths.
-- Keep accepted changes on `main`, stage only accepted ICP paths, inspect the staged diff, and close a verified durable result with `Saved.`
+- Prepare only the requested ICP files locally and never show complete bytes unless asked; the card must describe exactly what the prepared commit changes. Preserve legacy reads and node-local visibility and mutate only ICP paths.
+- Stage only named ICP paths, inspect the diff, commit locally, then show one card naming what changes and invoke `git push` with that card as the approval summary. Close a verified push with `Saved.`
 
 ## References
 

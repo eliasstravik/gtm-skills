@@ -1,4 +1,3 @@
-// gtm-lib v23
 import { createHash, randomBytes } from "node:crypto";
 import { defineEventHandler } from "nitro/h3";
 import { start } from "workflow/api";
@@ -70,12 +69,7 @@ export default defineEventHandler(async (event) => {
   if (requestedDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
     return error(400, "invalid_scheduled_for", "scheduled-for must be YYYY-MM-DD");
   }
-  let scheduledFor: string | null;
-  try {
-    scheduledFor = method === "GET" ? scheduleWindow(Date.now(), requestUrl.searchParams.get("cadence-minutes")) : requestedDate;
-  } catch {
-    return error(400, "invalid_cadence", "cadence-minutes must be a positive divisor of 1440");
-  }
+  const scheduledFor = method === "GET" ? scheduleWindow(Date.now()) : requestedDate;
   if (scheduledFor) {
     const existing = await findScheduledRun(workflowPath, scheduledFor);
     if (existing) {

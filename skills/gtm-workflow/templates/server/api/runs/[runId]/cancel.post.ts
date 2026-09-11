@@ -1,4 +1,3 @@
-// gtm-lib v23
 import { defineEventHandler } from "nitro/h3";
 import { z } from "zod";
 import { cancelRunTree, getRunRow, reconcileRun } from "../../../../lib/db";

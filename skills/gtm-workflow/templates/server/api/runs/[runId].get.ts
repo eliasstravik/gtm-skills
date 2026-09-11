@@ -1,4 +1,3 @@
-// gtm-lib v23
 import { defineEventHandler } from "nitro/h3";
 import { getRun } from "workflow/api";
 import { WorkflowRunFailedError } from "workflow/errors";
@@ -6,7 +5,6 @@ import {
   getRunCostSources,
   getRunLedgerSummary,
   getRunRow,
-  getChildRuns,
   reconcileRun,
 } from "../../../lib/db";
 import { redact, redactValue } from "../../../lib/redact";
@@ -49,12 +47,6 @@ export default defineEventHandler(async (event) => {
     trigger_token: row.triggerToken,
     cost_sources: await getRunCostSources(row.runKey),
     ledger_summary: await getRunLedgerSummary(row.runKey),
-    children: (await getChildRuns(row.runKey)).map((child) => ({
-      runKey: child.runKey, runId: child.runId, workflow: child.workflow, status: child.status,
-      completed: child.completed, failed: child.failed, costUsd: child.costUsd,
-      remainingKeys: child.remainingKeys ? JSON.parse(child.remainingKeys) : [],
-      parentRunKey: child.parentRunKey,
-    })),
   };
   if (["completed", "stopped", "timed_out"].includes(row.status) && row.runId) {
     const run = getRun(row.runId);

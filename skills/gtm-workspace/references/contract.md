@@ -37,7 +37,7 @@ Use this contract when creating, importing, updating, deleting, or doctoring a G
 - Tracked content contains no machine state: no hidden coordination state, caches, generated indexes, run outputs, or logs. The workflow project's exact dependency pins and lockfile are authored content. Workflow working state is permitted only when gitignored and untracked.
 - Repos contain no empty directories or placeholder files. Omit unknown sections or leave a short factual note; never write TODO/TBD-only artifacts.
 - Everything stays on `main`. Accepted changes are committed; history is the undo mechanism.
-- Describe every durable change in chat before writing it, following the [shared interaction standard](interaction.md). Accepting the create proposal, which names the organization `plus the workspace's standard setup files`, also accepts the three boilerplate files.
+- Prepare every requested change locally, stage only named paths, inspect the diff, and commit before showing the card under the [shared interaction standard](interaction.md). The card names the organization `plus the workspace's standard setup files` when it includes the three boilerplate files.
 
 ## Content shapes
 
@@ -54,11 +54,11 @@ Canonical discovery accepts a workspace only when its root contains `ORG.md`. Lo
 Legacy flat `icps/<slug>.md` and `personas/<slug>.md` artifacts remain valid skill-owned inputs. `gtm-workspace` does not migrate them; `gtm-icp` and `gtm-persona` read, update, and delete them in place while writing all new artifacts in canonical nested form.
 
 - Create writes only the canonical names and paths.
-- Import and doctor inventory legacy paths recursively at every organization node. Before writing, describe each rename or move in words.
+- Import and doctor inventory legacy paths recursively at every organization node. The approval card describes each prepared rename or move in words.
 - Rename each legacy `org.md` to `ORG.md` in place.
 - Move each legacy `people/<person-slug>/person.md` or `people/<person-slug>/PERSON.md` to `members/<member-slug>/MEMBER.md` under the same organization node. Rename `Suborgs:` to `Suborganizations:` while preserving its values.
 - If canonical and legacy paths collide, never overwrite. Describe both, show their content when asked, and ask the user to merge, choose a different slug, or cancel.
-- After an accepted migration, remove only legacy directories made empty by the approved moves, save one `Migrate GTM workspace layout` history entry, and rerun canonical validation. A cancelled migration leaves every byte and path unchanged.
+- Remove only legacy directories made empty by the requested moves, save one local `Migrate GTM workspace layout` history entry, and rerun canonical validation before the card. A cancelled card leaves the prepared commit local and unpushed.
 
 ## Link safety
 
@@ -83,20 +83,20 @@ For defects, describe each repair in words, naming an artifact by display name a
 
 ## Persistence contract
 
-Every accepted durable change ends on `main`: described before writing, written exactly as accepted, recorded as one plain-English history entry per accepted proposal, and undoable through history. Close with `Saved.`
+Every saved change ends on `main`: prepared locally, described exactly by one card, pushed only after approval, recorded as one plain-English history entry, and undoable through history. Close with `Saved.`
 
-The background git ritual below is the default mechanism. A hosting environment may declare a different durable-write mechanism for its connected repo; that declaration replaces only the mechanism. Every guarantee above still applies, and a hosting environment's native approval control is the accept step on that surface: the whole proposal is that control's approval text, and no numbered accept precedes it. Never name, assume, or work around a specific hosted mechanism; follow the environment's own instructions for how a durable write happens. If the environment's mechanism cannot durably perform an accepted operation, stop, explain in plain English what could not be saved, and offer completing it from a keyboard; never report an unsaved change as saved.
+The background git ritual below is the default mechanism. A hosting environment may declare a different durable-write mechanism for its connected repo; that declaration replaces only the mechanism. Every guarantee above still applies, and a hosting environment's native approval control is the push approval: the whole card is that control's text, and no numbered accept precedes it. If the environment cannot save an approved prepared commit, stop, explain what could not be saved, and offer completing it from a keyboard; never report an unpushed change as saved.
 
 A connected repo whose root has neither `ORG.md` nor legacy `org.md` is not yet a canonical workspace. Its first saved change writes root `ORG.md` together with the contract files (`AGENTS.md`, `CLAUDE.md`, `.gitignore`) in one history entry; a hosting environment may refuse every other write until root `ORG.md` exists. Files outside the contract that the repo already carries, such as a README, are left untouched.
 
 ## Background git ritual (default mechanism)
 
-Run this after each accepted write or in-repo deletion when no environment-declared mechanism applies:
+Run this around each requested write or in-repo deletion when no environment-declared mechanism applies:
 
 1. Confirm the repo is on `main`; never create a branch or worktree.
-2. Stage only the accepted paths and inspect the staged diff.
+2. Prepare the change, stage only the named paths, and inspect the staged diff.
 3. Commit once with a plain-English message such as `Add member: Jane Doe`.
-4. If a remote exists, pull with rebase, then push. Set the upstream on the first push when needed. Never force-push.
+4. Show one card describing that commit. On approval, push it and set the upstream when needed. Never force-push.
 5. Close with `Saved.`, not with commit hashes, paths, or history vocabulary.
 
 If any git step fails, explain the effect on saved history or private sharing without jargon. Keep branch, remote, upstream, and command details under optional technical details unless one is needed to fix the problem. Offer numbered recovery options with exactly one `(Recommended)` and the required reply line. Never change global git configuration. Create/import check that git is installed before touching the target. Create sets the repo-local identity once, to the operator's accepted name and email when the operator is in the accepted batch and to `GTM Workspace <gtm@local>` otherwise, so the single create history entry carries that identity.

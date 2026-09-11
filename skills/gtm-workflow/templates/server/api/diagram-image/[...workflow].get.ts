@@ -1,4 +1,3 @@
-// gtm-lib v23
 import { defineEventHandler } from "nitro/h3";
 import { readFontBytes, resolveDiagramRequest } from "../../../lib/diagram-route";
 import { renderPng, renderSvg } from "../../../lib/diagram-svg";

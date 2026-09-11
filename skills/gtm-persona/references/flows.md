@@ -25,24 +25,24 @@ Reply with a number, or type your answer.
 4. Apply link safety to supplied sources. Research every field in `person-data.md` when safe sources are available, but persist only criteria the user supplies or accepts. Organization and member facts do not establish persona criteria.
 5. Compare only owner-local personas for material overlap. If a near-duplicate exists, explain it and ask whether to update the existing persona `(Recommended)` or continue with a distinct definition.
 6. Draft one `personas/<slug>/PERSONA.md` per supplied persona from `templates/persona.md`. Keep all eight shared fields in order, use `Unknown` for unresolved criteria, and preserve uncertainty, authority limits, and disqualifiers in optional sections. Omit empty optional sections.
-7. Present one proposal per the standard covering every drafted persona: each by identity (`<display name> (<root> › <owner chain>)`) on one line, the defining facts stated once for the batch when shared, and any overlap in one line. Show the complete draft only when asked.
-8. After acceptance, create only the needed `personas/<slug>/` directories and `PERSONA.md` files, persist every accepted persona in one durable change, and close per the standard: each persona by identity, then `Saved.`
+7. Create only the needed `personas/<slug>/` directories and `PERSONA.md` files, stage those named paths, inspect the diff, and commit locally.
+8. Present one card per the standard covering every prepared persona: each by identity (`<display name> (<root> › <owner chain>)`) on one line, the defining facts stated once for the batch when shared, and any overlap in one line. Show the complete draft only when asked. On approval push the prepared commit, then close with each persona by identity and `Saved.`
 
 ## Update
 
 1. Resolve the workspace and target under the artifact-reading node rule.
 2. If several personas are visible and none was named, list only those visible personas by identity and ask which one to update.
 3. Read the target and `ORG.md` chain. Gather only the requested change and preserve unrelated facts and freeform headings. For a full research refresh, apply every field in `person-data.md`, keep unresolved shared fields visible as `Unknown`, preserve accepted criteria that new evidence does not disprove, and persist only criteria the user supplies or accepts.
-4. Present one proposal per the standard: the persona by identity and the changed facts only, each `was X, now Y`. Show complete before and after content only when asked.
-5. After acceptance, write exactly the accepted result, persist only that persona, and close with the persona by identity, the exact change summary, and `Saved.`
+4. Write only the requested result, stage the named persona path, inspect the diff, and commit locally.
+5. Present one card per the standard: the persona by identity and the changed facts only, each `was X, now Y`. Show complete before and after content only when asked. On approval push the prepared commit and close with the persona by identity, the exact change summary, and `Saved.`
 
 ## Delete
 
 1. Resolve the workspace and target under the artifact-reading node rule.
 2. If several personas are visible and none was named, list only those visible personas by identity and ask which one to delete.
-3. Present one proposal per the standard: the persona by identity and that it will no longer be available.
-4. After acceptance, delete only that file, remove its artifact directory if empty, and remove `personas/` if the accepted deletion makes it empty.
-5. Persist the deletion and close with what disappeared by identity, `Saved.`, and the standard's one-sentence restore offer.
+3. Delete only that file, remove its artifact directory if empty, remove `personas/` if the deletion makes it empty, stage the named paths, inspect the diff, and commit locally.
+4. Present one card per the standard: the persona by identity and that it will no longer be available.
+5. On approval push the prepared commit and close with what disappeared by identity, `Saved.`, and the standard's one-sentence restore offer.
 
 ## Doctor
 
@@ -50,8 +50,8 @@ Reply with a number, or type your answer.
 2. Report healthy checks and every persona defect: canonical `personas/<slug>/PERSONA.md` whose `personas/` owner lacks `ORG.md`, a canonical directory slug that is not lowercase kebab-case, a canonical filename other than `PERSONA.md`, a missing display-name H1, content with no lead-matchable fact, a placeholder/TODO husk, or a canonical/legacy slug collision. Treat a legacy `personas/<slug>.md` as compatible when its owner, slug, H1, and substance are healthy.
 3. Treat freeform files as healthy without template conformity. Preserve useful facts while renaming or restoring an H1; never invent substance to rescue a husk.
 4. If healthy, change nothing and close with the complete health report.
-5. If defective, present one proposal per the standard listing every repair in words. Name an artifact by identity when it has a display-name heading and an owning node; otherwise name its slug or path, because nothing else identifies it. State that non-persona files remain untouched. Show replacement content only when asked.
-6. After acceptance, apply only the proposal, save the set once as `Repair Persona artifacts`, rerun every check, and close with resulting health and `Saved.`
+5. If defective, apply only the scoped repairs, stage their named paths, inspect the diff, commit once as `Repair Persona artifacts`, and rerun every check.
+6. Present one card listing every repair in words. Name a file by identity when it has a display-name heading and an owning node; otherwise name its slug or path. State that non-persona files remain untouched. Show replacement content only when asked. On approval push and close with resulting health and `Saved.`
 
 ## Sibling and runtime boundaries
 

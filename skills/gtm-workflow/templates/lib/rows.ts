@@ -1,4 +1,3 @@
-// gtm-lib v23
 import {
   cancellationHook,
   cancellationToken,

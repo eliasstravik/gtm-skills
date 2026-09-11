@@ -1,4 +1,3 @@
-// gtm-lib v23
 import { sql } from "drizzle-orm";
 import {
   index,

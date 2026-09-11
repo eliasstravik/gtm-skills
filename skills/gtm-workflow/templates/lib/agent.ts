@@ -1,493 +1,87 @@
-// gtm-lib v23
-// Call agent() from inside a "use step" function; see the workflow contract for the step rules.
 import { spawn } from "node:child_process";
-import { constants } from "node:fs";
-import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { delimiter, join } from "node:path";
-import { generateText, gateway, jsonSchema, Output, stepCountIs } from "ai";
+import { join } from "node:path";
+import { generateText, gateway, jsonSchema, Output } from "ai";
 import { z } from "zod";
-import {
-  provider,
-  ProviderPreCallError,
-  type PaidCallMeta,
-} from "./provider";
+import { provider, ProviderPreCallError, type PaidCallMeta } from "./provider";
 import { redact } from "./redact";
 import { workflowModel } from "./model";
 export { DEFAULT_WORKFLOW_MODEL } from "./model";
 
 export type AgentTools = "none" | "web" | "host-default";
+export type Backend = "gateway" | "claude" | "codex";
+export type CliCapability = { bin: string; headless: true; canDisableTools: boolean; canRestrictTools: boolean; budgetFlag?: string; turnsFlag?: string; mcpHeaders: boolean };
+export const CLI_CAPABILITIES: Record<Exclude<Backend, "gateway">, CliCapability> = {
+  claude: { bin: "claude", headless: true, canDisableTools: true, canRestrictTools: true, budgetFlag: "--max-budget-usd", mcpHeaders: true },
+  codex: { bin: "codex", headless: true, canDisableTools: false, canRestrictTools: true, mcpHeaders: true },
+};
+const CODEX_USD_PER_MILLION: Record<string, { input: number; output: number }> = { "gpt-5.3-codex": { input: 1.75, output: 14 }, "gpt-5.4": { input: 2.5, output: 15 } };
 
 export interface AgentInput<T extends z.ZodTypeAny> {
-  prompt: string;
-  context?: string;
-  contextId?: string;
-  schema: T;
-  meta: PaidCallMeta;
-  tools?: AgentTools;
-  model?: string;
-  reasoning?: Parameters<typeof generateText>[0]["reasoning"];
-  /** Claude checks this between turns. Other backends do not honor it. */
-  maxUsd?: number;
-  timeoutMs?: number;
-  ttlMs?: number;
-  signal?: AbortSignal;
+  prompt: string; context?: string; contextId?: string; schema: T; meta: PaidCallMeta; step: string;
+  tools?: AgentTools; untrusted?: boolean; model?: string; reasoning?: Parameters<typeof generateText>[0]["reasoning"];
+  maxUsd?: number; timeoutMs?: number; ttlMs?: number; signal?: AbortSignal; providerKeys?: string[];
 }
 
-type Context = {
-  prompt: string;
-  schemaJson: string;
-  schemaFile: string;
-  outFile: string;
-  tools: AgentTools;
-  maxUsd?: number;
-};
+export async function resolveBackend(): Promise<Backend> {
+  if (process.env.AI_GATEWAY_API_KEY || process.env.VERCEL) return "gateway";
+  if (process.env.GTM_HOST === "claude" || process.env.GTM_HOST === "codex") return process.env.GTM_HOST;
+  if (process.env.GTM_HOST === "eve") throw new Error("This needs an AI key on the hosted project.");
+  throw new Error("Add an AI key to .env, or set GTM_HOST.");
+}
 
-type CliBackend = {
-  bin: string;
-  webSafe: boolean;
-  noToolsSafe: boolean;
-  args: (context: Context) => string[];
-  parse: (stdout: string, context: Context) => Promise<BackendResult>;
-};
-
-type BackendResult = { value: unknown; costUsd?: number };
-
-const JSON_INSTRUCTION = (schemaJson: string) =>
-  `\n\nRespond with only a JSON object matching this JSON Schema, no prose:\n${schemaJson}`;
-
-const CLI: Record<string, CliBackend> = {
-  /** Verified live. structured_output holds schema output. WebSearch and WebFetch can be allowlisted. */
-  claude: {
-    bin: "claude",
-    webSafe: true,
-    noToolsSafe: true,
-    args: (context) => [
-      "-p",
-      context.prompt,
-      "--output-format",
-      "json",
-      "--json-schema",
-      context.schemaJson,
-      "--permission-mode",
-      "dontAsk",
-      "--no-session-persistence",
-      ...(context.tools === "web"
-        ? [
-            "--tools",
-            "WebSearch,WebFetch",
-            "--allowedTools",
-            "WebSearch,WebFetch",
-            "--max-turns",
-            "30",
-          ]
-        : context.tools === "none"
-          ? ["--tools", "", "--max-turns", "3"]
-          : ["--max-turns", "30"]),
-      ...(context.maxUsd
-        ? ["--max-budget-usd", String(context.maxUsd)]
-        : []),
-    ],
-    parse: async (stdout) => {
-      const result = JSON.parse(stdout);
-      if (result.is_error) {
-        throw new Error(`claude: ${result.result ?? "error"}`);
-      }
-      return {
-        value: result.structured_output ?? extractJson(result.result),
-        costUsd:
-          typeof result.total_cost_usd === "number"
-            ? result.total_cost_usd
-            : undefined,
-      };
-    },
-  },
-  /** Verified live. The -o file holds schema output. Read-only mode can still read disk, so webSafe is false. */
-  codex: {
-    bin: "codex",
-    webSafe: false,
-    noToolsSafe: false,
-    args: (context) => [
-      "exec",
-      "--output-schema",
-      context.schemaFile,
-      "-o",
-      context.outFile,
-      "--sandbox",
-      "read-only",
-      "--ephemeral",
-      "--skip-git-repo-check",
-      context.prompt,
-    ],
-    parse: async (_stdout, context) => ({
-      value: JSON.parse(await readFile(context.outFile, "utf8")),
-    }),
-  },
-  /** Flags verified from help text. result holds text. The CLI has no web-only allowlist. */
-  cursor: {
-    bin: "agent",
-    webSafe: false,
-    noToolsSafe: false,
-    args: (context) => [
-      "-p",
-      context.prompt + JSON_INSTRUCTION(context.schemaJson),
-      "--output-format",
-      "json",
-    ],
-    parse: async (stdout) => ({ value: extractJson(JSON.parse(stdout).result) }),
-  },
-  /** Flags verified from help text. response holds text. Its tool controls were not verified, so webSafe is false. */
-  gemini: {
-    bin: "gemini",
-    webSafe: false,
-    noToolsSafe: false,
-    args: (context) => [
-      "-p",
-      context.prompt + JSON_INSTRUCTION(context.schemaJson),
-      "-o",
-      "json",
-    ],
-    parse: async (stdout) => ({ value: extractJson(JSON.parse(stdout).response) }),
-  },
-  /** Flags verified from help text. JSON events hold the text. The CLI has no verified web-only allowlist. */
-  opencode: {
-    bin: "opencode",
-    webSafe: false,
-    noToolsSafe: false,
-    args: (context) => [
-      "run",
-      "--format",
-      "json",
-      context.prompt + JSON_INSTRUCTION(context.schemaJson),
-    ],
-    parse: async (stdout) => ({ value: extractJson(stdout) }),
-  },
-};
-
-const CLI_ORDER = ["claude", "codex", "cursor", "gemini", "opencode"];
-
-/**
- * GTM_WORKFLOW_MODEL configures the Claude CLI or API model. The api backend uses
- * AI_GATEWAY_API_KEY with Vercel AI Gateway and defaults to
- * DEFAULT_WORKFLOW_MODEL. Gateway web search runs one search call and one tool-free answer call.
- */
-const API_BACKEND = "api";
-
-export async function agent<T extends z.ZodTypeAny>(
-  input: AgentInput<T>,
-): Promise<z.infer<T>> {
+export async function agent<T extends z.ZodTypeAny>(input: AgentInput<T>): Promise<z.infer<T>> {
+  const backend = await resolveBackend();
+  if (input.untrusted && backend !== "gateway" && !CLI_CAPABILITIES[backend].canDisableTools) throw new ProviderPreCallError("This input needs an AI key so tools can be disabled.");
+  const prompt = input.context ? `${input.prompt}\n\nContext${input.contextId ? ` (${input.contextId})` : ""}:\n${input.context}` : input.prompt;
   const schemaJson = strictSchema(z.toJSONSchema(input.schema));
-  const prompt = input.context
-    ? `${input.prompt}\n\nContext${input.contextId ? ` (${input.contextId})` : ""}:\n${input.context}`
-    : input.prompt;
-  const runtimeInput: RuntimeInput = {
-    prompt,
-    schemaJson,
-    tools: input.tools ?? "none",
-    maxUsd: input.maxUsd,
-    timeoutMs: input.timeoutMs,
-    signal: input.signal,
-    model: workflowModel(input.model),
-    reasoning: input.reasoning ?? "high",
-  };
-  const backend = await pickBackend();
-  if (
-    backend !== API_BACKEND &&
-    runtimeInput.tools === "none" &&
-    !CLI[backend].noToolsSafe
-  ) {
-    throw new ProviderPreCallError(
-      `${backend} cannot enforce tools: "none". Use claude or api for untrusted input, or pass tools: "host-default" only after accepting host tool access.`,
-    );
-  }
-  const model = backend === API_BACKEND ? runtimeInput.model :
-    input.model ?? process.env.GTM_WORKFLOW_MODEL ?? process.env.GTM_AGENT_MODEL ?? "default";
-  runtimeInput.model = model;
-  const result = await provider({
-    name: "agent",
-    endpoint: `${backend}/${model}`,
-    input: {
-      prompt,
-      contextId: input.contextId ?? null,
-      schema: schemaJson,
-      tools: runtimeInput.tools,
-      reasoning: runtimeInput.reasoning,
-    },
-    schema: input.schema,
-    ttlMs: input.ttlMs ?? 30 * 24 * 60 * 60 * 1_000,
-    costUsd: input.maxUsd,
-    costSource: "projected",
-    meta: input.meta,
-    call: async () => {
-      const called =
-        backend === API_BACKEND
-          ? await viaApi(runtimeInput)
-          : await viaCli(backend, runtimeInput);
-      return {
-        value: called.value as z.input<T>,
-        costUsd: called.costUsd ?? input.maxUsd,
-      };
-    },
-  });
+  const model = workflowModel(input.model);
+  const result = await provider({ step: input.step, name: "agent", endpoint: `${backend}/${model}`, input: { prompt, schemaJson, tools: input.tools ?? "none", reasoning: input.reasoning }, schema: input.schema, ttlMs: input.ttlMs ?? 2_592_000_000, costUsd: input.maxUsd, costSource: "projected", meta: input.meta,
+    call: async () => backend === "gateway" ? viaApi({ prompt, schemaJson, model, reasoning: input.reasoning, tools: input.tools, timeoutMs: input.timeoutMs, signal: input.signal }) : viaCli(backend, { prompt, schemaJson, model: input.model ?? "default", maxUsd: input.maxUsd, timeoutMs: input.timeoutMs, signal: input.signal, providerKeys: input.providerKeys }) });
   return result.value;
 }
 
-type RuntimeInput = {
-  model: string;
-  reasoning: AgentInput<z.ZodTypeAny>["reasoning"];
-  prompt: string;
-  schemaJson: Record<string, unknown>;
-  tools: AgentTools;
-  maxUsd?: number;
-  timeoutMs?: number;
-  signal?: AbortSignal;
-};
-
-async function pickBackend(): Promise<string> {
-  const explicit = process.env.GTM_AGENT_BACKEND;
-  if (process.env.GTM_SANDBOX === "1" && explicit !== API_BACKEND) {
-    throw new Error(
-      "GTM_SANDBOX=1 requires GTM_AGENT_BACKEND=api; CLI backends are disabled in the sandbox.",
-    );
-  }
-  if (explicit) {
-    if (explicit === API_BACKEND) {
-      if (!process.env.AI_GATEWAY_API_KEY && process.env.GTM_PROVIDER_MODE !== "fixture") {
-        throw new Error(
-          "The api agent backend needs AI_GATEWAY_API_KEY with a spending budget.",
-        );
-      }
-      return explicit;
-    }
-    if (!CLI[explicit]) {
-      throw new Error(`Unknown GTM_AGENT_BACKEND "${explicit}"`);
-    }
-    return explicit;
-  }
-
-  for (const name of CLI_ORDER) {
-    if (await onPath(CLI[name].bin)) return name;
-  }
-
-  if (process.env.AI_GATEWAY_API_KEY) return API_BACKEND;
-
-  throw new Error(
-    "No agent backend: install a CLI agent (claude, codex, cursor, gemini, opencode) or set AI_GATEWAY_API_KEY.",
-  );
+async function viaApi(input: { prompt: string; schemaJson: any; model: string; reasoning?: any; tools?: AgentTools; timeoutMs?: number; signal?: AbortSignal }) {
+  const abortSignal = AbortSignal.any([AbortSignal.timeout(input.timeoutMs ?? 240_000), ...(input.signal ? [input.signal] : [])]);
+  const result = await generateText({ model: input.model, reasoning: input.reasoning ?? "high", prompt: input.prompt, output: Output.object({ schema: jsonSchema(input.schemaJson) }), ...(input.tools === "web" ? { tools: { exa_search: gateway.tools.exaSearch({ type: "fast", numResults: 5 }) } } : {}), abortSignal });
+  const cost = (result.providerMetadata?.gateway as { cost?: number | string } | undefined)?.cost;
+  return { value: result.output, costUsd: cost === undefined ? undefined : Number(cost) };
 }
 
-async function viaCli(name: string, input: RuntimeInput) {
-  const backend = CLI[name];
-  if (input.tools === "web" && !backend.webSafe) {
-    throw new Error(
-      `${name} cannot be restricted to web tools; use claude, set GTM_AGENT_BACKEND=api, or run without web tools.`,
-    );
-  }
-  if (input.tools === "none" && !backend.noToolsSafe) {
-    throw new ProviderPreCallError(
-      `${name} cannot enforce tools: "none" and was stopped before spawn.`,
-    );
-  }
-
-  const cwd = await mkdtemp(join(tmpdir(), "gtm-agent-"));
+async function viaCli(name: Exclude<Backend, "gateway">, input: { prompt: string; schemaJson: any; model: string; maxUsd?: number; timeoutMs?: number; signal?: AbortSignal; providerKeys?: string[] }) {
+  const directory = await mkdtemp(join(tmpdir(), "gtm-agent-"));
   try {
-    const schemaJson = JSON.stringify(input.schemaJson);
-    const context: Context = {
-      prompt: input.prompt,
-      schemaJson,
-      schemaFile: join(cwd, "schema.json"),
-      outFile: join(cwd, "out.json"),
-      tools: input.tools,
-      maxUsd: input.maxUsd,
-    };
-    await writeFile(context.schemaFile, schemaJson);
-
-    const env: Record<string, string> = {
-      HOME: process.env.HOME ?? "",
-      PATH: process.env.PATH ?? "",
-      NO_COLOR: "1",
-      TERM: "dumb",
-    };
-    if (name === "claude" && input.model !== "default") {
-      env.ANTHROPIC_MODEL = input.model;
-    }
-    const stdout = await run(backend.bin, backend.args(context), {
-      cwd,
-      env,
-      timeoutMs: input.timeoutMs ?? 240_000,
-      signal: input.signal,
-    });
-    return await backend.parse(stdout, context);
-  } finally {
-    await rm(cwd, { recursive: true, force: true });
-  }
+    const schemaFile = join(directory, "schema.json"), outputFile = join(directory, "out.json");
+    await writeFile(schemaFile, JSON.stringify(input.schemaJson));
+    const args = name === "claude"
+      ? ["-p", input.prompt, "--output-format", "json", "--json-schema", JSON.stringify(input.schemaJson), "--permission-mode", "dontAsk", "--no-session-persistence", "--tools", "", ...(input.maxUsd ? ["--max-budget-usd", String(input.maxUsd)] : [])]
+      : ["exec", "--output-schema", schemaFile, "-o", outputFile, "--sandbox", "read-only", "--ephemeral", "--skip-git-repo-check", "--json", input.prompt];
+    const stdout = await run(CLI_CAPABILITIES[name].bin, args, { cwd: directory, env: childEnv(input.providerKeys, name === "claude" && input.model !== "default" ? { ANTHROPIC_MODEL: input.model } : {}), timeoutMs: input.timeoutMs ?? 240_000, signal: input.signal });
+    if (name === "claude") { const value = JSON.parse(stdout); if (value.is_error) throw new Error(String(value.result)); return { value: value.structured_output, costUsd: value.total_cost_usd }; }
+    const value = JSON.parse(await readFile(outputFile, "utf8"));
+    const usage = [...stdout.matchAll(/"input_tokens":(\d+).*?"output_tokens":(\d+)/g)].at(-1);
+    const price = CODEX_USD_PER_MILLION[input.model] ?? CODEX_USD_PER_MILLION["gpt-5.3-codex"];
+    return { value, costUsd: usage ? (Number(usage[1]) * price.input + Number(usage[2]) * price.output) / 1_000_000 : undefined };
+  } finally { await rm(directory, { recursive: true, force: true }); }
 }
 
-async function viaApi(input: RuntimeInput): Promise<BackendResult> {
-  const { model, reasoning } = input;
-  const timeoutSignal = AbortSignal.timeout(input.timeoutMs ?? 240_000);
-  const abortSignal = input.signal
-    ? AbortSignal.any([timeoutSignal, input.signal])
-    : timeoutSignal;
-  const output = Output.object({ schema: jsonSchema(input.schemaJson) });
-  const costs: number[] = [];
-  const record = (result: { providerMetadata?: Record<string, unknown> }) => {
-    const metadata = result.providerMetadata?.gateway as { cost?: number | string } | undefined;
-    if (metadata?.cost !== undefined) costs.push(Number(metadata.cost));
-  };
-
-  if (input.tools !== "web") {
-    const result = await generateText({ model, reasoning, prompt: input.prompt, output, abortSignal });
-    record(result);
-    return finish(result.output, costs);
-  }
-
-  // Web mode runs two calls on purpose. A single call with a forced tool and a
-  // structured output lets the model answer in the same step as the search, so
-  // the evidence never reaches the answer. Call one only searches; call two
-  // answers from that evidence with no tools.
-  const search = await generateText({
-    model,
-    reasoning,
-    prompt: [
-      "Make exactly one Exa search call using one comprehensive query for the task below. Do not answer the task in this turn.",
-      input.prompt,
-    ].join("\n\n"),
-    tools: {
-      exa_search: gateway.tools.exaSearch({
-        type: "fast",
-        numResults: 5,
-        contents: {
-          text: {
-            maxCharacters: 2_500,
-            verbosity: "compact",
-            includeSections: ["body", "metadata"],
-          },
-          highlights: { maxCharacters: 1_000 },
-          maxAgeHours: 0,
-          livecrawlTimeout: 10_000,
-          extras: { links: 10 },
-        },
-      }),
-    },
-    toolChoice: { type: "tool", toolName: "exa_search" },
-    stopWhen: stepCountIs(1),
-    abortSignal,
-  });
-  record(search);
-  const answer = await generateText({
-    model,
-    reasoning,
-    messages: [
-      ...search.response.messages,
-      {
-        role: "user",
-        content: [
-          "Using only the search evidence above, produce the structured result now. Omit anything the evidence does not support.",
-          input.prompt,
-        ].join("\n\n"),
-      },
-    ],
-    output,
-    abortSignal,
-  });
-  record(answer);
-  return finish(answer.output, costs);
+export function childEnv(providerKeys: string[] = [], extra: Record<string, string> = {}) {
+  const env: Record<string, string> = { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? "", NO_COLOR: "1", TERM: "dumb", ...extra };
+  for (const [key, value] of Object.entries(process.env)) if (value && (/^(?:TURSO|GTM|WORKFLOW)_/.test(key) || key === "AI_GATEWAY_API_KEY" || providerKeys.includes(key))) env[key] = value;
+  return env;
 }
 
-function finish(value: unknown, costs: number[]): BackendResult {
-  const reported = costs.filter((cost) => Number.isFinite(cost));
-  return {
-    value,
-    costUsd: reported.length ? reported.reduce((sum, cost) => sum + cost, 0) : undefined,
-  };
-}
-
-function run(
-  bin: string,
-  args: string[],
-  options: {
-    cwd: string;
-    env: Record<string, string>;
-    timeoutMs: number;
-    signal?: AbortSignal;
-  },
-): Promise<string> {
+function run(bin: string, args: string[], options: { cwd: string; env: Record<string, string>; timeoutMs: number; signal?: AbortSignal }): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args, {
-      cwd: options.cwd,
-      env: options.env,
-      stdio: ["ignore", "pipe", "pipe"],
-      detached: true,
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (data) => (stdout += data));
-    child.stderr.on("data", (data) => (stderr += data));
-
-    const timer = setTimeout(() => {
-      try {
-        process.kill(-child.pid!, "SIGKILL");
-      } catch {}
-      reject(new Error(`${bin} timed out after ${options.timeoutMs}ms`));
-    }, options.timeoutMs);
-
-    const abort = () => {
-      try {
-        process.kill(-child.pid!, "SIGKILL");
-      } catch {}
-      reject(options.signal?.reason ?? new Error(`${bin} aborted`));
-    };
-    options.signal?.addEventListener("abort", abort, { once: true });
-
-    child.on("error", (error) => {
-      clearTimeout(timer);
-      options.signal?.removeEventListener("abort", abort);
-      reject(new ProviderPreCallError(error.message));
-    });
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      options.signal?.removeEventListener("abort", abort);
-      if (code === 0) resolve(stdout);
-      else reject(new Error(`${bin} exited ${code}: ${redact(stderr)}`));
-    });
+    const child = spawn(bin, args, { cwd: options.cwd, env: options.env, stdio: ["ignore", "pipe", "pipe"], detached: true }); let stdout = "", stderr = "";
+    child.stdout.on("data", (data) => stdout += data); child.stderr.on("data", (data) => stderr += data);
+    const stop = (error: Error) => { try { process.kill(-child.pid!, "SIGKILL"); } catch {} reject(error); };
+    const timer = setTimeout(() => stop(new Error(`${bin} timed out`)), options.timeoutMs);
+    const abort = () => stop(new Error(`${bin} aborted`)); options.signal?.addEventListener("abort", abort, { once: true });
+    child.on("error", (error) => { clearTimeout(timer); reject(new ProviderPreCallError(error.message)); });
+    child.on("close", (code) => { clearTimeout(timer); options.signal?.removeEventListener("abort", abort); code === 0 ? resolve(stdout) : reject(new Error(`${bin} exited ${code}: ${redact(stderr)}`)); });
   });
 }
 
-async function onPath(bin: string) {
-  for (const dir of (process.env.PATH ?? "").split(delimiter)) {
-    try {
-      await access(join(dir, bin), constants.X_OK);
-      return true;
-    } catch {}
-  }
-  return false;
-}
-
-function extractJson(text: unknown): unknown {
-  const value = String(text ?? "");
-  const start = value.indexOf("{");
-  const end = value.lastIndexOf("}");
-  if (start < 0 || end < start) {
-    throw new Error(`No JSON object in agent output: ${value.slice(0, 200)}`);
-  }
-  return JSON.parse(value.slice(start, end + 1));
-}
-
-// Codex and OpenAI require additionalProperties: false on every object. This
-// also makes every property required, so nullable fields must use .nullable().
-function strictSchema(schema: any): any {
-  if (Array.isArray(schema)) return schema.map(strictSchema);
-  if (schema && typeof schema === "object") {
-    const result: any = {};
-    for (const key of Object.keys(schema)) {
-      if (key !== "$schema") result[key] = strictSchema(schema[key]);
-    }
-    if (result.type === "object") {
-      result.additionalProperties = false;
-      result.required = Object.keys(result.properties ?? {});
-    }
-    return result;
-  }
-  return schema;
-}
+function strictSchema(schema: any): any { if (Array.isArray(schema)) return schema.map(strictSchema); if (schema && typeof schema === "object") { const result: any = {}; for (const key of Object.keys(schema)) if (key !== "$schema") result[key] = strictSchema(schema[key]); if (result.type === "object") { result.additionalProperties = false; result.required = Object.keys(result.properties ?? {}); } return result; } return schema; }
