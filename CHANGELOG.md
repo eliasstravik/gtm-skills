@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4 - 2026-09-11
+
+- `gtm upgrade` keeps the workspace's generated `lib/migrations.generated.ts` instead of overwriting it with the template's copy, which listed the template's migrations rather than the workspace's and made the next startup migration fail with a duplicate column.
+- `gtm upgrade` removes its temporary download directory instead of leaving `.gtm-upgrade-*` behind in the workflow project.
+
 ## 1.0.3 - 2026-09-11
 
 - The `gtm-workflow` description names other workflow engines and unsaved one-off calls in its exclusion clause again, and the `gtm-qualify-prospects` description no longer capitalises a mid-sentence word, so the routing and description checks pass.
