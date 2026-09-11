@@ -22,3 +22,10 @@ export function backgroundArgv(args: string[]): string[] {
 
 /** Paths `gtm upgrade` replaces from the template. The lockfile is authored content: a regenerated one can drop the platform binaries Linux builds need. */
 export const UPGRADE_REPLACES = ["lib", "server", "scripts", "nitro.config.ts", "drizzle.config.ts", "package-lock.json"] as const;
+
+/** Files under the replaced paths that the workspace generates itself, so upgrade must not copy them from the template. */
+export const UPGRADE_KEEPS = ["lib/migrations.generated.ts"] as const;
+
+export function upgradeCopies(relativePath: string): boolean {
+  return !(UPGRADE_KEEPS as readonly string[]).includes(relativePath.split("\\").join("/"));
+}
