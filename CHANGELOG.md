@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.0.3 - 2026-09-11
 
+- The `gtm-workflow` description names other workflow engines and unsaved one-off calls in its exclusion clause again, and the `gtm-qualify-prospects` description no longer capitalises a mid-sentence word, so the routing and description checks pass.
 - `gtm upgrade` also replaces `package-lock.json` from the template. Merging dependencies and regenerating the lockfile locally could drop every platform-specific optional package, after which the Vercel build failed with `Cannot find module '@swc/core-linux-x64-gnu'`.
 
 ## 1.0.2 - 2026-09-11
