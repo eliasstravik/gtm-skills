@@ -60,7 +60,7 @@ function splitChain(command) {
   if (quote) return null; if (value.trim()) result.push(value.trim()); return result;
 }
 function split(command) { const result = []; let value = "", quote = ""; for (const char of command.trim()) { if (quote) { if (char === quote) quote = ""; else value += char; } else if (char === "'" || char === '"') quote = char; else if (/\s/.test(char)) { if (value) { result.push(value); value = ""; } } else value += char; } if (quote) return null; if (value) result.push(value); return result; }
-function roots(cwd) { return [resolve(cwd), resolve(home, ".gtm")]; }
+function roots(cwd) { return [resolve(cwd), resolve(home, ".gtm"), "/tmp/gtm-scratch"]; }
 function safePath(value, cwd) { if (!value || value.startsWith("-") || /[*?{}]/.test(value)) return true; const path = resolve(cwd, value); if (/\/(?:\.env[^/]*|\.gitignore)$/.test(path)) return false; return roots(cwd).some((root) => relative(root, path) === "" || (!relative(root, path).startsWith("..") && !isAbsolute(relative(root, path)))); }
 function pathsSafe(args, cwd) { return args.filter((value) => !value.startsWith("-") && !/^\d+$/.test(value) && !/^[\w.-]+=/.test(value)).every((value) => safePath(value, cwd)); }
 function writeTargets(argv, cwd) { const operands = argv.slice(1).filter((value) => !value.startsWith("-")); if (!operands.length) return false; const targets = argv[0] === "cp" || argv[0] === "mv" ? [operands.at(-1)] : operands; return targets.every((value) => safePath(value, cwd)); }

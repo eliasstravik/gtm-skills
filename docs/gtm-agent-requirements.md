@@ -28,8 +28,16 @@ Import the classifier from `agent/skills/gtm-workflow/scripts/command-permission
 
 ## Skills fetch spike
 
-Pending phase 3. Record the working install command and whether Eve bundles `agent/skills/**` here before deleting the existing vendoring code.
+The current `skills` CLI ignores `--dir`, but
+`npx skills add eliasstravik/gtm-skills#simplify --subagent root --copy --yes`
+installs into `agent/skills/`. Eve 0.52.5 includes that tree in its compiled
+workspace resources and exposes the files through the runtime skill handle.
 
 ## Eve firewall and wait spikes
 
-Pending phase 3. Record whether a per-request GitHub header transform works, whether one bash call can remain open for ten minutes, and whether Slack receives an approval-resolved callback before choosing either fallback.
+A live Vercel Sandbox accepted a policy update that replaced Git's placeholder
+Basic header with a fresh connector token; a private clone and push dry-run
+succeeded without recreating the session. A ten-minute attached command did not
+return after its deadline, so long runs use the named background-plus-`watch_url`
+fallback. Eve emits `approval.settled`, so Slack posts the saving status after
+approval.
