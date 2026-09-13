@@ -53,7 +53,9 @@ const ESTIMATE_USD = 0.05;
 
 async function researchAccount(domain: string) {
   const mcp = await createMCPClient({ transport: new Experimental_StdioMCPTransport({ command: "npx", args: ["-y", "@example/mcp-server"] }) });
-  const agent = new WorkflowAgent({ model: process.env.GTM_MODEL ?? "openai/gpt-5.6-luna", instructions: "Research the company with the tools and report in two sentences.", tools: await mcp.tools(), stopWhen: stepCountIs(6) });
+  // Third-party tool schemas carry optional filters; strict mode (the Gateway default for OpenAI) would force the model to fill every one, so turn it off for tools the workflow did not write.
+  const tools = Object.fromEntries(Object.entries(await mcp.tools()).map(([name, t]) => [name, { ...t, strict: false }]));
+  const agent = new WorkflowAgent({ model: process.env.GTM_MODEL ?? "openai/gpt-5.6-luna", instructions: "Research the company with the tools and report in two sentences.", tools, stopWhen: stepCountIs(6) });
   const result = await agent.stream({ prompt: `Research ${domain}.`, output: Output.object({ schema: Brief }) });
   await mcp.close();
   return { value: result.output, costUsd: ESTIMATE_USD };
