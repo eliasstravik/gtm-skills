@@ -23,7 +23,10 @@ Contents: [Create](#create) · [Create without a connected project](#create-with
 
 **Human:** 1
 
-**Agent:** Since this is Acme's first workflow, I'll set up the workflow runtime first; that takes about a minute. Then I'll create the workflow Score inbound accounts with those three companies as its list: for each one it fetches the company's public site (free), scores it against a copy of the Lean B2B SaaS criteria on your Claude Code subscription (about $0.01 per row), and saves the score and reason to the table inbound_scores. It stops after 200 rows or $5 in one run and skips any company scored in the last 24 hours. Diagram: http://localhost:3939/gtm/score-inbound-accounts
+**Agent:** Since this is Acme's first workflow, I'll set up the workflow runtime first; that takes about a minute. Then I'll create the workflow Score inbound accounts with those three companies as its list: for each one it fetches the company's public site (free), scores it against a copy of the Lean B2B SaaS criteria on your Claude Code subscription (about $0.01 per row), and saves the score and reason to the table inbound_scores. It stops after 200 rows or $5 in one run and skips any company scored in the last 24 hours.
+Diagram: http://localhost:3939/gtm/score-inbound-accounts
+Runs: http://localhost:3939/_workflow
+Data: https://local.drizzle.studio
 
 Saved.
 
@@ -105,7 +108,10 @@ Once that is in place, ask me to run it and I'll test one row first.
 
 **Human:** 1
 
-**Agent:** I'll refresh the workflow's copy of the Lean B2B SaaS criteria, add a headcount column to the table inbound_scores, and read the headcount from the page the workflow already fetches; the runtime restarts once for the table change, and the next run will offer a one-row test because the workflow changed. Diagram: http://localhost:3939/gtm/score-inbound-accounts
+**Agent:** I'll refresh the workflow's copy of the Lean B2B SaaS criteria, add a headcount column to the table inbound_scores, and read the headcount from the page the workflow already fetches; the runtime restarts once for the table change, and the next run will offer a one-row test because the workflow changed.
+Diagram: http://localhost:3939/gtm/score-inbound-accounts
+Runs: http://localhost:3939/_workflow
+Data: https://local.drizzle.studio
 
 Saved.
 
@@ -135,6 +141,9 @@ Saved.
 **Agent:** Running the remaining 35 rows, about $0.35.
 
 Done: 34 companies scored; 1 failed (Northfield's site couldn't be reached; it will be tried again on the next run); 2 skipped (Brightpath and Quill HR, scored today); cost $0.35.
+Diagram: http://localhost:3939/gtm/score-inbound-accounts
+Runs: http://localhost:3939/_workflow
+Data: https://local.drizzle.studio
 
 **Files:** none (runs write to the local database, not to the workspace)
 
@@ -164,7 +173,11 @@ Saved.
 
 **Human:** Done.
 
-**Agent:** Live: Score inbound accounts runs every Monday at 08:00 UTC on Vercel; on a Hobby plan the start time can drift within the hour. Diagram to share, valid 7 days: https://gtm-acme.vercel.app/gtm/score-inbound-accounts?t=… Two things to know: runs I start from here use this computer's own results unless you ask for a hosted run, so a run right after Monday's scheduled run may re-score the same companies; and when Lean B2B SaaS changes, the hosted workflow keeps its copy of the criteria until you update it again.
+**Agent:** Live: Score inbound accounts runs every Monday at 08:00 UTC on Vercel; on a Hobby plan the start time can drift within the hour.
+Diagram (shareable, valid 7 days): https://gtm-acme.vercel.app/gtm/score-inbound-accounts?t=…
+Runs: https://vercel.com/acme/gtm-acme/observability/workflows
+Data: https://app.turso.tech/acme/databases/gtm-acme/data
+Two things to know: runs I start from here use this computer's own results unless you ask for a hosted run, so a run right after Monday's scheduled run may re-score the same companies; and when Lean B2B SaaS changes, the hosted workflow keeps its copy of the criteria until you update it again.
 
 **Files:**
 - changed `workflows/workflows/score-inbound-accounts.ts`
@@ -186,6 +199,9 @@ Saved.
 **Human:** 1
 
 **Agent:** Done on the hosted copy: 3 companies scored, Brightpath 90, Quill HR 78, Northfield 55; 0 failed; 0 skipped; cost $0.03.
+Diagram (shareable, valid 7 days): https://gtm-acme.vercel.app/gtm/score-inbound-accounts?t=…
+Runs: https://vercel.com/acme/gtm-acme/observability/workflows
+Data: https://app.turso.tech/acme/databases/gtm-acme/data
 
 **Files:** none (runs write to the hosted database, not to the workspace)
 
