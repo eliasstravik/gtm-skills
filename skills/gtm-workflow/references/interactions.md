@@ -23,7 +23,7 @@ Contents: [Create](#create) · [Create without a connected project](#create-with
 
 **Human:** 1
 
-**Agent:** Since this is Acme's first workflow, I'll set up the workflow runtime first; that takes about a minute. Then I'll create the workflow Score inbound accounts with those three companies as its list: for each one it fetches the company's public site (free), scores it against a copy of the Lean B2B SaaS criteria on your Claude Code subscription (about $0.01 per row), and saves the score and reason to the table inbound_scores. It stops after 200 rows or $5 in one run and skips any company scored in the last 24 hours.
+**Agent:** Building it now; about two minutes, since this is Acme's first workflow. Score inbound accounts scores your three companies against Lean B2B SaaS on your Claude Code subscription, about $0.01 each, capped at 200 rows or $5 per run.
 [Open diagram](http://localhost:3939/gtm/score-inbound-accounts) · [Open runs](http://localhost:3939/_workflow) · [Open data](https://local.drizzle.studio)
 
 Saved.
@@ -62,7 +62,7 @@ Saved.
 
 **Human:** 1: brightpath.io, quillhr.com, northfield.co
 
-**Agent:** Building it now; about two minutes, since this is Acme's first workflow and the runtime comes first. Score inbound accounts takes those three companies as its list: for each one it fetches the company's public site (free), scores it against a copy of the Lean B2B SaaS criteria through AI Gateway (about $0.01 per row), and saves the score and reason to the table inbound_scores. It stops after 200 rows or $5 in one run and skips any company scored in the last 24 hours.
+**Agent:** Building it now; about two minutes, since this is Acme's first workflow. Score inbound accounts scores your three companies against Lean B2B SaaS through AI Gateway, about $0.01 each, capped at 200 rows or $5 per run.
 
 Saved.
 
@@ -106,7 +106,7 @@ Once that is in place, ask me to run it and I'll test one row first.
 
 **Human:** 1
 
-**Agent:** I'll refresh the workflow's copy of the Lean B2B SaaS criteria, add a headcount column to the table inbound_scores, and read the headcount from the page the workflow already fetches; the runtime restarts once for the table change, and the next run will offer a one-row test because the workflow changed.
+**Agent:** Updating now: the current Lean B2B SaaS criteria, plus a headcount column read from the page it already fetches. The next run offers a one-row test first.
 [Open diagram](http://localhost:3939/gtm/score-inbound-accounts) · [Open runs](http://localhost:3939/_workflow) · [Open data](https://local.drizzle.studio)
 
 Saved.
@@ -155,7 +155,7 @@ Done: 34 companies scored; 1 failed (Northfield's site couldn't be reached; it w
 
 **Human:** 1
 
-**Agent:** I'll switch the scoring step to AI Gateway and add the Monday 08:00 UTC schedule. Hosting needs a Vercel project connected to the gtm-acme repository once; after that, every save deploys by itself. To connect it:
+**Agent:** Switching scoring to AI Gateway and adding the Monday 08:00 UTC schedule now. Hosting needs a Vercel project connected to the gtm-acme repository once; after that every save deploys by itself. To connect it:
 
 1. In Vercel, create a project from the gtm-acme repository with root directory `workflows`, production branch `main`, Node 22.
 2. In its dashboard: connect a Turso database from the marketplace; add `GTM_RUN_SECRET` and `CRON_SECRET` (copy them from `workflows/.env`; I won't print them), `GTM_MODEL` as `openai/gpt-5.6-luna`, and `AI_GATEWAY_API_KEY`; turn Deployment Protection off for production; then Redeploy the latest deployment.
@@ -167,9 +167,8 @@ Saved.
 
 **Human:** Done.
 
-**Agent:** Live: Score inbound accounts runs every Monday at 08:00 UTC on Vercel; on a Hobby plan the start time can drift within the hour.
+**Agent:** Live: Score inbound accounts runs every Monday at 08:00 UTC on Vercel. The hosted copy keeps its own copy of the criteria until you update the workflow.
 [Open diagram](https://gtm-acme.vercel.app/gtm/score-inbound-accounts?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
-Two things to know: runs I start from here use this computer's own results unless you ask for a hosted run, so a run right after Monday's scheduled run may re-score the same companies; and when Lean B2B SaaS changes, the hosted workflow keeps its copy of the criteria until you update it again.
 
 **Files:**
 - changed `workflows/workflows/score-inbound-accounts.ts`
@@ -201,7 +200,7 @@ Two things to know: runs I start from here use this computer's own results unles
 
 **Human:** Upgrade the workflow runtime.
 
-**Agent:** Your runtime is behind the installed skill: three shared files and two package versions differ. Upgrading replaces the runtime's shared code and settings with the current versions; your workflows, tables, data, schedules, and keys stay as they are, and the runtime restarts once.
+**Agent:** Your runtime is behind the installed skill: three shared files and two packages. Upgrading replaces shared code only; your workflows, tables, data, schedules, and keys stay as they are.
 
 1. Upgrade now (Recommended)
 2. Show me what changes first
@@ -209,7 +208,7 @@ Two things to know: runs I start from here use this computer's own results unles
 
 **Human:** 1
 
-**Agent:** I'll replace the runtime's shared code and settings with the current versions and refresh the two package versions. Verified afterwards: the runtime starts, and the diagram for Score inbound accounts opens. The hosted copy picks this up as the save deploys.
+**Agent:** Upgrading now. Verified: the runtime starts and the diagram opens; the hosted copy updates as this save deploys.
 
 Saved.
 
@@ -226,9 +225,9 @@ Saved.
 
 **Human:** Delete Score inbound accounts.
 
-**Agent:** I'll remove the workflow Score inbound accounts and its Monday schedule; the table inbound_scores keeps its 37 rows, here and hosted.
+**Agent:** Removing Score inbound accounts and its Monday schedule now; the table inbound_scores keeps its 37 rows.
 
-Deleted Score inbound accounts. It stays in the workspace's history; ask me to restore it if you change your mind. The hosted copy drops it and its schedule as this save deploys.
+Deleted Score inbound accounts; it stays in history, ask me to restore it. The hosted copy drops it as this save deploys.
 
 **Files:**
 - deleted `workflows/workflows/score-inbound-accounts.ts`
