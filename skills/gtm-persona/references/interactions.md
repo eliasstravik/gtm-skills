@@ -18,7 +18,7 @@ Contents: [Create](#create) · [Update](#update) · [Delete](#delete) · [Doctor
 
 **Agent:** I'll create the persona Revenue Leader: job titles VP Sales, Head of Sales, or Chief Revenue Officer; seniority VP or C-level; sales function; US or UK; 8 or more years of experience. The other six criteria stay Unknown until you give them; I don't borrow criteria from Acme's company record or its members.
 
-Saved.
+Created Revenue Leader.
 
 **Files:**
 - created `personas/revenue-leader/PERSONA.md`
@@ -31,13 +31,13 @@ Saved.
 
 **Agent:** I'll set Languages on Revenue Leader to English and add "works at an agency" as a disqualifier.
 
-Saved.
+Updated Revenue Leader.
 
 **Human:** And add a signal: they've posted about pipeline or forecasting recently.
 
 **Agent:** I'll add a person signal to Revenue Leader: recent posts about pipeline or forecasting.
 
-Saved.
+Updated Revenue Leader.
 
 **Files:**
 - changed `personas/revenue-leader/PERSONA.md`
@@ -79,7 +79,7 @@ Deleted Marketing Lead. It stays in the workspace's history; ask me to restore i
 
 **Agent:** I'll add the name Ops Buyer to that persona; its criteria stay as they are.
 
-Saved.
+Updated Ops Buyer.
 
 **Files:**
 - changed `personas/ops-buyer/PERSONA.md`

@@ -1,6 +1,6 @@
 # Interactions: gtm-workspace
 
-Contents: [Create](#create) · [Create into a shared checkout](#create-into-a-shared-checkout) · [Update](#update) · [Doctor](#doctor) · [Delete workspace](#delete-workspace)
+Contents: [Create](#create) · [Create into a shared checkout](#create-into-a-shared-checkout) · [Update](#update) · [Doctor](#doctor)
 
 ## Create
 
@@ -17,13 +17,13 @@ Contents: [Create](#create) · [Create into a shared checkout](#create-into-a-sh
 
 **Agent:** From acme.com I filled 9 of the 13 company facts: B2B software, product analytics for SaaS teams, sold by subscription, 11–50 people, Austin, Texas. Annual revenue, Company type, Employees, and Tech stack stay Unknown until you tell me. I'll create the workspace with this company record and publish it as the private GitHub repository gtm-acme under your account.
 
-Saved.
+Created the Acme workspace and published it as gtm-acme.
 
 **Human:** We're 30 people, privately held, and we run on HubSpot and Segment. Add Priya Shah as a member: priya@acme.com, Head of Sales, Austin.
 
 **Agent:** I'll set Employees to 30, Company type to Privately held, and Tech stack to HubSpot and Segment, and add Priya Shah as a member with that email, role, and location.
 
-Saved.
+Updated Acme's company record and added Priya Shah.
 
 **Files:**
 - created `AGENTS.md`
@@ -40,7 +40,7 @@ Saved.
 
 **Agent:** From acme.com I filled 9 of the 13 company facts: B2B software, product analytics for SaaS teams, sold by subscription, 11–50 people, Austin, Texas. Annual revenue, Company type, Employees, and Tech stack stay Unknown until you tell me. I'll create the Acme Corp workspace with this company record in the shared repository your team already connected.
 
-Saved.
+Created the Acme Corp workspace.
 
 **Files:**
 - created `AGENTS.md`
@@ -62,13 +62,13 @@ Saved.
 
 **Agent:** I'll add Tom Okafor as a member of Acme with that email, role, and location.
 
-Saved.
+Added Tom Okafor.
 
 **Human:** Also, our annual revenue is about $4M now.
 
 **Agent:** I'll set Acme's Annual revenue to about $4M.
 
-Saved.
+Updated Acme's Annual revenue.
 
 **Files:**
 - created `members/tom-okafor/MEMBER.md`
@@ -90,24 +90,9 @@ Saved.
 
 **Agent:** I'll add Tech stack as Unknown, remove the README, and move Acme Europe's details into the company record's notes; nothing else changes.
 
-Saved.
+Updated Acme's company record and removed the README and the old suborgs folder.
 
 **Files:**
 - changed `ORG.md`
 - deleted `README.md`
 - deleted `suborgs/acme-europe/ORG.md`
-
-## Delete workspace
-
-**Setup:** Workspaces Acme and Northwind exist. Northwind is shared as the private GitHub repository gtm-northwind.
-
-**Human:** Delete the Northwind workspace.
-
-**Agent:** This removes the Northwind workspace from this computer: its company record, 2 members, 1 ICP, 1 persona, and no workflows. Its private GitHub repository gtm-northwind stays, so it can be brought back. To confirm, type the workspace's short name: northwind
-
-**Human:** northwind
-
-**Agent:** Deleted the Northwind workspace from this computer. To bring it back, ask me to import the GitHub repository gtm-northwind.
-
-**Files:**
-- deleted every file in the workspace, including `ORG.md`, `members/`, `icps/`, and `personas/`

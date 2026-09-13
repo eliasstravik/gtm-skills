@@ -24,9 +24,9 @@ Contents: [Create](#create) · [Create without a connected project](#create-with
 **Human:** 1
 
 **Agent:** Building it now; about two minutes, since this is Acme's first workflow. Score inbound accounts scores your three companies against Lean B2B SaaS on your Claude Code subscription, about $0.01 each, capped at 200 rows or $5 per run.
-[Open diagram](http://localhost:3939/gtm/score-inbound-accounts) · [Open runs](http://localhost:3939/_workflow) · [Open data](https://local.drizzle.studio)
 
-Saved.
+Created Score inbound accounts.
+[Open diagram](http://localhost:3939/gtm/score-inbound-accounts) · [Open runs](http://localhost:3939/_workflow) · [Open data](https://local.drizzle.studio)
 
 **Human:** Run it.
 
@@ -64,7 +64,7 @@ Saved.
 
 **Agent:** Building it now; about two minutes, since this is Acme's first workflow. Score inbound accounts scores your three companies against Lean B2B SaaS through AI Gateway, about $0.01 each, capped at 200 rows or $5 per run.
 
-Saved.
+Created Score inbound accounts.
 
 Runs happen on the hosted copy, which needs a Vercel project connected to the Acme repository once; after that every save deploys by itself. To connect it:
 
@@ -90,7 +90,7 @@ Once that is in place, ask me to run it and I'll test one row first.
 
 **Agent:** Building it now; about three minutes, since the hosted copy deploys as part of the save. Enrich LinkedIn profiles takes profile addresses you give at run time, enriches each through Monid's ContactOut lookup, about $0.26 per row, capped at 200 rows or $5 per run.
 
-Saved.
+Created Enrich LinkedIn profiles.
 
 Live on the hosted copy. Ask me to run it and I'll test one profile first.
 [Open diagram](https://gtm-acme.vercel.app/gtm/enrich-linkedin-profiles?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
@@ -127,9 +127,9 @@ Live on the hosted copy. Ask me to run it and I'll test one profile first.
 **Human:** 1
 
 **Agent:** Updating now: the current Lean B2B SaaS criteria, plus a headcount column read from the page it already fetches. The next run offers a one-row test first.
-[Open diagram](http://localhost:3939/gtm/score-inbound-accounts) · [Open runs](http://localhost:3939/_workflow) · [Open data](https://local.drizzle.studio)
 
-Saved.
+Updated Score inbound accounts.
+[Open diagram](http://localhost:3939/gtm/score-inbound-accounts) · [Open runs](http://localhost:3939/_workflow) · [Open data](https://local.drizzle.studio)
 
 **Files:**
 - changed `workflows/workflows/score-inbound-accounts.ts`
@@ -157,7 +157,6 @@ Saved.
 **Agent:** Running the remaining 35 rows, about $0.35.
 
 Done: 34 companies scored; 1 failed (Northfield's site couldn't be reached; it will be tried again on the next run); 2 skipped (Brightpath and Quill HR, scored today); cost $0.35.
-[Open diagram](http://localhost:3939/gtm/score-inbound-accounts) · [Open runs](http://localhost:3939/_workflow) · [Open data](https://local.drizzle.studio)
 
 **Files:** none (runs write to the local database, not to the workspace)
 
@@ -183,7 +182,7 @@ Done: 34 companies scored; 1 failed (Northfield's site couldn't be reached; it w
 
 Tell me when that's done and I'll check that the deployment is live.
 
-Saved.
+Updated Score inbound accounts: scoring through AI Gateway, scheduled Mondays at 08:00 UTC.
 
 **Human:** Done.
 
@@ -210,7 +209,6 @@ Saved.
 **Human:** 1
 
 **Agent:** Done on the hosted copy: 3 companies scored, Brightpath 90, Quill HR 78, Northfield 55; 0 failed; 0 skipped; cost $0.03.
-[Open diagram](https://gtm-acme.vercel.app/gtm/score-inbound-accounts?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
 
 **Files:** none (runs write to the hosted database, not to the workspace)
 
@@ -240,7 +238,7 @@ Saved.
 
 **Agent:** Upgrading now. Verified: the runtime starts and the diagram opens; the hosted copy updates as this save deploys.
 
-Saved.
+Upgraded the runtime.
 
 **Files:**
 - changed `workflows/lib/rows.ts`

@@ -18,7 +18,7 @@ Contents: [Create](#create) · [Update](#update) · [Delete](#delete) · [Doctor
 
 **Agent:** I'll create the ICP Small SaaS: B2B software, 20–100 employees, US or UK, subscription revenue. The other eight criteria stay Unknown until you give them; I don't borrow criteria from Acme's own company record.
 
-Saved.
+Created Small SaaS.
 
 **Files:**
 - created `icps/small-saas/ICP.md`
@@ -31,13 +31,13 @@ Saved.
 
 **Agent:** I'll set Tech stack on Lean B2B SaaS to HubSpot or Salesforce and add agencies and consultancies as disqualifiers. The workflow Score inbound accounts keeps its own copy of the earlier criteria until you ask me to update it.
 
-Saved.
+Updated Lean B2B SaaS.
 
 **Human:** Also accept Canada.
 
 **Agent:** I'll add Canada to the accepted locations on Lean B2B SaaS.
 
-Saved.
+Updated Lean B2B SaaS.
 
 **Files:**
 - changed `icps/lean-b2b-saas/ICP.md`
@@ -78,7 +78,7 @@ Deleted Small SaaS. It stays in the workspace's history; ask me to restore it if
 
 **Agent:** I'll remove the empty ICP Enterprise and move EU Fintech into a folder named after it. Enterprise is gone but stays in the workspace's history if you want it back.
 
-Saved.
+Removed Enterprise; moved EU Fintech into its own folder.
 
 **Files:**
 - deleted `icps/enterprise/ICP.md`

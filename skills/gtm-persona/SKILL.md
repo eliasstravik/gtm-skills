@@ -32,7 +32,7 @@ Talk by the six rules in [interaction](../gtm-workspace/references/interaction.m
 | Delete | When no persona has the given name, offer the closest matches as options. Say whether a workflow carries a copy, which keeps running. Remove `personas/<slug>/`; close with what disappeared and that it stays in the workspace's history. |
 | Doctor | Flag a persona with no person-matchable criterion (every field `Unknown`), a placeholder husk, a missing H1, or a folder name that is not its slug; offer the fixes as options; rewrite what the user accepts. |
 
-Every save: one sentence on what will change, pull first when `origin/main` exists, edit through the host's write path, commit on `main` with a plain-language message, push when a remote exists, verify the commit (and that it reached `origin/main` when a remote exists), close with `Saved.`.
+Every save: one sentence on what will change, pull first when `origin/main` exists, edit through the host's write path, commit on `main` with a plain-language message, push when a remote exists, verify the commit (and that it reached `origin/main` when a remote exists), close with what was created, changed, or deleted.
 
 ## Outputs
 
@@ -46,7 +46,7 @@ Requires the `gtm-workspace` skill installed alongside this one; when `../gtm-wo
 
 - The 11 fields appear in order, one line each.
 - The H1 is present and the folder name is its slug; empty optional sections are absent.
-- `Saved.` follows a verified commit.
+- The closing statement of what changed follows a verified commit.
 
 ## References
 
