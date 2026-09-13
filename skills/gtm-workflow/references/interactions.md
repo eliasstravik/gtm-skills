@@ -1,6 +1,6 @@
 # Interactions: gtm-workflow
 
-Contents: [Create](#create) · [Create without a connected project](#create-without-a-connected-project) · [Update](#update) · [Run](#run) · [Deploy](#deploy) · [Run on the deployed copy](#run-on-the-deployed-copy) · [Upgrade](#upgrade) · [Delete](#delete)
+Contents: [Create](#create) · [Create without a connected project](#create-without-a-connected-project) · [Create on a hosted agent](#create-on-a-hosted-agent) · [Update](#update) · [Run](#run) · [Deploy](#deploy) · [Run on the deployed copy](#run-on-the-deployed-copy) · [Run on the deployed copy, key absent](#run-on-the-deployed-copy-key-absent) · [Upgrade](#upgrade) · [Delete](#delete)
 
 ## Create
 
@@ -81,6 +81,26 @@ Once that is in place, ask me to run it and I'll test one row first.
 - changed `workflows/workflows/index.ts`
 - changed `workflows/db/tables/index.ts`
 - created `workflows/drizzle/0001_inbound_scores.sql`
+
+## Create on a hosted agent
+
+**Setup:** Workspace Acme is a shared checkout on a host without local runs; its workflow project is connected. The host exposes a Monid connection, and Monid's key is on the workflow project, which the agent cannot see.
+
+**Human:** Create a workflow: given a LinkedIn profile address, enrich the profile and find the work email through Monid.
+
+**Agent:** Building it now; about three minutes, since the hosted copy deploys as part of the save. Enrich LinkedIn profiles takes profile addresses you give at run time, enriches each through Monid's ContactOut lookup, about $0.26 per row, capped at 200 rows or $5 per run.
+
+Saved.
+
+Live on the hosted copy. Ask me to run it and I'll test one profile first.
+[Open diagram](https://gtm-acme.vercel.app/gtm/enrich-linkedin-profiles?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
+
+**Files:**
+- created `workflows/workflows/enrich-linkedin-profiles.ts`
+- created `workflows/db/tables/linkedin-enrichments.ts`
+- changed `workflows/workflows/index.ts`
+- changed `workflows/db/tables/index.ts`
+- created `workflows/drizzle/0001_linkedin_enrichments.sql` (with its journal and snapshot entries)
 
 ## Update
 
@@ -193,6 +213,16 @@ Saved.
 [Open diagram](https://gtm-acme.vercel.app/gtm/score-inbound-accounts?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
 
 **Files:** none (runs write to the hosted database, not to the workspace)
+
+## Run on the deployed copy, key absent
+
+**Setup:** As above, but Monid's key was never added to the workflow project.
+
+**Human:** Test one profile.
+
+**Agent:** Failed on the hosted copy: 1 row, the lookup could not start because the workflow project has no `MONID_API_KEY`. Add it in that project's settings and Redeploy, then ask me to test again; nothing was charged.
+
+**Files:** none
 
 ## Upgrade
 
