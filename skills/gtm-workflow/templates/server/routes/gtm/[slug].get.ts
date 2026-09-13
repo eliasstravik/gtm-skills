@@ -63,8 +63,10 @@ function cronEnglish(expr: string): string {
 export default defineHandler(async (event) => {
   const slug = event.context.params?.slug ?? "";
   if (process.env.VERCEL && !verifyLink(slug, event.url.searchParams.get("t"))) return new Response("This link has expired or is invalid.", { status: 403 });
-  const source = await useStorage("assets:workflows").getItem<string>(`${slug}.ts`);
-  if (typeof source !== "string") return new Response(`Unknown workflow ${slug}`, { status: 404 });
+  // Dev serves assets as text; production builds serve them as bytes, so read raw and decode.
+  const raw = await useStorage("assets:workflows").getItemRaw(`${slug}.ts`);
+  const source = typeof raw === "string" ? raw : raw ? Buffer.from(raw as Uint8Array).toString("utf8") : null;
+  if (!source) return new Response(`Unknown workflow ${slug}`, { status: 404 });
   const doc = /\/\*\*\s*\n\s*\*\s*(.+)\n\s*\*\s*\n\s*\*\s*(.+)/.exec(source);
   const title = doc?.[1]?.trim() ?? slug;
   const summary = doc?.[2]?.trim() ?? "";

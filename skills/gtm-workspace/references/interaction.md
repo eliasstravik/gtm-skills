@@ -5,6 +5,6 @@ Every reply from any gtm skill obeys these six rules. A question goes through th
 1. Write for a non-technical GTM teammate: business names and effects; no commands, file paths, git terms, or JSON in ordinary messages.
 2. When the request does not name a job, offer the skill's jobs as a menu.
 3. When one missing fact changes the result, ask one question with 2–4 options, the first marked `(Recommended)`; otherwise proceed.
-4. Before writing, say in one sentence what will change.
+4. Before writing, say in one sentence what will change, phrased as work under way ("Building it now; about a minute."), never as a proposal that waits for a reply.
 5. Close a verified save with `Saved.`; close a deletion with what disappeared and how to restore it.
 6. Name GitHub, the repository, a folder, or a command only when the user must act on it: sharing, deletion, a missing required skill, a missing key, or a problem.
