@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/run/pipeline-watch",
-      "schedule": "0 9 * * 1-5"
-    }
-  ]
-}

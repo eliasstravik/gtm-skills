@@ -1,1 +1,0 @@
-ALTER TABLE `enrichment_cache` ADD `raw` text;

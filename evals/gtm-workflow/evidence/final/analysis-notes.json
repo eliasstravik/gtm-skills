@@ -1,9 +1,0 @@
-[
-  "The candidate passed 43/43 assertions. The pre-change snapshot passed 34/43, so the candidate gained nine assertions. The unweighted mean scenario pass rate rose from 83.3% to 100%; the weighted assertion rate rose from 79.1% to 100%.",
-  "All nine discriminating assertions are in create scenarios 1 through 3. They cover the shipped Nitro scaffold, exact retained-result and external-destination questions, conditional delivery configuration, scheduled fallback and saved-not-live behavior, and root-owned nested workflow placement.",
-  "The nested-suborganization scenario directly distinguishes the directory change: the candidate wrote the definition under workflows/workflows/europe/, while the pre-change snapshot did not satisfy the canonical placement assertion.",
-  "The on-demand and scheduled creation scenarios distinguish delivery semantics in both directions. External delivery added one named step and destination-specific configuration, while retained-only scheduled work added neither.",
-  "Scenarios 4 through 10 passed every assertion in both configurations. This shows the path and delivery changes did not regress location switching, read-only inspection, deployed result retrieval, capped execution, deletion, missing-workspace handoff, or the Gateway-key deployment stop.",
-  "The candidate averaged 121.9 seconds and 19,179 normalized tokens per scenario, versus 133.9 seconds and 19,344 tokens for the snapshot. Each scenario has one run per configuration, so timing and token differences are descriptive rather than statistical.",
-  "The final benchmark has no candidate failures or executor errors. Earlier discarded iterations exposed one real pre-save export-name miss and several stale fixture or grader checks; the finished full iteration reran all ten paired cases after those corrections."
-]

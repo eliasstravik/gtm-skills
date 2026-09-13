@@ -1,26 +1,26 @@
 # Deploy
 
-The workspace needs a pushable `origin`. When absent, repository setup is a separate card before deployment.
+Deploy is the push. The workflow Vercel project is connected to the workspace repository with root directory `workflows/`, so every push to `main` that changes `workflows/` builds and deploys it; Vercel skips the build when nothing under `workflows/` changed. The agent never runs the Vercel CLI, never holds a Vercel token, and never writes secrets anywhere. A workspace without a remote is told to share it first (gtm-workspace's sharing step).
 
-## Scripted path
+## Connect the project, once
 
-1. Run `scripts/setup-workflow-project.sh` from the workspace checkout. Its one approval creates and configures the workflow project.
-2. Paste workflow-specific provider keys that the verification card names.
-3. Confirm the Git commit author is a member of the Vercel team.
+A connected project exists exactly when `GTM_WORKFLOW_URL` is present, in the process environment or in `workflows/.env`. When it is absent, Deploy gives the user these steps and names the four values to place on the host, then stops:
 
-Set `AI_GATEWAY_API_KEY` on the workflow project unless the deployment already authenticates to AI Gateway with OIDC; if the one-row hosted test fails with an authentication error, the key is the fix. A locally tested AI step switches to the hosted Gateway model after deployment, and the one-row hosted test proves that path.
+1. In Vercel, create a project from the workspace repository: root directory `workflows/`, production branch `main`, Node 22.
+2. In its dashboard: connect a Turso database from the marketplace; set `GTM_RUN_SECRET` and `CRON_SECRET` (on a personal computer the user copies them from `workflows/.env`, which the agent never prints, or replaces both in both places; on a host without local runs, values the person chose and placed on the host), `GTM_MODEL` (`openai/gpt-5.6-luna` unless another Gateway model is wanted), and `AI_GATEWAY_API_KEY`; turn Deployment Protection off for production; then Redeploy the latest deployment, because the first build ran before Turso existed and the template fails on purpose without it.
+3. Place on the host `GTM_WORKFLOW_URL` (the production URL, `https://<host>`, no trailing slash), `GTM_RUN_SECRET`, `TURSO_STUDIO_URL` (the database URL with `libsql://` replaced by `https://`), and `TURSO_STUDIO_TOKEN` (a read-only token): `workflows/.env` on a personal computer, the host's own settings elsewhere.
 
-## Dashboard path
+## Readiness
 
-1. Vercel → Add New → Project → import the workspace repository.
-2. Set Root Directory to `workflows`.
-3. Settings → General → Node.js Version → 22.x.
-4. Storage → Marketplace → Turso → connect the database.
-5. Settings → Environment Variables → add `GTM_RUN_SECRET`.
-6. Add `CRON_SECRET` and, unless OIDC Gateway auth is confirmed, `AI_GATEWAY_API_KEY`.
-7. Add provider keys named by `gtm verify --url`.
-8. Settings → Deployment → enable System Environment Variables.
-9. Settings → Deployment Protection → turn protection off for Production.
-10. Record team, project, and production URL under `gtm.vercel` in `package.json`, then redeploy.
+When `GTM_WORKFLOW_URL` is present, Deploy checks readiness in code after the push: `git fetch`, then poll `GET /api/link/<slug>` on the deployed copy until `git merge-base --is-ancestor <newest commit touching workflows/> <commit>` holds for the `commit` it returns, bounded to a few minutes. Equality is not the test: a later commit outside `workflows/` can be the tip of the push, and Vercel skips its build. On timeout, report in plain words and name the Redeploy step. A host without local runs deploys before its first run.
 
-The Diagram and Runs links require a Vercel login. Data requires a Turso login. A deploy that does not become live in eight minutes reports: `Saved, but the hosted copy did not come live in 8 minutes. Ask whoever set this up to check the Vercel build.`
+## Rules
+
+- Node 22 runtime; production Deployment Protection off, so signed diagram links open without a Vercel login.
+- Schedules: `vercel.json` `crons` only; Vercel Cron calls `GET /api/run/<slug>` with `Authorization: Bearer <CRON_SECRET>`. `nitro.config.ts` mirrors the same list into the build output as a fallback. Hobby-plan crons run at most daily and the start time can drift within the hour.
+- Share links: `GET /api/link/<slug>` with the bearer returns the production diagram URL, signed for 7 days.
+- A workflow that uses `headless()` runs hosted only inside a sandbox that has that CLI and its login, which the skill does not provide; before pushing such a workflow the agent says so and offers the switch to the Gateway backend through Update.
+- Local `data/gtm.db` and Turso are separate: a local run after a hosted one may re-spend on rows the hosted copy already did; the agent says so when that happens.
+- The deployed copy keeps its inlined criteria until the next Update is pushed.
+
+Unverified items and their fallbacks are listed under "Unverified until first deploy" in [local.md](local.md).

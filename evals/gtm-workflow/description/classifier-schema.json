@@ -1,9 +1,0 @@
-{
-  "type": "object",
-  "properties": {
-    "should_trigger": {"type": "boolean"},
-    "reason": {"type": "string"}
-  },
-  "required": ["should_trigger", "reason"],
-  "additionalProperties": false
-}

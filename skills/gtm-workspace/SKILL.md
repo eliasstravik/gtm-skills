@@ -1,72 +1,54 @@
 ---
 name: gtm-workspace
-description: Triggers when the user invokes `/gtm-workspace` or asks to create, import, update, delete, validate, migrate, or repair a GTM workspace repo or folder, including adding members or suborganizations. Not for defining ICPs or personas, or for tasks that merely use an existing workspace without changing or validating it.
+description: Triggers when a user asks to create, set up, import, open, check, repair, share, or delete a GTM workspace for an organization, or to add, change, or remove its members or company facts, with phrasings like "set up a GTM workspace for Acme", "add Priya to the team", "check the workspace", or "delete the Northwind workspace". Owns the workspace repository, the organization record, members, and workspace health, and hosts the standards every other gtm skill links to. Not for ICPs, personas, prospect fit checks, or saved workflows, which belong to gtm-icp, gtm-persona, gtm-qualify-prospects, and gtm-workflow.
 ---
 
 # GTM Workspace
 
 ## Trigger
 
-Apply this Lifecycle SOP when the requested outcome creates, imports, maintains, validates, repairs, or retires the GTM workspace itself.
+Apply this skill when a request concerns a GTM workspace as a whole, its organization facts, or its members.
 
 ## Scope
 
-Own the plain-Markdown workspace at `~/.gtm/<org-slug>/` across creation, import, organization and member maintenance, legacy-shape migration, structural or Git repair, and deletion. Create and fully research `ORG.md` artifacts with the shared company-data contract and `MEMBER.md` artifacts with the shared person-data contract. Preserve node-owned ICP and persona artifacts without authoring or validating their contents.
-
-**Contract**
-
-| Field | Public contract |
-| --- | --- |
-| Reads | The user's accepted organization facts, repository connection rules, valid local workspaces, and safe supplied sources |
-| Writes | Workspace contract files, organization nodes, member files, repository configuration, and accepted structural repairs |
-| Outputs | The requested workspace state summarized by display name and owner chain, a complete health report, or a fixed-connection refusal |
-| Approval | The agent prepares, stages, inspects, and commits locally, then the user approves one plain-language card immediately before the push; whole-workspace deletion keeps its typed confirmation |
-| Persists | Accepted workspace files and configuration in `main` Git history; no hidden coordination state |
-| Handoff | `gtm-icp` for market definitions, `gtm-persona` for buyer definitions, and `gtm-workflow` for saved workflows |
+One workspace holds one organization's GTM context as Markdown under `~/.gtm/<org-slug>/`, with git as its memory. This skill owns the workspace root, `ORG.md`, `members/`, and workspace health, and hosts the shared standards in `references/`. ICPs, personas, fit checks, and `workflows/` belong to the other gtm skills; Doctor never inspects the internals of `workflows/`.
 
 ## Inputs
 
-Use the user's request and accepted facts, the hosting environment's repo connection and durable-write declarations, valid local workspaces, and safe supplied sources.
+The request; the workspace found by the discovery order in [the contract](references/contract.md); facts from the user, the company's own public site, and other safe public sources, never invented; a member's email from the user or a source, never inferred.
 
 ## Roles
 
-The agent owns the selected lifecycle flow. The user approves one plain-language card immediately before the push that saves the prepared local commit; whole-workspace deletion keeps its typed confirmation. The hosting environment declares fixed connections.
+The user approves every change through the host's write permission and types the slug to delete a whole workspace; the agent proposes, edits, commits, and reports.
 
 ## Procedure
 
-| Condition | Owned flow |
+Talk by the six rules in [interaction](references/interaction.md); reproduce [the dialogues](references/interactions.md).
+
+| Job | Do |
 | --- | --- |
-| A fixed-connection deployment receives import, sharing setup, whole-workspace deletion, a create for a repo other than the connected one, or another connection-changing request | Refuse and redirect through the surface-refusal flow; perform nothing for that request |
-| Create is requested on a fixed-connection deployment whose connected repo has no root `ORG.md` or legacy `org.md` | Guide the create flow with its connected-repo substitutions; the first saved change writes `ORG.md` together with the contract files |
-| No lifecycle verb is clear | Guide the lifecycle menu and retain ownership of the selected flow |
-| Create is requested | Send one intake decision message, research every supplied source, prepare one local commit for the organization and every supplied suborganization and member, show one card, push once on approval, then close |
-| Import is requested | Guide a local copy or GitHub clone through inventory, accepted conversion, history, optional sharing, and summary |
-| Update is requested | Resolve the target, describe the changed facts, save the accepted changes, and close |
-| Delete is requested | Resolve the target, describe consequences, obtain the required confirmation, delete, and explain recovery where available |
-| Doctor or migration is requested, or the workspace seems wrong | Run every contract, legacy-shape, and Git check; describe accepted repairs or migrations; save one change set; and report complete health |
+| Create | When `~/.gtm/` already holds an empty clone with a remote, scaffold into it, take its directory name as the slug, do not ask where it lives, and after the commit run `git push -u origin main`; a clone that is neither empty nor a workspace (a GitHub-initialised README, say) is reported as a problem in business terms, never scaffolded over. Otherwise ask where it lives: this computer only (recommended), or also a private GitHub repository named `gtm-<slug>`, and `git init` on `main`. Copy `templates/AGENTS.md`, `CLAUDE.md`, and `ORG.md` into `~/.gtm/<slug>/`, fill `ORG.md` from the user and public sources, commit, and when shared run `gh repo create gtm-<slug> --private --source . --push`; the first push into an empty repository is `git push -u origin main`. Import is Create by copying or cloning an existing workspace into `~/.gtm/<slug>/` instead of scaffolding. |
+| Update | Change `ORG.md` facts, or add, change, or remove `members/<slug>/MEMBER.md` from the template; email is required. |
+| Doctor | Compare the root shape and every file to `templates/` and the contract; report deviations in business terms; offer the fixes as options; rewrite what the user accepts, including legacy layouts (a root README or `.gitignore`, `suborgs/`, missing or misordered fields). The workspace slug is the directory name, never derived from the H1. |
+| Delete workspace | State what disappears and whether a GitHub repository remains; require the typed slug; remove `~/.gtm/<slug>/`; close with how to bring it back. Where the checkout is cloned from the repository each session, deletion means deleting that repository, which the user does; say so instead of removing the folder. |
+
+Every save: one sentence on what will change, pull first when `origin/main` exists, edit through the host's write path, commit on `main` with a plain-language message, push when a remote exists, verify the commit (and that it reached `origin/main` when a remote exists), close with `Saved.`.
 
 ## Outputs
 
-Produce the requested workspace state and a plain-language summary by display name and owner chain, or a complete health report for doctor. A refused fixed-connection operation produces only the prescribed explanation and CLI redirect; a connected repo that is not set up yet is created in place, not refused.
+A workspace with the root shape in [the contract](references/contract.md), every change a commit on `main`, and, when shared, a private GitHub repository `gtm-<slug>`.
 
 ## Exceptions
 
-If a required reference is unavailable, use `templates/AGENTS.md` as the minimum contract, keep every member under its owning organization node at `members/<member-slug>/MEMBER.md`, and stay on `main`. If the environment cannot push the prepared commit after approval, stop and offer the prescribed CLI recovery; never report it as saved.
+Several workspaces match and none is named: ask, never save a preference. A fact cannot be confirmed: write `Unknown`. A member without an email is not created. A whole-workspace deletion without the typed slug does not happen. Legacy `suborgs/` units become prose under `## Notes` in `ORG.md`, or their own workspace when the user wants separate GTM context.
 
 ## QC
 
-- Follow the shared interaction standard for every question, proposal, approval, and closing message; ask every missing result-changing fact in one decision message and never use `AskUserQuestion`.
-- Prepare only the requested workspace action locally and never show complete bytes unless asked; the card must describe exactly what the prepared commit changes. Name GitHub, the repository, or the folder only in import, sharing setup, whole-workspace deletion, and git-problem recovery; keep branch, remote, upstream, and command details internal unless a problem requires them or the user asks.
-- Keep all 13 company-data fields in the required order for every new or fully researched `ORG.md`; preserve uncertainty and write `Unknown` instead of inventing or dropping unresolved facts.
-- Keep all eight person-data fields in the required order for every new or fully researched `MEMBER.md`; retain the required supplied email outside that contract, preserve uncertainty, and write `Unknown` instead of inventing or dropping unresolved facts.
-- Stage only named paths, inspect the diff, commit locally, then show one card naming what changes and invoke `git push` with that card as the approval summary. Close a verified push with `Saved.`
-- Close only after every selected-flow completion criterion in `references/flows.md` is satisfied.
+- `ORG.md` has the 13 fields of [company data](references/company-data.md) in order, one line each; nested bullets only under Location, Products and services, and Tech stack.
+- The root carries only `AGENTS.md`, `CLAUDE.md`, `ORG.md`, and the entity directories; the pointer files match their templates byte for byte.
+- Every slug follows the contract's rule; every member has an email.
+- `Saved.` follows a verified commit.
 
 ## References
 
-- Read [the workspace contract](references/contract.md) for every flow; it defines storage, content, link safety, doctor checks, and persistence.
-- Read [the company-data research contract](references/company-data.md) before creating or fully researching an `ORG.md`; it defines the ordered fields, value shapes, uncertainty rules, and shared ICP semantics.
-- Read [the person-data research contract](references/person-data.md) before creating or fully researching a `MEMBER.md`; it defines the ordered fields, value shapes, uncertainty rules, supplied-email boundary, and shared persona semantics.
-- Read [the shared interaction standard](references/interaction.md) before any user-facing message; it defines audience language, length and formatting, proposal shape, batching, decision messages, approval by surface, and closing.
-- Read [the guided flows](references/flows.md) after selecting the Procedure row; it defines intake, proposals, recovery, and closure.
-- Render [templates](templates/) when creating or restoring contract files, replacing placeholders and omitting empty optional fields or sections.
+[interaction](references/interaction.md) rules; [interactions](references/interactions.md) dialogues; [contract](references/contract.md) for slugs, discovery, root shape, sourcing, and sharing; [company data](references/company-data.md) and [person data](references/person-data.md) vocabularies; `templates/` for `AGENTS.md`, `CLAUDE.md`, `ORG.md`, and `MEMBER.md`.

@@ -1,39 +1,29 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export type DiagramClaims = { path: string; run: string | null; exp: number };
-
-const RUN_KEY = /^[0-9a-f]{32}(?:-batch-\d{3})?$/;
-
-function canonical(claims: DiagramClaims): string {
-  return `diagram|${claims.path}|${claims.run ?? "-"}|${claims.exp}`;
+function secret() {
+  const s = process.env.GTM_RUN_SECRET;
+  if (!s) throw new Error("GTM_RUN_SECRET is not set");
+  return s;
 }
 
-export function signDiagram(claims: DiagramClaims, secret: string): string {
-  return createHmac("sha256", secret).update(canonical(claims)).digest("base64url");
+const mac = (slug: string, exp: number) => createHmac("sha256", secret()).update(`${slug}|${exp}`).digest("base64url");
+const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+
+/** Diagram link token `<expiry ms>.<hmac>`, valid 7 days. */
+export function signLink(slug: string, days = 7): string {
+  const exp = Date.now() + days * 86_400_000;
+  return `${exp}.${mac(slug, exp)}`;
 }
 
-export function diagramQuery(claims: DiagramClaims, secret: string): string {
-  const query = new URLSearchParams();
-  if (claims.run) query.set("run", claims.run);
-  query.set("exp", String(claims.exp));
-  query.set("sig", signDiagram(claims, secret));
-  return query.toString();
+export function verifyLink(slug: string, token: string | null): boolean {
+  const [expText, sig] = token?.split(".") ?? [];
+  const exp = Number(expText);
+  return Boolean(exp && sig) && exp > Date.now() && same(sig, mac(slug, exp));
 }
 
-export function verifyDiagram(
-  query: URLSearchParams,
-  path: string,
-  secret: string,
-  now = Date.now(),
-): DiagramClaims | null {
-  const exp = Number(query.get("exp"));
-  const run = query.get("run");
-  const signature = query.get("sig") ?? "";
-  if (!Number.isInteger(exp) || exp * 1000 < now) return null;
-  if (run !== null && !RUN_KEY.test(run)) return null;
-  const claims: DiagramClaims = { path, run, exp };
-  const expected = Buffer.from(signDiagram(claims, secret));
-  const actual = Buffer.from(signature);
-  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return null;
-  return claims;
+/** Bearer GTM_RUN_SECRET; the cron GET also accepts CRON_SECRET, which Vercel Cron sends. */
+export function bearerOk(req: Request, allowCron = false): boolean {
+  const given = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  const ok = (s?: string) => Boolean(s) && same(given, s as string);
+  return ok(process.env.GTM_RUN_SECRET) || (allowCron && ok(process.env.CRON_SECRET));
 }

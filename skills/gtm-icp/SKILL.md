@@ -1,68 +1,53 @@
 ---
 name: gtm-icp
-description: Triggers when a user asks to create, define, refine, update, delete, or doctor an ideal customer profile file in a connected GTM workspace, including choosing which organization owns it. Not for personas or for creating, importing, deleting, or repairing the workspace repository itself. Not for qualifying or scoring leads/accounts against saved ICPs/personas.
+description: Triggers when a user asks to create, update, delete, or check an ideal customer profile, or ICP, in a GTM workspace, with phrasings like "create an ICP for lean B2B SaaS", "our ICP should require HubSpot", "delete the SaaS ICP", or "check the ICPs". Owns the ICP files and their 13 company criteria. Not for the workspace, its members, or the organization's own facts (gtm-workspace), personas (gtm-persona), checking a given company against an ICP (gtm-qualify-prospects), or workflows that score accounts on a schedule (gtm-workflow).
 ---
 
 # GTM ICP
 
 ## Trigger
 
-Apply this Lifecycle SOP when the requested outcome creates, updates, repairs, or retires an ideal customer profile owned by an organization node in an existing GTM workspace.
+Apply this skill when a request creates, changes, removes, or checks an ICP in a GTM workspace.
 
 ## Scope
 
-Own node-local, freeform Markdown ICPs at `icps/<icp-slug>/ICP.md` across creation, refinement, deletion, and repo-wide ICP integrity repair. Create and fully research ICPs with the shared company-data contract, interpreted as desired or accepted account criteria. Read legacy `icps/<icp-slug>.md` artifacts without requiring migration. Do not author persona or member files, manage the workspace lifecycle, or classify/research accounts against saved ICPs.
-
-**Contract**
-
-| Field | Public contract |
-| --- | --- |
-| Reads | Accepted ICP facts and uncertainty, the root-to-owner `ORG.md` chain, owner-local ICPs, and safe supplied sources |
-| Writes | Only the selected owner's canonical ICP path, or scoped ICP repairs during doctor |
-| Outputs | An accepted node-owned ICP identified by display name and owner chain, a complete health report, or a scoped handoff |
-| Approval | The agent prepares, stages, inspects, and commits the scoped change locally, then the user approves one plain-language card immediately before the push |
-| Persists | Accepted ICP files in `main` Git history; no hidden coordination state |
-| Handoff | `gtm-workspace` for repository structure or connections, `gtm-persona` for buyers, and `gtm-workflow` for saved operational work |
+This skill owns `icps/<slug>/ICP.md` in the workspace found by [the contract](../gtm-workspace/references/contract.md). An ICP records desired or accepted criteria for target accounts in the 13 fields of [company data](../gtm-workspace/references/company-data.md), never facts about the organization itself.
 
 ## Inputs
 
-Use the user's accepted ICP facts and uncertainty, the hosting environment's connected-repo and durable-write declarations, the root-to-owner `ORG.md` chain, owner-local ICPs, and safe supplied sources.
+Criteria from the user or sources the user supplies; the existing ICPs, for the near-duplicate check; the names of ICPs copied into `workflows/workflows/*.ts`, for the copy notice.
 
 ## Roles
 
-The agent owns the selected ICP lifecycle flow. The user approves one plain-language card immediately before the push that saves the prepared local commit. `gtm-workspace` owns repository structure and connections.
+The user approves every change through the host's write permission; the agent proposes, edits, commits, and reports.
 
 ## Procedure
 
-| Condition | Owned flow |
+Talk by the six rules in [interaction](../gtm-workspace/references/interaction.md); reproduce [the dialogues](references/interactions.md).
+
+| Job | Do |
 | --- | --- |
-| The requested outcome belongs to a sibling workflow | Hand off before workspace resolution or artifact reads; mutate nothing |
-| No lifecycle verb is clear | Guide the ICP lifecycle menu and retain ownership of the selected flow |
-| Create or define is requested | Resolve the workspace and owner node, ground one or many factual drafts, check owner-local overlap, describe them, and save the accepted ICPs together |
-| Update or refine is requested | Resolve one visible ICP, preserve unrelated facts, describe the change, and save the accepted revision |
-| Delete is requested | Resolve one visible ICP, describe ownership and consequences, remove only the accepted target, and say it can be restored on request |
-| Doctor is requested or ICP artifacts seem malformed | Inspect ICP placement and content repo-wide, describe the repair set, save it once, and report resulting health |
+| Create | When an existing ICP overlaps the request, offer Update first. Otherwise copy `templates/ICP.md` to `icps/<slug>/ICP.md`, fill only the criteria the user gave, leave the rest `Unknown`, and say the rest stays Unknown because criteria are never borrowed from the company record. Omit `## Company signals` and `## Disqualifiers` when empty. |
+| Update | Change the named criteria, signals, or disqualifiers. When a workflow file names this ICP, say that workflow keeps its own copy of the criteria until it is updated. |
+| Delete | When several ICPs match, ask which; say whether a workflow carries a copy, which keeps running. Remove `icps/<slug>/`; close with what disappeared and that it stays in the workspace's history. |
+| Doctor | Flag an ICP with no account-matchable criterion (every field `Unknown`), a placeholder husk, a missing H1, or a folder name that is not its slug; offer the fixes as options; rewrite what the user accepts. `Unknown` in Description and Domain is normal. |
+
+Every save: one sentence on what will change, pull first when `origin/main` exists, edit through the host's write path, commit on `main` with a plain-language message, push when a remote exists, verify the commit (and that it reached `origin/main` when a remote exists), close with `Saved.`.
 
 ## Outputs
 
-Produce the accepted node-owned ICP state, identified by display name and owner chain, or a complete ICP health report. A request owned by a sibling workflow produces only a scoped handoff and no artifact mutation.
+`icps/<slug>/ICP.md` in the template's shape, each change a commit on `main`.
 
 ## Exceptions
 
-If no valid workspace is connected or discoverable, stop without writing and direct workspace creation or connection to `gtm-workspace`. If a required reference is unavailable or the environment cannot durably save the accepted operation, keep the repo unchanged and use the prescribed recovery.
+Requires the `gtm-workspace` skill installed alongside this one; when `../gtm-workspace/SKILL.md` is missing, say: install it the same way this skill was installed, with `npx skills add eliasstravik/gtm-skills -s gtm-workspace -y` (add `-g` when this skill lives in the global skills directory), then retry. A criterion the user did not state stays `Unknown`; nothing is derived from `ORG.md`.
 
 ## QC
 
-- Follow the shared interaction standard for every question, proposal, approval, and closing message; ask every missing result-changing fact in one decision message and never use `AskUserQuestion`.
-- Preserve every supplied qualification, disqualifier, and uncertainty; organization facts and adjacent ICPs are a factual ceiling, never evidence for invented ICP claims.
-- Keep all 13 company-data fields in the required order for every new or fully researched `ICP.md`; write `Unknown` instead of inventing or dropping unresolved criteria.
-- Prepare only the requested ICP files locally and never show complete bytes unless asked; the card must describe exactly what the prepared commit changes. Preserve legacy reads and node-local visibility and mutate only ICP paths.
-- Stage only named ICP paths, inspect the diff, commit locally, then show one card naming what changes and invoke `git push` with that card as the approval summary. Close a verified push with `Saved.`
+- The 13 fields appear in order, one line each; nested bullets only under Location, Products and services, and Tech stack.
+- The H1 is present and the folder name is its slug; empty optional sections are absent.
+- `Saved.` follows a verified commit.
 
 ## References
 
-- Read [the ICP contract](references/contract.md) for every flow; it defines workspace resolution, ownership, visibility, content, acceptance, safety, and persistence.
-- Read [the shared company-data research contract](../gtm-workspace/references/company-data.md) before creating or fully researching an ICP; apply its ordered fields as desired or accepted account criteria.
-- Read [the ICP lifecycle flows](references/flows.md) after selecting the Procedure row; they define menu, create, update, delete, doctor, recovery, and closure.
-- Render [the ICP draft template](templates/icp.md) only for create; it is a starting shape, not a schema or validity test.
-- Read [the shared interaction standard](../gtm-workspace/references/interaction.md) before any user-facing message; it defines audience language, length and formatting, proposal shape, batching, decision messages, approval by surface, and closing.
+[interactions](references/interactions.md) dialogues; `templates/ICP.md`; from gtm-workspace: [interaction](../gtm-workspace/references/interaction.md), [contract](../gtm-workspace/references/contract.md), [company data](../gtm-workspace/references/company-data.md).

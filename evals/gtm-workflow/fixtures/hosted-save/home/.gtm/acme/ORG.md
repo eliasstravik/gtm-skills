@@ -1,3 +1,0 @@
-# Acme
-
-Fixture GTM workspace.

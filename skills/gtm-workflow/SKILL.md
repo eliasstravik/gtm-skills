@@ -1,69 +1,70 @@
 ---
 name: gtm-workflow
-description: Triggers when a user asks to create, update, inspect, delete, run, query, schedule, or deploy a saved GTM workflow. Not for workspace setup, ICP or persona lifecycle work, other workflow engines, or one-off calls that are not saved as workflows.
+description: Triggers when a user asks to build, create, update, run, test, schedule, deploy, host, upgrade, inspect, or delete a saved GTM workflow, its result table, runs, or diagram in a GTM workspace, with phrasings like "build a workflow that scores our inbound companies", "run Score inbound accounts", "put it on a weekly schedule, hosted", or "upgrade the workflow runtime". Owns the workflows folder, which holds workflow code, tables, runs, schedules, diagrams, and Vercel deploys. Not for the workspace, ICPs, or personas themselves (gtm-workspace, gtm-icp, gtm-persona), or one-off fit checks that are not saved (gtm-qualify-prospects).
 ---
 
-# GTM workflow
+# GTM Workflow
 
 ## Trigger
 
-Apply this Lifecycle SOP to a saved GTM workflow from creation through updates, runs, inspection, deployment, and deletion.
+Apply this skill when a request concerns a saved workflow: creating, changing, running, scheduling, deploying, upgrading, inspecting, or deleting one, or its table, runs, or diagram.
 
 ## Scope
 
-Own workflow code, result tables, migrations, dry runs, runs, diagrams, and deployment metadata inside the root `workflows/` project. `gtm-workspace`, `gtm-icp`, and `gtm-persona` own their respective artifacts.
-
-**Contract**
-
-| Field | Public contract |
-| --- | --- |
-| Reads | The request, accepted workspace context, supplied rows, workflow files, and environment-held credentials |
-| Writes | Workflow code, result tables, migrations, schedules, and deployment metadata |
-| Outputs | A verified saved workflow, run result, inspection, diagram, deployment, or deletion |
-| Approval | One plain-language card covers creation, save, hosted deployment, one-row test, and small fixes; later runs and checkpoints each get one card |
-| Persists | Prepared local commits and approved pushes, plus workflow rows and cost records |
-| Handoff | Workspace, ICP, and persona lifecycle changes go to their owning skills |
+This skill owns `<workspace>/workflows/`, a Vercel Workflow runtime on Nitro copied from `templates/` on first use: workflow files, `db/tables/`, migrations, `vercel.json`, `.env`, the local database, runs, diagram pages, and the deployed copy. Runs execute locally against `data/gtm.db` by default; they target the deployed copy when the user asks or the host states there are no local runs, and hosted results are read through the Studio pair. The workspace files outside `workflows/` belong to the other gtm skills.
 
 ## Inputs
 
-Use the request, resolved organization context, relevant accepted ICP and persona files, supplied rows, current workflow project, environment-held credentials, and accepted cost limits.
+The request; the workspace found by [the contract](../gtm-workspace/references/contract.md); the ICP or persona whose criteria the workflow copies; `references/local.md` for commands, keys, and verified facts; `references/deploy.md` for hosting.
 
 ## Roles
 
-The agent authors and verifies the work. The user approves one card covering saved changes, hosted deployment, the one-row test, stated external effects, and stated test cost; later full runs and user-chosen checkpoints each receive one approval.
+The user approves code changes through the host's write permission, approves every real run and its cost, connects the workflow project to the repository once and does its dashboard steps, and chooses the AI backend; the agent writes, runs, and reports. Deploy is the push.
 
 ## Procedure
 
-1. Resolve the GTM workspace and requested lifecycle action. Ask one unnumbered question only when a result-changing fact cannot be inferred.
-2. For create, copy `templates/` from this installed skill into the workspace's root `workflows/` project when absent, rename `gitignore` and `vercelignore` with leading dots, copy `.env.example` to `.env`, and write `GTM_HOST=<claude|codex>` for the host you run in. Workflow files live at `workflows/workflows/<slug>.ts`. Read [the library](references/library.md), [SDK choices](references/sdk.md), and [the interaction standard](../gtm-workspace/references/interaction.md). Read [deployment](references/deploy.md) only for deploy work and [local use](references/local.md) only for open/local work.
-3. Draft workflow code, its table, a one-row input, and the author-written `Diagram:` header. A schedule request also writes the matching `vercel.json` cron entry. Run `npm run db:generate`, `npm run gtm -- verify <slug> --input data/test-1-row.json`, `git add <changed workflow, table, and migration paths>`, and `git commit -qm "<plain summary>"` silently. `data/` is ignored on purpose: the test input stays local and the card names it. Use `git commit --amend` after feedback when the prior commit was not pushed; after a push, a fix is a new commit.
-4. Post one plan card stating what it does, reads, saves, where it runs, one-row test cost, possible data removal, and any missing key. Its last line is `Saving and testing. Back in a few minutes.` Invoke the matching command with that card as its approval summary: hosted, `git push && npm run gtm -- run <slug> --url https://<production-host> --input data/test-1-row.json --wait-live --background`, which returns at once and starts the test in the background after the deploy is live; local, `npm run gtm -- run <slug> --input data/test-1-row.json`, which starts the local server itself when needed.
-5. After approval, collect hosted results with `watch_url` on `/api/runs/latest?workflow=<slug>&head=<pushed commit>` until a run appears, then on `/api/runs/<runKey>` until it finishes; at a keyboard use `npm run gtm -- runs get <id> --wait 600`. A failed run carries its plain reason in `error`; show it. Fix small failures and retry the identical approved step up to twice. Present a fresh card when cost, external effects, saved tables, command, or summary changes.
-6. On success say `Built and tested. Ready to run whenever you want.` and provide the picture plus Diagram, Runs, and Data links. A later full run gets one short card and one real `run` command. Cancel asks `What would you like me to change?`; revise from free text and re-ask at the same step.
-7. For update, inspect, or delete, preserve the same one-card boundary: verify and commit silently, then request approval for the first effectful command. Name deletion and data-removing SQL on the card. Use expand-then-contract for renames while a run may be waiting.
+Talk by the six rules in [interaction](../gtm-workspace/references/interaction.md); reproduce [the dialogues](references/interactions.md). Workflow slugs follow the contract's slug rule; the display name is the doc comment's first line.
 
-The command classifier allows local reads, checks, verification, dry runs, ordinary writes inside the checkout or scratch, and local commits. It asks for real runs, approval/cancellation, deploy commands, pushes, forced adds, paths outside those roots, and every unknown command. A chain takes its most restrictive classification; one approval request may be active at a time.
+| Job | Do |
+| --- | --- |
+| Create | First use: scaffold (copy `templates/` to `workflows/`; rename `gitignore` and `env.example` with leading dots; fill `GTM_RUN_SECRET` and `CRON_SECRET` with `openssl rand -hex 24`; `npm install`; start `npm run dev`; do not run `db:generate`). Ask where the rows come from, then the backend question. Write `workflows/<slug>.ts` from `example-scores.ts`, its table in `db/tables/<name>.ts`, register both in `workflows/index.ts` and `db/tables/index.ts` (keep the example workflow and its table; removing a table in the same generate as adding one makes the generator ask a rename question that no host can answer), run `npm run db:generate -- --name <name>`, restart the dev server, open the diagram page, commit, close with the diagram link and `Saved.`. When the user then asks to run, propose the limited run; when no connected project exists on a host without local runs, close instead by naming the connection steps in [deploy.md](references/deploy.md). |
+| Update | Change the workflow, refresh its criteria copy, add columns (then `db:generate` and restart); ask the backend question only when AI steps change; say the next run will offer a limited run. |
+| Run | Target: local by default on a personal computer; the deployed copy when the user asks or the host states there are no local runs, which needs a connected project and, first, Deploy's readiness check. Pre-run check: the workflow is new or changed since its last run, the row count, rows × estimate against both caps, any missing key. Propose the limited run first for a new or changed workflow. Start through the route, poll the read route, close with the result in plain words: done, failed, skipped, cost. Never `Saved.`. When a local run follows a hosted one, say it may re-spend on rows the hosted copy already did. |
+| Deploy | Deploy is the push; follow [deploy.md](references/deploy.md) for the one-time connection and the readiness check. A workflow using `headless()`: say the hosted copy runs only in a sandbox with that CLI and login, and offer the Gateway switch through Update. |
+| Upgrade | Compare `workflows/` to the installed `templates/`; say what differs; overwrite `lib/`, `server/`, `nitro.config.ts`, `drizzle.config.ts`, `tsconfig.json`; merge dependency versions into `package.json` without removing user-added ones, then delete `package-lock.json` and `node_modules` and run `npm install` fresh (installing over the old lockfile drops other platforms' packages and breaks the hosted build); regenerate `workflows/index.ts` and `db/tables/index.ts`; never touch other files in `workflows/`, `db/tables/`, `drizzle/`, `vercel.json`, `.env`, `data/`; restart and verify the server and a diagram page. |
+| Delete | Remove the workflow file, its registry entry, and its `vercel.json` cron; keep the table and its data and say so; when a project is connected, say the hosted copy drops it and its schedule as the save deploys. |
+
+Every save: one sentence on what will change, pull first when `origin/main` exists, edit through the host's write path, commit on `main` with a plain-language message, push when a remote exists, verify the commit (and that it reached `origin/main` when a remote exists), close with `Saved.`.
+
+On a host that states there are no local runs: the backend question has one viable answer, the Gateway, and by rule 3 is not asked; the scaffold deletes `env.example` instead of renaming it and starts no dev server, because the values live in the host's environment; the diagram link is the deployed copy's, from its link route, once it is live; every run targets the deployed copy after the push and after Deploy's readiness check; Upgrade verifies through the deployed diagram page after that check instead of restarting a server.
+
+### Conventions the code follows
+
+- Rows come from `defaultInput` (inline), a provider or API call inside a `"use step"` function, or a table another workflow fills; never from a workspace file or local-only data. Input is `{ rows?, maxRows?, maxSpendUsd? }`, each row an object with a required string `key`, the table's primary key; the workflow's constants are the defaults; the start route merges a POST body over `defaultInput`, so the limited run is `POST { maxRows: 1 }`.
+- `runRows({ rows, table, step, maxRows, maxSpendUsd, estimateUsd, freshForMs, concurrency? })` from `lib/rows.ts` is the loop; `step(row)` is a plain async function in workflow scope that awaits `"use step"` functions in sequence and returns `{ ...columns, costUsd }`. Tables are passed by name and resolved through `db/tables/index.ts`. About 200 rows per run is the comfortable limit; larger lists are chunked into several runs.
+- Every result table has `key`, `updated_at`, `cost_usd`, `error`. All database I/O, every `cached()`, `generateObject`, and `headless()` call happen inside `"use step"` functions declared as `async function name() { "use step"; }`, never arrow or method form; every paid or AI step sets `name.maxRetries = 0`. `WorkflowAgent` runs in workflow scope.
+- Backend question, at Create and when AI steps change: "Run AI steps on your Claude or Codex subscription (this machine only), or through AI Gateway (works hosted too)?"; recommend the subscription when no Gateway key is present and `claude` or `codex` is on PATH, else the Gateway. Each AI step chooses its backend in code: `generateObject` or `WorkflowAgent` with `GTM_MODEL`, or `headless()`; no code path switches between them. `maxUsd` bounds claude spend only.
+- Criteria: `export const criteria = \`…\`` holds the ICP or persona text, first line naming it; backticks and `${` are escaped. Nothing else from the workspace is deployed; the copy stays until the next Update.
+- Doc comment: first line is the title, second paragraph the one-sentence summary; the diagram page reads both.
+- Mermaid house style: `flowchart TB`; one `subgraph` for the per-row loop; classes `paid`, `ai`, `agent`, `save`, `wait`, `sub` applied with `:::`; every `paid`, `ai`, or `agent` node id is the name of a step or agent-stage function in the file; labels are two lines, `Verb object<br/><small>provider · about $X per row</small>`; a `save` node's second line is `table <name>`, a free step's names its source and `free`; the second line of an AI node names the backend (`Claude Code · about $0.01 per row` or `AI Gateway · gpt-5.6-luna · about $0.01 per row`). No `classDef` lines; the page appends them and shows a drift warning when node ids and functions disagree.
+- Engine features are used natively (see local.md): a hook or `sleep` is a `wait` node, a child workflow a `sub` node, a `WorkflowAgent` stage an `agent` node.
+- Routes, bearer `GTM_RUN_SECRET`: `POST /api/run/<slug>`, `GET /api/run/<slug>` (cron, also `CRON_SECRET`), `GET /api/runs/<id>`, `POST /api/runs/<id>/cancel`, `GET /api/link/<slug>`. Base: `http://localhost:3939` locally, `GTM_WORKFLOW_URL` for the deployed copy. When `GTM_RUN_SECRET` is the value `host`, the host supplies the credential outside the agent's reach and the call sends no `Authorization` header.
 
 ## Outputs
 
-Produce a verified saved workflow or the requested run, inspection, deployment, or deletion result, with owned rows and cost records tied to its run.
+`workflows/<slug>.ts`, its table and migration, registry entries, a `vercel.json` cron when scheduled, a diagram page, rows in the result table, and, once a project is connected, the deployed copy that every push refreshes.
 
 ## Exceptions
 
-When the Claude Code hook is missing, say `Run command-permission.mjs --install-claude-code, then restart Claude Code.` and use the interaction standard's numbered approval fallback for this session. Under `GTM_SANDBOX=1`, every run must use the literal hosted URL; the bot never runs the workflow in its sandbox. Claude Code runs `agentStage()` locally with a budget cap and MCP-only tools; Codex cannot cap spend and returns the refusal sentence, so Codex users add an AI key for agentic stages.
+Requires the `gtm-workspace` skill installed alongside this one; when `../gtm-workspace/SKILL.md` is missing, say: install it the same way this skill was installed, with `npx skills add eliasstravik/gtm-skills -s gtm-workspace -y` (add `-g` when this skill lives in the global skills directory), then retry. A missing key stops a run before it starts and is named. A build with `VERCEL` set and no Turso variables fails on purpose; report it. A run on the deployed copy needs a connected project; without `GTM_WORKFLOW_URL`, give Deploy's connection steps instead. A `workflows/` that contains `scripts/gtm.ts` is the previous runtime, which this skill neither converts nor upgrades: say so, and offer to set it aside (remove `workflows/`, which stays in the workspace's history; its deployed copy keeps running until the next push) and scaffold fresh.
 
 ## QC
 
-- `gtm verify` passes before the card; the card reflects its cost, migration, and missing-key facts.
-- Paid calls, including `agentStage()`, use an explicit `step` matching a `[step: name]` Diagram node. `agentStage()` costs use `[cost: up to $X/row]` matching `maxUsd`.
-- Secrets remain in environment variables. `.env*`, `data/`, `.workflow-data/`, `.gtm-local.json`, and `node_modules/` remain untracked.
-- Each file write stays inside the checkout or scratch and preserves user-owned workflow/table/provider files during `gtm upgrade`.
-- User-facing text follows the interaction standard and contains no raw commands or JSON inside approval cards.
+- The diagram's `paid`, `ai`, and `agent` node ids match function names and every `"use step"` function is a node; the page shows no drift warning.
+- The limited run was proposed before the first real run of a new or changed workflow, and the cap statement preceded every real run.
+- The result table has the four fixed columns; paid and AI steps have `maxRetries = 0`; no `cached()`, `generateObject`, or `headless()` call sits in workflow scope.
+- A Run reply ends with the plain-words result; a save ends with `Saved.`.
 
 ## References
 
-- [Library contract](references/library.md)
-- [SDK choices](references/sdk.md)
-- [Deployment](references/deploy.md)
-- [Local use](references/local.md)
-- [Shared interaction standard](../gtm-workspace/references/interaction.md)
+[interactions](references/interactions.md) dialogues; [local.md](references/local.md) for start, keys, data, schedules, tables, the viewer, the WorkflowAgent stage, and the findings ledger; [deploy.md](references/deploy.md); `templates/workflows/example-scores.ts` as the reference implementation; from gtm-workspace: [interaction](../gtm-workspace/references/interaction.md), [contract](../gtm-workspace/references/contract.md).
