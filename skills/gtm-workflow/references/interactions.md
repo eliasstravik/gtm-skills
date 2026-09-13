@@ -220,7 +220,7 @@ Saved.
 
 **Human:** Test one profile.
 
-**Agent:** Failed on the hosted copy: 1 row, the lookup could not start because the workflow project has no `MONID_API_KEY`. Add it in that project's settings and Redeploy, then ask me to test again; nothing was charged.
+**Agent:** Failed on the hosted copy: 1 row, the lookup could not start because the workflow project has no `MONID_API_KEY`. Add it in that project's settings and Redeploy, then ask me to test again; the row counts $0.26 against the cap and is tried again on the next run.
 
 **Files:** none
 
