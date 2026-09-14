@@ -8,7 +8,7 @@
  */
 import { z } from "zod";
 import { runAgent } from "../lib/agent";
-import { runRows, type Row } from "../lib/rows";
+import { runRows, type Row, type RowsInput } from "../lib/rows";
 
 export const diagram = `flowchart TB
   start([Read the company list]) --> loop
@@ -19,15 +19,17 @@ export const diagram = `flowchart TB
     saveBrief["Save the brief<br/><small>table example_research</small>"]:::save
     researchCompany --> fetchPage --> researchCompany --> saveBrief
   end
-  loop --> done([Stops after 200 rows or $2])`;
+  loop --> done([Stops after 200 rows or $2; more than 20 rows run as child runs])`;
 
 const MAX_ROWS = 200;
 const MAX_SPEND_USD = 2;
 const ESTIMATE_USD = 0.03;
 const FRESH_FOR_MS = 7 * 24 * 60 * 60 * 1000;
+/** An agent row is about 100 engine events; chunks of 20 keep each child run far under the 25,000-event cap. */
+const CHUNK_SIZE = 20;
 
 /** The cron input; a POST body is merged over it, so `{ maxRows: 1 }` is the limited run. */
-export const defaultInput: { rows: Row[]; maxRows?: number; maxSpendUsd?: number } = {
+export const defaultInput: RowsInput & { rows: Row[] } = {
   rows: [{ key: "vercel.com" }, { key: "linear.app" }],
 };
 
@@ -41,6 +43,8 @@ export async function exampleResearch(input: typeof defaultInput) {
     maxSpendUsd: input.maxSpendUsd ?? MAX_SPEND_USD,
     estimateUsd: ESTIMATE_USD,
     freshForMs: FRESH_FOR_MS,
+    // Above CHUNK_SIZE rows this run only splits the list into child runs of itself, four at a time, and adds up their totals.
+    fanOut: { workflow: exampleResearch, input, chunkSize: CHUNK_SIZE },
   });
 }
 

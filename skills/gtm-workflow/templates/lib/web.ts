@@ -1,12 +1,10 @@
 import { lookup } from "node:dns/promises";
-import { FatalError } from "workflow";
 import { cached } from "./cache";
 
-/** Built-in web tools for agent stages: a free page fetch and a paid search. Both are "use step" functions. */
+/** Built-in page fetch for agent stages, a "use step" function. Web search is a Gateway or provider tool; see lib/agent.ts. */
 
 const PAGE_CHARS = 8000;
 const MAX_REDIRECTS = 3;
-const SEARCH_ESTIMATE_USD = 0.01;
 
 /** Readable text of one public page, cached for a day. Free. Every redirect hop is checked like the first address. */
 export async function fetchPage(url: string): Promise<{ url: string; text: string; costUsd: number }> {
@@ -36,43 +34,6 @@ export async function fetchPage(url: string): Promise<{ url: string; text: strin
   });
   return { url: target, text: hit.value, costUsd: 0 };
 }
-
-export type SearchResult = { title: string | null; url: string; publishedDate: string | null; excerpt: string };
-export type SearchProviderName = keyof typeof SEARCH_PROVIDERS;
-
-type SearchProvider = { keyEnv: string; search: (query: string, numResults: number, key: string) => Promise<{ results: SearchResult[]; costUsd: number }> };
-
-/** Search providers by name; add one here and it becomes `web: { search: "<name>" }` for every agent stage. */
-const SEARCH_PROVIDERS = {
-  exa: {
-    keyEnv: "EXA_API_KEY",
-    async search(query, numResults, key) {
-      const res = await fetch("https://api.exa.ai/search", {
-        method: "POST",
-        headers: { "x-api-key": key, "content-type": "application/json" },
-        body: JSON.stringify({ query, numResults, type: "auto", contents: { text: { maxCharacters: 1200 } } }),
-        signal: AbortSignal.timeout(30_000),
-      });
-      if (!res.ok) throw new Error(`Exa answered HTTP ${res.status}`);
-      const body = (await res.json()) as { results?: { title?: string; url: string; publishedDate?: string; text?: string }[]; costDollars?: { total?: number } };
-      return {
-        results: (body.results ?? []).map((r) => ({ title: r.title ?? null, url: r.url, publishedDate: r.publishedDate ?? null, excerpt: (r.text ?? "").slice(0, 1200) })),
-        costUsd: typeof body.costDollars?.total === "number" ? body.costDollars.total : SEARCH_ESTIMATE_USD,
-      };
-    },
-  },
-} satisfies Record<string, SearchProvider>;
-
-/** Web search through the named provider; needs that provider's key. costUsd is what the provider reports, else about a cent. */
-export async function webSearch(query: string, numResults = 5, provider: SearchProviderName = "exa"): Promise<{ results: SearchResult[]; costUsd: number }> {
-  "use step";
-  const p = SEARCH_PROVIDERS[provider] as SearchProvider | undefined;
-  if (!p) throw new FatalError(`Unknown search provider ${provider}`);
-  const key = process.env[p.keyEnv];
-  if (!key) throw new FatalError(`Set ${p.keyEnv} for web search through ${provider}`);
-  return p.search(query, Math.min(Math.max(numResults, 1), 10), key);
-}
-webSearch.maxRetries = 0;
 
 /** Only public http(s) addresses by name: no IP literals, localhost, or internal names. */
 function publicUrl(input: string): string {

@@ -21,7 +21,6 @@ export default defineHandler((event) => {
           : p.type === "tool-call" ? { type: "tool-call", tool: p.toolName, input: clip(p.input) }
           : p.type === "tool-result" ? { type: "tool-result", tool: p.toolName, output: clip(p.output) }
           : p.type === "tool-error" ? { type: "tool-error", tool: p.toolName, error: clip(p.error) }
-          : p.type === "tool-approval-request" ? { type: "approval-requested" }
           : p.type === "finish-step" ? { type: "model-call-done" }
           : p.type === "finish" ? { type: "done", finishReason: p.finishReason }
           : p.type === "error" ? { type: "error", error: clip(p.error) }

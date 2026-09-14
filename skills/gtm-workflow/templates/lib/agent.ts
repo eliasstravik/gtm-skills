@@ -1,3 +1,5 @@
+import { gateway } from "@ai-sdk/gateway";
+import { openai } from "@ai-sdk/openai";
 import { WorkflowAgent, type ModelCallStreamPart, type WorkflowAgentOptions, type WorkflowAgentStreamOptions } from "@ai-sdk/workflow";
 import { jsonSchema, Output, stepCountIs, tool, type ModelMessage, type StepResult, type ToolSet } from "ai";
 import { getWorkflowMetadata, getWritable, sleep } from "workflow";
@@ -7,13 +9,16 @@ import { approvalHook, recordApproval } from "./approval";
 import { runAgentCli, type CliBackend } from "./cli";
 import { callMcpTool, listMcpTools, type McpServer } from "./mcp";
 import { canNotify, notify, type SlackTarget } from "./notify";
-import { fetchPage, webSearch, type SearchProviderName } from "./web";
+import { fetchPage } from "./web";
 
 /**
- * Agent stage: a durable, tool-using agent inside a workflow, through AI Gateway.
+ * Agent stage: a durable, tool-using agent inside a workflow.
  *
  * Call runAgent() from workflow scope, never inside a "use step" function. Every model call and every tool call
  * then runs as its own step: retried by the engine's rules, resumed after a crash, and visible in the run's trace.
+ * The backend is chosen per run from the environment: GTM_AGENT_BACKEND in .env on a personal computer puts the
+ * stage on the author's Claude Code or Codex subscription; the hosted copy, where no such variable exists, runs it
+ * through AI Gateway. The same workflow file runs in both places without edits.
  * The config is the whole authoring surface: model and reasoning, instructions and skills, tools (hosted MCP
  * servers, web search and page fetch, your own step-backed tools), human approval per tool, live streaming, caps on
  * steps, spend, and time, and the schema of the answer. Everything else WorkflowAgent accepts passes through `agent`
@@ -22,10 +27,13 @@ import { fetchPage, webSearch, type SearchProviderName } from "./web";
 
 export type Reasoning = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
+/** Where web_search runs: `gateway` is Exa executed by AI Gateway (any model, no key); `openai` is OpenAI's own web search (openai/* models only). Both run inside the model call, not as steps. */
+export type SearchProviderName = "gateway" | "openai";
+
 export type AgentTools = {
   /** Hosted MCP servers by name. Each tool call is a step; the key is read from the named variable on the workflow project. */
   mcp?: Record<string, McpServer>;
-  /** Built-in web tools: `fetch` gives fetch_page (free, cached a day); `search` gives web_search through a provider (`true` is Exa; its key is named in lib/web.ts). */
+  /** Built-in web tools: `fetch` gives fetch_page (free, cached a day, a step); `search` gives web_search (`true` is `gateway`). */
   web?: { search?: boolean | SearchProviderName; fetch?: boolean };
   /** Your own tools. Give each `execute` a "use step" function so the call is durable and appears in the trace. */
   custom?: ToolSet;
@@ -42,9 +50,10 @@ export type AgentOptions<T = string> = {
   /** Stable id, shown in the trace and in approval requests; use the stage function's name. */
   name: string;
   /**
-   * gateway (default): AI Gateway, every model and tool call a step, works hosted. claude or codex: the whole agent runs
-   * inside one step through that CLI on the author's subscription, this machine only; MCP servers and web tools carry over,
-   * custom tools, approvals, streaming, and messages do not.
+   * Overrides GTM_AGENT_BACKEND for this stage. gateway: AI Gateway, every model and tool call a step, works hosted.
+   * claude or codex: the whole agent runs inside one step through that CLI on the author's subscription, this machine
+   * only; MCP servers and web tools carry over. A stage that uses custom tools, approve, stream, or messages, and every
+   * stage on the hosted copy, runs on the Gateway whatever this says.
    */
   backend?: "gateway" | CliBackend;
   instructions: string;
@@ -102,9 +111,10 @@ export async function runAgent<T = string>(o: AgentOptions<T>): Promise<AgentRes
   const maxSteps = o.maxSteps ?? 20;
   const timeout = o.timeout ?? "10m";
   const method = (o.skills ?? []).map(readSkill);
-  if (o.backend && o.backend !== "gateway") return runOnCli(o, o.backend, [o.instructions, ...method].join("\n\n"), reasoning);
+  const backend = chooseBackend(o);
+  if (backend !== "gateway") return runOnCli(o, backend, [o.instructions, ...method].join("\n\n"), reasoning, durationMs(timeout));
   const model = o.model ?? process.env.GTM_MODEL ?? "openai/gpt-5.6-luna";
-  const tools = guardTools(o.name, await buildTools(o.tools), o.approve ?? [], o.notify);
+  const tools = guardTools(o.name, await buildTools(o.tools, model), o.approve ?? [], o.notify);
   const output = o.schema ? Output.object<T>({ schema: jsonSchema<T>(sanitizeSchema(z.toJSONSchema(o.schema)) as never) }) : (Output.text() as unknown as ReturnType<typeof Output.object<T>>);
   const overBudget = (steps: StepResult<ToolSet>[]) => o.maxUsd != null && spentUsd(steps) >= o.maxUsd;
   const userStops = o.agent?.stopWhen == null ? [] : Array.isArray(o.agent.stopWhen) ? o.agent.stopWhen : [o.agent.stopWhen];
@@ -164,8 +174,20 @@ export async function runAgent<T = string>(o: AgentOptions<T>): Promise<AgentRes
   };
 }
 
-/** Workflow scope: built-in and MCP tools become step-backed AI SDK tools; custom tools pass through. */
-async function buildTools(t: AgentTools | undefined): Promise<ToolSet> {
+/**
+ * Workflow scope, from the frozen environment: the stage's own `backend`, else GTM_AGENT_BACKEND, else the Gateway.
+ * A CLI backend cannot do custom tools, approvals, streaming, or conversations, and does not exist on Vercel, so those
+ * stages take the Gateway instead of failing.
+ */
+function chooseBackend(o: AgentOptions<unknown>): "gateway" | CliBackend {
+  const wanted = o.backend ?? (process.env.GTM_AGENT_BACKEND as "gateway" | CliBackend | undefined) ?? "gateway";
+  if (wanted !== "claude" && wanted !== "codex") return "gateway";
+  const needsGateway = process.env.VERCEL || o.tools?.custom || o.approve?.length || o.stream || o.messages || o.agent || o.call;
+  return needsGateway ? "gateway" : wanted;
+}
+
+/** Workflow scope: built-in and MCP tools become step-backed AI SDK tools; web search is a provider-executed tool; custom tools pass through. */
+async function buildTools(t: AgentTools | undefined, model: string): Promise<ToolSet> {
   const tools: ToolSet = { ...(t?.custom ?? {}) };
   if (t?.web?.fetch) {
     tools.fetch_page = tool({
@@ -176,13 +198,10 @@ async function buildTools(t: AgentTools | undefined): Promise<ToolSet> {
     });
   }
   if (t?.web?.search) {
-    const provider = t.web.search === true ? "exa" : t.web.search;
-    tools.web_search = tool({
-      description: "Search the web. Returns up to 10 results with title, url, published date, and an excerpt.",
-      inputSchema: z.object({ query: z.string(), numResults: z.number().int().min(1).max(10).nullable() }),
-      strict: false,
-      execute: ({ query, numResults }) => webSearch(query, numResults ?? 5, provider),
-    });
+    const provider: SearchProviderName = t.web.search === true ? "gateway" : t.web.search;
+    if (provider === "openai" && !model.startsWith("openai/")) throw new Error(`web search through openai needs an openai/* model, not ${model}`);
+    // Executed by the Gateway or the provider inside the model call: no step of its own, its cost inside the call's cost.
+    tools.web_search = provider === "openai" ? openai.tools.webSearch({}) : gateway.tools.exaSearch();
   }
   for (const [server, config] of Object.entries(t?.mcp ?? {})) {
     for (const def of await listMcpTools(config)) {
@@ -206,7 +225,10 @@ async function buildTools(t: AgentTools | undefined): Promise<ToolSet> {
 
 /** Workflow scope: a guarded tool records the request, waits on a hook keyed by its tool call id, then runs or reports the denial. */
 function guardTools(stage: string, tools: ToolSet, approve: string[], target: SlackTarget | false | undefined): ToolSet {
-  for (const name of approve) if (!tools[name]) throw new Error(`Agent ${stage}: approve names unknown tool ${name}`);
+  for (const name of approve) {
+    if (!tools[name]) throw new Error(`Agent ${stage}: approve names unknown tool ${name}`);
+    if (!tools[name].execute) throw new Error(`Agent ${stage}: ${name} runs on the provider and cannot wait for approval`);
+  }
   const guarded: ToolSet = { ...tools };
   for (const name of approve) {
     const original = tools[name];
@@ -227,12 +249,8 @@ function guardTools(stage: string, tools: ToolSet, approve: string[], target: Sl
   return guarded;
 }
 
-/** Workflow scope: the CLI backends. Everything the CLI cannot do is refused here, before any spend. */
-async function runOnCli<T>(o: AgentOptions<T>, backend: CliBackend, instructions: string, reasoning: Reasoning | undefined): Promise<AgentResult<T>> {
-  if (process.env.VERCEL) throw new Error(`Agent ${o.name}: the ${backend} backend runs only on a personal computer; use backend "gateway" for the hosted copy`);
-  for (const [field, present] of [["custom tools", o.tools?.custom], ["approve", o.approve?.length], ["stream", o.stream], ["messages", o.messages], ["agent", o.agent], ["call", o.call]] as const) {
-    if (present) throw new Error(`Agent ${o.name}: ${field} is not available on the ${backend} backend`);
-  }
+/** Workflow scope: the CLI backends, one step each; chooseBackend has already routed anything they cannot do to the Gateway. */
+async function runOnCli<T>(o: AgentOptions<T>, backend: CliBackend, instructions: string, reasoning: Reasoning | undefined, timeoutMs: number): Promise<AgentResult<T>> {
   const r = await runAgentCli({
     backend,
     instructions,
@@ -243,6 +261,7 @@ async function runOnCli<T>(o: AgentOptions<T>, backend: CliBackend, instructions
     mcp: o.tools?.mcp,
     web: Boolean(o.tools?.web?.search || o.tools?.web?.fetch),
     maxUsd: o.maxUsd,
+    timeoutMs,
   });
   return {
     value: (o.schema ? o.schema.parse(r.value) : r.value) as T,

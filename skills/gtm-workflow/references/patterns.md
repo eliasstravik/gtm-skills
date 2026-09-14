@@ -105,10 +105,20 @@ Kinds: `tell` (news), `ask` (carries `approval: { token }`, the agent asks and d
 
 ## Run attributes
 
-Tag a run so the observability page can filter it. Workflow scope, plain data only.
+`runRows` already tags every run with `workflow`, `rows`, `channel`, and `parent`. Add more the same way, in workflow scope, string values only, at most 64 keys.
 
 ```ts
 import { setAttributes } from "workflow";
 
-setAttributes({ workflow: "score-inbound-accounts", rows: String(input.rows?.length ?? 0) });
+await setAttributes({ icp: "lean-b2b-saas" });
+```
+
+## Web search inside an agent stage
+
+`web: { search: true }` is enough. It is a provider-executed tool, run by AI Gateway inside the model call, so it needs no key and appears inside the `doStreamStep` step rather than as a step of its own; `"openai"` swaps in OpenAI's own search for openai/* models. For any other provider-executed tool, pass it through `tools.custom` the same way; only step-backed tools can be approved or call-limited.
+
+```ts
+import { openai } from "@ai-sdk/openai";
+
+tools: { web: { search: "openai" }, custom: { code: openai.tools.codeInterpreter({}) } }
 ```

@@ -24,6 +24,8 @@ export type CliAgentOptions = {
   web?: boolean;
   /** Enforced by claude (--max-budget-usd); informational for codex. */
   maxUsd?: number;
+  /** Wall-clock limit for the CLI process; it is killed when reached and the step fails. */
+  timeoutMs?: number;
 };
 
 export type CliAgentResult = { value: unknown; costUsd: number; modelCalls: number; usage: { inputTokens: number; outputTokens: number } };
@@ -55,7 +57,7 @@ export async function runAgentCli(o: CliAgentOptions): Promise<CliAgentResult> {
         args.push("--mcp-config", join(dir, "mcp.json"));
       }
       if (allowed.length) args.push("--allowedTools", ...allowed);
-      const reply = JSON.parse(await run("claude", args, prompt, dir)) as { is_error?: boolean; result?: string; structured_output?: unknown; total_cost_usd?: number; num_turns?: number; usage?: { input_tokens?: number; output_tokens?: number }; terminal_reason?: string };
+      const reply = JSON.parse(await run("claude", args, prompt, dir, o.timeoutMs)) as { is_error?: boolean; result?: string; structured_output?: unknown; total_cost_usd?: number; num_turns?: number; usage?: { input_tokens?: number; output_tokens?: number }; terminal_reason?: string };
       if (reply.is_error) throw new Error(`claude: ${reply.result ?? reply.terminal_reason}`);
       return {
         value: o.schema ? reply.structured_output ?? JSON.parse(reply.result ?? "null") : reply.result ?? "",
@@ -80,7 +82,7 @@ export async function runAgentCli(o: CliAgentOptions): Promise<CliAgentResult> {
       if (!allow?.length) throw new FatalError(`The codex backend needs an allow list of tool names for the MCP server ${name}`);
       for (const toolName of allow) args.push("-c", `mcp_servers.${name}.tools.${toolName}.approval_mode="approve"`);
     }
-    await run("codex", args, prompt, dir);
+    await run("codex", args, prompt, dir, o.timeoutMs);
     const text = await readFile(join(dir, "last.txt"), "utf8");
     return { value: o.schema ? JSON.parse(text) : text.trim(), costUsd: 0, modelCalls: 1, usage: { inputTokens: 0, outputTokens: 0 } };
   } finally {
@@ -89,17 +91,21 @@ export async function runAgentCli(o: CliAgentOptions): Promise<CliAgentResult> {
 }
 runAgentCli.maxRetries = 0;
 
-function run(cmd: string, args: string[], stdin: string, cwd: string): Promise<string> {
-  // A nested claude must not see the parent session's variables.
-  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("CLAUDE")));
+function run(cmd: string, args: string[], stdin: string, cwd: string, timeoutMs?: number): Promise<string> {
+  // A nested claude or codex must not see the parent session's variables.
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("CLAUDE") && !k.startsWith("CODEX")));
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(cmd, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"], ...(timeoutMs && { timeout: timeoutMs, killSignal: "SIGTERM" }) });
     let out = "";
     let err = "";
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (err += d));
     child.on("error", (e) => reject(new Error(`${cmd} could not start: ${e.message}`)));
-    child.on("close", (code) => (code === 0 ? resolve(out) : reject(new Error(`${cmd} exited ${code}: ${(err.trim() || out).slice(-800)}`))));
+    child.on("close", (code, signal) => {
+      if (code === 0) return resolve(out);
+      if (signal && timeoutMs) return reject(new Error(`${cmd} was stopped after ${Math.round(timeoutMs / 1000)}s`));
+      reject(new Error(`${cmd} exited ${code ?? signal}: ${(err.trim() || out).slice(-800)}`));
+    });
     child.stdin.end(stdin);
   });
 }

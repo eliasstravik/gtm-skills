@@ -1,5 +1,6 @@
-import { inArray } from "drizzle-orm";
-import { defineHook, getWorkflowMetadata } from "workflow";
+import { and, eq, inArray } from "drizzle-orm";
+import { cache as cacheTable } from "../db/tables/cache";
+import { defineHook, getWorkflowMetadata, setAttributes } from "workflow";
 import { resumeHook, start } from "workflow/api";
 import { z } from "zod";
 import { db, table, upsert, type TableName } from "./db";
@@ -52,6 +53,7 @@ const childHook = defineHook({ schema: z.object({ done: z.number(), failed: z.nu
 
 /** Workflow-scope loop, never a step: skips fresh keys, checks both caps before each batch, runs step(row) per row, persists through save. */
 export async function runRows(o: RunRowsOptions): Promise<RunResult> {
+  await tagRun(o);
   const read = o.read ?? readFresh;
   const save = o.save ?? saveRow;
   const concurrency = o.concurrency ?? 1;
@@ -91,6 +93,20 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
   return result;
 }
 
+/** Workflow scope: tags the run so the runs page can filter by workflow, list size, channel, and parent. Plain strings only. */
+async function tagRun(o: RunRowsOptions): Promise<void> {
+  const input = o.fanOut?.input;
+  // workflowName is `workflow//./workflows/<slug>//<function>`; the slug is what the routes and links use.
+  const parts = getWorkflowMetadata().workflowName.split("//");
+  const workflow = (parts[1] ?? "").split("/").pop() || parts[parts.length - 1] || "";
+  await setAttributes({
+    workflow,
+    rows: String(o.rows.length),
+    ...(input?.notify?.channelId && { channel: input.notify.channelId }),
+    ...(input?.parent && { parent: input.parent.split(":chunk:")[0] as string }),
+  });
+}
+
 /** Workflow scope: the parent's share of a fanned-out run. Rows beyond the caps are not started at all. */
 async function fanOut(o: RunRowsOptions, pending: Row[]): Promise<RunResult> {
   const { workflow, input, chunkSize, concurrency = 4 } = o.fanOut as NonNullable<RunRowsOptions["fanOut"]>;
@@ -105,7 +121,9 @@ async function fanOut(o: RunRowsOptions, pending: Row[]): Promise<RunResult> {
   for (let wave = 0; wave < chunks.length; wave += concurrency) {
     const waveChunks = chunks.slice(wave, wave + concurrency);
     const hooks = waveChunks.map((_, j) => childHook.create({ token: `${workflowRunId}:chunk:${wave + j}` }));
-    await Promise.all(waveChunks.map((chunk, j) => startChild(workflowId, { ...input, rows: chunk, maxRows: chunk.length, maxSpendUsd: round(chunk.length * o.estimateUsd), parent: `${workflowRunId}:chunk:${wave + j}` })));
+    const children = await Promise.all(waveChunks.map((chunk, j) => startChild(workflowId, { ...input, rows: chunk, maxRows: chunk.length, maxSpendUsd: round(chunk.length * o.estimateUsd), parent: `${workflowRunId}:chunk:${wave + j}` })));
+    // The cancel route reads this list and cancels the children with the parent.
+    await recordChildren(workflowRunId, children);
     for (const r of await Promise.all(hooks)) {
       total.done += r.done; total.failed += r.failed; total.skipped += r.skipped; total.spentUsd = round(total.spentUsd + r.spentUsd);
     }
@@ -117,6 +135,15 @@ async function startChild(workflowId: string, input: RowsInput): Promise<string>
   "use step";
   const run = await start({ workflowId }, [input] as never);
   return run.runId;
+}
+
+/** Appends child run ids to the parent's record in the cache table, under the name `children`, kept 30 days. */
+async function recordChildren(parentRunId: string, runIds: string[]): Promise<void> {
+  "use step";
+  const [row] = await db().select().from(cacheTable).where(and(eq(cacheTable.name, "children"), eq(cacheTable.hash, parentRunId)));
+  const known = row ? (JSON.parse(row.value) as string[]) : [];
+  const now = new Date();
+  await upsert("cache", [{ name: "children", hash: parentRunId, value: JSON.stringify([...known, ...runIds]), created_at: now.toISOString(), expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString() }], ["name", "hash"]);
 }
 
 async function reportToParent(token: string, result: RunResult): Promise<void> {

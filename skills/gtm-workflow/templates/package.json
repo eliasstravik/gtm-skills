@@ -1,6 +1,6 @@
 {
   "name": "gtm-workflows",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "private": true,
   "type": "module",
   "engines": { "node": ">=22" },
@@ -12,7 +12,9 @@
     "db:studio:turso": "GTM_STUDIO=turso drizzle-kit studio"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "4.0.80",
     "@ai-sdk/mcp": "2.0.49",
+    "@ai-sdk/openai": "4.0.66",
     "@ai-sdk/workflow": "2.0.30",
     "@libsql/client": "0.18.0",
     "ai": "7.0.99",
