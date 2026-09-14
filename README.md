@@ -67,6 +67,7 @@ Each skill owns one part of the workspace and hands off to the others. Install `
 | `gtm-persona` | Personas: the people the organization sells to |
 | `gtm-qualify-prospects` | In-conversation fit checks of supplied people or companies |
 | `gtm-workflow` | Saved workflows: code, tables, runs, schedules, and deploys |
+| `gtm-agent` | GTM Agent itself: deploying the Slack agent to Vercel, its workflow project, and their wiring, from one prompt |
 
 ## Choose how to get started
 

@@ -50,7 +50,6 @@ The agent returns a verdict with its reasons and writes nothing.
 ## Next steps
 
 - Build a saved workflow: "build a workflow that scores our inbound companies". The agent scaffolds `workflows/`, writes the workflow and its result table, opens a diagram at `http://localhost:3939/gtm/<slug>`, and states the cost before every run.
-- Host it: connect a Vercel project to the workspace repository with root directory `workflows/`, add Turso and an AI Gateway key, and say "put it on a weekly schedule, hosted".
-- Run it from Slack instead of a terminal: deploy [gtm-agent](https://github.com/eliasstravik/gtm-agent).
+- Run it from Slack, hosted on Vercel: with the GitHub and Vercel CLIs signed in, say "get gtm-agent running for Acme in Slack". The agent deploys [gtm-agent](https://github.com/eliasstravik/gtm-agent), its Slack app, and a workflow project with a database; you click Allow once in Slack. Then "put it on a weekly schedule, hosted" runs on that project.
 
 Something not working? [Open an issue](https://github.com/eliasstravik/gtm-skills/issues/new).

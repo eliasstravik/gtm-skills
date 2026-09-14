@@ -12,6 +12,11 @@ function credentials() {
   return { url, authToken };
 }
 
+/** The raw libsql client for route-side reads (the query route); workflows use db() inside steps. */
+export function rawClient() {
+  return createClient(credentials());
+}
+
 let instance: ReturnType<typeof drizzle<typeof tables>> | undefined;
 /** Local: file:./data/gtm.db. Vercel: Turso. Call only inside "use step" functions. */
 export function db() {

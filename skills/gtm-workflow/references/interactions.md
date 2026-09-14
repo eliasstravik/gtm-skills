@@ -59,11 +59,7 @@ Created Score inbound accounts.
 
 Created Score inbound accounts.
 
-Runs happen on the hosted copy, which needs a Vercel project connected to the Acme repository once; after that every save deploys by itself. To connect it:
-
-1. In Vercel, create a project from the Acme repository with root directory `workflows`, production branch `main`, Node 22.
-2. In its dashboard: connect a Turso database from the marketplace; add `GTM_RUN_SECRET` and `CRON_SECRET` (long random strings you choose), `GTM_MODEL` as `openai/gpt-5.6-luna`, and `AI_GATEWAY_API_KEY`; turn Deployment Protection off for production; then Redeploy the latest deployment.
-3. Give the person who runs this agent the project's production address, the same `GTM_RUN_SECRET`, and a read-only Turso token with the database address, for the agent's settings.
+Runs happen on the hosted copy, which needs a Vercel project connected to the Acme repository once; after that every save deploys by itself. To connect it, a teammate with the GitHub and Vercel CLIs signed in says to their coding agent: "connect the workflow project for Acme". That creates the project and its database and wires this agent to it; nothing to paste anywhere.
 
 Once that is in place, ask me to run it and I'll offer a one-row test first.
 
@@ -215,13 +211,7 @@ Done: 34 companies scored; 1 failed (Northfield's site couldn't be reached; it w
 
 **Human:** Put Score inbound accounts on a weekly schedule, hosted, Monday mornings.
 
-**Agent:** Adding the Monday 08:00 UTC schedule now. Hosting needs a Vercel project connected to the gtm-acme repository once; after that every save deploys by itself. To connect it:
-
-1. In Vercel, create a project from the gtm-acme repository with root directory `workflows`, production branch `main`, Node 22.
-2. In its dashboard: connect a Turso database from the marketplace; add `GTM_RUN_SECRET` and `CRON_SECRET` (copy them from `workflows/.env`; I won't print them), `GTM_MODEL` as `openai/gpt-5.6-luna`, and `AI_GATEWAY_API_KEY`; turn Deployment Protection off for production; then Redeploy the latest deployment.
-3. Add to `workflows/.env`: `GTM_WORKFLOW_URL` (the project's production address), `TURSO_STUDIO_URL` (the database address with `libsql://` replaced by `https://`), and `TURSO_STUDIO_TOKEN` (a read-only token from Turso).
-
-Tell me when that's done and I'll check that the deployment is live.
+**Agent:** Adding the Monday 08:00 UTC schedule now. Hosting needs a Vercel project connected to the gtm-acme repository once; after that every save deploys by itself. Say "connect the workflow project for Acme" and I'll create it (the gtm-agent skill does that here: the project, its database, and `GTM_WORKFLOW_URL` and `GTM_RUN_SECRET` in `workflows/.env`), then check that the deployment is live.
 
 Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
@@ -233,7 +223,7 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 **Files:**
 - changed `workflows/workflows/score-inbound-accounts.ts`
 - changed `workflows/vercel.json`
-- changed `workflows/.env` (by you, not committed)
+- changed `workflows/.env` (by the connection, not committed)
 
 ## Run on the deployed copy
 

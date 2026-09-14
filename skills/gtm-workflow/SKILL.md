@@ -11,7 +11,7 @@ Apply this skill when a request concerns a saved workflow: creating, changing, r
 
 ## Scope
 
-This skill owns `<workspace>/workflows/`, a Vercel Workflow runtime on Nitro copied from `templates/` on first use: workflow files, `db/tables/`, migrations, `vercel.json`, `.env`, the local database, runs, diagram pages, and the deployed copy. Runs execute locally against `data/gtm.db` by default; they target the deployed copy when the user asks or the host states there are no local runs, and hosted results are read through the Studio pair. The workspace files outside `workflows/` belong to the other gtm skills.
+This skill owns `<workspace>/workflows/`, a Vercel Workflow runtime on Nitro copied from `templates/` on first use: workflow files, `db/tables/`, migrations, `vercel.json`, `.env`, the local database, runs, diagram pages, and the deployed copy. Runs execute locally against `data/gtm.db` by default; they target the deployed copy when the user asks or the host states there are no local runs, and hosted results are read through the deployed copy's query route. The workspace files outside `workflows/` belong to the other gtm skills.
 
 ## Inputs
 
@@ -19,7 +19,7 @@ The request; the workspace found by [the contract](../gtm-workspace/references/c
 
 ## Roles
 
-The user approves code changes through the host's write permission, approves every real run and its cost, connects the workflow project to the repository once and does its dashboard steps, and chooses the AI backend once per workspace in `.env`; the agent writes, runs, and reports. Deploy is the push.
+The user approves code changes through the host's write permission, approves every real run and its cost, connects the workflow project to the repository once (through the `gtm-agent` skill, or by hand) and chooses the AI backend once per workspace in `.env`; the agent writes, runs, and reports. Deploy is the push.
 
 ## Procedure
 
@@ -66,7 +66,7 @@ On a host that states there are no local runs: the scaffold deletes `env.example
 
 ## Exceptions
 
-Requires the `gtm-workspace` skill installed alongside this one; when `../gtm-workspace/SKILL.md` is missing, say: install it the same way this skill was installed, with `npx skills add eliasstravik/gtm-skills -s gtm-workspace -y` (add `-g` when this skill lives in the global skills directory), then retry. A missing key stops a run before it starts and is named. A build with `VERCEL` set and no Turso variables fails on purpose; report it. A run on the deployed copy needs a connected project; without `GTM_WORKFLOW_URL`, give Deploy's connection steps instead. A `workflows/` that contains `scripts/gtm.ts` is the previous runtime, which this skill neither converts nor upgrades: say so, and offer to set it aside (remove `workflows/`, which stays in the workspace's history; its deployed copy keeps running until the next push) and scaffold fresh.
+Requires the `gtm-workspace` skill installed alongside this one; when `../gtm-workspace/SKILL.md` is missing, say: install it the same way this skill was installed, with `npx skills add eliasstravik/gtm-skills -s gtm-workspace -y` (add `-g` when this skill lives in the global skills directory), then retry. A missing key stops a run before it starts and is named. A build with `VERCEL` set and no Turso variables fails on purpose; report it. A run on the deployed copy needs a connected project; without `GTM_WORKFLOW_URL`, say how to connect one as Deploy does (the `gtm-agent` skill on a computer with the CLIs signed in) instead. A `workflows/` that contains `scripts/gtm.ts` is the previous runtime, which this skill neither converts nor upgrades: say so, and offer to set it aside (remove `workflows/`, which stays in the workspace's history; its deployed copy keeps running until the next push) and scaffold fresh.
 
 ## QC
 

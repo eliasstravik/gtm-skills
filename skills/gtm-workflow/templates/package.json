@@ -1,6 +1,6 @@
 {
   "name": "gtm-workflows",
-  "version": "0.1.21",
+  "version": "0.1.24",
   "private": true,
   "type": "module",
   "engines": { "node": ">=22" },
@@ -8,8 +8,7 @@
     "dev": "drizzle-kit migrate && WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS=900000 WORKFLOW_LOCAL_BODY_TIMEOUT_MS=900000 nitro dev --port 3939",
     "build": "drizzle-kit migrate && nitro build",
     "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio",
-    "db:studio:turso": "GTM_STUDIO=turso drizzle-kit studio"
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@ai-sdk/gateway": "4.0.80",
