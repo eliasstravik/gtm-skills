@@ -1,8 +1,9 @@
-import { WorkflowAgent } from "@ai-sdk/workflow";
-import { jsonSchema, Output, stepCountIs, tool, type StepResult, type ToolSet } from "ai";
-import { sleep } from "workflow";
+import { WorkflowAgent, type ModelCallStreamPart, type WorkflowAgentOptions, type WorkflowAgentStreamOptions } from "@ai-sdk/workflow";
+import { jsonSchema, Output, stepCountIs, tool, type ModelMessage, type StepResult, type ToolSet } from "ai";
+import { getWorkflowMetadata, getWritable, sleep } from "workflow";
 import { z } from "zod";
 import { skills } from "../skills";
+import { approvalHook, recordApproval } from "./approval";
 import { callMcpTool, listMcpTools, type McpServer } from "./mcp";
 import { fetchPage, webSearch } from "./web";
 
@@ -11,8 +12,10 @@ import { fetchPage, webSearch } from "./web";
  *
  * Call runAgent() from workflow scope, never inside a "use step" function. Every model call and every tool call
  * then runs as its own step: retried by the engine's rules, resumed after a crash, and visible in the run's trace.
- * The agent gets a model, reasoning effort, instructions, optional skills (text modules registered in skills/index.ts), and
- * tools (hosted MCP servers, web search and page fetch, or your own step-backed tools), and must return the schema.
+ * The config is the whole authoring surface: model and reasoning, instructions and skills, tools (hosted MCP
+ * servers, web search and page fetch, your own step-backed tools), human approval per tool, live streaming, caps on
+ * steps, spend, and time, and the schema of the answer. Everything else WorkflowAgent accepts passes through `agent`
+ * (constructor options) and `call` (per-call options); the helper keeps only the fields where mistakes break runs.
  */
 
 export type Reasoning = "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
@@ -26,13 +29,22 @@ export type AgentTools = {
   custom?: ToolSet;
 };
 
-export type AgentOptions<T> = {
-  /** Stable id, shown in the trace; use the stage function's name. */
+type OwnedAgentKeys = "id" | "model" | "tools" | "instructions" | "system" | "output" | "abortSignal" | "maxRetries" | "reasoning" | "maxOutputTokens";
+type OwnedCallKeys = "prompt" | "messages" | "output" | "abortSignal" | "timeout" | "writable" | "instructions" | "system" | "stopWhen";
+/** WorkflowAgent constructor options the helper does not own: sampling, provider options, prepareStep, prepareCall, callbacks, telemetry, contexts. */
+export type AgentPassthrough = Partial<Omit<WorkflowAgentOptions<ToolSet>, OwnedAgentKeys>>;
+/** WorkflowAgent per-call options the helper does not own: toolChoice, activeTools, callbacks, transforms. */
+export type CallPassthrough = Partial<Omit<Extract<WorkflowAgentStreamOptions<ToolSet>, { prompt: unknown }>, OwnedCallKeys>>;
+
+export type AgentOptions<T = string> = {
+  /** Stable id, shown in the trace and in approval requests; use the stage function's name. */
   name: string;
   instructions: string;
-  prompt: string;
-  /** The result the agent must return. Use nullable fields, not optional ones, and no string formats. */
-  schema: z.ZodType<T>;
+  /** The task. Give `messages` instead to continue a conversation. */
+  prompt?: string;
+  messages?: ModelMessage[];
+  /** The result the agent must return; plain text when omitted. Use nullable fields, not optional ones, and no string formats. */
+  schema?: z.ZodType<T>;
   /** Charged when the Gateway reports no cost; the per-row estimate runRows uses for its caps. */
   estimateUsd: number;
   /** AI Gateway model id; defaults to GTM_MODEL on the project. */
@@ -42,18 +54,26 @@ export type AgentOptions<T> = {
   /** Names from skills/index.ts, appended to the instructions. */
   skills?: string[];
   tools?: AgentTools;
+  /** Tool names a person must approve before each call (web_search, monid_run, or a custom tool's name); the row waits, then continues. */
+  approve?: string[];
+  /** Write every model and tool event to the run's stream; read it at GET /api/runs/<id>/stream. */
+  stream?: boolean;
   /** Model calls, tool turns included. Default 20. */
   maxSteps?: number;
   /** Soft budget: after the call that crosses it, the agent stops calling tools and writes up what it has. */
   maxUsd?: number;
-  /** Wall-clock limit as a duration ("5m", "90s", "1h"). Default "10m". The row fails when it is reached. */
+  /** Wall-clock limit as a duration ("5m", "90s", "2d"). Default "10m"; make it days when approvals may wait. The row fails when it is reached. */
   timeout?: string | number;
   maxOutputTokens?: number;
+  /** Anything else WorkflowAgent's constructor takes. */
+  agent?: AgentPassthrough;
+  /** Anything else WorkflowAgent's stream() takes; applied to the wrap-up call too. */
+  call?: CallPassthrough;
 };
 
 export type AgentToolCall = { tool: string; input: unknown; ok: boolean; costUsd: number };
 
-export type AgentResult<T> = {
+export type AgentResult<T = string> = {
   value: T;
   /** Gateway-reported model cost plus tool-reported cost; estimateUsd when the Gateway reported nothing. */
   costUsd: number;
@@ -63,20 +83,23 @@ export type AgentResult<T> = {
   usage: { inputTokens: number; outputTokens: number };
 };
 
-const WRAP_UP = "Stop using tools now. Return the requested structured result from what you have found so far; use null or empty lists for anything not established.";
+const WRAP_UP = "Stop using tools now. Return the requested result from what you have found so far; use null or empty lists for anything not established.";
 
-/** Workflow scope. One row's agent stage: builds the tools, runs the loop, enforces the caps, returns the parsed schema. */
-export async function runAgent<T>(o: AgentOptions<T>): Promise<AgentResult<T>> {
+/** Workflow scope. One row's agent stage: builds the tools, runs the loop, enforces the caps, returns the parsed result. */
+export async function runAgent<T = string>(o: AgentOptions<T>): Promise<AgentResult<T>> {
+  if ((o.prompt == null) === (o.messages == null)) throw new Error(`Agent ${o.name}: give exactly one of prompt or messages`);
   const model = o.model ?? process.env.GTM_MODEL ?? "openai/gpt-5.6-luna";
   const reasoning = o.reasoning ?? (process.env.GTM_REASONING as Reasoning | undefined);
   const maxSteps = o.maxSteps ?? 20;
   const timeout = o.timeout ?? "10m";
   const method = (o.skills ?? []).map(readSkill);
-  const tools = await buildTools(o.tools);
-  const output = Output.object<T>({ schema: jsonSchema<T>(sanitizeSchema(z.toJSONSchema(o.schema)) as never) });
+  const tools = guardTools(o.name, await buildTools(o.tools), o.approve ?? []);
+  const output = o.schema ? Output.object<T>({ schema: jsonSchema<T>(sanitizeSchema(z.toJSONSchema(o.schema)) as never) }) : (Output.text() as unknown as ReturnType<typeof Output.object<T>>);
   const overBudget = (steps: StepResult<ToolSet>[]) => o.maxUsd != null && spentUsd(steps) >= o.maxUsd;
+  const userStops = o.agent?.stopWhen == null ? [] : Array.isArray(o.agent.stopWhen) ? o.agent.stopWhen : [o.agent.stopWhen];
 
   const agent = new WorkflowAgent({
+    ...o.agent,
     id: o.name,
     model,
     instructions: [o.instructions, ...method].join("\n\n"),
@@ -84,13 +107,15 @@ export async function runAgent<T>(o: AgentOptions<T>): Promise<AgentResult<T>> {
     maxRetries: 0,
     ...(reasoning && { reasoning }),
     ...(o.maxOutputTokens && { maxOutputTokens: o.maxOutputTokens }),
-    stopWhen: [stepCountIs(maxSteps), ({ steps }) => overBudget(steps as StepResult<ToolSet>[])],
+    stopWhen: [...userStops, stepCountIs(maxSteps), ({ steps }) => overBudget(steps as StepResult<ToolSet>[])],
   });
 
   // Timeouts are a race against sleep(): AbortSignal.timeout() and timers do not exist in workflow scope.
   const controller = new AbortController();
   const timedOut = sleep(durationMs(timeout)).then(() => "timeout" as const);
-  const first = await Promise.race([agent.stream({ prompt: o.prompt, output, abortSignal: controller.signal }), timedOut]);
+  const shared = { ...o.call, output, abortSignal: controller.signal, ...(o.stream && { writable: getWritable<ModelCallStreamPart>(), preventClose: true, sendFinish: false }) };
+  const task = o.messages ? { messages: o.messages } : { prompt: o.prompt as string };
+  const first = await Promise.race([agent.stream({ ...shared, ...task } as never), timedOut]);
   if (first === "timeout") {
     controller.abort();
     throw new Error(`Agent ${o.name} timed out after ${timeout}`);
@@ -103,10 +128,7 @@ export async function runAgent<T>(o: AgentOptions<T>): Promise<AgentResult<T>> {
     // The loop ended on a cap in the middle of research: one last call, no tools, to write up what was found.
     // The instructions travel as the agent's own; a system message inside `messages` is rejected.
     const history = first.messages.filter((m) => m.role !== "system");
-    const last = await Promise.race([
-      agent.stream({ messages: [...history, { role: "user", content: WRAP_UP }], toolChoice: "none", output, abortSignal: controller.signal }),
-      timedOut,
-    ]);
+    const last = await Promise.race([agent.stream({ ...shared, messages: [...history, { role: "user", content: WRAP_UP }], toolChoice: "none" } as never), timedOut]);
     if (last === "timeout") {
       controller.abort();
       throw new Error(`Agent ${o.name} timed out after ${timeout}`);
@@ -114,12 +136,12 @@ export async function runAgent<T>(o: AgentOptions<T>): Promise<AgentResult<T>> {
     steps = [...steps, ...(last.steps as StepResult<ToolSet>[])];
     value = last.output as T | undefined;
   }
-  if (value == null) throw new Error(`Agent ${o.name} returned no structured result (${stopReason})`);
+  if (value == null) throw new Error(`Agent ${o.name} returned no result (${stopReason})`);
 
   const modelCost = gatewayUsd(steps);
   const toolCalls = traceToolCalls(steps);
   return {
-    value: o.schema.parse(value),
+    value: o.schema ? o.schema.parse(value) : value,
     costUsd: round((modelCost > 0 ? modelCost : o.estimateUsd) + toolCalls.reduce((sum, c) => sum + c.costUsd, 0)),
     modelCalls: steps.length,
     toolCalls,
@@ -168,6 +190,27 @@ async function buildTools(t: AgentTools | undefined): Promise<ToolSet> {
     }
   }
   return tools;
+}
+
+/** Workflow scope: a guarded tool records the request, waits on a hook keyed by its tool call id, then runs or reports the denial. */
+function guardTools(stage: string, tools: ToolSet, approve: string[]): ToolSet {
+  for (const name of approve) if (!tools[name]) throw new Error(`Agent ${stage}: approve names unknown tool ${name}`);
+  const guarded: ToolSet = { ...tools };
+  for (const name of approve) {
+    const original = tools[name];
+    guarded[name] = {
+      ...original,
+      execute: async (input: unknown, options: { toolCallId: string; messages: ModelMessage[] }) => {
+        const token = `approval:${options.toolCallId}`;
+        const hook = approvalHook.create({ token });
+        await recordApproval({ token, runId: getWorkflowMetadata().workflowRunId, stage, tool: name, input });
+        const decision = await hook;
+        if (!decision.approved) return { isError: true, tool: name, error: `A person declined this call${decision.reason ? `: ${decision.reason}` : ""}` };
+        return original.execute?.(input as never, options as never);
+      },
+    } as ToolSet[string];
+  }
+  return guarded;
 }
 
 /** Workflow scope: skills are plain text modules registered in skills/index.ts. */
