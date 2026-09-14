@@ -18,7 +18,7 @@ export default definePlugin(() => {
       continue;
     }
     new Cron(schedule, { timezone: "UTC", protect: true }, async () => {
-      const run = await start(wf.run, [wf.defaultInput]);
+      const run = await start(wf.run as never, [wf.defaultInput] as never);
       console.log(`[gtm] scheduled run of ${slug} started: ${run.runId}`);
     });
     console.log(`[gtm] local schedule: ${slug} at "${schedule}" UTC`);

@@ -4,7 +4,7 @@ Contents: [Create](#create) · [Create without a connected project](#create-with
 
 ## Create
 
-**Setup:** Workspace Acme exists with the ICP Lean B2B SaaS and no workflows yet. Claude Code is installed on this machine; no AI Gateway key is present.
+**Setup:** Workspace Acme exists with the ICP Lean B2B SaaS and no workflows yet; the checkout is linked to Vercel, so the Gateway needs no key locally.
 
 **Human:** Build a workflow that scores our inbound companies against Lean B2B SaaS.
 
@@ -16,14 +16,7 @@ Contents: [Create](#create) · [Create without a connected project](#create-with
 
 **Human:** 1: brightpath.io, quillhr.com, northfield.co
 
-**Agent:** Run AI steps on your Claude or Codex subscription (this machine only), or through AI Gateway (works hosted too)?
-
-1. Claude Code subscription: this machine only, no key needed (Recommended)
-2. AI Gateway: works hosted too; needs a Gateway key
-
-**Human:** 1
-
-**Agent:** Building it now; about two minutes, since this is Acme's first workflow. Score inbound accounts scores your three companies against Lean B2B SaaS on your Claude Code subscription, about $0.01 each, capped at 200 rows or $5 per run.
+**Agent:** Building it now; about two minutes, since this is Acme's first workflow. Score inbound accounts scores your three companies against Lean B2B SaaS through AI Gateway, about $0.01 each, capped at 200 rows or $5 per run.
 
 Created Score inbound accounts.
 [Open diagram](http://localhost:3939/gtm/score-inbound-accounts) · [Open runs](http://localhost:3939/_workflow) · [Open data](https://local.drizzle.studio)
@@ -193,19 +186,11 @@ Done: 34 companies scored; 1 failed (Northfield's site couldn't be reached; it w
 
 ## Deploy
 
-**Setup:** Workspace Acme is shared as the private GitHub repository gtm-acme and has Score inbound accounts, which scores on the Claude Code subscription. No workflow project is connected yet.
+**Setup:** Workspace Acme is shared as the private GitHub repository gtm-acme and has Score inbound accounts. No workflow project is connected yet.
 
 **Human:** Put Score inbound accounts on a weekly schedule, hosted, Monday mornings.
 
-**Agent:** Hosted runs happen on Vercel, and the scoring step currently uses your Claude Code subscription, which works only on this machine.
-
-1. Switch scoring to AI Gateway (gpt-5.6-luna, about $0.01 per row) and host it (Recommended)
-2. Schedule it on this machine instead; it runs while your computer is on
-3. Not now
-
-**Human:** 1
-
-**Agent:** Switching scoring to AI Gateway and adding the Monday 08:00 UTC schedule now. Hosting needs a Vercel project connected to the gtm-acme repository once; after that every save deploys by itself. To connect it:
+**Agent:** Adding the Monday 08:00 UTC schedule now. Hosting needs a Vercel project connected to the gtm-acme repository once; after that every save deploys by itself. To connect it:
 
 1. In Vercel, create a project from the gtm-acme repository with root directory `workflows`, production branch `main`, Node 22.
 2. In its dashboard: connect a Turso database from the marketplace; add `GTM_RUN_SECRET` and `CRON_SECRET` (copy them from `workflows/.env`; I won't print them), `GTM_MODEL` as `openai/gpt-5.6-luna`, and `AI_GATEWAY_API_KEY`; turn Deployment Protection off for production; then Redeploy the latest deployment.
@@ -213,7 +198,7 @@ Done: 34 companies scored; 1 failed (Northfield's site couldn't be reached; it w
 
 Tell me when that's done and I'll check that the deployment is live.
 
-Updated Score inbound accounts: scoring through AI Gateway, scheduled Mondays at 08:00 UTC.
+Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
 **Human:** Done.
 

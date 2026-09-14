@@ -14,6 +14,6 @@ export default defineHandler(async (event) => {
   const wf = workflows[slug as keyof typeof workflows];
   if (!wf) return new Response(`Unknown workflow ${slug}`, { status: 404 });
   const body = isGet ? {} : await event.req.json().catch(() => ({}));
-  const run = await start(wf.run, [{ ...wf.defaultInput, ...body }]);
+  const run = await start(wf.run as never, [{ ...wf.defaultInput, ...body }] as never);
   return { id: run.runId };
 });

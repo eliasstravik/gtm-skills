@@ -19,7 +19,9 @@ When `GTM_WORKFLOW_URL` is present, Deploy checks readiness in code after the pu
 - Node 22 runtime; production Deployment Protection off, so signed diagram links open without a Vercel login.
 - Schedules: `vercel.json` `crons` only; Vercel Cron calls `GET /api/run/<slug>` with `Authorization: Bearer <CRON_SECRET>`. `nitro.config.ts` mirrors the same list into the build output as a fallback. Hobby-plan crons run at most daily and the start time can drift within the hour.
 - Where to look: `GET /api/link/<slug>` with the bearer returns the production diagram URL signed for 7 days, the Runs and Data page addresses when set, and `keys`, the names of the `*_API_KEY` variables on the workflow project; a host without local runs shares these three after a save that creates or changes a workflow, not after a run, never a localhost link.
-- A workflow that uses `headless()` runs hosted only inside a sandbox that has that CLI and its login, which the skill does not provide; before pushing such a workflow the agent says so and offers the switch to the Gateway backend through Update.
+- An agent stage with `backend: "claude"` or `"codex"` fails at start on the hosted copy by design; before pushing such a workflow the agent says so and offers the switch to `"gateway"` through Update.
+- Reaching people from a run: set `GTM_AGENT_URL` (the GTM agent's production URL) and `GTM_NOTIFY_SECRET` (a long random string, the same value on the agent project, which also needs `GTM_NOTIFY_CHANNEL`) on the workflow project; the link route then lists nothing for them, since they are not keys, so the agent checks `notify` readiness by reading the run's first notification outcome.
+- Inbound webhooks: the sender's signing secret goes on the workflow project under the variable the intake names; the sender's endpoint is `https://<host>/api/intake/<slug>`.
 - Local `data/gtm.db` and Turso are separate: a local run after a hosted one may re-spend on rows the hosted copy already did; the agent says so when that happens.
 - The deployed copy keeps its inlined criteria until the next Update is pushed.
 

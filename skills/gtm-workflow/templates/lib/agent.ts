@@ -4,8 +4,10 @@ import { getWorkflowMetadata, getWritable, sleep } from "workflow";
 import { z } from "zod";
 import { skills } from "../skills";
 import { approvalHook, recordApproval } from "./approval";
+import { runAgentCli, type CliBackend } from "./cli";
 import { callMcpTool, listMcpTools, type McpServer } from "./mcp";
-import { fetchPage, webSearch } from "./web";
+import { canNotify, notify } from "./notify";
+import { fetchPage, webSearch, type SearchProviderName } from "./web";
 
 /**
  * Agent stage: a durable, tool-using agent inside a workflow, through AI Gateway.
@@ -23,8 +25,8 @@ export type Reasoning = "none" | "minimal" | "low" | "medium" | "high" | "xhigh"
 export type AgentTools = {
   /** Hosted MCP servers by name. Each tool call is a step; the key is read from the named variable on the workflow project. */
   mcp?: Record<string, McpServer>;
-  /** Built-in web tools: `fetch` gives fetch_page (free, cached a day); `search` gives web_search through Exa (EXA_API_KEY). */
-  web?: { search?: boolean; fetch?: boolean };
+  /** Built-in web tools: `fetch` gives fetch_page (free, cached a day); `search` gives web_search through a provider (`true` is Exa; its key is named in lib/web.ts). */
+  web?: { search?: boolean | SearchProviderName; fetch?: boolean };
   /** Your own tools. Give each `execute` a "use step" function so the call is durable and appears in the trace. */
   custom?: ToolSet;
 };
@@ -39,6 +41,12 @@ export type CallPassthrough = Partial<Omit<Extract<WorkflowAgentStreamOptions<To
 export type AgentOptions<T = string> = {
   /** Stable id, shown in the trace and in approval requests; use the stage function's name. */
   name: string;
+  /**
+   * gateway (default): AI Gateway, every model and tool call a step, works hosted. claude or codex: the whole agent runs
+   * inside one step through that CLI on the author's subscription, this machine only; MCP servers and web tools carry over,
+   * custom tools, approvals, streaming, and messages do not.
+   */
+  backend?: "gateway" | CliBackend;
   instructions: string;
   /** The task. Give `messages` instead to continue a conversation. */
   prompt?: string;
@@ -88,11 +96,12 @@ const WRAP_UP = "Stop using tools now. Return the requested result from what you
 /** Workflow scope. One row's agent stage: builds the tools, runs the loop, enforces the caps, returns the parsed result. */
 export async function runAgent<T = string>(o: AgentOptions<T>): Promise<AgentResult<T>> {
   if ((o.prompt == null) === (o.messages == null)) throw new Error(`Agent ${o.name}: give exactly one of prompt or messages`);
-  const model = o.model ?? process.env.GTM_MODEL ?? "openai/gpt-5.6-luna";
   const reasoning = o.reasoning ?? (process.env.GTM_REASONING as Reasoning | undefined);
   const maxSteps = o.maxSteps ?? 20;
   const timeout = o.timeout ?? "10m";
   const method = (o.skills ?? []).map(readSkill);
+  if (o.backend && o.backend !== "gateway") return runOnCli(o, o.backend, [o.instructions, ...method].join("\n\n"), reasoning);
+  const model = o.model ?? process.env.GTM_MODEL ?? "openai/gpt-5.6-luna";
   const tools = guardTools(o.name, await buildTools(o.tools), o.approve ?? []);
   const output = o.schema ? Output.object<T>({ schema: jsonSchema<T>(sanitizeSchema(z.toJSONSchema(o.schema)) as never) }) : (Output.text() as unknown as ReturnType<typeof Output.object<T>>);
   const overBudget = (steps: StepResult<ToolSet>[]) => o.maxUsd != null && spentUsd(steps) >= o.maxUsd;
@@ -165,11 +174,12 @@ async function buildTools(t: AgentTools | undefined): Promise<ToolSet> {
     });
   }
   if (t?.web?.search) {
+    const provider = t.web.search === true ? "exa" : t.web.search;
     tools.web_search = tool({
       description: "Search the web. Returns up to 10 results with title, url, published date, and an excerpt.",
       inputSchema: z.object({ query: z.string(), numResults: z.number().int().min(1).max(10).nullable() }),
       strict: false,
-      execute: ({ query, numResults }) => webSearch(query, numResults ?? 5),
+      execute: ({ query, numResults }) => webSearch(query, numResults ?? 5, provider),
     });
   }
   for (const [server, config] of Object.entries(t?.mcp ?? {})) {
@@ -204,6 +214,8 @@ function guardTools(stage: string, tools: ToolSet, approve: string[]): ToolSet {
         const token = `approval:${options.toolCallId}`;
         const hook = approvalHook.create({ token });
         await recordApproval({ token, runId: getWorkflowMetadata().workflowRunId, stage, tool: name, input });
+        // When the agent project is configured, a person hears about it in Slack; otherwise the run's read route lists it.
+        if (canNotify()) await notify({ kind: "ask", text: `${stage} wants to call ${name} with ${JSON.stringify(input).slice(0, 600)}`, approval: { token } });
         const decision = await hook;
         if (!decision.approved) return { isError: true, tool: name, error: `A person declined this call${decision.reason ? `: ${decision.reason}` : ""}` };
         return original.execute?.(input as never, options as never);
@@ -211,6 +223,33 @@ function guardTools(stage: string, tools: ToolSet, approve: string[]): ToolSet {
     } as ToolSet[string];
   }
   return guarded;
+}
+
+/** Workflow scope: the CLI backends. Everything the CLI cannot do is refused here, before any spend. */
+async function runOnCli<T>(o: AgentOptions<T>, backend: CliBackend, instructions: string, reasoning: Reasoning | undefined): Promise<AgentResult<T>> {
+  if (process.env.VERCEL) throw new Error(`Agent ${o.name}: the ${backend} backend runs only on a personal computer; use backend "gateway" for the hosted copy`);
+  for (const [field, present] of [["custom tools", o.tools?.custom], ["approve", o.approve?.length], ["stream", o.stream], ["messages", o.messages], ["agent", o.agent], ["call", o.call]] as const) {
+    if (present) throw new Error(`Agent ${o.name}: ${field} is not available on the ${backend} backend`);
+  }
+  const r = await runAgentCli({
+    backend,
+    instructions,
+    prompt: o.prompt as string,
+    schema: o.schema ? (sanitizeSchema(z.toJSONSchema(o.schema)) as Record<string, unknown>) : undefined,
+    model: o.model,
+    reasoning,
+    mcp: o.tools?.mcp,
+    web: Boolean(o.tools?.web?.search || o.tools?.web?.fetch),
+    maxUsd: o.maxUsd,
+  });
+  return {
+    value: (o.schema ? o.schema.parse(r.value) : r.value) as T,
+    costUsd: r.costUsd > 0 ? r.costUsd : o.estimateUsd,
+    modelCalls: r.modelCalls,
+    toolCalls: [],
+    stopReason: "done",
+    usage: r.usage,
+  };
 }
 
 /** Workflow scope: skills are plain text modules registered in skills/index.ts. */

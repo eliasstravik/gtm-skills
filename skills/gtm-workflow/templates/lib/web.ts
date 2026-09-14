@@ -38,24 +38,39 @@ export async function fetchPage(url: string): Promise<{ url: string; text: strin
 }
 
 export type SearchResult = { title: string | null; url: string; publishedDate: string | null; excerpt: string };
+export type SearchProviderName = keyof typeof SEARCH_PROVIDERS;
 
-/** Web search through Exa; needs EXA_API_KEY. costUsd is what Exa reports for the call, else about a cent. */
-export async function webSearch(query: string, numResults = 5): Promise<{ results: SearchResult[]; costUsd: number }> {
+type SearchProvider = { keyEnv: string; search: (query: string, numResults: number, key: string) => Promise<{ results: SearchResult[]; costUsd: number }> };
+
+/** Search providers by name; add one here and it becomes `web: { search: "<name>" }` for every agent stage. */
+const SEARCH_PROVIDERS = {
+  exa: {
+    keyEnv: "EXA_API_KEY",
+    async search(query, numResults, key) {
+      const res = await fetch("https://api.exa.ai/search", {
+        method: "POST",
+        headers: { "x-api-key": key, "content-type": "application/json" },
+        body: JSON.stringify({ query, numResults, type: "auto", contents: { text: { maxCharacters: 1200 } } }),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!res.ok) throw new Error(`Exa answered HTTP ${res.status}`);
+      const body = (await res.json()) as { results?: { title?: string; url: string; publishedDate?: string; text?: string }[]; costDollars?: { total?: number } };
+      return {
+        results: (body.results ?? []).map((r) => ({ title: r.title ?? null, url: r.url, publishedDate: r.publishedDate ?? null, excerpt: (r.text ?? "").slice(0, 1200) })),
+        costUsd: typeof body.costDollars?.total === "number" ? body.costDollars.total : SEARCH_ESTIMATE_USD,
+      };
+    },
+  },
+} satisfies Record<string, SearchProvider>;
+
+/** Web search through the named provider; needs that provider's key. costUsd is what the provider reports, else about a cent. */
+export async function webSearch(query: string, numResults = 5, provider: SearchProviderName = "exa"): Promise<{ results: SearchResult[]; costUsd: number }> {
   "use step";
-  const key = process.env.EXA_API_KEY;
-  if (!key) throw new FatalError("Set EXA_API_KEY for web search");
-  const res = await fetch("https://api.exa.ai/search", {
-    method: "POST",
-    headers: { "x-api-key": key, "content-type": "application/json" },
-    body: JSON.stringify({ query, numResults: Math.min(Math.max(numResults, 1), 10), type: "auto", contents: { text: { maxCharacters: 1200 } } }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!res.ok) throw new Error(`Exa answered HTTP ${res.status}`);
-  const body = (await res.json()) as { results?: { title?: string; url: string; publishedDate?: string; text?: string }[]; costDollars?: { total?: number } };
-  return {
-    results: (body.results ?? []).map((r) => ({ title: r.title ?? null, url: r.url, publishedDate: r.publishedDate ?? null, excerpt: (r.text ?? "").slice(0, 1200) })),
-    costUsd: typeof body.costDollars?.total === "number" ? body.costDollars.total : SEARCH_ESTIMATE_USD,
-  };
+  const p = SEARCH_PROVIDERS[provider] as SearchProvider | undefined;
+  if (!p) throw new FatalError(`Unknown search provider ${provider}`);
+  const key = process.env[p.keyEnv];
+  if (!key) throw new FatalError(`Set ${p.keyEnv} for web search through ${provider}`);
+  return p.search(query, Math.min(Math.max(numResults, 1), 10), key);
 }
 webSearch.maxRetries = 0;
 

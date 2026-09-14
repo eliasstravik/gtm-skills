@@ -1,6 +1,6 @@
 # Local runtime
 
-Contents: [Start](#start) · [Keys](#keys) · [Backends](#backends) · [Data](#data) · [Schedules](#schedules) · [Tables](#tables) · [Engine viewer](#engine-viewer) · [Agent stage](#agent-stage) · [Verified versions](#verified-versions) · [Build-time findings](#build-time-findings) · [Unverified until first deploy](#unverified-until-first-deploy)
+Contents: [Start](#start) · [Keys](#keys) · [Backends](#backends) · [Data](#data) · [Schedules](#schedules) · [Tables](#tables) · [Engine viewer](#engine-viewer) · [Agent stage](#agent-stage) · [Fan-out, intake, notify](#fan-out-intake-notify) · [Verified versions](#verified-versions) · [Build-time findings](#build-time-findings) · [Unverified until first deploy](#unverified-until-first-deploy)
 
 ## Start
 
@@ -16,7 +16,7 @@ Contents: [Start](#start) · [Keys](#keys) · [Backends](#backends) · [Data](#d
 ## Backends
 
 - Gateway: `generateObject({ model: process.env.GTM_MODEL, schema, prompt })` inside a `"use step"` function; `runAgent()` in workflow scope. Locally this needs `AI_GATEWAY_API_KEY`, or a Vercel-linked checkout (`.vercel/`) whose OIDC token the Gateway accepts. `generateObject` cost arrives asynchronously, so its `costUsd` is the declared estimate; `runAgent` reads the cost the Gateway reports on each call.
-- Subscription: `headless({ cli: "claude" | "codex", prompt, schema, tools?, maxUsd? }, estimateUsd)` inside a `"use step"` function, this machine only. `tools` maps a name to a local command `{ command, args? }` or a hosted MCP server `{ url, headers? }`. `maxUsd` is enforced by claude alone. One scoring call through `claude -p` reported `total_cost_usd` between $0.06 and $0.18 on the build machine, so set `maxUsd` to at least 0.5 per call; that reported figure is what `cost_usd` records, though a subscription is not billed per call.
+- Subscription: `runAgent({ ..., backend: "claude" | "codex" })`, this machine only; the whole stage is one step through the CLI (`lib/cli.ts`), MCP servers and web tools carry over (claude: WebSearch and WebFetch; codex: `web_search="live"`), custom tools, approvals, streaming, and messages do not, and codex needs each MCP server's `allow` list because its tools run unattended only when named with `approval_mode="approve"`. claude reports `total_cost_usd` (one probe cost $0.13 on the build machine; set `maxUsd` accordingly); codex reports nothing, so `costUsd` is the estimate. On Vercel the stage fails at start with a clear message.
 - Cursor and OpenCode users have no subscription CLI; they use the Gateway.
 
 ## Data
@@ -81,6 +81,13 @@ Rules the helper exists to enforce, each learned from a failed hosted run:
 
 Skills are text modules: `skills/<name>.ts` exporting a template string, registered in `skills/index.ts`; the server-asset route the diagram page uses is not visible from the step bundle. Other engine features are used natively and documented at workflow-sdk.dev: hooks (`defineHook`, `createHook`) for approval, `sleep`, child workflows (`start` inside a step), `getRun(id).cancel()`, `FatalError` and `maxRetries`. Diagram nodes: `wait` for a hook or sleep, `sub` for a child workflow.
 
+## Fan-out, intake, notify
+
+- Fan-out: `runRows` with `fanOut: { workflow, input, chunkSize }` splits a list above `chunkSize` into child runs of the same workflow (`start({ workflowId })` inside a step; the function's `workflowId` is read in workflow scope), four at a time, each child capped at its chunk (`maxRows: chunk.length`, `maxSpendUsd: chunk.length × estimate`), reporting back through a hook `<parent run>:chunk:<n>` that the child resumes from a step at its end. Verified: 3 rows, chunk size 1, one parent and three children, totals summed, every row saved.
+- Intake: `defineIntake` in the workflow file is workflow-safe; `lib/intake-api.ts` does the HMAC check (constant time), the 30-day dedupe in the `cache` table under the name `intake`, and the mapping; the route starts the run. Verified with a signed body.
+- Notify: `lib/notify.ts` posts `{ runId, workflow, kind, text, approval?, target? }` to `GTM_AGENT_URL/gtm/notify` with `GTM_NOTIFY_SECRET`; the agent's custom channel turns it into a Slack turn. An approval inside a stage notifies by itself when both variables are present (`canNotify()` reads the workflow's frozen environment). Verified against a local listener.
+- Bundle rule: a module a workflow imports must not reach the database or the runtime outside a `"use step"` body; plain helpers that do so drag the native client into the workflow bundle, which fails at start with `require is not defined`. Route-only code lives in `lib/approval-api.ts` and `lib/intake-api.ts`.
+
 ## Verified versions
 
 On 2026-09-12: claude 2.1.269, codex-cli 0.154.0, node 22.23.2, npm 10.9.8, `npx skills` with `-s`, `-g`, `-y`, Mermaid 11.15.0 on cdnjs (HTTP 200). Packages are pinned in `templates/package.json`; `workflow` 5.0.0-beta.51 because `@ai-sdk/workflow` 2.0.30 requires `^5.0.0-beta.42` and rejects 4.8.8.
@@ -90,9 +97,9 @@ On 2026-09-12: claude 2.1.269, codex-cli 0.154.0, node 22.23.2, npm 10.9.8, `npx
 1. `"use step"` functions defined in `lib/rows.ts` compile and run when called from a workflow; `workflow.dirs` is `["workflows", "lib"]` and imported modules are bundled. `runRows`, a plain function imported from `lib/`, ran in workflow scope with step functions passed as values. No fallback layout was needed.
 2. `Date.now()` for `updated_at` is called only inside `saveRow` and `readFresh`.
 3. Adapter: `workflow/nitro` re-exports `@workflow/nitro` 5.0.0-beta.51; Nitro 3.0.260903-beta with `serverDir: "./server"`, routes in `server/api` and `server/routes`, plugins in `server/plugins`, `serverAssets` resolved from the project root and read with `useStorage("assets:workflows").getItem("<slug>.ts")`. The `workflow` config key needs `import type {} from "workflow/nitro"` for its types.
-4. Nested `claude -p` launched from a dev server that was itself started inside a Claude Code session; `headless()` strips every `CLAUDE*` variable. No subscription-path escalation was needed.
-5. claude flags: `-p --output-format json --json-schema <json> --tools "" --strict-mcp-config --max-budget-usd <n>`, plus `--mcp-config <file> --allowedTools mcp__*` when tools are given; the reply carries `structured_output` and `total_cost_usd`. `--bare` skips keychain reads and reports "Not logged in", so it is not used. `--max-budget-usd 0.05` aborted with `budget_exhausted` because one call cost more. zod's `toJSONSchema` adds a `$schema` key that `--json-schema` rejects; `headless()` strips it.
-6. codex flags: `exec - --output-schema <file> --sandbox read-only --skip-git-repo-check --ephemeral -o <file>`; the prompt is read from stdin; there is no turn-cap flag, so `maxTurns` is informational; MCP servers pass as `-c mcp_servers.<name>.command=...` for local commands or `-c mcp_servers.<name>.url=...` with `http_headers` for hosted servers. The codex path was checked against `--help` only, not executed.
+4. Nested `claude -p` launched from a dev server that was itself started inside a Claude Code session; `lib/cli.ts` strips every `CLAUDE*` variable. No subscription-path escalation was needed.
+5. claude flags: `-p --output-format json --json-schema <json> --tools "" --strict-mcp-config --max-budget-usd <n>`, plus `--mcp-config <file> --allowedTools mcp__*` when tools are given; the reply carries `structured_output` and `total_cost_usd`. `--bare` skips keychain reads and reports "Not logged in", so it is not used. `--max-budget-usd 0.05` aborted with `budget_exhausted` because one call cost more. zod's `toJSONSchema` adds a `$schema` key that `--json-schema` rejects; `sanitizeSchema` strips it.
+6. codex flags: `exec - --output-schema <file> --sandbox read-only --skip-git-repo-check --ephemeral -o <file>`; the prompt is read from stdin; MCP servers pass as `-c mcp_servers.<name>.url=...` with `http_headers`, and each allowed tool as `-c mcp_servers.<name>.tools.<tool>.approval_mode="approve"` (the only value that runs unattended; `never` and `auto` are refused or blocked). Executed on 2026-09-14: two MCP calls, structured output back.
 7. `openai/gpt-5.6-luna` is listed by the Gateway model endpoint (375 models), so no substitute model decision was needed.
 8. Nitro's Vercel preset has no cron handling; `nitro.config.ts` passes `vercel.json`'s crons through `vercel.config.crons` and the built `.vercel/output/config.json` contains them.
 9. drizzle-kit `dialect: "turso"` accepts `file:` URLs, so one dialect serves local and hosted; `schema` points at `db/tables/index.ts` so re-exports register each table once; `generate` and `migrate` ran clean; `drizzle.config.ts` creates `data/` first.
@@ -106,7 +113,8 @@ On 2026-09-12: claude 2.1.269, codex-cli 0.154.0, node 22.23.2, npm 10.9.8, `npx
 17. The Gateway's per-call cost is at `step.providerMetadata.gateway.cost` in every `WorkflowAgent` step result; the local runs summed it to the cent the Gateway dashboard shows.
 18. The local world's queue delivers a run over one HTTP request with undici's 30-second header timeout; `WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS` and `WORKFLOW_LOCAL_BODY_TIMEOUT_MS` raise it, and the dev script sets both. Vercel's runtime has no such cut.
 19. Verified on 2026-09-14 in the scaffold: streaming through the stream route (171 events for one row), an approval round trip through the read and approve routes, a denial the model reported honestly, text output, and `temperature`, `onStepEnd`, and `activeTools` passed through; both production builds pass.
-20. A person enrichment through Monid ran end to end locally on 2026-09-14: 13 model calls, 12 Monid calls (Clay, Ploid, Firecrawl), a matched profile with cited sources, $0.063 for the row, 44 seconds.
+20. Fan-out, intake, notify, and both CLI backends verified in the scaffold on 2026-09-14; the pattern snippets in patterns.md compiled and ran.
+21. A person enrichment through Monid ran end to end locally on 2026-09-14: 13 model calls, 12 Monid calls (Clay, Ploid, Firecrawl), a matched profile with cited sources, $0.063 for the row, 44 seconds.
 
 ## Unverified until first deploy
 

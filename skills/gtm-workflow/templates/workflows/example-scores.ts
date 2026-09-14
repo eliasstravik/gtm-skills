@@ -9,7 +9,7 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { cached } from "../lib/cache";
-import { runRows, type Row } from "../lib/rows";
+import { runRows, type Row, type RowsInput } from "../lib/rows";
 
 export const diagram = `flowchart TB
   start([Read the company list]) --> loop
@@ -20,7 +20,7 @@ export const diagram = `flowchart TB
     saveScore["Save the score<br/><small>table example_scores</small>"]:::save
     fetchHomepage --> scoreCompany --> saveScore
   end
-  loop --> done([Stops after 200 rows or $2])`;
+  loop --> done([Stops after 200 rows or $2; more than 100 rows run as child runs])`;
 
 /** Copied from the ICP at Create and refreshed by Update; the first line names the source. */
 export const criteria = `ICP: Lean B2B SaaS
@@ -32,11 +32,12 @@ export const criteria = `ICP: Lean B2B SaaS
 
 const MAX_ROWS = 200;
 const MAX_SPEND_USD = 2;
+const CHUNK_SIZE = 100;
 const ESTIMATE_USD = 0.01;
 const FRESH_FOR_MS = 24 * 60 * 60 * 1000;
 
 /** The cron input; a POST body is merged over it, so `{ maxRows: 1 }` is the limited run. */
-export const defaultInput: { rows: Row[]; maxRows?: number; maxSpendUsd?: number } = {
+export const defaultInput: RowsInput & { rows: Row[] } = {
   rows: [{ key: "vercel.com" }, { key: "linear.app" }, { key: "notion.so" }],
 };
 
@@ -50,6 +51,8 @@ export async function exampleScores(input: typeof defaultInput) {
     maxSpendUsd: input.maxSpendUsd ?? MAX_SPEND_USD,
     estimateUsd: ESTIMATE_USD,
     freshForMs: FRESH_FOR_MS,
+    // Above CHUNK_SIZE rows this run only splits the list into child runs of itself, four at a time, and adds up their totals.
+    fanOut: { workflow: exampleScores, input, chunkSize: CHUNK_SIZE },
   });
 }
 
@@ -82,12 +85,3 @@ async function scoreCompany(domain: string, page: string) {
   return { value: object, costUsd: ESTIMATE_USD };
 }
 scoreCompany.maxRetries = 0;
-
-// The same step on the author's Claude Code or Codex subscription (this machine only); diagram label `Claude Code · about $0.01 per row`:
-// import { headless } from "../lib/headless";
-// async function scoreCompany(domain: string, page: string) {
-//   "use step";
-//   const reply = await headless({ cli: "claude", prompt: scorePrompt(domain, page), schema: z.toJSONSchema(Score), maxUsd: 0.5 }, ESTIMATE_USD);
-//   return { value: Score.parse(reply.value), costUsd: reply.costUsd };
-// }
-// scoreCompany.maxRetries = 0;
