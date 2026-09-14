@@ -1,6 +1,6 @@
 <p align="center"><img src="https://img.shields.io/badge/GTM%20Skills-Open%20source%20GTM%20skills%20for%20coding%20agents-2ea44f?style=flat-square&labelColor=24292f" alt="GTM Skills: open source GTM skills for coding agents" /></p>
 
-<h3 align="center">Keep your go-to-market context where your coding agent works</h3>
+<h3 align="center">Run your full GTM motion from one shared context</h3>
 
 <p align="center">GTM Skills lets a GTM teammate keep one organization's facts, ideal customer profiles, and personas in a git-backed Markdown workspace, qualify prospects against them in conversation, and turn them into saved workflows that run locally or on Vercel.</p>
 
