@@ -1,6 +1,6 @@
 # Interactions: gtm-workflow
 
-Contents: [Create](#create) · [Create without a connected project](#create-without-a-connected-project) · [Create on a hosted agent](#create-on-a-hosted-agent) · [Create an agent stage](#create-an-agent-stage) · [Update](#update) · [Run](#run) · [Deploy](#deploy) · [Run on the deployed copy](#run-on-the-deployed-copy) · [Run on the deployed copy, key absent](#run-on-the-deployed-copy-key-absent) · [Upgrade](#upgrade) · [Delete](#delete)
+Contents: [Create](#create) · [Create without a connected project](#create-without-a-connected-project) · [Create on a hosted agent](#create-on-a-hosted-agent) · [Create with plain steps](#create-with-plain-steps) · [Create an agent stage](#create-an-agent-stage) · [Update](#update) · [Run](#run) · [Deploy](#deploy) · [Run on the deployed copy](#run-on-the-deployed-copy) · [Run on the deployed copy, key absent](#run-on-the-deployed-copy-key-absent) · [Upgrade](#upgrade) · [Delete](#delete)
 
 ## Create
 
@@ -65,7 +65,7 @@ Runs happen on the hosted copy, which needs a Vercel project connected to the Ac
 2. In its dashboard: connect a Turso database from the marketplace; add `GTM_RUN_SECRET` and `CRON_SECRET` (long random strings you choose), `GTM_MODEL` as `openai/gpt-5.6-luna`, and `AI_GATEWAY_API_KEY`; turn Deployment Protection off for production; then Redeploy the latest deployment.
 3. Give the person who runs this agent the project's production address, the same `GTM_RUN_SECRET`, and a read-only Turso token with the database address, for the agent's settings.
 
-Once that is in place, ask me to run it and I'll test one row first.
+Once that is in place, ask me to run it and I'll offer a one-row test first.
 
 **Files:**
 - created `workflows/` (the runtime, from the template, with `package-lock.json`)
@@ -99,6 +99,32 @@ Live on the hosted copy. Ask me to run it and I'll test one profile first.
 - changed `workflows/db/tables/index.ts`
 - created `workflows/drizzle/0001_linkedin_enrichments.sql` (with its journal and snapshot entries)
 
+## Create with plain steps
+
+**Setup:** Workspace Acme is a shared checkout on a host without local runs; its workflow project is connected. The agent knows this conversation's channel id.
+
+**Human:** Build a workflow: I give it a work email, it takes the domain and posts it here.
+
+**Agent:** Building it now; about three minutes, since the hosted copy deploys as part of the save. Post email domain takes emails you give at run time, reads the domain off each, and posts it in this channel; no AI and nothing paid, capped at 100 rows per run.
+
+Created Post email domain.
+
+Live on the hosted copy. Ask me to run it on an email and it runs straight away.
+[Open diagram](https://gtm-acme.vercel.app/gtm/post-email-domain?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
+
+**Human:** Run it on simon@ophena.com.
+
+**Agent:** Running it on simon@ophena.com now; free.
+
+Done: posted ophena.com in this channel.
+
+**Files:**
+- created `workflows/workflows/post-email-domain.ts`
+- created `workflows/db/tables/email-domains.ts`
+- changed `workflows/workflows/index.ts`
+- changed `workflows/db/tables/index.ts`
+- created `workflows/drizzle/0002_email_domains.sql` (with its journal and snapshot entries)
+
 ## Create an agent stage
 
 **Setup:** Workspace Acme is a shared checkout on a host without local runs; its workflow project is connected and its link route lists `MONID_API_KEY` and `AI_GATEWAY_API_KEY`.
@@ -114,14 +140,9 @@ Live on the hosted copy. Ask me to run it and I'll test one email first.
 
 **Human:** Test one: priya@quillhr.com.
 
-**Agent:** A one-row test costs about $0.30. Nothing is missing.
+**Agent:** Running it on priya@quillhr.com now; about $0.30.
 
-1. Test this email now (Recommended)
-2. Not now
-
-**Human:** 1
-
-**Agent:** Done: Priya Nair, Head of Revenue Operations at Quill HR, London; matched. The agent made 5 tool calls (discover, inspect, run, get_run, inspect) and stopped when it had the answer; cost $0.21, of which $0.18 was Monid.
+Done: Priya Nair, Head of Revenue Operations at Quill HR, London; matched. The agent made 5 tool calls (discover, inspect, run, get_run, inspect) and stopped when it had the answer; cost $0.21, of which $0.18 was Monid.
 
 **Files:**
 - created `workflows/workflows/research-people-by-email.ts`
@@ -154,7 +175,7 @@ Live on the hosted copy. Ask me to run it and I'll test one email first.
 
 **Human:** 1
 
-**Agent:** Updating now: the current Lean B2B SaaS criteria, plus a headcount column read from the page it already fetches. The next run offers a one-row test first.
+**Agent:** Updating now: the current Lean B2B SaaS criteria, plus a headcount column read from the page it already fetches. The next run of the full list offers a one-row test first.
 
 Updated Score inbound accounts.
 [Open diagram](http://localhost:3939/gtm/score-inbound-accounts) · [Open runs](http://localhost:3939/_workflow) · [Open data](https://local.drizzle.studio)
