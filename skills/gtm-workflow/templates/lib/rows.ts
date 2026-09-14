@@ -26,8 +26,8 @@ export async function saveRow(tableName: TableName, row: Record<string, unknown>
   await upsert(tableName, [{ ...row, updated_at: new Date().toISOString() }], ["key"]);
 }
 
-/** A workflow's input: rows plus the caps; `notify` is where this run should reach people (the thread it was started from, typically); `parent` is set only on a child started by fanOut. */
-export type RowsInput = { rows?: Row[]; maxRows?: number; maxSpendUsd?: number; notify?: { channelId: string; threadTs?: string }; parent?: string };
+/** A workflow's input: rows plus the caps; `notify` is the channel this run posts in, top-level, when the caller overrides the workflow's own; `parent` is set only on a child started by fanOut. */
+export type RowsInput = { rows?: Row[]; maxRows?: number; maxSpendUsd?: number; notify?: { channelId: string }; parent?: string };
 
 /**
  * How a run tells people about its rows, posted straight to Slack without a model. `every` is a count, never a judgment:

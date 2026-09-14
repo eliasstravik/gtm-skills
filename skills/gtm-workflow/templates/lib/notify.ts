@@ -7,8 +7,8 @@ import { FatalError, getWorkflowMetadata } from "workflow";
  * Needs GTM_AGENT_URL and GTM_NOTIFY_SECRET on the workflow project; without them the step fails and names them.
  * A workflow calls the agent only to reach people, never to think.
  */
-/** A Slack channel, top-level unless a thread is named. Channel ids look like C0BSS68KE0P. */
-export type SlackTarget = { channelId: string; threadTs?: string };
+/** A Slack channel; every post lands top-level there, never in a thread. Channel ids look like C0BSS68KE0P. */
+export type SlackTarget = { channelId: string };
 
 export type Notification = {
   /** tell: post it. ask: post it and expect an answer, usually an approval. show: post results. handoff: open a thread a person can steer. */
