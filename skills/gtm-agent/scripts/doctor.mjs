@@ -3,7 +3,7 @@
 //   node doctor.mjs --slug acme --team acme-team [--github-owner acme] [--fix]
 // Exit 0 when everything passes, 1 otherwise. Prints one line per check; no secret values.
 import { fileURLToPath } from "node:url";
-import { api, connectors, envNames, fail, http, latestProductionDeployment, parseArgs, productionUrl, project, REQUIRED_EVENTS, REQUIRED_SCOPES, run, TRIGGER_PATH } from "./lib.mjs";
+import { api, connectors, deployFromGit, envNames, fail, http, latestProductionDeployment, parseArgs, productionUrl, project, REQUIRED_EVENTS, REQUIRED_SCOPES, run, setEnv, TRIGGER_PATH } from "./lib.mjs";
 
 /** The names one deployment uses; overrides cover deployments made before this skill existed. */
 export const names = (slug, o = {}) => ({
@@ -94,10 +94,16 @@ export async function check({ slug, team, githubOwner, fix = false, overrides = 
   if (Object.keys(patch).length) api(team, "PATCH", `/v9/projects/${wp.id}`, patch);
   const wenv = envNames(team, n.workflowProject);
   for (const k of ["TURSO_DATABASE_URL", "TURSO_AUTH_TOKEN", "GTM_RUN_SECRET", "CRON_SECRET", "GTM_MODEL", "GTM_AGENT_URL", "GTM_NOTIFY_SECRET"]) add(`Workflow project has ${k}`, wenv.has(k), "", k.startsWith("TURSO") ? "run setup.mjs (it connects Turso)" : "run setup.mjs");
+  // The hosted Runs link: derivable from the team and project, so --fix writes it; a redeploy makes the link route see it.
+  const runsUrl = `https://vercel.com/${team}/${n.workflowProject}/observability/workflows`;
+  let redeploy = false;
+  if (!wenv.has("GTM_RUNS_URL") && fix) { setEnv(team, n.workflowProject, "GTM_RUNS_URL", runsUrl, { secret: false }); redeploy = true; }
+  add("Workflow project has GTM_RUNS_URL (the Runs button)", wenv.has("GTM_RUNS_URL") || fix, "", "run doctor.mjs --fix");
   if (wenv.has("AI_GATEWAY_API_KEY")) add("Workflow project still holds AI_GATEWAY_API_KEY", true, "unneeded since gtm-skills 0.1.24; remove it once a hosted run has succeeded without it");
   add("Context repository has workflows/", run("gh", ["api", `repos/${githubOwner}/${n.contextRepo}/contents/workflows/package.json`]).status === 0, "", "run setup.mjs (it scaffolds the runtime)");
   const wd = latestProductionDeployment(team, n.workflowProject);
   add("Workflow project has a ready production deployment", wd?.readyState === "READY" || wd?.state === "READY", wd?.readyState ?? wd?.state ?? "none", "run setup.mjs or push a change under workflows/");
+  if (redeploy) add("Workflow project redeploys with the new variable", Boolean(deployFromGit(team, n.workflowProject)), "about two minutes", "push a change under workflows/");
   const wurl = productionUrl(team, n.workflowProject);
   if (wurl) {
     const l = await http(`${wurl}/api/link/example-scores`);

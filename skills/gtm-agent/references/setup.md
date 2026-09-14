@@ -33,7 +33,8 @@
 | `GTM_NOTIFY_SECRET` | yes | yes | step 11 |
 | `GTM_MODEL`, `GTM_REASONING` | | yes, optional | step 11, by hand |
 | `GTM_AGENT_URL` | | yes | step 11 |
-| `GTM_RUNS_URL`, `GTM_DATA_URL` | | yes, optional | step 11, by hand |
+| `GTM_RUNS_URL` | | yes | step 11; `doctor.mjs --fix` on older projects |
+| `GTM_DATA_URL` | | optional | by hand, only to override the Turso page the runtime derives |
 | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | | yes | step 10 |
 | Provider keys (`MONID_API_KEY`, …) | never | as needed | by hand |
 | `AI_GATEWAY_API_KEY` | never | never | the deployed copies use the project's OIDC identity |
