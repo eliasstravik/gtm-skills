@@ -1,6 +1,6 @@
 # Interactions: gtm-workflow
 
-Contents: [Create](#create) · [Create without a connected project](#create-without-a-connected-project) · [Create on a hosted agent](#create-on-a-hosted-agent) · [Update](#update) · [Run](#run) · [Deploy](#deploy) · [Run on the deployed copy](#run-on-the-deployed-copy) · [Run on the deployed copy, key absent](#run-on-the-deployed-copy-key-absent) · [Upgrade](#upgrade) · [Delete](#delete)
+Contents: [Create](#create) · [Create without a connected project](#create-without-a-connected-project) · [Create on a hosted agent](#create-on-a-hosted-agent) · [Create an agent stage](#create-an-agent-stage) · [Update](#update) · [Run](#run) · [Deploy](#deploy) · [Run on the deployed copy](#run-on-the-deployed-copy) · [Run on the deployed copy, key absent](#run-on-the-deployed-copy-key-absent) · [Upgrade](#upgrade) · [Delete](#delete)
 
 ## Create
 
@@ -101,6 +101,37 @@ Live on the hosted copy. Ask me to run it and I'll test one profile first.
 - changed `workflows/workflows/index.ts`
 - changed `workflows/db/tables/index.ts`
 - created `workflows/drizzle/0001_linkedin_enrichments.sql` (with its journal and snapshot entries)
+
+## Create an agent stage
+
+**Setup:** Workspace Acme is a shared checkout on a host without local runs; its workflow project is connected and its link route lists `MONID_API_KEY` and `AI_GATEWAY_API_KEY`.
+
+**Human:** Build a workflow that takes a work email and researches the person through Monid, like a research agent would: find the right endpoint, run it, then corroborate on LinkedIn and the web.
+
+**Agent:** Building it now; about three minutes, since the hosted copy deploys as part of the save. Research people by email takes emails you give at run time and sends an agent through Monid's tools for each, up to 12 tool turns, about $0.30 and 5 minutes per row, capped at 200 rows or $20 per run.
+
+Created Research people by email.
+
+Live on the hosted copy. Ask me to run it and I'll test one email first.
+[Open diagram](https://gtm-acme.vercel.app/gtm/research-people-by-email?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
+
+**Human:** Test one: priya@quillhr.com.
+
+**Agent:** A one-row test costs about $0.30. Nothing is missing.
+
+1. Test this email now (Recommended)
+2. Not now
+
+**Human:** 1
+
+**Agent:** Done: Priya Nair, Head of Revenue Operations at Quill HR, London; matched. The agent made 5 tool calls (discover, inspect, run, get_run, inspect) and stopped when it had the answer; cost $0.21, of which $0.18 was Monid.
+
+**Files:**
+- created `workflows/workflows/research-people-by-email.ts`
+- created `workflows/db/tables/person-research.ts`
+- changed `workflows/workflows/index.ts`
+- changed `workflows/db/tables/index.ts`
+- created `workflows/drizzle/0002_person_research.sql` (with its journal and snapshot entries)
 
 ## Update
 

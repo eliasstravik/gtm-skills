@@ -1,6 +1,6 @@
 # Local runtime
 
-Contents: [Start](#start) · [Keys](#keys) · [Backends](#backends) · [Data](#data) · [Schedules](#schedules) · [Tables](#tables) · [Engine viewer](#engine-viewer) · [WorkflowAgent stage](#workflowagent-stage) · [Verified versions](#verified-versions) · [Build-time findings](#build-time-findings) · [Unverified until first deploy](#unverified-until-first-deploy)
+Contents: [Start](#start) · [Keys](#keys) · [Backends](#backends) · [Data](#data) · [Schedules](#schedules) · [Tables](#tables) · [Engine viewer](#engine-viewer) · [Agent stage](#agent-stage) · [Verified versions](#verified-versions) · [Build-time findings](#build-time-findings) · [Unverified until first deploy](#unverified-until-first-deploy)
 
 ## Start
 
@@ -11,11 +11,11 @@ Contents: [Start](#start) · [Keys](#keys) · [Backends](#backends) · [Data](#d
 
 ## Keys
 
-`.env` holds `GTM_RUN_SECRET`, `CRON_SECRET`, `GTM_MODEL` (default `openai/gpt-5.6-luna`), optional `AI_GATEWAY_API_KEY` for Gateway steps, and once a project is connected `GTM_WORKFLOW_URL`, `TURSO_STUDIO_URL` (an `https://` URL), and `TURSO_STUDIO_TOKEN` (read-only). `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are Vercel project variables only. Nitro loads `.env` in dev; `drizzle.config.ts` loads it with `process.loadEnvFile`. Precedence: values already in the process environment (`GTM_WORKFLOW_URL`, `GTM_RUN_SECRET`, `TURSO_STUDIO_URL`, `TURSO_STUDIO_TOKEN`) win over `.env`; when a value is in neither, a host with local runs asks the user to put it in `.env` (rule 6), and a host without local runs names the values to place on the host and never asks for them in the conversation. The value `host` for `GTM_RUN_SECRET` or `TURSO_STUDIO_TOKEN` means the host supplies that credential outside the agent's reach: the route call sends no `Authorization` header and the `@libsql/client` call passes no `authToken`.
+`.env` holds `GTM_RUN_SECRET`, `CRON_SECRET`, `GTM_MODEL` (default `openai/gpt-5.6-luna`), optional `GTM_REASONING` (reasoning effort for AI steps and agent stages), optional `AI_GATEWAY_API_KEY` for Gateway steps, optional `EXA_API_KEY` for agent stages with web search on, and once a project is connected `GTM_WORKFLOW_URL`, `TURSO_STUDIO_URL` (an `https://` URL), and `TURSO_STUDIO_TOKEN` (read-only). `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` are Vercel project variables only. Nitro loads `.env` in dev; `drizzle.config.ts` loads it with `process.loadEnvFile`. Precedence: values already in the process environment (`GTM_WORKFLOW_URL`, `GTM_RUN_SECRET`, `TURSO_STUDIO_URL`, `TURSO_STUDIO_TOKEN`) win over `.env`; when a value is in neither, a host with local runs asks the user to put it in `.env` (rule 6), and a host without local runs names the values to place on the host and never asks for them in the conversation. The value `host` for `GTM_RUN_SECRET` or `TURSO_STUDIO_TOKEN` means the host supplies that credential outside the agent's reach: the route call sends no `Authorization` header and the `@libsql/client` call passes no `authToken`.
 
 ## Backends
 
-- Gateway: `generateObject({ model: process.env.GTM_MODEL, schema, prompt })` inside a `"use step"` function; `WorkflowAgent` in workflow scope. Locally this needs `AI_GATEWAY_API_KEY`. Gateway cost arrives asynchronously, so `costUsd` is the declared estimate.
+- Gateway: `generateObject({ model: process.env.GTM_MODEL, schema, prompt })` inside a `"use step"` function; `runAgent()` in workflow scope. Locally this needs `AI_GATEWAY_API_KEY`, or a Vercel-linked checkout (`.vercel/`) whose OIDC token the Gateway accepts. `generateObject` cost arrives asynchronously, so its `costUsd` is the declared estimate; `runAgent` reads the cost the Gateway reports on each call.
 - Subscription: `headless({ cli: "claude" | "codex", prompt, schema, tools?, maxUsd? }, estimateUsd)` inside a `"use step"` function, this machine only. `tools` maps a name to a local command `{ command, args? }` or a hosted MCP server `{ url, headers? }`. `maxUsd` is enforced by claude alone. One scoring call through `claude -p` reported `total_cost_usd` between $0.06 and $0.18 on the build machine, so set `maxUsd` to at least 0.5 per call; that reported figure is what `cost_usd` records, though a subscription is not billed per call.
 - Cursor and OpenCode users have no subscription CLI; they use the Gateway.
 
@@ -37,32 +37,47 @@ A new or changed table: add or edit `db/tables/<name>.ts`, register it in `db/ta
 
 `/_workflow` on the dev server shows runs and steps. It is on in dev, off in production builds, and never mounted on Vercel (adapter option `dashboard`, default `nitro.options.dev`; confirmed absent from both production bundles).
 
-## WorkflowAgent stage
+## Agent stage
 
-Verified against types only (`@ai-sdk/workflow` 2.0.30, `@ai-sdk/mcp` 2.0.49); workflow scope, diagram node `researchAccount:::agent`, cost is the estimate:
+`runAgent()` in `lib/agent.ts` is the one way to put an agent inside a workflow. It runs in workflow scope, so each model call (`doStreamStep`) and each tool call (`fetchPage`, `webSearch`, `callMcpTool`, or a custom step) is its own step in the trace; the stage function is the `agent` node in the diagram. Verified locally on 2026-09-14 against the pinned packages (a company brief through `fetch_page`, four pages, three model calls, $0.002; a public MCP server through `listMcpTools` and `callMcpTool`; a one-step cap that ended in the wrap-up call), and both production builds.
 
 ```ts
-import { createMCPClient } from "@ai-sdk/mcp";
-import { Experimental_StdioMCPTransport } from "@ai-sdk/mcp/mcp-stdio";
-import { WorkflowAgent } from "@ai-sdk/workflow";
-import { Output, stepCountIs } from "ai";
 import { z } from "zod";
+import { runAgent } from "../lib/agent";
 
-const Brief = z.object({ summary: z.string(), nextStep: z.string() });
-const ESTIMATE_USD = 0.05;
+const Brief = z.object({ summary: z.string(), evidenceUrls: z.array(z.string()) });
 
-async function researchAccount(domain: string) {
-  const mcp = await createMCPClient({ transport: new Experimental_StdioMCPTransport({ command: "npx", args: ["-y", "@example/mcp-server"] }) });
-  // Third-party tool schemas carry optional filters; strict mode (the Gateway default for OpenAI) would force the model to fill every one, so turn it off for tools the workflow did not write.
-  const tools = Object.fromEntries(Object.entries(await mcp.tools()).map(([name, t]) => [name, { ...t, strict: false }]));
-  const agent = new WorkflowAgent({ model: process.env.GTM_MODEL ?? "openai/gpt-5.6-luna", instructions: "Research the company with the tools and report in two sentences.", tools, stopWhen: stepCountIs(6) });
-  const result = await agent.stream({ prompt: `Research ${domain}.`, output: Output.object({ schema: Brief }) });
-  await mcp.close();
-  return { value: result.output, costUsd: ESTIMATE_USD };
+/** Workflow scope, no directive: the agent stage. */
+async function researchCompany(domain: string) {
+  return runAgent({
+    name: "researchCompany",
+    instructions: "You research B2B companies from their own websites. Never invent facts.",
+    skills: ["company-research"],
+    tools: {
+      web: { fetch: true, search: false },
+      mcp: { monid: { url: "https://mcp.monid.ai/v1", keyEnv: "MONID_API_KEY", allow: ["monid_discover", "monid_inspect", "monid_run", "monid_get_run"], maxCalls: 6 } },
+    },
+    prompt: `Research ${domain} and return the brief.`,
+    schema: Brief,
+    estimateUsd: 0.05,
+    maxSteps: 12,
+    maxUsd: 0.5,
+    timeout: "5m",
+  });
 }
 ```
 
-Other engine features are used natively and documented at workflow-sdk.dev: hooks (`defineHook`, `createHook`) for approval, `sleep`, child workflows (`start` inside a step), `getRun(id).cancel()`, `FatalError` and `maxRetries`. Diagram nodes: `wait` for a hook or sleep, `sub` for a child workflow.
+The result is `{ value, costUsd, modelCalls, toolCalls, stopReason, usage }`: `value` parsed by the zod schema, `costUsd` the Gateway's reported cost across calls plus any cost a tool reported (`{ costUsd }` from our steps, `{ cost: { value, currency: "USD" } }` from a provider), `estimateUsd` when the Gateway reported nothing; `toolCalls` is the trace (`tool`, `input`, `ok`, `costUsd`); `stopReason` is `done`, `maxSteps`, or `maxUsd`. When a cap ends the loop mid-research, the helper makes one more call without tools so the schema still comes back filled from what was found. A `timeout` throws, and the row fails with its estimate charged.
+
+Rules the helper exists to enforce, each learned from a failed hosted run:
+
+- Never inside a step: a `WorkflowAgent` inside a `"use step"` runs as one opaque call with no tool steps, no resumption, and the function's timeout as its ceiling.
+- Never `timeout:` on `stream()` and never `AbortSignal.timeout()`: workflow scope has no timers; the helper races `sleep()` against the agent and aborts through an `AbortController`.
+- No string formats in schemas: OpenAI's strict output rejects `format: uri` (from `z.string().url()`), the Gateway then falls back to another provider, and the model answers with no tools. The helper strips `format` and `$schema`; authors still use nullable fields rather than optional ones.
+- MCP clients live inside steps: a client's `execute` closures use `fetch`, which workflow scope forbids, so `lib/mcp.ts` recreates the client per call from the key on the project and passes only JSON across the boundary; tool definitions are cached an hour in the `cache` table.
+- The wrap-up call sends the conversation without its system message; `WorkflowAgent` rejects system messages inside `messages`.
+
+Skills are text modules: `skills/<name>.ts` exporting a template string, registered in `skills/index.ts`; the server-asset route the diagram page uses is not visible from the step bundle. Other engine features are used natively and documented at workflow-sdk.dev: hooks (`defineHook`, `createHook`) for approval, `sleep`, child workflows (`start` inside a step), `getRun(id).cancel()`, `FatalError` and `maxRetries`. Diagram nodes: `wait` for a hook or sleep, `sub` for a child workflow.
 
 ## Verified versions
 
@@ -81,9 +96,12 @@ On 2026-09-12: claude 2.1.269, codex-cli 0.154.0, node 22.23.2, npm 10.9.8, `npx
 9. drizzle-kit `dialect: "turso"` accepts `file:` URLs, so one dialect serves local and hosted; `schema` points at `db/tables/index.ts` so re-exports register each table once; `generate` and `migrate` ran clean; `drizzle.config.ts` creates `data/` first.
 10. Runs through the routes: a limited run (`done 1`), a failed row charged its estimate with the error saved and retried on the next run, a full run that skipped the fresh row (`done 2, skipped 1`), a cancel that ended `cancelled`, the local schedule plugin starting a run, the diagram page with title, summary, schedule line ("every Monday at 08:00 UTC"), no drift banner, and the link route with a token that verified (valid, wrong slug, tampered, missing, expired).
 11. `npm run build` and a `NITRO_PRESET=vercel` build both succeed; `@workflow/web` is absent from both outputs.
-12. `tsc --noEmit` (TypeScript 5.9) is clean for the whole scaffold, including the WorkflowAgent stage above.
+12. `tsc --noEmit` (TypeScript 5.9) is clean for the whole scaffold, including `lib/agent.ts`, `lib/mcp.ts`, `lib/web.ts`, and `example-research.ts`.
 13. `npx skills add <local checkout or repo> -s '*' -a claude-code -y` installs all five skills non-interactively from `skills/<name>/`, templates included; `-s <name>` installs one. A `: ` inside a SKILL.md description breaks the YAML frontmatter and the installer silently skips that skill, so descriptions carry no colon-space.
 14. The 200-rows-per-run guidance is authoritative over the 500 in the consultant's facts file.
+15. Nitro 3 has no `externals` config key; the `@ai-sdk/mcp` import in `lib/mcp.ts` bundles cleanly in both presets without one.
+16. `useStorage("assets:…")` answers from a route but not from a step function, so skills are TypeScript modules, not assets.
+17. The Gateway's per-call cost is at `step.providerMetadata.gateway.cost` in every `WorkflowAgent` step result; the local runs summed it to the cent the Gateway dashboard shows.
 
 ## Unverified until first deploy
 
