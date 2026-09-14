@@ -32,6 +32,8 @@ export async function check({ slug, team, githubOwner, fix = false, overrides = 
   if (!ap) return out;
   add("Agent project is git-connected", ap.link?.repo === n.agentRepo, ap.link?.repo ?? "not connected", `vercel git connect (in the agent checkout) or run setup.mjs`);
   add("Agent project framework is eve", ap.framework === "eve", ap.framework ?? "none", `vercel project update ${n.agentProject} --framework eve --yes`);
+  if (!ap.previewDeploymentsDisabled && fix) api(team, "PATCH", `/v9/projects/${ap.id}`, { previewDeploymentsDisabled: true });
+  add("Agent project preview deployments are off (they fail without the production variables)", ap.previewDeploymentsDisabled || fix, "", "run doctor.mjs --fix");
   const aenv = envNames(team, n.agentProject);
   for (const k of ["GTM_WORKSPACE_REPOSITORY", "GTM_GITHUB_TOKEN", "SLACK_CONNECTOR"]) add(`Agent has ${k}`, aenv.has(k), "", "run setup.mjs");
   const wfPair = ["GTM_WORKFLOW_URL", "GTM_RUN_SECRET"].map((k) => aenv.has(k));
@@ -79,7 +81,7 @@ export async function check({ slug, team, githubOwner, fix = false, overrides = 
   if (!wp) return out;
   add("Workflow project is git-connected to the context repository", wp.link?.repo === n.contextRepo, wp.link?.repo ?? "not connected", "run setup.mjs");
   const patch = {};
-  const want = { rootDirectory: "workflows", nodeVersion: "22.x", autoExposeSystemEnvs: true, commandForIgnoringBuildStep: "git diff --quiet HEAD^ HEAD -- ." };
+  const want = { rootDirectory: "workflows", nodeVersion: "22.x", autoExposeSystemEnvs: true, commandForIgnoringBuildStep: "git diff --quiet HEAD^ HEAD -- .", previewDeploymentsDisabled: true };
   for (const [k, v] of Object.entries(want)) {
     const okv = wp[k] === v;
     if (!okv && fix) patch[k] = v;

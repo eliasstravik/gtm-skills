@@ -68,7 +68,8 @@ vercel(["link", "--yes", "--project", n.agentProject, "--team", team], { cwd: ag
 let ap = project(team, n.agentProject);
 if (ap.link?.repo !== n.agentRepo) { vercel(["git", "connect", `https://github.com/${agentRepo}`], { team, cwd: agentDir }); ap = project(team, n.agentProject); }
 if (ap.link?.repo !== n.agentRepo) fail(`Could not connect ${n.agentProject} to ${agentRepo}. Install the Vercel GitHub app for ${githubOwner} (Vercel → Settings → Git) and run again.`);
-if (ap.framework !== "eve" || ap.nodeVersion !== "24.x") api(team, "PATCH", `/v9/projects/${ap.id}`, { framework: "eve", nodeVersion: "24.x" });
+// Previews are useless for a Slack agent and fail without the production-only variables, so they are off.
+if (ap.framework !== "eve" || ap.nodeVersion !== "24.x" || !ap.previewDeploymentsDisabled) api(team, "PATCH", `/v9/projects/${ap.id}`, { framework: "eve", nodeVersion: "24.x", previewDeploymentsDisabled: true });
 ok(`Vercel project ${n.agentProject} is connected to ${agentRepo}`);
 
 // 4. Agent variables
@@ -128,7 +129,7 @@ if (withWorkflows) {
   let wp = project(team, n.workflowProject);
   if (wp.link?.repo !== n.contextRepo) { vercel(["git", "connect", `https://github.com/${ctxRepo}`], { team, cwd: linkDir }); wp = project(team, n.workflowProject); }
   if (wp.link?.repo !== n.contextRepo) fail(`Could not connect ${n.workflowProject} to ${ctxRepo}; install the Vercel GitHub app for ${githubOwner} and run again.`);
-  const want = { rootDirectory: "workflows", nodeVersion: "22.x", framework: "nitro", autoExposeSystemEnvs: true, commandForIgnoringBuildStep: "git diff --quiet HEAD^ HEAD -- .", ssoProtection: null };
+  const want = { rootDirectory: "workflows", nodeVersion: "22.x", framework: "nitro", autoExposeSystemEnvs: true, commandForIgnoringBuildStep: "git diff --quiet HEAD^ HEAD -- .", ssoProtection: null, previewDeploymentsDisabled: true };
   const patch = Object.fromEntries(Object.entries(want).filter(([k, v]) => JSON.stringify(wp[k] ?? null) !== JSON.stringify(v)));
   if (Object.keys(patch).length) api(team, "PATCH", `/v9/projects/${wp.id}`, patch);
   ok(`Vercel project ${n.workflowProject} is connected to ${ctxRepo} (root workflows, Node 22, protection off)`);
