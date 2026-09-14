@@ -85,11 +85,11 @@ Once that is in place, ask me to run it and I'll offer a one-row test first.
 
 **Human:** here
 
-**Agent:** Building it now; about three minutes, since the hosted copy deploys as part of the save. Enrich LinkedIn profiles takes profile addresses you give at run time, enriches each through Monid's ContactOut lookup, about $0.26 per row, capped at 200 rows or $5 per run.
+**Agent:** Building it now; about three minutes. Enrich LinkedIn profiles takes profile addresses you give at run time, enriches each through Monid's ContactOut lookup, about $0.26 per row, capped at 200 rows or $5 per run.
 
 Created Enrich LinkedIn profiles; it asks in this channel before each paid lookup.
 
-Live on the hosted copy. Ask me to run it and I'll test one profile first.
+Live. Ask me to run it and I'll test one profile first.
 [Open diagram](https://gtm-acme.vercel.app/gtm/enrich-linkedin-profiles?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
 
 **Files:**
@@ -105,11 +105,11 @@ Live on the hosted copy. Ask me to run it and I'll test one profile first.
 
 **Human:** Build a workflow: I give it a work email, it takes the domain and posts it here.
 
-**Agent:** Building it now; about three minutes, since the hosted copy deploys as part of the save. Post email domain takes emails you give at run time, reads the domain off each, and posts it in this channel; no AI and nothing paid, capped at 100 rows per run.
+**Agent:** Building it now; about three minutes. Post email domain takes emails you give at run time, reads the domain off each, and posts it in this channel; no AI and nothing paid, capped at 100 rows per run.
 
 Created Post email domain.
 
-Live on the hosted copy. Ask me to run it on an email and it runs straight away.
+Live. Ask me to run it on an email and it runs straight away.
 [Open diagram](https://gtm-acme.vercel.app/gtm/post-email-domain?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
 
 **Human:** Run it on simon@ophena.com.
@@ -131,11 +131,11 @@ Done: posted ophena.com in this channel.
 
 **Human:** Build a workflow that takes a work email and researches the person through Monid, like a research agent would: find the right endpoint, run it, then corroborate on LinkedIn and the web.
 
-**Agent:** Building it now; about three minutes, since the hosted copy deploys as part of the save. Research people by email takes emails you give at run time and sends an agent through Monid's tools for each, up to 12 tool turns, about $0.30 and 5 minutes per row, capped at 200 rows or $20 per run.
+**Agent:** Building it now; about three minutes. Research people by email takes emails you give at run time and sends an agent through Monid's tools for each, up to 12 tool turns, about $0.30 and 5 minutes per row, capped at 200 rows or $20 per run.
 
 Created Research people by email.
 
-Live on the hosted copy. Ask me to run it and I'll test one email first.
+Live. Ask me to run it and I'll test one email first.
 [Open diagram](https://gtm-acme.vercel.app/gtm/research-people-by-email?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
 
 **Human:** Test one: priya@quillhr.com.
@@ -241,7 +241,7 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
 **Human:** Run Score inbound accounts on the hosted copy.
 
-**Agent:** The hosted copy is current with your last save. The full run is 3 rows × about $0.01, about $0.03, under the $5 cap; hosted results live in the hosted database, separate from this computer's.
+**Agent:** Your last save is live. The full run is 3 rows × about $0.01, about $0.03, under the $5 cap; hosted results live in the hosted database, separate from this computer's.
 
 1. Run all 3 hosted now (Recommended)
 2. Test one row hosted first
@@ -249,7 +249,7 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
 **Human:** 1
 
-**Agent:** Done on the hosted copy: 3 companies scored, Brightpath 90, Quill HR 78, Northfield 55; 0 failed; 0 skipped; cost $0.03.
+**Agent:** Done: 3 companies scored, Brightpath 90, Quill HR 78, Northfield 55; 0 failed; 0 skipped; cost $0.03.
 
 **Files:** none (runs write to the hosted database, not to the workspace)
 
@@ -277,7 +277,7 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
 **Human:** 1
 
-**Agent:** Upgrading now. Verified: the runtime starts and the diagram opens; the hosted copy updates as this save deploys.
+**Agent:** Upgrading now. Verified: the runtime starts and the diagram opens; it goes live with this save.
 
 Upgraded the runtime.
 
@@ -296,7 +296,7 @@ Upgraded the runtime.
 
 **Agent:** Removing Score inbound accounts and its Monday schedule now; the table inbound_scores keeps its 37 rows.
 
-Deleted Score inbound accounts; it stays in history, ask me to restore it. The hosted copy drops it as this save deploys.
+Deleted Score inbound accounts; it stays in history, ask me to restore it.
 
 **Files:**
 - deleted `workflows/workflows/score-inbound-accounts.ts`
