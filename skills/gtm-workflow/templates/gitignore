@@ -4,3 +4,4 @@ data/
 .output
 .nitro
 .workflow-data
+.vercel
