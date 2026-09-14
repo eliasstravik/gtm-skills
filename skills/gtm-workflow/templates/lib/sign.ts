@@ -7,7 +7,10 @@ function secret() {
 }
 
 const mac = (slug: string, exp: number) => createHmac("sha256", secret()).update(`${slug}|${exp}`).digest("base64url");
-const same = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+const same = (a: string, b: string) => {
+  const left = Buffer.from(a), right = Buffer.from(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+};
 
 /** Diagram link token `<expiry ms>.<hmac>`, valid 7 days. */
 export function signLink(slug: string, days = 7): string {

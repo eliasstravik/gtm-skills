@@ -1,5 +1,6 @@
 import { defineHandler } from "nitro";
 import { bearerOk, signLink } from "../../../lib/sign";
+import { workflows } from "../../../workflows";
 
 /** The Edit Data page of a Turso database created from the Vercel marketplace, read off its address: `<db>-<org>.<region>.turso.io` with a `vercel-icfg-…` organization. Null for any other host. */
 export function tursoDataUrl(databaseUrl: string | undefined): string | null {
@@ -17,7 +18,11 @@ export default defineHandler((event) => {
   // Hosted runs live in the Vercel dashboard, whose address the setup script writes as GTM_RUNS_URL (doctor --fix adds it to older projects).
   const runsUrl = host ? (process.env.GTM_RUNS_URL ?? null) : `${base}/_workflow`;
   // Hosted data is the database's Edit Data page in Turso, derived from the database address; GTM_DATA_URL overrides it.
-  const dataUrl = host ? (process.env.GTM_DATA_URL ?? tursoDataUrl(process.env.TURSO_DATABASE_URL)) : "https://local.drizzle.studio";
+  const entry = Object.hasOwn(workflows, slug) ? workflows[slug as keyof typeof workflows] : undefined;
+  const hasView = entry && "data" in entry && entry.data;
+  const dataUrl = hasView
+    ? `${base}/gtm/${slug}/data?t=${signLink(`data:${slug}`)}`
+    : host ? (process.env.GTM_DATA_URL ?? tursoDataUrl(process.env.TURSO_DATABASE_URL)) : "https://local.drizzle.studio";
   // Names only, never values: the agent learns which gateway keys this copy has without reading the project's settings.
   const keys = Object.keys(process.env).filter((k) => k.endsWith("_API_KEY")).sort();
   return { diagramUrl: `${base}/gtm/${slug}?t=${signLink(slug)}`, runsUrl, dataUrl, commit: process.env.VERCEL_GIT_COMMIT_SHA ?? null, keys };
