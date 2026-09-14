@@ -29,17 +29,19 @@ export async function saveRow(tableName: TableName, row: Record<string, unknown>
 /** A workflow's input: rows plus the caps; `notify` is the channel this run posts in, top-level, when the caller overrides the workflow's own; `parent` is set only on a child started by fanOut. */
 export type RowsInput = { rows?: Row[]; maxRows?: number; maxSpendUsd?: number; notify?: { channelId: string }; parent?: string };
 
+type SlackPost = { text: string; blocks: unknown[] };
+
 /**
  * How a run tells people about its rows, posted straight to Slack without a model. `every` is a count, never a judgment:
  * row: one post per finished row. chunk: one post per run of rows, so one per child when fanned out. run: one post with
- * the totals when the whole run ends, children silent. Skipped when GTM_AGENT_URL and GTM_NOTIFY_SECRET are unset.
+ * the totals when the whole run ends. Skipped when GTM_AGENT_URL and GTM_NOTIFY_SECRET are unset.
  */
 export type RowsNotify = {
   /** Where to post: `input.notify ?? NOTIFY`. */
   target: SlackTarget;
   every: "row" | "chunk" | "run";
-  /** One line per finished row, for row and chunk; the key when omitted. */
-  line?: (row: Row, columns: Record<string, unknown>) => string;
+  /** One line per finished row, for row and chunk; rich posts may add Slack blocks. */
+  line?: (row: Row, columns: Record<string, unknown>) => string | SlackPost;
 };
 
 export type RunRowsOptions = {
@@ -97,9 +99,9 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
         const { costUsd, ...columns } = await o.step(row);
         await save(o.table, { ...columns, key: row.key, cost_usd: costUsd, error: null });
         if (o.notify && o.notify.every !== "run") {
-          const line = (o.notify.line ?? ((r) => r.key))(row, columns);
-          if (o.notify.every === "row") await post(o.notify.target, line);
-          else lines.push(line);
+          const message = (o.notify.line ?? ((r) => r.key))(row, columns);
+          if (o.notify.every === "row") await post(o.notify.target, message);
+          else lines.push(typeof message === "string" ? message : message.text);
         }
         return costUsd;
       } catch (error) {
@@ -120,8 +122,11 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
 }
 
 /** Workflow scope: one Slack post, skipped when the notify variables are unset, so a local run without them still completes. */
-async function post(target: SlackTarget, text: string): Promise<void> {
-  if (canNotify()) await notify({ kind: "tell", text, target });
+async function post(target: SlackTarget, message: string | SlackPost): Promise<void> {
+  if (canNotify()) {
+    if (typeof message === "string") await notify({ kind: "tell", text: message, target });
+    else await notify({ kind: "show", text: message.text, blocks: message.blocks, target });
+  }
 }
 
 async function postSummary(n: RowsNotify, r: RunResult): Promise<void> {
