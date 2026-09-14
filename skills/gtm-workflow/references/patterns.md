@@ -109,6 +109,20 @@ await notify({ kind: "show", text: `Top match ${best.key} at ${best.score}.`, ta
 
 On an agent stage: `notify: input.notify ?? NOTIFY` posts its approval requests there; `notify: false` keeps them silent.
 
+A post that carries something to open or scan may add Slack Block Kit `blocks` next to `text`: a `markdown` block for prose, one `actions` block of `button` elements with a `url` (View on Reddit, Open data; five at most), a `section` with `fields` for a result. The text stays the plain fallback and says everything the blocks say. Plain text whenever that is all the post needs.
+
+```ts
+await notify({
+  kind: "show",
+  text: `Top match ${best.key} at ${best.score}. Open data: ${dataUrl}`,
+  blocks: [
+    { type: "markdown", text: `**Top match** ${best.key} at ${best.score}.` },
+    { type: "actions", elements: [{ type: "button", text: { type: "plain_text", text: "Open data" }, url: dataUrl }] },
+  ],
+  target: input.notify ?? NOTIFY,
+});
+```
+
 Kinds: `tell` (news) and `show` (results) are plain posts. `ask` (carries `approval: { token }`) and `handoff` post a message whose thread the agent watches: a person's reply there wakes the agent, which decides the approval through the approve route or steers the run.
 
 ## Run attributes

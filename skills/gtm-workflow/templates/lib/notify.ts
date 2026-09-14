@@ -14,6 +14,12 @@ export type Notification = {
   /** tell: post it. ask: post it and expect an answer, usually an approval. show: post results. handoff: open a thread a person can steer. */
   kind: "tell" | "ask" | "show" | "handoff";
   text: string;
+  /**
+   * Slack Block Kit blocks for a richer post: a `markdown` block for prose, one `actions` block of `button` elements
+   * with a `url` for things to open, a `section` with `fields` for results. The text stays the plain fallback and
+   * must say everything the blocks say; 50 blocks at most, and a refused block set posts the text alone.
+   */
+  blocks?: unknown[];
   /** An approval to decide, when kind is ask. */
   approval?: { token: string };
   /** Where to post; the agent's default channel when omitted. */
