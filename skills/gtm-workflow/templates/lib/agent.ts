@@ -6,7 +6,7 @@ import { skills } from "../skills";
 import { approvalHook, recordApproval } from "./approval";
 import { runAgentCli, type CliBackend } from "./cli";
 import { callMcpTool, listMcpTools, type McpServer } from "./mcp";
-import { canNotify, notify } from "./notify";
+import { canNotify, notify, type SlackTarget } from "./notify";
 import { fetchPage, webSearch, type SearchProviderName } from "./web";
 
 /**
@@ -64,6 +64,8 @@ export type AgentOptions<T = string> = {
   tools?: AgentTools;
   /** Tool names a person must approve before each call (web_search, monid_run, or a custom tool's name); the row waits, then continues. */
   approve?: string[];
+  /** Where approval requests are posted: a Slack channel, and a thread when the run was started from one. `false` keeps them silent; the read route still lists them. Set in code per stage, usually from a constant at the top of the workflow or from `input.notify`. */
+  notify?: SlackTarget | false;
   /** Write every model and tool event to the run's stream; read it at GET /api/runs/<id>/stream. */
   stream?: boolean;
   /** Model calls, tool turns included. Default 20. */
@@ -102,7 +104,7 @@ export async function runAgent<T = string>(o: AgentOptions<T>): Promise<AgentRes
   const method = (o.skills ?? []).map(readSkill);
   if (o.backend && o.backend !== "gateway") return runOnCli(o, o.backend, [o.instructions, ...method].join("\n\n"), reasoning);
   const model = o.model ?? process.env.GTM_MODEL ?? "openai/gpt-5.6-luna";
-  const tools = guardTools(o.name, await buildTools(o.tools), o.approve ?? []);
+  const tools = guardTools(o.name, await buildTools(o.tools), o.approve ?? [], o.notify);
   const output = o.schema ? Output.object<T>({ schema: jsonSchema<T>(sanitizeSchema(z.toJSONSchema(o.schema)) as never) }) : (Output.text() as unknown as ReturnType<typeof Output.object<T>>);
   const overBudget = (steps: StepResult<ToolSet>[]) => o.maxUsd != null && spentUsd(steps) >= o.maxUsd;
   const userStops = o.agent?.stopWhen == null ? [] : Array.isArray(o.agent.stopWhen) ? o.agent.stopWhen : [o.agent.stopWhen];
@@ -203,7 +205,7 @@ async function buildTools(t: AgentTools | undefined): Promise<ToolSet> {
 }
 
 /** Workflow scope: a guarded tool records the request, waits on a hook keyed by its tool call id, then runs or reports the denial. */
-function guardTools(stage: string, tools: ToolSet, approve: string[]): ToolSet {
+function guardTools(stage: string, tools: ToolSet, approve: string[], target: SlackTarget | false | undefined): ToolSet {
   for (const name of approve) if (!tools[name]) throw new Error(`Agent ${stage}: approve names unknown tool ${name}`);
   const guarded: ToolSet = { ...tools };
   for (const name of approve) {
@@ -214,8 +216,8 @@ function guardTools(stage: string, tools: ToolSet, approve: string[]): ToolSet {
         const token = `approval:${options.toolCallId}`;
         const hook = approvalHook.create({ token });
         await recordApproval({ token, runId: getWorkflowMetadata().workflowRunId, stage, tool: name, input });
-        // When the agent project is configured, a person hears about it in Slack; otherwise the run's read route lists it.
-        if (canNotify()) await notify({ kind: "ask", text: `${stage} wants to call ${name} with ${JSON.stringify(input).slice(0, 600)}`, approval: { token } });
+        // A person hears about it in Slack at the stage's target (or the agent's default channel); otherwise the run's read route lists it.
+        if (target !== false && canNotify()) await notify({ kind: "ask", text: `${stage} wants to call ${name} with ${JSON.stringify(input).slice(0, 600)}`, approval: { token }, target: target || undefined });
         const decision = await hook;
         if (!decision.approved) return { isError: true, tool: name, error: `A person declined this call${decision.reason ? `: ${decision.reason}` : ""}` };
         return original.execute?.(input as never, options as never);

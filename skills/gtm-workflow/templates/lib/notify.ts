@@ -5,14 +5,17 @@ import { FatalError, getWorkflowMetadata } from "workflow";
  * Needs GTM_AGENT_URL and GTM_NOTIFY_SECRET on the workflow project; without them the step fails and names them.
  * A workflow calls the agent only to reach people, never to think.
  */
+/** A Slack channel, and a thread when the conversation already exists. Channel ids look like C0BSS68KE0P. */
+export type SlackTarget = { channelId: string; threadTs?: string };
+
 export type Notification = {
   /** tell: post it. ask: post it and expect an answer, usually an approval. show: post results. handoff: open a thread a person can steer. */
   kind: "tell" | "ask" | "show" | "handoff";
   text: string;
   /** An approval to decide, when kind is ask. */
   approval?: { token: string };
-  /** A Slack target the agent should use instead of its default channel: { channelId, threadTs? }. */
-  target?: { channelId: string; threadTs?: string };
+  /** Where to post; the agent's default channel when omitted. */
+  target?: SlackTarget;
 };
 
 /** Workflow scope: adds the run's identity, then posts through a step. */

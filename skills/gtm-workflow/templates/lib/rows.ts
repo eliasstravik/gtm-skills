@@ -24,8 +24,8 @@ export async function saveRow(tableName: TableName, row: Record<string, unknown>
   await upsert(tableName, [{ ...row, updated_at: new Date().toISOString() }], ["key"]);
 }
 
-/** A workflow's input: rows plus the caps; `parent` is set only on a child started by fanOut. */
-export type RowsInput = { rows?: Row[]; maxRows?: number; maxSpendUsd?: number; parent?: string };
+/** A workflow's input: rows plus the caps; `notify` is where this run should reach people (the thread it was started from, typically); `parent` is set only on a child started by fanOut. */
+export type RowsInput = { rows?: Row[]; maxRows?: number; maxSpendUsd?: number; notify?: { channelId: string; threadTs?: string }; parent?: string };
 
 export type RunRowsOptions = {
   rows: Row[];

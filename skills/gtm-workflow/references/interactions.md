@@ -79,11 +79,15 @@ Once that is in place, ask me to run it and I'll test one row first.
 
 **Setup:** Workspace Acme is a shared checkout on a host without local runs; its workflow project is connected. The host exposes a Monid connection, and Monid's key is on the workflow project, which the agent cannot see.
 
-**Human:** Create a workflow: given a LinkedIn profile address, enrich the profile and find the work email through Monid.
+**Human:** Create a workflow: given a LinkedIn profile address, enrich the profile and find the work email through Monid, and ask me before each paid lookup.
+
+**Agent:** Which Slack channel should it post approval requests in? Say "here" for this one, or give a channel id (bottom of the channel's About tab).
+
+**Human:** here
 
 **Agent:** Building it now; about three minutes, since the hosted copy deploys as part of the save. Enrich LinkedIn profiles takes profile addresses you give at run time, enriches each through Monid's ContactOut lookup, about $0.26 per row, capped at 200 rows or $5 per run.
 
-Created Enrich LinkedIn profiles.
+Created Enrich LinkedIn profiles; it asks in this channel before each paid lookup.
 
 Live on the hosted copy. Ask me to run it and I'll test one profile first.
 [Open diagram](https://gtm-acme.vercel.app/gtm/enrich-linkedin-profiles?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)

@@ -92,9 +92,14 @@ A run reaches a person only through the GTM agent, which owns Slack. `notify` po
 ```ts
 import { notify } from "../lib/notify";
 
-// Workflow scope, after the loop:
-await notify({ kind: "show", text: `Scored ${result.done} companies; top match ${best.key} at ${best.score}.` });
+/** Where this workflow talks to people; the answer to the channel question at Create. */
+const NOTIFY = { channelId: "C0BSS68KE0P" };
+
+// Workflow scope, after the loop; a run started from a thread carries that thread in input.notify:
+await notify({ kind: "show", text: `Scored ${result.done} companies; top match ${best.key} at ${best.score}.`, target: input.notify ?? NOTIFY });
 ```
+
+On an agent stage: `notify: input.notify ?? NOTIFY` posts its approval requests there; `notify: false` keeps them silent.
 
 Kinds: `tell` (news), `ask` (carries `approval: { token }`, the agent asks and decides through the approve route), `show` (results), `handoff` (the person steers the run from the thread).
 
