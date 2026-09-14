@@ -227,7 +227,7 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
 **Human:** Done.
 
-**Agent:** Live: Score inbound accounts runs every Monday at 08:00 UTC on Vercel. The hosted copy keeps its own copy of the criteria until you update the workflow.
+**Agent:** Live: Score inbound accounts runs every Monday at 08:00 UTC on Vercel. It keeps its own copy of the criteria until you update the workflow.
 [Open diagram](https://gtm-acme.vercel.app/gtm/score-inbound-accounts?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
 
 **Files:**
@@ -259,7 +259,7 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
 **Human:** Test one profile.
 
-**Agent:** Not started: the hosted copy has no Monid key, so every row would fail. Add `MONID_API_KEY` in the workflow project's settings and Redeploy, then ask me again and I'll test one profile first.
+**Agent:** Not started: there is no Monid key yet, so every row would fail. Add `MONID_API_KEY` in the workflow project's settings and Redeploy, then ask me again and I'll test one profile first.
 
 **Files:** none
 
