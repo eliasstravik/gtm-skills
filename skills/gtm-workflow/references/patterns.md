@@ -87,7 +87,7 @@ Register it: `"<slug>": { run, defaultInput, intake }` in `workflows/index.ts`. 
 
 ## Reaching a person
 
-A run reaches a person only through the GTM agent, which owns Slack. `notify` posts to the agent's notify route; the agent opens or continues a thread. Approvals inside an agent stage notify by themselves. Needs `GTM_AGENT_URL` and `GTM_NOTIFY_SECRET` on the workflow project.
+A run reaches a person only through the GTM agent, which owns Slack. `notify` posts to the agent's notify route, and the route posts the text straight to the channel with the agent's bot token: no model runs, so volume is free. Approvals inside an agent stage notify by themselves. Needs `GTM_AGENT_URL` and `GTM_NOTIFY_SECRET` on the workflow project.
 
 ```ts
 import { notify } from "../lib/notify";
@@ -95,13 +95,21 @@ import { notify } from "../lib/notify";
 /** Where this workflow talks to people; the answer to the channel question at Create. */
 const NOTIFY = { channelId: "C0BSS68KE0P" };
 
-// Workflow scope, after the loop; a run started from a thread carries that thread in input.notify:
-await notify({ kind: "show", text: `Scored ${result.done} companies; top match ${best.key} at ${best.score}.`, target: input.notify ?? NOTIFY });
+// Per-row news: runRows posts it, deterministically. every: "row" | "chunk" | "run".
+const result = await runRows({
+  rows, table: "scores", step: scoreRow, maxRows, maxSpendUsd, estimateUsd, freshForMs,
+  notify: { target: input.notify ?? NOTIFY, every: "chunk", line: (row, c) => `${row.key}: ${c.score}` },
+});
+
+// Workflow scope, after the loop, for something the totals do not say:
+await notify({ kind: "show", text: `Top match ${best.key} at ${best.score}.`, target: input.notify ?? NOTIFY });
 ```
+
+`every` is a count, never a judgment: `row` is one post per finished row; `chunk` is one post per run of rows, so one per child when a run fans out; `run` is one post with the totals when the whole run ends, children silent. Posts land top-level in the channel; a run started from a conversation does not post back into it.
 
 On an agent stage: `notify: input.notify ?? NOTIFY` posts its approval requests there; `notify: false` keeps them silent.
 
-Kinds: `tell` (news), `ask` (carries `approval: { token }`, the agent asks and decides through the approve route), `show` (results), `handoff` (the person steers the run from the thread).
+Kinds: `tell` (news) and `show` (results) are plain posts. `ask` (carries `approval: { token }`) and `handoff` post a message whose thread the agent watches: a person's reply there wakes the agent, which decides the approval through the approve route or steers the run.
 
 ## Run attributes
 

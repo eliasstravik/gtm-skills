@@ -4,6 +4,7 @@ import { defineHook, getWorkflowMetadata, setAttributes } from "workflow";
 import { resumeHook, start } from "workflow/api";
 import { z } from "zod";
 import { db, table, upsert, type TableName } from "./db";
+import { canNotify, notify, type SlackTarget } from "./notify";
 
 export type Row = { key: string } & Record<string, unknown>;
 export type StepResult = Record<string, unknown> & { costUsd: number };
@@ -28,9 +29,23 @@ export async function saveRow(tableName: TableName, row: Record<string, unknown>
 /** A workflow's input: rows plus the caps; `notify` is where this run should reach people (the thread it was started from, typically); `parent` is set only on a child started by fanOut. */
 export type RowsInput = { rows?: Row[]; maxRows?: number; maxSpendUsd?: number; notify?: { channelId: string; threadTs?: string }; parent?: string };
 
+/**
+ * How a run tells people about its rows, posted straight to Slack without a model. `every` is a count, never a judgment:
+ * row: one post per finished row. chunk: one post per run of rows, so one per child when fanned out. run: one post with
+ * the totals when the whole run ends, children silent. Skipped when GTM_AGENT_URL and GTM_NOTIFY_SECRET are unset.
+ */
+export type RowsNotify = {
+  /** Where to post: `input.notify ?? NOTIFY`. */
+  target: SlackTarget;
+  every: "row" | "chunk" | "run";
+  /** One line per finished row, for row and chunk; the key when omitted. */
+  line?: (row: Row, columns: Record<string, unknown>) => string;
+};
+
 export type RunRowsOptions = {
   rows: Row[];
   table: TableName;
+  notify?: RowsNotify;
   /** Plain async function in workflow scope; awaits "use step" functions and returns { ...columns, costUsd }. */
   step: (row: Row) => Promise<StepResult>;
   read?: typeof readFresh;
@@ -61,10 +76,14 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
   const pending = o.rows.filter((r) => !fresh.has(r.key));
   const result: RunResult = { done: 0, failed: 0, skipped: fresh.size, spentUsd: 0, stopReason: "complete" };
 
-  if (o.fanOut && pending.length > o.fanOut.chunkSize && o.fanOut.input.parent == null) {
+  const isChild = Boolean(o.fanOut?.input.parent);
+  const lines: string[] = [];
+
+  if (o.fanOut && pending.length > o.fanOut.chunkSize && !isChild) {
     const summed = await fanOut(o, pending);
-    if (o.fanOut.input.parent) await reportToParent(o.fanOut.input.parent, summed);
-    return { ...summed, skipped: summed.skipped + result.skipped };
+    summed.skipped += result.skipped;
+    if (o.notify?.every === "run") await postSummary(o.notify, summed);
+    return summed;
   }
 
   for (let i = 0; i < pending.length; ) {
@@ -77,6 +96,11 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
       try {
         const { costUsd, ...columns } = await o.step(row);
         await save(o.table, { ...columns, key: row.key, cost_usd: costUsd, error: null });
+        if (o.notify && o.notify.every !== "run") {
+          const line = (o.notify.line ?? ((r) => r.key))(row, columns);
+          if (o.notify.every === "row") await post(o.notify.target, line);
+          else lines.push(line);
+        }
         return costUsd;
       } catch (error) {
         // A failed row is charged its estimate: it may have paid before it threw, so the cap never undercounts.
@@ -89,18 +113,44 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
       else { result.failed += 1; result.spentUsd += o.estimateUsd; }
     }
   }
-  if (o.fanOut?.input.parent) await reportToParent(o.fanOut.input.parent, result);
+  if (o.notify?.every === "chunk" && lines.length > 0) await post(o.notify.target, clip(lines));
+  if (o.notify?.every === "run" && !isChild) await postSummary(o.notify, result);
+  if (isChild) await reportToParent(o.fanOut!.input.parent!, result);
   return result;
+}
+
+/** Workflow scope: one Slack post, skipped when the notify variables are unset, so a local run without them still completes. */
+async function post(target: SlackTarget, text: string): Promise<void> {
+  if (canNotify()) await notify({ kind: "tell", text, target });
+}
+
+async function postSummary(n: RowsNotify, r: RunResult): Promise<void> {
+  const stopped = r.stopReason === "complete" ? "" : `; stopped at the ${r.stopReason === "maxRows" ? "row" : "spend"} cap`;
+  await post(n.target, `${workflowSlug()}: ${r.done} done, ${r.failed} failed, ${r.skipped} fresh${stopped}; $${r.spentUsd.toFixed(2)}.`);
+}
+
+/** Slack rejects messages over 40k characters; keep a chunk post well under that and say how many lines were left out. */
+function clip(lines: string[], max = 3800): string {
+  let out = "";
+  for (let i = 0; i < lines.length; i++) {
+    const next = out ? `${out}\n${lines[i]}` : (lines[i] as string);
+    if (next.length > max) return `${out}\n… and ${lines.length - i} more rows in the table.`;
+    out = next;
+  }
+  return out;
+}
+
+/** workflowName is `workflow//./workflows/<slug>//<function>`; the slug is what the routes and links use. */
+function workflowSlug(): string {
+  const parts = getWorkflowMetadata().workflowName.split("//");
+  return (parts[1] ?? "").split("/").pop() || parts[parts.length - 1] || "";
 }
 
 /** Workflow scope: tags the run so the runs page can filter by workflow, list size, channel, and parent. Plain strings only. */
 async function tagRun(o: RunRowsOptions): Promise<void> {
   const input = o.fanOut?.input;
-  // workflowName is `workflow//./workflows/<slug>//<function>`; the slug is what the routes and links use.
-  const parts = getWorkflowMetadata().workflowName.split("//");
-  const workflow = (parts[1] ?? "").split("/").pop() || parts[parts.length - 1] || "";
   await setAttributes({
-    workflow,
+    workflow: workflowSlug(),
     rows: String(o.rows.length),
     ...(input?.notify?.channelId && { channel: input.notify.channelId }),
     ...(input?.parent && { parent: input.parent.split(":chunk:")[0] as string }),

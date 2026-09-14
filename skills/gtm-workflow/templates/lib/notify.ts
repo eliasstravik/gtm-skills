@@ -1,11 +1,13 @@
 import { FatalError, getWorkflowMetadata } from "workflow";
 
 /**
- * Reach a person from a run, through the GTM agent's notify route, which opens or continues a Slack thread.
+ * Reach a person from a run, through the GTM agent's notify route, which posts the text straight to Slack with the
+ * agent's bot token; no model runs. tell and show are plain posts. ask and handoff post a message whose thread the
+ * agent watches: a person's reply there wakes it, and it decides the approval or steers the run.
  * Needs GTM_AGENT_URL and GTM_NOTIFY_SECRET on the workflow project; without them the step fails and names them.
  * A workflow calls the agent only to reach people, never to think.
  */
-/** A Slack channel, and a thread when the conversation already exists. Channel ids look like C0BSS68KE0P. */
+/** A Slack channel, top-level unless a thread is named. Channel ids look like C0BSS68KE0P. */
 export type SlackTarget = { channelId: string; threadTs?: string };
 
 export type Notification = {
