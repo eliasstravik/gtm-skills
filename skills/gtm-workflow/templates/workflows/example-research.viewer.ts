@@ -1,8 +1,78 @@
-import type { Graph, DataPolicy } from "../lib/viewer-contract";
+import type { Graph, DataPolicy, BusinessGraph } from "../lib/viewer-contract";
 import type { WorkflowData } from "../lib/data-api";
 
 /** Authored description of the row helper and workflow-specific calls. It never drives execution. */
 export const viewer = {
+  businessGraph: {
+    nodes: [
+      {
+        id: "input",
+        label: "Company list",
+        kind: "input",
+        explanation: "Use the company domains supplied for this run.",
+      },
+      {
+        id: "research",
+        label: "Research each company",
+        kind: "action",
+        explanation:
+          "Read the company's website and write a brief with the pages used as evidence.",
+        details: {
+          provider: "AI Gateway with the free page-reading tool.",
+          caching:
+            "Reuse research results for seven days. Process at most 200 companies within the $2 run budget.",
+        },
+        source: {
+          path: "workflows/example-research.ts",
+        },
+      },
+      {
+        id: "result",
+        label: "Result available?",
+        kind: "decision",
+        explanation:
+          "Save a successful result, or record why this company could not be processed.",
+      },
+      {
+        id: "save",
+        label: "Save research briefs",
+        kind: "output",
+        explanation:
+          "Store each company's brief, what it sells, headcount band and evidence links.",
+      },
+      {
+        id: "error",
+        label: "Record company errors",
+        kind: "output",
+        explanation:
+          "Save the error for a company that could not be processed and continue with the remaining companies.",
+      },
+    ],
+    edges: [
+      {
+        id: "edge-0",
+        source: "input",
+        target: "research",
+      },
+      {
+        id: "edge-1",
+        source: "research",
+        target: "result",
+      },
+      {
+        id: "success",
+        source: "result",
+        target: "save",
+        label: "Yes",
+      },
+      {
+        id: "failure",
+        source: "result",
+        target: "error",
+        label: "No",
+      },
+    ],
+  },
   description: "Research company websites and save evidence-backed briefs.",
   stages: [
     {
@@ -259,6 +329,7 @@ export const viewer = {
   id: string;
   description: string;
   stages: import("../lib/viewer-contract").Display["stages"];
+  businessGraph: BusinessGraph;
   graph: Graph;
   sharePolicy: DataPolicy;
 };

@@ -1,7 +1,7 @@
 import React, { lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { query, href, shared, token, useLocation } from "./navigation";
-import { State, useRead, time } from "./common";
+import { State, useRead } from "./common";
 import Workspace from "./workspace";
 import Data from "./data";
 import Runs from "./runs";
@@ -18,96 +18,64 @@ const labels: Record<string, string> = {
 function Workflow() {
   const state = useRead("meta"),
     meta = state.data;
-  const view = query().get("view") ?? meta?.views?.[0] ?? "logic";
+  const view =
+    query().get("view") ??
+    ["logic", "runs", "data"].find((v) => meta?.views.includes(v)) ??
+    "logic";
   const recipient = shared || query().has("preview");
   return (
-    <main>
+    <main className="workflow">
       <State state={state} />
       {meta && (
         <>
-          <header>
+          <header className="workflow-header">
             <div className="breadcrumbs">
-              {recipient ? (
-                <span>
-                  {query().has("preview")
-                    ? "Recipient preview"
-                    : "Shared workflow"}{" "}
-                  · Live
-                </span>
-              ) : (
-                <a href="/viewer">All workflows</a>
+              {!recipient && (
+                <>
+                  <a href="/viewer">Workflows</a>
+                  <span aria-hidden="true">/</span>
+                </>
               )}
-              <span aria-hidden="true">/</span>
-              <span>{meta.workflow.title}</span>
+              <h1>{meta.workflow.title}</h1>
             </div>
-            <div className="title-row">
-              <div>
-                <h1>{meta.workflow.title}</h1>
-                <p className="muted purpose" title={meta.workflow.description}>
-                  {meta.workflow.description}
-                </p>
-              </div>
-              <div className="header-actions">
-                {!recipient && (
-                  <span className="context">
-                    {meta.workspace} · {meta.environment}
-                  </span>
-                )}
-                {meta.shareEnabled && <Sharing meta={meta} />}
-              </div>
-            </div>
-            {recipient && (
-              <p className="muted">
-                Updated {time(state.at)} ·{" "}
-                {query().has("preview")
-                  ? "Preview only. No link created."
-                  : meta.expiresAt
-                    ? "Expires " + time(meta.expiresAt)
-                    : "No expiry"}
-              </p>
-            )}
-            <nav className="tabs" aria-label="Workflow views">
-              {meta.views.map((v: string) => (
+            {!recipient && <Sharing meta={meta} />}
+          </header>
+          <nav className="tabs" aria-label="Workflow views">
+            {["logic", "runs", "data"]
+              .filter((v) => meta.views.includes(v))
+              .map((v) => (
                 <a
                   key={v}
                   href={href({
                     view: v,
                     cursor: undefined,
-                    step: undefined,
                     node: undefined,
                     page: undefined,
-                    ...(v !== "runs" ? { run: undefined } : {}),
+                    run: undefined,
                   })}
                   aria-current={view === v ? "page" : undefined}
                 >
                   {labels[v]}
                 </a>
               ))}
-            </nav>
-          </header>
+          </nav>
           {!meta.views.includes(view) ? (
-            <p className="notice">
-              This view is not shared. Choose an available view above.
-            </p>
+            <p className="notice">This view isn't shared.</p>
           ) : view === "data" ? (
-            <Data />
+            <Data destinations={meta.destinations} />
           ) : view === "runs" ? (
-            <Runs
-              workflow={meta.workflow}
-              dataAllowed={meta.views.includes("data")}
-              logicAllowed={meta.views.includes("logic")}
-            />
+            <Runs />
           ) : (
             <Suspense
               fallback={
-                <p role="status" className="notice">
+                <p className="notice" role="status">
                   Loading diagram…
                 </p>
               }
             >
               <Logic
                 workflow={meta.workflow}
-                runsAllowed={meta.views.includes("runs")}
+                destinations={meta.destinations}
               />
             </Suspense>
           )}
@@ -118,22 +86,15 @@ function Workflow() {
 }
 function App() {
   useLocation();
-  const recipient = shared || query().has("preview");
   return (
     <>
-      <div className="app-bar" role="banner">
-        <a href={recipient ? location.href : "/viewer"}>GTM Workflows</a>
-        <span className="muted">
-          {recipient ? "Live shared view" : "Inspection"}
-        </span>
-      </div>
       {shared && (!token || !query().get("workflow")) ? (
         <main className="workspace">
           <h1>Link unavailable</h1>
           <p>Ask the sender for a complete, active link.</p>
         </main>
       ) : query().get("workflow") ? (
-        <Workflow />
+        <Workflow key={query().get("workflow")} />
       ) : (
         <Workspace />
       )}

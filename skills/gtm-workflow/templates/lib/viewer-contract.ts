@@ -1,6 +1,17 @@
 /** Browser-safe display contract. Never imports workflow execution or database code. */
-export const CONTRACT_VERSION = 1;
+export const CONTRACT_VERSION = 2;
 export type View = "logic" | "runs" | "data";
+export type BusinessGraph = {
+  nodes: {
+    id: string;
+    label: string;
+    kind: "input" | "action" | "decision" | "output";
+    explanation: string;
+    details?: { provider?: string; caching?: string; notes?: string };
+    source?: { path: string; line?: number };
+  }[];
+  edges: { id: string; source: string; target: string; label?: string }[];
+};
 export type Graph = {
   nodes: {
     id: string;
@@ -17,6 +28,8 @@ export type Graph = {
   }[];
 };
 export type Display = {
+  businessGraph?: BusinessGraph;
+  source?: string;
   id: string;
   slug: string;
   title: string;

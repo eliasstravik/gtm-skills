@@ -1,3 +1,4 @@
+import { CONTRACT_VERSION } from "../lib/viewer-contract";
 import React, { useEffect, useState } from "react";
 import { query, shared, token, useLocation } from "./navigation";
 export class ApiError extends Error {
@@ -17,7 +18,7 @@ export async function api(
 ) {
   const p = query();
   p.set("op", op);
-  p.set("v", "1");
+  p.set("v", String(CONTRACT_VERSION));
   for (const [k, v] of Object.entries(extra)) p.set(k, v);
   const res = await fetch(`/api/viewer?${p}`, {
     method: body ? "POST" : "GET",
@@ -34,7 +35,7 @@ export async function api(
   const data = await res.json();
   if (!res.ok)
     throw new ApiError(data.error?.message ?? "View unavailable.", res.status);
-  if (data.version !== 1)
+  if (data.version !== CONTRACT_VERSION)
     throw new ApiError(
       "Update required. Reload after both deployments are ready.",
       409,
@@ -59,7 +60,11 @@ export function useRead(op: string, enabled = true) {
       expiry: ReturnType<typeof setTimeout>;
     let busy = false,
       delay = 3000;
-    setState({ key, loading: true });
+    setState((old: any) =>
+      old.key === key && old.data
+        ? { ...old, loading: false }
+        : { key, loading: true },
+    );
     const read = async () => {
       if (busy || controller.signal.aborted || document.hidden) return;
       busy = true;

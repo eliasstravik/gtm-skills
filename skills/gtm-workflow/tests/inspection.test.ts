@@ -3,19 +3,21 @@ import assert from "node:assert/strict";
 import { createClient } from "@libsql/client";
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { readData, type WorkflowData } from "../templates/lib/data-api";
-import { grants, migrateViewer } from "../templates/lib/viewer-grants";
-import { csvCell, exportCsv } from "../templates/lib/viewer-csv";
+import { saveLink } from "../templates/lib/viewer-sharing";
 import {
-  publicDisplay,
-  stageGraph,
-  validateStages,
-} from "../templates/lib/viewer-display";
-import { summarizeRun } from "../templates/lib/viewer-summary";
+  grants,
+  migrateViewer,
+  policyVersion,
+} from "../templates/lib/viewer-grants";
+import { csvCell, exportCsv } from "../templates/lib/viewer-csv";
+import { publicDisplay } from "../templates/lib/viewer-display";
+
 import type {
   Display,
   DataPolicy,
   View,
 } from "../templates/lib/viewer-contract";
+process.env.GTM_VIEWER_LINK_KEY = "ab".repeat(32);
 const scope = {
   workspace: "acme",
   environment: "production",
@@ -41,7 +43,12 @@ test("all seven nonempty scopes authorize metadata and only the selected views",
     const all: View[] = ["logic", "runs", "data"];
     for (let mask = 1; mask < 8; mask++) {
       const views = all.filter((_, i) => mask & (1 << i));
-      const { token } = await api.create({ views, expiresAt: null }, policy);
+      const { token } = await saveLink(
+        client,
+        scope,
+        { views, policy: policyVersion(policy), save: true },
+        policy,
+      );
       assert.deepEqual(
         (await api.authorize(token, undefined, policy)).views,
         views,
@@ -164,71 +171,42 @@ test("CSV neutralizes formulas and a revoked grant aborts subsequent output", as
     }
   }, /revoked/);
 });
-test("summary scans beyond the selected 25 invocations and reports bounded scans as partial", async () => {
-  const result = await summarizeRun(async (cursor) => ({
-    data: Array.from({ length: cursor ? 15 : 25 }, () => ({
-      status: "completed",
-    })),
-    cursor: cursor ? undefined : "next",
-    hasMore: !cursor,
-  }));
-  assert.deepEqual(result, {
-    complete: true,
-    count: 40,
-    statuses: { completed: 40 },
-  });
-  assert.equal(
-    (
-      await summarizeRun(async () => ({
-        data: [{ status: "failed" }],
-        cursor: "same",
-        hasMore: true,
-      }))
-    ).complete,
-    false,
-  );
-});
-test("recipient diagram strips arbitrary nested metadata; grouping preserves labelled branches and loops", () => {
+test("recipient business projection excludes owner details and compiler graphs", () => {
   const display: Display = {
     id: "x",
     slug: "x",
-    title: "Inspect",
+    title: "Workflow",
     workflowName: "private",
     revision: "1",
     graph: {
-      nodes: ["a", "b", "c"].map((id) => ({
-        id,
-        type: "step",
-        data: { label: id, stepId: "private-step" },
-        metadata: { nested: { secret: "PRIVATE" } },
-      })),
-      edges: [
-        { id: "ab", source: "a", target: "b" },
-        { id: "bc", source: "b", target: "c", label: "Yes" },
-        { id: "ca", source: "c", target: "a", type: "loop", label: "Again" },
-      ],
+      nodes: [{ id: "technical", type: "step", data: { label: "PRIVATE" } }],
+      edges: [],
     },
-    stages: [
-      {
-        id: "stage",
-        title: "Prepare",
-        description: "Prepare rows",
-        nodes: ["a", "b"],
-      },
-    ],
+    businessGraph: {
+      nodes: [
+        {
+          id: "a",
+          label: "Find people",
+          kind: "action",
+          explanation: "Find matching people.",
+          details: { notes: "PRIVATE" },
+          source: { path: "workflows/private.ts" },
+        },
+      ],
+      edges: [],
+    },
   };
-  assert.ok(!JSON.stringify(publicDisplay(display, true)).includes("PRIVATE"));
-  assert.ok(!("graph" in publicDisplay(display, false)));
-  validateStages(display.graph!, display.stages);
-  assert.throws(() =>
-    validateStages(display.graph!, [
-      ...display.stages!,
-      { id: "other", title: "Other", description: "x", nodes: ["a"] },
-    ]),
+  const publicValue = publicDisplay(display, true);
+  assert.equal(publicValue.businessGraph?.nodes[0].label, "Find people");
+  assert.ok(!JSON.stringify(publicValue).includes("PRIVATE"));
+  assert.ok(!JSON.stringify(publicValue).includes("private.ts"));
+  assert.equal(publicDisplay(display, false).businessGraph, undefined);
+  assert.equal(
+    publicDisplay({ ...display, businessGraph: undefined }, true).businessGraph,
+    undefined,
   );
-  const graph = stageGraph(display.graph!, display.stages);
-  assert.equal(graph.nodes.length, 2);
-  assert.equal(graph.edges.length, 2);
-  assert.equal(graph.edges[0].label, "Yes");
-  assert.equal(graph.edges[1].type, "loop");
+  assert.equal(
+    publicDisplay(display, true, true).businessGraph?.nodes[0].details?.notes,
+    "PRIVATE",
+  );
 });

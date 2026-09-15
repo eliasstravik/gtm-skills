@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import type { Client } from "@libsql/client";
 import type { DataPolicy, View } from "./viewer-contract";
 export class ViewerError extends Error {
@@ -37,7 +37,7 @@ export type Grant = Scope & {
   expiresAt: number | null;
   revokedAt: number | null;
 };
-const decode = (row: Record<string, unknown>): Grant => ({
+export const decodeGrant = (row: Record<string, unknown>): Grant => ({
   id: String(row.id),
   workspace: String(row.workspace),
   environment: String(row.environment),
@@ -55,11 +55,14 @@ export async function migrateViewer(client: Pick<Client, "execute">) {
     workspace TEXT NOT NULL, environment TEXT NOT NULL, views TEXT NOT NULL, data_policy TEXT,
     created_at INTEGER NOT NULL, expires_at INTEGER, revoked_at INTEGER
   )`);
-  await client.execute(`CREATE TABLE IF NOT EXISTS gtm_viewer_graphs (
-    workspace TEXT NOT NULL, environment TEXT NOT NULL, workflow_id TEXT NOT NULL,
-    deployment_id TEXT NOT NULL, revision TEXT NOT NULL, display TEXT NOT NULL,
-    PRIMARY KEY (workspace, environment, workflow_id, deployment_id, revision)
-  )`);
+  const columns = await client.execute("PRAGMA table_info(gtm_viewer_grants)");
+  if (!columns.rows.some((row) => row.name === "token_ciphertext"))
+    await client.execute(
+      "ALTER TABLE gtm_viewer_grants ADD COLUMN token_ciphertext TEXT",
+    );
+  await client.execute(`CREATE UNIQUE INDEX IF NOT EXISTS gtm_viewer_one_active_link
+    ON gtm_viewer_grants (workspace, environment, workflow_id)
+    WHERE revoked_at IS NULL AND token_ciphertext IS NOT NULL`);
 }
 export function grants(
   client: Pick<Client, "execute">,
@@ -69,78 +72,12 @@ export function grants(
   const scopeArgs = [scope.workspace, scope.environment, scope.workflowId];
   const where = "workspace = ? AND environment = ? AND workflow_id = ?";
   return {
-    async create(
-      options: { views?: unknown; expiresAt?: unknown },
-      policy?: DataPolicy,
-    ) {
-      const views = options.views === undefined ? ["logic"] : options.views;
-      if (
-        !Array.isArray(views) ||
-        views.length === 0 ||
-        views.length > 3 ||
-        new Set(views).size !== views.length ||
-        views.some((v) => !["logic", "runs", "data"].includes(v))
-      )
-        throw new ViewerError(
-          400,
-          "invalid_scope",
-          "Choose at least one of Diagram, Runs and Data.",
-        );
-      if (views.includes("data") && !policy)
-        throw new ViewerError(
-          400,
-          "data_unavailable",
-          "Sharing is not configured for this data.",
-        );
-      const now = clock();
-      const expiresAt =
-        options.expiresAt === undefined
-          ? now + 7 * 86400000
-          : options.expiresAt;
-      if (
-        expiresAt !== null &&
-        (typeof expiresAt !== "number" ||
-          !Number.isSafeInteger(expiresAt) ||
-          expiresAt <= now)
-      )
-        throw new ViewerError(
-          400,
-          "invalid_expiry",
-          "Choose an expiry in the future.",
-        );
-      const token = randomBytes(32).toString("base64url");
-      const grant: Grant = {
-        ...scope,
-        id: randomUUID(),
-        views: views as View[],
-        dataPolicy: views.includes("data") ? policyVersion(policy) : null,
-        createdAt: now,
-        expiresAt: expiresAt as number | null,
-        revokedAt: null,
-      };
-      await client.execute({
-        sql: "INSERT INTO gtm_viewer_grants VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        args: [
-          grant.id,
-          hash(token),
-          scope.workflowId,
-          scope.workspace,
-          scope.environment,
-          JSON.stringify(views),
-          grant.dataPolicy,
-          now,
-          grant.expiresAt,
-          null,
-        ],
-      });
-      return { grant, token };
-    },
     async list() {
       const rows = await client.execute({
         sql: `SELECT * FROM gtm_viewer_grants WHERE ${where} ORDER BY created_at DESC LIMIT 100`,
         args: scopeArgs,
       });
-      return rows.rows.map(decode);
+      return rows.rows.map(decodeGrant);
     },
     async revoke(id: string) {
       const result = await client.execute({
@@ -163,7 +100,13 @@ export function grants(
       });
       if (!rows.rows[0])
         throw new ViewerError(404, "invalid_grant", "Link unavailable.");
-      const grant = decode(rows.rows[0]);
+      if (!rows.rows[0].token_ciphertext)
+        throw new ViewerError(
+          410,
+          "legacy_link",
+          "This link has been replaced. Ask the owner for a new link.",
+        );
+      const grant = decodeGrant(rows.rows[0]);
       if (grant.revokedAt !== null)
         throw new ViewerError(410, "revoked", "This link was revoked.");
       if (grant.expiresAt !== null && grant.expiresAt <= clock())
@@ -171,15 +114,27 @@ export function grants(
       if (view && !grant.views.includes(view))
         throw new ViewerError(403, "view_denied", "This view is not shared.");
       if (
-        grant.views.includes("data") &&
+        view === "data" &&
         (!policy || grant.dataPolicy !== policyVersion(policy))
       )
         throw new ViewerError(
           403,
           "policy_changed",
-          "Data permissions changed. Ask the owner for a new link.",
+          "Permitted data has changed. Ask the owner to save the sharing permissions.",
         );
       return grant;
     },
   };
+}
+
+/** Explicit upgrade only, scoped to the workflows being migrated. Never called on reads. */
+export async function revokeLegacyLinks(
+  client: Pick<Client, "execute">,
+  scope: Scope,
+) {
+  const result = await client.execute({
+    sql: "UPDATE gtm_viewer_grants SET revoked_at = ? WHERE workspace = ? AND environment = ? AND workflow_id = ? AND revoked_at IS NULL AND token_ciphertext IS NULL",
+    args: [Date.now(), scope.workspace, scope.environment, scope.workflowId],
+  });
+  return result.rowsAffected;
 }

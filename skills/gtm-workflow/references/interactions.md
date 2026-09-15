@@ -1,5 +1,16 @@
 # Interactions: gtm-workflow
 
+## Bare entry
+
+User: /gtm-workflows
+Agent: What would you like to do?
+
+1. Open GTM Workflows
+2. Create a workflow
+3. Manage a workflow
+
+Wait for the choice. The singular /gtm-workflow behaves the same. Choosing Manage asks which workflow and action; an explicit "run Score companies" goes directly to Run with its existing run safeguards. Open with no workspace explains setup; Open with no saved workflows opens the empty list.
+
 Contents: [Create](#create) · [Create without a connected project](#create-without-a-connected-project) · [Create on a hosted agent](#create-on-a-hosted-agent) · [Create with plain steps](#create-with-plain-steps) · [Create an agent stage](#create-an-agent-stage) · [Update](#update) · [Run](#run) · [Deploy](#deploy) · [Run on the deployed copy](#run-on-the-deployed-copy) · [Run on the deployed copy, key absent](#run-on-the-deployed-copy-key-absent) · [Upgrade](#upgrade) · [Delete](#delete)
 
 ## Create
@@ -301,4 +312,10 @@ Deleted Score inbound accounts; it stays in history, ask me to restore it.
 - deleted `workflows/workflows/score-inbound-accounts.ts`
 - changed `workflows/workflows/index.ts`
 - changed `workflows/vercel.json`
-  \n## Open UI\n\n**Human:** Open GTM Workflows UI.\n\n**Agent:** [Open GTM Workflows](verified-viewer-url)\n\nAn explicit repeat request receives the same entry again. The URL opens the discussed workflow, or the list without workflow context. No workflow starts. In Slack, the normal final reply carries one primary URL button with this label.\n
+  \n## Open UI
+
+**Human:** Open GTM Workflows UI.
+
+**Agent:** [Open GTM Workflows](verified-viewer-url)
+
+An explicit repeat request receives the same entry again. The URL opens the discussed workflow, or the list without workflow context. No workflow starts. In Slack, the normal final reply carries one primary URL button with this label.\n

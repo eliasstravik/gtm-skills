@@ -13,11 +13,16 @@ import {
   currentPolicy,
   authorizeShare,
   readRuns,
-  readRun,
   readBusinessData,
-  readBusinessCounts,
 } from "./viewer-reader";
-import { grants, ViewerError } from "./viewer-grants";
+import {
+  grants,
+  ViewerError,
+  policyVersion,
+  decodeGrant,
+} from "./viewer-grants";
+import { activeLink, saveLink } from "./viewer-sharing";
+import { destinations } from "./viewer-destinations";
 import { rawClient } from "./db";
 import { publicDisplay } from "./viewer-display";
 import { bearerOk } from "./sign";
@@ -94,52 +99,18 @@ export async function viewerApi(req: Request, shared = false, service = false) {
     }
     if (
       req.method !== "GET" &&
-      !["createGrant", "replaceGrant", "revokeGrant"].includes(operation)
+      !["saveLink", "revokeGrant"].includes(operation)
     )
       throw new ViewerError(405, "method_denied", "Read-only endpoint.");
     if (shared && req.method !== "GET")
       throw new ViewerError(405, "method_denied", "Read-only endpoint.");
     if (!shared && operation === "list") {
-      const workflows = [];
-      for (let i = 0; i < registry.length; i += 4)
-        workflows.push(
-          ...(await Promise.all(
-            registry.slice(i, i + 4).map(async (entry) => {
-              const { id, slug, title, description } = entry;
-              let latestRun;
-              let history = "available";
-              try {
-                const latestUrl = new URL(req.url);
-                latestUrl.search = "latest=1";
-                for (let page = 0; page < 10; page++) {
-                  const result = await readRuns(entry, latestUrl);
-                  latestRun = result.data[0];
-                  if (latestRun || !result.hasMore) break;
-                  if (!result.cursor || page === 9) {
-                    history = "unavailable";
-                    break;
-                  }
-                  latestUrl.searchParams.set("cursor", result.cursor);
-                }
-              } catch {
-                history = "unavailable";
-              }
-              let counts;
-              try {
-                counts = await readBusinessCounts(entry);
-              } catch {}
-              return {
-                id,
-                slug,
-                title,
-                description,
-                latestRun,
-                history,
-                counts,
-              };
-            }),
-          )),
-        );
+      const workflows = registry.map(({ id, slug, title, description }) => ({
+        id,
+        slug,
+        title,
+        description,
+      }));
       return reply({
         workflows,
         environment: deploymentScope().environment,
@@ -149,17 +120,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
     const entry = entryFor(url.searchParams.get("workflow") ?? "");
     let grant;
     if (shared) {
-      if (
-        ![
-          "meta",
-          "workflow",
-          "runs",
-          "run",
-          "events",
-          "data",
-          "export",
-        ].includes(operation)
-      )
+      if (!["meta", "workflow", "runs", "data", "export"].includes(operation))
         throw new ViewerError(404, "not_found", "View unavailable.");
       const key =
         req.headers.get("x-vercel-forwarded-for") ??
@@ -203,6 +164,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
               entry,
               !recipient ||
                 Boolean((preview ?? grant?.views)?.includes("logic")),
+              !recipient,
             ),
             views: preview ?? grant?.views ?? ["logic", "runs", "data"],
             environment: deploymentScope().environment,
@@ -216,6 +178,8 @@ export async function viewerApi(req: Request, shared = false, service = false) {
             dataShareEnabled: Boolean(currentPolicy(entry)),
             ...(!recipient
               ? {
+                  destinations: destinations(entry),
+                  hosted: Boolean(process.env.VERCEL),
                   dataScope: entry.sharePolicy?.tables.map((t) => ({
                     name: t.name,
                     columns: t.columns,
@@ -231,9 +195,6 @@ export async function viewerApi(req: Request, shared = false, service = false) {
       }
       case "runs":
         return reply(await readRuns(entry, url, recipient));
-      case "run":
-      case "events":
-        return reply(await readRun(entry, url, recipient));
       case "data":
         return reply(await readBusinessData(entry, url, recipient));
       case "export":
@@ -263,17 +224,20 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         const client = rawClient();
         try {
           return reply({
-            grants: await grants(client, {
+            grant: await activeLink(client, {
               ...deploymentScope(),
               workflowId: entry.id,
-            }).list(),
+            }).then((row) => (row ? decodeGrant(row) : null)),
+            policy: policyVersion(currentPolicy(entry)),
+            dataScope: currentPolicy(entry)?.tables.map(
+              ({ name, columns, row }) => ({ name, columns, row }),
+            ),
           });
         } finally {
           client.close();
         }
       }
-      case "createGrant":
-      case "replaceGrant":
+      case "saveLink":
       case "revokeGrant": {
         if (req.method !== "POST")
           throw new ViewerError(405, "method_denied", "POST required.");
@@ -295,33 +259,32 @@ export async function viewerApi(req: Request, shared = false, service = false) {
             await api.revoke(String(body.id ?? ""));
             return reply({ revoked: true });
           }
-          let created;
-          if (operation === "replaceGrant") {
-            const tx = await client.transaction("write");
-            try {
-              const transactional = grants(tx, {
-                ...deploymentScope(),
-                workflowId: entry.id,
-              });
-              created = await transactional.create(body, currentPolicy(entry));
-              await transactional.revoke(String(body.id ?? ""));
-              await tx.commit();
-            } catch (error) {
-              await tx.rollback();
-              throw error;
-            } finally {
-              tx.close();
-            }
-          } else created = await api.create(body, currentPolicy(entry));
-          const { grant, token } = created;
           const link = new URL("/share", process.env.GTM_VIEWER_SHARE_ORIGIN);
-          link.searchParams.set("workflow", entry.id);
-          link.searchParams.set(
-            "view",
-            ["logic", "runs", "data"].find((v) =>
-              grant.views.includes(v as any),
-            )!,
+          if (
+            link.protocol !== "https:" &&
+            !(
+              process.env.GTM_VIEWER_TEST === "1" &&
+              ["127.0.0.1", "localhost"].includes(link.hostname)
+            )
+          )
+            throw new ViewerError(
+              503,
+              "configuration",
+              "A secure hosted sharing origin is required.",
+            );
+          if (link.username || link.password)
+            throw new ViewerError(
+              503,
+              "configuration",
+              "Invalid sharing origin.",
+            );
+          const { grant, token } = await saveLink(
+            client,
+            { ...deploymentScope(), workflowId: entry.id },
+            body,
+            currentPolicy(entry),
           );
+          link.searchParams.set("workflow", entry.id);
           link.hash = new URLSearchParams({ token }).toString();
           return reply({ grant, url: link.href });
         } finally {
