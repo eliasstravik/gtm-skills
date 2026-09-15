@@ -13,8 +13,53 @@ import registry, {
   run,
   fixtureRuns,
 } from "./api-fixture";
-import structure from "./network-structure.json";
-Object.assign(entry, structure, {
+
+Object.assign(entry, {
+  businessGraph: {
+    nodes: [
+      {
+        id: "input",
+        label: "Import connections",
+        kind: "input",
+        explanation: "Read the supplied network identities.",
+      },
+      {
+        id: "people",
+        label: "Enrich people",
+        kind: "action",
+        explanation: "Find each person's current role and profile.",
+        details: {
+          provider: "Person enrichment",
+          caching: "Reuse recently enriched profiles.",
+        },
+      },
+      {
+        id: "employer",
+        label: "Employer found?",
+        kind: "decision",
+        explanation: "Check whether the person's profile identifies a company.",
+      },
+      {
+        id: "companies",
+        label: "Enrich companies",
+        kind: "action",
+        explanation: "Find details about the person's current employer.",
+      },
+      {
+        id: "save",
+        label: "Save results",
+        kind: "output",
+        explanation: "Save people and any identified companies for review.",
+      },
+    ],
+    edges: [
+      { id: "a", source: "input", target: "people" },
+      { id: "b", source: "people", target: "employer" },
+      { id: "c", source: "employer", target: "companies", label: "Yes" },
+      { id: "d", source: "employer", target: "save", label: "No" },
+      { id: "e", source: "companies", target: "save" },
+    ],
+  },
   title: "Enrich network",
   description:
     "Enrich people and their current employers from network identities.",
@@ -77,6 +122,8 @@ entry.sharePolicy.tables.push(
     row: { version: "all" },
   },
 );
+process.env.GTM_VIEWER_LINK_KEY = "ab".repeat(32);
+process.env.GTM_VIEWER_TEST = "1";
 process.env.VERCEL = "1";
 process.env.VERCEL_PROJECT_ID = "fixture";
 process.env.VERCEL_ENV = "production";

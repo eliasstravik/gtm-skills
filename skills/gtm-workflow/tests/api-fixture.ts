@@ -21,6 +21,19 @@ export const entry = {
   id: "stable",
   slug: "network",
   title: "Network",
+  description: "Find people in the network.",
+  businessGraph: {
+    nodes: [
+      {
+        id: "lookup",
+        label: "Find people",
+        kind: "action",
+        explanation: "Find matching people.",
+        details: { notes: "PRIVATE" },
+      },
+    ],
+    edges: [],
+  },
   revision: "1",
   workflowName: "network",
   graph: {

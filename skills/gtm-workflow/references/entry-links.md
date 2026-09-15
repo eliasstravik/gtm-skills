@@ -1,5 +1,7 @@
 # Workflow entry links
 
+Bare `/gtm-workflow` and `/gtm-workflows` show the three-choice menu in SKILL.md and wait. Only the Open choice or an explicit open request resolves the entry link.
+
 Use the authenticated link resolver's `viewerUrl`. `GET /api/link/<workflow-id-or-slug>` opens the workflow's Diagram. `GET /api/link` opens the list. Both return the deployed `commit`; verify that it includes the saved revision before showing a hosted link. Preserve immutable workflow IDs across renames.
 
 After create/change, deploy, or upgrade, show the entry when it first becomes available in the thread or its address may have changed. Ordinary run replies do not repeat it. An explicit link request or “Open GTM Workflows UI” always returns it, including repeated requests.

@@ -1,47 +1,74 @@
 # Workflow viewer
 
-## Inspect without execution
+## Open without execution
 
-Run `npm run viewer` against an existing local `data/gtm.db`. It binds to `127.0.0.1`, rejects unexpected Host/Origin values, disables active-run recovery, and builds only viewer routes. It starts no schedules, intake, providers or runs. `npm run dev` is the separate deliberate execution command. Initial setup explicitly migrates the business database, runs `npm run viewer:register`, builds display metadata, and runs `node scripts/viewer-migrate.mjs` before opening the viewer.
+`npm run viewer` serves an existing local database on loopback. Opening Workflows starts no workflows, providers, migrations, schedules or inspectors. Workflows is a name-and-purpose list; a selected workflow has Diagram, Runs and Data. Runs lists metadata only. Detailed debugging and database administration use verified native destinations.
 
-The workspace list opens Diagram, Runs and current business Data. Run payloads are retained inputs/outputs, not snapshots of current tables. Runs and steps are paged; large payloads are visibly truncated. Locked/unavailable payloads remain distinct. Old runs without a retained graph keep their trace and do not receive the current graph's execution overlays.
+## Author the business diagram
 
-## Author and preserve metadata
+Every registry entry has a permanent `viewer.id` UUID. Assign it with `npm run viewer:register` for a new workflow and preserve it through updates, renames and upgrades.
 
-Every registry entry has `viewer: {id: <UUID>}`. Assign a new identity with `npm run viewer:register` only for newly created entries. Preserve it through renames and upgrades. Reusing a deleted slug means a new identity, never copying its old grant scope. Keep `viewer`, `data`, `intake`, imports and authored workflow/table files when updating the runtime.
+Create and Update author a literal `viewer.businessGraph` next to the workflow code, or in an imported literal metadata module. The shape is `BusinessGraph` in `lib/viewer-contract.ts`:
 
-The compiler supplies each workflow's graph and exact step IDs. Check its output: callbacks and shared helpers can hide relevant structure. Author a literal `viewer.graph` when needed, using `Graph` from `lib/viewer-contract.ts`; readable nodes describe real call sites, conditions, loops, parallelism, waits and child runs. Display metadata never changes execution. Imported literal metadata files are supported. `viewer.mappings` can bind a node to an exact step name plus a saved-input argument selector such as `{path: ['args', 0], equals: 'people'}`. Repeated calls without a unique verified selector stay unmapped. Never map by runtime order or mark an unmapped node completed/skipped.
+```ts
+businessGraph: {
+  nodes: [
+    { id: "input", label: "New companies", kind: "input",
+      explanation: "Use the companies submitted for this run." },
+    { id: "qualify", label: "Meets our criteria?", kind: "decision",
+      explanation: "Check the company's size and market against our ICP.",
+      details: { provider: "Company lookup", caching: "Reuse results for one day." },
+      source: { path: "workflows/qualify.ts", line: 12 } },
+    { id: "save", label: "Save qualified companies", kind: "output",
+      explanation: "Keep matching companies for the sales team." },
+    { id: "skip", label: "Record non-matches", kind: "output",
+      explanation: "Record why the company did not qualify." }
+  ],
+  edges: [
+    { id: "a", source: "input", target: "qualify" },
+    { id: "b", source: "qualify", target: "save", label: "Yes" },
+    { id: "c", source: "qualify", target: "skip", label: "No" }
+  ]
+}
+```
 
-Builds validate step/edge references, hash authored source, and retain the graph in database metadata with workspace, environment and deployment identity. A run uses only its matching artifact. Review metadata again whenever the code changes.
+Use only branches and outputs that exist in the authored code. Read the workflow and any business-relevant helpers; do not generate the graph by hiding compiler nodes and reconnecting edges. Stable node IDs survive label changes. Kinds are input, action, decision and output. Every node needs a label and explanation; decision edges need meaningful labels. Optional owner details have only provider, caching and notes. Optional source paths must reference existing TypeScript files under workflows or lib, with valid line numbers.
 
-## Private access and machine access
+Run `node scripts/build-viewer.mjs` before reporting Create, Update or Upgrade complete. It validates the graph and sources without importing execution code. Missing metadata fails the build. Review business truth against code separately; validation cannot prove it. Shared projections include business labels, edges and explanations only. The viewer never falls back to compiler graphs. Existing compiler metadata may still support execution tooling but does not control the diagram.
 
-Hosted private access is native Vercel Authentication with All Deployments. `GTM_VIEWER_PROTECTED=1` is set only after verifying that platform setting; it is not a replacement login mechanism. Private same-origin share mutations require a CSRF cookie and header. The viewer has no run, cancel or approve controls.
+## Native destinations
 
-Prepare the agent's `GTM_WORKFLOW_BYPASS_SECRET` and `GTM_WORKFLOW_GATE_REQUIRED=1`, preserving its execution bearer and exact `GTM_WORKFLOW_URL` origin. Deploy the upgraded agent before enabling protection. Its host injects both credentials only toward that origin; never expose them to model-visible exports, frontend assets, user links or logs. Verify harmless Queue/wait resumption, cron and signed intake before rollout. External intake still verifies the sender signature and deduplicates event IDs; its sender also needs verified gate transport. Doctor must never turn protection off to fix access. Retain a tested prior deployment for rollback while preserving the gate.
+The owner deployment supplies these optional verified settings:
 
-## Explicit public sharing
+- `GTM_VIEWER_REPOSITORY`: GitHub owner/repository. `GTM_VIEWER_REPOSITORY_ROOT`: runtime directory inside the repository, usually workflows. Source links require the exact `VERCEL_GIT_COMMIT_SHA`, or an explicitly provided `GTM_VIEWER_COMMIT`.
+- `GTM_VIEWER_VERCEL_RUNS_URL`: verified Vercel project runs page including its environment query. The resolver adds the selected run ID.
+- `GTM_VIEWER_DATABASE_URL`: verified database page on app.turso.tech.
+- Local only: `GTM_VIEWER_INSPECTOR_URL` and `GTM_VIEWER_INSPECTOR_STORE=local`, only after confirming that inspector uses this runtime's local store. `GTM_VIEWER_DRIZZLE_URL` names the actual Drizzle instance.
 
-Create a same-source companion Vercel project in the same team, root `workflows/`, build command `npm run build:share`. Give it only `GTM_VIEWER_PRIVATE_ORIGIN` and `GTM_VIEWER_PRIVATE_PROJECT_ID`; no Turso, run, cron, provider, GitHub or administration credentials. Its build omits Workflow handlers, cron configuration, migrations and database imports. Configure it as a Trusted Source of exactly its own private project, production-to-production. The fixed GET proxy forwards its short-lived Vercel OIDC identity server-side. Callers cannot choose an upstream origin, route, method or headers. Verify the build output and live proxy before enabling `GTM_VIEWER_SHARE_ORIGIN` on the private runtime.
+Missing destinations omit the action. Local source falls back to Copy file path. Hosted/shared responses omit local paths; shared responses omit all owner destinations. Browsing never starts native tools.
 
-Private users create links in Share. Choose any nonempty combination of Diagram, Runs and Data. The initial view follows the current context, otherwise Diagram. Expiry options are 1, 7, 30 days and Never; seven days is the default. Runs exposes retained and future execution identity, timing and status, with generic failure summaries. Raw inputs, outputs, errors and arbitrary attributes stay private even when Data is also granted. Data reads current records through its configured policy. No expiry is explicit; revocation takes effect on subsequent requests and open tabs refresh authorization. Each random bearer is stored only as a hash and bound to one immutable workflow identity, workspace/project and environment. URL fragments carry the bearer; requests use a header and no-store/no-referrer. Native Vercel deployment-wide share links are broader access and must not be used as this product's grants.
+## Private access and sharing
 
-Data sharing additionally requires `viewer.sharePolicy: DataPolicy`: stable table IDs, allowed columns, allowed relationships and a versioned row restriction. `{version: 'all-rows-v1'}` explicitly allows all rows of that registered view; `{version: 'team-v1', column: 'team', equals: 'sales'}` restricts rows. Include link-table keys, displayed label columns and primary keys in the allowed columns. The policy must cover each registered table and through-table. A changed schema mapping, allowed column, relationship or row policy invalidates the entire affected grant until a new one is issued. New values and rows inside an unchanged policy remain live.
+Keep native Vercel Authentication on All Deployments and set `GTM_VIEWER_PROTECTED=1` only after verifying it. Keep the existing agent's exact-origin gate and execution credentials. Browser mutations require Origin and CSRF; authenticated service mutations use the existing bearer and platform gate.
 
-Private links returned by `/api/link/<slug>` point to `/viewer?workflow=<id>&view=logic|runs|data`. Creating or deploying a workflow does not authorize creating a public share grant. Legacy signed diagram/data URLs redirect to the private viewer and do not bypass authentication.
+The separate share project uses `npm run build:share`, with only `GTM_VIEWER_PRIVATE_ORIGIN` and `GTM_VIEWER_PRIVATE_PROJECT_ID`. Configure its production deployment as a Trusted Source of its private project. The fixed GET proxy supplies short-lived OIDC identity. No database, provider, run, cron or link encryption key belongs on the share project.
 
-## Business stages and results
+Share starts with Diagram checked, independent of the owner's current tab. Runs and Data are optional; any nonempty available scope works. A workflow/environment has one reusable active link with no expiry. Copy recovers it across owner sessions. Save changes the scope atomically without changing the URL. Turn off immediately denies subsequent requests. Re-enable generates a new secret. Canonical URLs omit the tab and open the first allowed tab in Diagram, Runs, Data order.
 
-Author `viewer.stages` beside the workflow: stable stage `id`, `title`, short `description`, and `nodes` containing exact graph node IDs. Build rejects missing labels, unknown members and duplicate assignments. Keep conditions, waits, loops and parallel edges visible. Do not group unrelated nodes into an invented sequence. Without authored stages the viewer explicitly shows the structural graph.
+Data requires `viewer.sharePolicy: DataPolicy` covering all displayed tables, columns, label/primary keys and relation through-tables. Row policy `{version: "all-v1"}` allows all rows; `{version: "team-v1", column: "team", equals: "sales"}` restricts rows. Data includes the permitted live dataset regardless of the owner's current filters. Policy changes pause Data only; Diagram/Runs stay available. Show the changed tables, columns and row scope, then explicitly save the displayed policy hash. A second policy change rejects the save and requires another review.
 
-Data queries accept allowlisted `q`, `field`, `operator` (`eq`, `ne`, `gt`, `lt`, `missing`), `value`, `sort`, `order`, and `page`. `columns` controls CSV presentation only. Optional `data.tables[].fields` supplies field labels and types. Exports read every matching page, check grant validity before each page, escape CSV and neutralize formulas. They are live paginated reads, not snapshots; clients show start and completion time.
+The service adapter is `/api/viewer/service?v=2&workflow=<id>&op=<operation>`. Read `grants` for the current grant, policy hash and data scope. POST `saveLink` with `{views, policy, save}`. Use `save: true` only for explicitly approved scope/policy changes; ordinary Copy recovers the saved link. POST `revokeGrant` with `{id}`. Return exactly the server URL.
 
-Run summaries scan bounded pages independently of the selected invocation page. They say partial when the bound is reached. Child runs remain separate from root history; unknown lineage stays unavailable.
+## Encryption, upgrade and rollback
 
-## Upgrade and rollback
+Provision `GTM_VIEWER_LINK_KEY` on the private owner deployment only, as 32 random bytes encoded in 64 hexadecimal characters. Back it up in the operator's secret manager before rollout. AES-256-GCM uses a fresh nonce and authenticates the version, workspace, environment, workflow and grant ID. Storage retains only the token hash and encrypted token; public authorization uses the hash. No plaintext in logs, local storage or metadata.
 
-Merge the template-owned files and dependencies, preserving authored workflows, metadata, tables, IDs, data, migrations and environment settings. Build the viewer and run the explicit metadata migration. Deploy private and share targets from the same revision. Verify the private Vercel gate, recipient projections and the installed agent release pin before returning new entry links.
+A missing or wrong key disables recovery; it never opens public access or silently replaces the token. Restore the original key, or explicitly revoke/recreate affected links. Planned key rotation must decrypt each active envelope with the old key, authenticate its scope, and re-encrypt with a fresh nonce under the new key before switching configuration. Keep both keys backed up through verification.
 
-The metadata migration is additive and idempotent. Retain the previous private and share deployment IDs. Roll back both applications together against the same database; do not drop metadata tables or reset business records. The prior viewer required Diagram scope, so newly issued Data-only or Runs-only links may be unavailable after rollback until reissued or upgraded again.
+Upgrade the template runtime while preserving authored files, tables, migrations, workflow IDs, schedules, credentials and saved data. Author business graphs for all existing workflows by reading their code. Build, then explicitly run `node scripts/viewer-migrate.mjs`. The additive migration adds encrypted storage and a uniqueness constraint, then revokes legacy links only for registered workflows in the current workspace/environment. Old links stop working; owners must copy new links. Business tables and runs remain untouched.
 
-The hosted authenticated service adapter is `/api/viewer/service?v=1&workflow=<id>&op=<operation>`. Browser mutations keep their Origin/CSRF requirements; service mutations require the existing host credential plus Vercel gate access. Replacement creates and revokes inside one transaction; failure preserves the old link. Preview uses recipient projections without minting a bearer.
+Deploy matching private/share contract version 2 together. Mixed versions fail closed. Retain source revisions and previous deployment IDs. Roll back both applications together without dropping metadata or restoring revoked links.
+
+## Read-only data
+
+Data supports bounded server-side search, filter, sort and stable tie-break ordering. CSV includes the full filtered permitted dataset, checks authorization during streaming, escapes values and neutralizes spreadsheet formulas. Export cancellation stops the request. Record values may change during export; it is a live paginated read.

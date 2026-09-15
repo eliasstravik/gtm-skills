@@ -9,8 +9,9 @@ await build({
   format: "esm",
   packages: "external",
 });
-const { migrateViewer } =
-  await import("../node_modules/.gtm-viewer/migrate.mjs");
+const { migrateViewer, revokeLegacyLinks } = await import(
+  "../node_modules/.gtm-viewer/migrate.mjs"
+);
 const hosted = Boolean(process.env.VERCEL);
 const url = hosted ? process.env.TURSO_DATABASE_URL : "file:./data/gtm.db";
 if (!url) throw Error("TURSO_DATABASE_URL is required");
@@ -29,23 +30,18 @@ try {
   const environment = hosted
     ? process.env.VERCEL_TARGET_ENV || process.env.VERCEL_ENV
     : "local";
-  // Local engine deployment IDs are reused; local overlays additionally require a recorded source revision.
-  const deployment = hosted ? process.env.VERCEL_DEPLOYMENT_ID : "local-build";
-  if (!workspace || !environment || !deployment)
-    throw Error("Missing deployment identity");
-  for (const d of registry)
-    await client.execute({
-      sql: "INSERT OR IGNORE INTO gtm_viewer_graphs VALUES (?, ?, ?, ?, ?, ?)",
-      args: [
-        workspace,
-        environment,
-        d.id,
-        deployment,
-        d.revision,
-        JSON.stringify(d),
-      ],
+  if (!workspace || !environment) throw Error("Missing deployment identity");
+  let revoked = 0;
+  for (const entry of registry) {
+    revoked += await revokeLegacyLinks(client, {
+      workspace,
+      environment,
+      workflowId: entry.id,
     });
-  console.log("Viewer metadata migration complete.");
+  }
+  console.log(
+    `Viewer migration complete. Revoked ${revoked} legacy links. Business data and runs unchanged.`,
+  );
 } finally {
   client.close();
 }

@@ -14,6 +14,7 @@ const dir = await mkdtemp(join(tmpdir(), "gtm-data-tests-"));
 try {
   await symlink(join(runtime, "node_modules"), join(dir, "node_modules"));
   for (const name of [
+    "business",
     "linked-data",
     "viewer-grants",
     "inspection",

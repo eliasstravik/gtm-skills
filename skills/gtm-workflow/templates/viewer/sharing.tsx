@@ -1,267 +1,211 @@
 import React, { useRef, useState } from "react";
-import { api, time } from "./common";
-import { query } from "./navigation";
-const viewName = (view: string) =>
-  ({ logic: "Diagram", runs: "Runs", data: "Data" })[view] ?? view;
-export default function Sharing({ meta }: { meta: any }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const [grants, setGrants] = useState<any[]>([]);
-  const [views, setViews] = useState([query().get("view") ?? "logic"]);
-  const [expiry, setExpiry] = useState("7");
-  const [replace, setReplace] = useState<string | undefined>();
-  const [link, setLink] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
-  async function open() {
-    setViews([query().get("view") ?? "logic"]);
-    setReplace(undefined);
-    setLink("");
-    setError("");
-    ref.current?.showModal();
-    try {
-      setGrants((await api("grants")).grants);
-    } catch (e) {
-      setError((e as Error).message);
-    }
+import { api, ApiError } from "./common";
+const choices = ["logic", "runs", "data"];
+const name = (view: string) =>
+  ({ logic: "Diagram", runs: "Runs", data: "Data" })[view];
+export default function Sharing({ meta }: any) {
+  const dialog = useRef<HTMLDialogElement>(null),
+    trigger = useRef<HTMLButtonElement>(null);
+  const [copyFailed, setCopyFailed] = useState(false);
+  const [views, setViews] = useState<string[]>(["logic"]),
+    [saved, setSaved] = useState<any>(null);
+  const [policy, setPolicy] = useState<string | null>(null),
+    [scope, setScope] = useState<any[]>([]);
+  const [busy, setBusy] = useState(false),
+    [loaded, setLoaded] = useState(false),
+    [url, setUrl] = useState(""),
+    [message, setMessage] = useState("");
+  const changed =
+    !!saved &&
+    choices.some((v) => views.includes(v) !== saved.views.includes(v));
+  const stale = !!saved?.views.includes("data") && saved.dataPolicy !== policy;
+  function dismiss() {
+    dialog.current?.close();
+    setUrl("");
+    trigger.current?.focus();
   }
-  async function create(e: React.FormEvent) {
-    e.preventDefault();
+  async function refresh(reset = true) {
+    const result = await api("grants");
+    setSaved(result.grant);
+    setPolicy(result.policy);
+    setScope(result.dataScope ?? []);
+    setLoaded(true);
+    if (reset) setViews(result.grant?.views ?? ["logic"]);
+  }
+  async function open() {
+    setCopyFailed(false);
+    setLoaded(false);
+    setUrl("");
+    setMessage("");
+    dialog.current?.showModal();
+    if (!meta.shareEnabled) return;
     setBusy(true);
-    setError("");
     try {
-      const result = await api(
-        replace ? "replaceGrant" : "createGrant",
-        {},
-        {
-          views,
-          expiresAt:
-            expiry === "never" ? null : Date.now() + Number(expiry) * 86400000,
-          ...(replace ? { id: replace } : {}),
-        },
-        meta.csrf,
-      );
-      setReplace(undefined);
-      setLink(result.url);
-      setCopied(false);
-      setGrants((await api("grants")).grants);
+      await refresh();
     } catch (e) {
-      setError((e as Error).message);
+      setMessage((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
-  async function revoke(id: string) {
-    setBusy(true);
+  async function copy(value: string) {
     try {
-      await api("revokeGrant", {}, { id }, meta.csrf);
-      setGrants((await api("grants")).grants);
-      setLink("");
+      await navigator.clipboard.writeText(value);
+      setCopyFailed(false);
+      setMessage("Link copied.");
+    } catch {
+      setCopyFailed(true);
+      setMessage("Copy failed. Select the link below or retry copy.");
+    }
+  }
+  async function save() {
+    setBusy(true);
+    setMessage("");
+    try {
+      const result = await api(
+        "saveLink",
+        {},
+        { views, policy, save: changed || stale },
+        meta.csrf,
+      );
+      setSaved(result.grant);
+      setViews(result.grant.views);
+      setUrl(result.url);
+      await copy(result.url);
     } catch (e) {
-      setError((e as Error).message);
+      setMessage((e as Error).message);
+      if (e instanceof ApiError && e.status === 409) {
+        setUrl("");
+        await refresh(false);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function revoke() {
+    setBusy(true);
+    setMessage("");
+    try {
+      await api("revokeGrant", {}, { id: saved.id }, meta.csrf);
+      setSaved(null);
+      setUrl("");
+      setViews(["logic"]);
+      setMessage("Link turned off.");
+    } catch (e) {
+      setMessage((e as Error).message);
     } finally {
       setBusy(false);
     }
   }
   return (
     <>
-      <button onClick={open}>Share</button>
-      <dialog ref={ref} aria-labelledby="share-title">
+      <button ref={trigger} onClick={open}>
+        Share
+      </button>
+      <dialog
+        ref={dialog}
+        aria-labelledby="share-title"
+        onCancel={dismiss}
+        onClose={() => {
+          setUrl("");
+          trigger.current?.focus();
+        }}
+      >
         <div className="section-heading">
-          <h2 id="share-title">Share this workflow</h2>
-          <button
-            aria-label="Close sharing"
-            onClick={() => ref.current?.close()}
-          >
+          <h2 id="share-title">Share workflow</h2>
+          <button aria-label="Close sharing" onClick={dismiss}>
             ×
           </button>
         </div>
-        <p className="muted">
-          Anyone with the link can open the selected views. It follows the
-          current workflow. Filters and the selected run do not restrict the
-          link. Runs keeps technical payloads private. Revocation stops future
-          reads, but existing downloads remain.
-        </p>
-        <button
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(
-                `${location.origin}/viewer?workflow=${meta.workflow.id}`,
-              );
-              setCopied(true);
-            } catch {
-              setError("Copy failed.");
-            }
-          }}
-        >
-          Copy private link
-        </button>
-        <form onSubmit={create}>
-          <fieldset>
-            <legend>Allowed views</legend>
-            <label>
-              <input
-                type="checkbox"
-                checked={views.includes("logic")}
-                onChange={(e) =>
-                  setViews((v) =>
-                    e.target.checked
-                      ? [...v, "logic"]
-                      : v.filter((x) => x !== "logic"),
-                  )
-                }
-              />
-              Diagram
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={views.includes("runs")}
-                onChange={(e) =>
-                  setViews((v) =>
-                    e.target.checked
-                      ? [...v, "runs"]
-                      : v.filter((x) => x !== "runs"),
-                  )
-                }
-              />
-              Runs, including retained and future status and timing
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                disabled={!meta.dataShareEnabled}
-                checked={views.includes("data")}
-                onChange={(e) =>
-                  setViews((v) =>
-                    e.target.checked
-                      ? [...v, "data"]
-                      : v.filter((x) => x !== "data"),
-                  )
-                }
-              />
-              Current business data
-            </label>
-            {!meta.dataShareEnabled && (
-              <p className="muted">
-                Data sharing needs an authored table and row policy.
-              </p>
-            )}
-          </fieldset>
-          {views.includes("data") && (
-            <div>
-              <p>Current and future records in the configured policy:</p>
-              <ul>
-                {meta.dataScope?.map((t: any) => (
-                  <li key={t.name}>
-                    {t.name}: {t.columns.join(", ")}.{" "}
-                    {t.row.column
-                      ? `${t.row.column} equals ${t.row.equals}`
-                      : "All records."}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <label>
-            Expires{" "}
-            <select value={expiry} onChange={(e) => setExpiry(e.target.value)}>
-              <option value="1">1 day</option>
-              <option value="7">7 days</option>
-              <option value="30">30 days</option>
-              <option value="never">Never</option>
-            </select>
-          </label>
+        {!meta.shareEnabled ? (
           <p>
-            Shares {views.map(viewName).join(", ")}.{" "}
-            {expiry === "never"
-              ? "No expiry."
-              : `Expires ${time(Date.now() + Number(expiry) * 86400000)}.`}
+            {meta.hosted
+              ? "Sharing is not configured. Ask your agent to check the hosted share setup."
+              : "Deploy this workflow to share it."}
           </p>
-          <button disabled={busy || !views.length} type="submit">
-            {busy ? "Saving…" : replace ? "Replace link" : "Create link"}
-          </button>
-          {views.length > 0 && (
-            <a
-              target="_blank"
-              rel="noreferrer"
-              href={`/viewer?workflow=${meta.workflow.id}&preview=${views.join(",")}&view=${["logic", "runs", "data"].find((v) => views.includes(v))}`}
-            >
-              Preview recipient view
-            </a>
-          )}
-          {replace && (
-            <p>
-              The old link remains active if replacement fails.{" "}
-              <button type="button" onClick={() => setReplace(undefined)}>
-                Cancel replacement
-              </button>
-            </p>
-          )}
-        </form>
-        {error && (
-          <p role="alert" className="error">
-            {error}
-          </p>
-        )}
-        {link && (
-          <div className="copy-row">
-            <label>
-              Share link
-              <input readOnly value={link} onFocus={(e) => e.target.select()} />
-            </label>
-            <button
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(link);
-                  setCopied(true);
-                } catch {
-                  setError("Select and copy the link above.");
-                }
-              }}
-            >
-              {copied ? "Copied" : "Copy link"}
-            </button>
-          </div>
-        )}
-        <p role="status">{copied ? "Copied." : ""}</p>
-        <h3>Existing links</h3>
-        <p className="muted">
-          Original links cannot be recovered. Replace a lost link to issue a new
-          one.
-        </p>
-        <ul className="grant-list" role="list">
-          {grants.map((g) => (
-            <li key={g.id}>
-              <div>
-                {g.views.map(viewName).join(", ")} · Created {time(g.createdAt)}
-                <p className="muted">
-                  {g.revokedAt
-                    ? "Revoked"
-                    : g.expiresAt
-                      ? `${g.expiresAt <= Date.now() ? "Expired" : "Expires"} ${time(g.expiresAt)}`
-                      : "No expiry"}
-                </p>
-              </div>
-              {!g.revokedAt && (
-                <>
+        ) : (
+          <>
+            <p>Anyone with the link can view the selected tabs.</p>
+            {!loaded && !message && <p role="status">Loading sharing…</p>}
+            {loaded && (
+              <>
+                <fieldset disabled={busy}>
+                  <legend className="sr-only">Shared tabs</legend>
+                  {choices.map((v) => (
+                    <label key={v}>
+                      <input
+                        type="checkbox"
+                        checked={views.includes(v)}
+                        disabled={v === "data" && !policy}
+                        onChange={(e) => {
+                          setViews(
+                            e.target.checked
+                              ? [...views, v]
+                              : views.filter((x) => x !== v),
+                          );
+                          setUrl("");
+                        }}
+                      />
+                      {name(v)}
+                      {v === "data" && !policy && (
+                        <small> No permitted data configured</small>
+                      )}
+                    </label>
+                  ))}
+                </fieldset>
+                {views.includes("data") && (
+                  <p className="muted">
+                    Includes all permitted data, not just your current filters.
+                  </p>
+                )}
+                {(stale || views.includes("data")) && (
+                  <div className="data-scope">
+                    {stale && <p>Permitted data has changed.</p>}
+                    {scope.map((t) => (
+                      <p key={t.name}>
+                        {t.name}: {t.columns.join(", ")}.{" "}
+                        {t.row.column
+                          ? `Rows where ${t.row.column} equals ${t.row.equals}.`
+                          : "All rows."}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {(changed || stale) && (
+                  <p className="muted">
+                    Changes apply to everyone using this link.
+                  </p>
+                )}
+                <div className="dialog-actions">
                   <button
-                    disabled={busy}
-                    onClick={() => {
-                      setReplace(g.id);
-                      setViews(g.views);
-                    }}
+                    className="primary"
+                    disabled={busy || !views.length}
+                    onClick={save}
                   >
-                    Replace link
+                    {changed || stale ? "Save and copy link" : "Copy link"}
                   </button>
-                  <button disabled={busy} onClick={() => revoke(g.id)}>
-                    Revoke
-                  </button>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
+                  {saved && (
+                    <button disabled={busy} onClick={revoke}>
+                      Turn off link
+                    </button>
+                  )}
+                </div>
+                {url && copyFailed && (
+                  <div className="copy-fallback">
+                    <input
+                      aria-label="Share link"
+                      readOnly
+                      value={url}
+                      onFocus={(e) => e.target.select()}
+                    />
+                    <button onClick={() => copy(url)}>Retry copy</button>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
+        <p role="status">{message}</p>
       </dialog>
     </>
   );

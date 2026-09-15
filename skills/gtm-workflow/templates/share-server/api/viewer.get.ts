@@ -1,3 +1,4 @@
+import { CONTRACT_VERSION } from "../../lib/viewer-contract";
 import { defineHandler } from "nitro";
 import { getVercelOidcToken } from "@vercel/oidc";
 export default defineHandler(async (event) => {
@@ -8,14 +9,15 @@ export default defineHandler(async (event) => {
     "x-content-type-options": "nosniff",
   };
   const error = (status: number, message: string) =>
-    Response.json({ version: 1, error: { message } }, { status, headers });
+    Response.json(
+      { version: CONTRACT_VERSION, error: { message } },
+      { status, headers },
+    );
   const incoming = new URL(event.req.url);
+  if (incoming.searchParams.get("v") !== String(CONTRACT_VERSION))
+    return error(409, "Viewer version changed. Reload this page.");
   const op = incoming.searchParams.get("op") ?? "workflow";
-  if (
-    !["meta", "workflow", "runs", "run", "events", "data", "export"].includes(
-      op,
-    )
-  )
+  if (!["meta", "workflow", "runs", "data", "export"].includes(op))
     return error(404, "View unavailable.");
   const token = event.req.headers.get("x-gtm-share-token") ?? "";
   if (!/^[A-Za-z0-9_-]{43}$/.test(token))
@@ -112,7 +114,10 @@ export default defineHandler(async (event) => {
     } finally {
       await reader.cancel();
     }
-    return new Response(Buffer.concat(chunks), {
+    const body = Buffer.concat(chunks);
+    if (JSON.parse(body.toString()).version !== CONTRACT_VERSION)
+      return error(503, "The private viewer needs an update.");
+    return new Response(body, {
       status: response.status,
       headers,
     });

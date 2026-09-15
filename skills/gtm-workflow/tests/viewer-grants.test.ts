@@ -1,17 +1,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createClient } from "@libsql/client";
+import { randomBytes } from "node:crypto";
 import {
   grants,
   migrateViewer,
   policyVersion,
 } from "../templates/lib/viewer-grants";
+import { saveLink } from "../templates/lib/viewer-sharing";
 import {
   requireMutation,
   csrfCookie,
   privateAccess,
 } from "../templates/lib/viewer-access";
 import type { DataPolicy } from "../templates/lib/viewer-contract";
+process.env.GTM_VIEWER_LINK_KEY = randomBytes(32).toString("hex");
 const scope = {
   workspace: "workspace-a",
   environment: "production",
@@ -32,139 +35,151 @@ const policy: DataPolicy = {
 async function fixture() {
   const client = createClient({ url: ":memory:" });
   await migrateViewer(client);
-  let now = 100000;
-  return {
-    client,
-    api: grants(client, scope, () => now),
-    advance: (ms: number) => (now += ms),
-  };
+  return { client, api: grants(client, scope) };
 }
-test("default links expire in seven days, retain only token hashes, and grant Logic only", async () => {
-  const { client, api, advance } = await fixture();
-  try {
-    const { token, grant } = await api.create({});
-    assert.deepEqual(grant.views, ["logic"]);
-    assert.equal(grant.expiresAt! - grant.createdAt, 7 * 86400000);
-    assert.equal((await api.authorize(token, "logic")).id, grant.id);
-    await assert.rejects(() => api.authorize(token, "runs"), {
-      code: "view_denied",
-    });
-    const rows = await client.execute("SELECT * FROM gtm_viewer_grants");
-    assert.ok(!JSON.stringify(rows.rows).includes(token));
-    advance(7 * 86400000);
-    await assert.rejects(() => api.authorize(token, "logic"), {
-      code: "expired",
-    });
-  } finally {
-    client.close();
-  }
-});
-test("revocation applies to an open link and does not depend on expiry", async () => {
-  const { client, api, advance } = await fixture();
-  try {
-    const { token, grant } = await api.create({ expiresAt: null });
-    advance(100 * 86400000);
-    await api.authorize(token, "logic");
-    await api.revoke(grant.id);
-    await assert.rejects(() => api.authorize(token, "logic"), {
-      code: "revoked",
-    });
-  } finally {
-    client.close();
-  }
-});
-test("workspace, environment and immutable identity isolate grants, independently of slugs", async () => {
+test("default Diagram link has no expiry and recovers the same encrypted secret", async () => {
   const { client, api } = await fixture();
   try {
-    const { token } = await api.create({ expiresAt: null });
+    const first = await saveLink(client, scope, {});
+    assert.deepEqual(first.grant.views, ["logic"]);
+    assert.equal(first.grant.expiresAt, null);
+    assert.equal((await saveLink(client, scope, {})).token, first.token);
+    const rows = await client.execute("SELECT * FROM gtm_viewer_grants");
+    assert.equal(rows.rows.length, 1);
+    assert.ok(!JSON.stringify(rows.rows).includes(first.token));
+    await api.authorize(first.token, "logic");
+    await assert.rejects(() => api.authorize(first.token, "data"), {
+      code: "view_denied",
+    });
+  } finally {
+    client.close();
+  }
+});
+test("concurrent owners converge on one link and scope saves preserve its URL secret", async () => {
+  const { client } = await fixture();
+  try {
+    const a = await saveLink(client, scope, {});
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => saveLink(client, scope, {})),
+    );
+    assert.ok(results.every((x) => x.token === a.token));
+    const next = await saveLink(client, scope, { views: ["runs"], save: true });
+    assert.equal(next.token, a.token);
+    assert.deepEqual(next.grant.views, ["runs"]);
+    assert.equal(
+      (await client.execute("SELECT * FROM gtm_viewer_grants")).rows.length,
+      1,
+    );
+  } finally {
+    client.close();
+  }
+});
+test("revocation is idempotent and re-enable never revives the old secret", async () => {
+  const { client, api } = await fixture();
+  try {
+    const a = await saveLink(client, scope, {});
+    await api.revoke(a.grant.id);
+    await api.revoke(a.grant.id);
+    const b = await saveLink(client, scope, {});
+    assert.notEqual(a.token, b.token);
+    await assert.rejects(() => api.authorize(a.token, "logic"), {
+      code: "revoked",
+    });
+    await api.authorize(b.token, "logic");
+  } finally {
+    client.close();
+  }
+});
+test("Data policy pauses only Data and requires the displayed policy on resave", async () => {
+  const { client, api } = await fixture();
+  try {
+    const a = await saveLink(
+      client,
+      scope,
+      { views: ["logic", "runs", "data"], policy: policyVersion(policy) },
+      policy,
+    );
+    const changed = { ...policy, version: "2" };
+    await api.authorize(a.token, "logic", changed);
+    await api.authorize(a.token, "runs", changed);
+    await api.authorize(a.token, undefined, changed);
+    await assert.rejects(() => api.authorize(a.token, "data", changed), {
+      code: "policy_changed",
+    });
+    await assert.rejects(
+      () =>
+        saveLink(
+          client,
+          scope,
+          { views: a.grant.views, policy: policyVersion(policy), save: true },
+          changed,
+        ),
+      { code: "policy_changed" },
+    );
+    const b = await saveLink(
+      client,
+      scope,
+      { views: a.grant.views, policy: policyVersion(changed), save: true },
+      changed,
+    );
+    assert.equal(a.token, b.token);
+    await api.authorize(a.token, "data", changed);
+  } finally {
+    client.close();
+  }
+});
+test("scope isolation, ciphertext tampering and lost keys fail closed without replacing links", async () => {
+  const { client, api } = await fixture();
+  try {
+    const a = await saveLink(client, scope, {});
     for (const other of [
       { ...scope, workspace: "b" },
       { ...scope, environment: "preview" },
-      { ...scope, workflowId: "new-identity-same-slug" },
+      { ...scope, workflowId: "b" },
     ])
       await assert.rejects(
-        () => grants(client, other).authorize(token, "logic"),
+        () => grants(client, other).authorize(a.token, "logic"),
         { code: "invalid_grant" },
       );
-    await api.authorize(token, "logic");
-  } finally {
-    client.close();
-  }
-});
-test("incompatible policy changes invalidate the whole affected grant", async () => {
-  const { client, api } = await fixture();
-  try {
-    const { token } = await api.create(
-      { views: ["logic", "runs", "data"] },
-      policy,
+    const key = process.env.GTM_VIEWER_LINK_KEY;
+    delete process.env.GTM_VIEWER_LINK_KEY;
+    await assert.rejects(() => saveLink(client, scope, {}), {
+      code: "recovery_unavailable",
+    });
+    await api.authorize(a.token, "logic");
+    process.env.GTM_VIEWER_LINK_KEY = randomBytes(32).toString("hex");
+    await assert.rejects(() => saveLink(client, scope, {}), {
+      code: "recovery_unavailable",
+    });
+    process.env.GTM_VIEWER_LINK_KEY = key;
+    await client.execute(
+      "UPDATE gtm_viewer_grants SET token_ciphertext = '1.bad.bad.bad'",
     );
-    await api.authorize(token, "data", policy);
-    const variants: DataPolicy[] = [
-      { ...policy, version: "2" },
-      {
-        ...policy,
-        tables: [
-          ...policy.tables,
-          {
-            id: "companies",
-            name: "companies",
-            columns: ["key"],
-            row: { version: "1" },
-          },
-        ],
-      },
-      {
-        ...policy,
-        tables: [{ ...policy.tables[0], columns: ["key", "name", "email"] }],
-      },
-      { ...policy, tables: [{ ...policy.tables[0], row: { version: "2" } }] },
-      {
-        ...policy,
-        relations: [
-          {
-            from: "people",
-            to: "companies",
-            through: "employment",
-            fromColumn: "person",
-            toColumn: "company",
-          },
-        ],
-      },
-    ];
-    for (const changed of variants) {
-      await assert.rejects(() => api.authorize(token, "data", changed), {
-        code: "policy_changed",
-      });
-      await assert.rejects(() => api.authorize(token, "logic", changed), {
-        code: "policy_changed",
-      });
-      await assert.rejects(() => api.authorize(token, "runs", changed), {
-        code: "policy_changed",
-      });
-    }
+    await assert.rejects(() => saveLink(client, scope, {}), {
+      code: "recovery_unavailable",
+    });
     assert.equal(
-      policyVersion(policy),
-      policyVersion(JSON.parse(JSON.stringify(policy))),
+      (await client.execute("SELECT * FROM gtm_viewer_grants")).rows.length,
+      1,
     );
   } finally {
     client.close();
   }
 });
-test("malformed scope, expiry, tokens and unregistered data fail closed", async () => {
-  const { client, api } = await fixture();
+test("malformed scopes and unseen Data policy cannot create a link", async () => {
+  const { client } = await fixture();
   try {
-    for (const views of [
-      [],
-      ["logic", "execute"],
-      ["logic", "logic"],
-      null,
-      "logic",
-    ])
-      await assert.rejects(() => api.create({ views }));
-    for (const expiresAt of [0, "forever", -1, Infinity])
-      await assert.rejects(() => api.create({ expiresAt }));
-    await assert.rejects(() => api.create({ views: ["logic", "data"] }));
-    await assert.rejects(() => api.authorize("' OR 1=1 --", "logic"));
+    for (const views of [[], ["execute"], ["logic", "logic"], null, "logic"])
+      await assert.rejects(() => saveLink(client, scope, { views }), {
+        code: "invalid_scope",
+      });
+    await assert.rejects(() => saveLink(client, scope, { views: ["data"] }), {
+      code: "data_unavailable",
+    });
+    await assert.rejects(
+      () => saveLink(client, scope, { views: ["data"] }, policy),
+      { code: "policy_changed" },
+    );
   } finally {
     client.close();
   }
@@ -207,48 +222,6 @@ test("browser writes require matching Origin and CSRF cookie/header", () => {
         }),
       ),
     { code: "host_denied" },
-  );
-});
-
-import { mapSteps } from "../templates/lib/viewer-mapping";
-test("repeated call sites require a unique, verified mapping and do not infer order", () => {
-  const display: any = {
-    graph: {
-      nodes: [
-        { id: "first", data: { stepId: "lookup" } },
-        { id: "second", data: { stepId: "lookup" } },
-      ],
-    },
-  };
-  const steps = [
-    {
-      id: "a",
-      name: "lookup",
-      input: { state: "available", value: { args: ["primary"] } },
-    },
-    {
-      id: "b",
-      name: "lookup",
-      input: { state: "available", value: { args: ["related"] } },
-    },
-  ];
-  assert.deepEqual(mapSteps(display, steps), {});
-  display.mappings = [
-    {
-      nodeId: "first",
-      stepName: "lookup",
-      argument: { path: ["args", 0], equals: "primary" },
-    },
-    {
-      nodeId: "second",
-      stepName: "lookup",
-      argument: { path: ["args", 0], equals: "related" },
-    },
-  ];
-  assert.deepEqual(mapSteps(display, steps), { first: ["a"], second: ["b"] });
-  assert.deepEqual(
-    mapSteps(display, [{ ...steps[0], input: { state: "locked" } }]),
-    {},
   );
 });
 

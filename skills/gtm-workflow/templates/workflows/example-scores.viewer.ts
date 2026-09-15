@@ -1,8 +1,95 @@
-import type { Graph, DataPolicy } from "../lib/viewer-contract";
+import type { Graph, DataPolicy, BusinessGraph } from "../lib/viewer-contract";
 import type { WorkflowData } from "../lib/data-api";
 
 /** Authored description of the row helper and workflow-specific calls. It never drives execution. */
 export const viewer = {
+  businessGraph: {
+    nodes: [
+      {
+        id: "input",
+        label: "Company list",
+        kind: "input",
+        explanation: "Use the company domains supplied for this run.",
+      },
+      {
+        id: "read",
+        label: "Read company websites",
+        kind: "action",
+        explanation:
+          "Read each company's homepage for facts about its business.",
+        details: {
+          caching:
+            "Homepage content is cached for seven days. Company scores remain fresh for one day.",
+        },
+        source: {
+          path: "workflows/example-scores.ts",
+        },
+      },
+      {
+        id: "score",
+        label: "Score against the ICP",
+        kind: "action",
+        explanation:
+          "Compare the homepage with the saved ideal customer profile and produce a score from 0 to 100 with a reason.",
+        details: {
+          provider: "AI Gateway",
+          notes: "Process at most 200 companies within the $2 run budget.",
+        },
+        source: {
+          path: "workflows/example-scores.ts",
+        },
+      },
+      {
+        id: "result",
+        label: "Result available?",
+        kind: "decision",
+        explanation:
+          "Save a successful result, or record why this company could not be processed.",
+      },
+      {
+        id: "save",
+        label: "Save scores",
+        kind: "output",
+        explanation: "Store each company's score and reason for later review.",
+      },
+      {
+        id: "error",
+        label: "Record company errors",
+        kind: "output",
+        explanation:
+          "Save the error for a company that could not be processed and continue with the remaining companies.",
+      },
+    ],
+    edges: [
+      {
+        id: "edge-0",
+        source: "input",
+        target: "read",
+      },
+      {
+        id: "edge-1",
+        source: "read",
+        target: "score",
+      },
+      {
+        id: "edge-2",
+        source: "score",
+        target: "result",
+      },
+      {
+        id: "success",
+        source: "result",
+        target: "save",
+        label: "Yes",
+      },
+      {
+        id: "failure",
+        source: "result",
+        target: "error",
+        label: "No",
+      },
+    ],
+  },
   description:
     "Read company websites and score their fit against the saved criteria.",
   stages: [
@@ -269,6 +356,7 @@ export const viewer = {
   id: string;
   description: string;
   stages: import("../lib/viewer-contract").Display["stages"];
+  businessGraph: BusinessGraph;
   graph: Graph;
   sharePolicy: DataPolicy;
 };

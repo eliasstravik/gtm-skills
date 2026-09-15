@@ -9,7 +9,7 @@ async function inspect(dir) {
     else if (/\.(mjs|js|json)$/.test(item.name)) {
       const text = await readFile(path, "utf8");
       assert.ok(
-        !/gtm_viewer_grants|TURSO_DATABASE_URL|TURSO_AUTH_TOKEN|GTM_RUN_SECRET|CRON_SECRET|drizzle-orm|workflow\/core/.test(
+        !/GTM_VIEWER_LINK_KEY|token_ciphertext|gtm_viewer_grants|TURSO_DATABASE_URL|TURSO_AUTH_TOKEN|GTM_RUN_SECRET|CRON_SECRET|drizzle-orm|workflow\/core/.test(
           text,
         ),
         `Private dependency in ${path}`,
