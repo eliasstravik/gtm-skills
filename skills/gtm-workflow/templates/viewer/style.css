@@ -61,6 +61,69 @@ button:hover,
 .button:hover {
   background: var(--hover);
 }
+/* Keep native select semantics while styling the browser's top-layer picker. */
+@supports (appearance: base-select) {
+  select,
+  select::picker(select) {
+    appearance: base-select;
+  }
+  select {
+    padding-inline: 12px 14px;
+    gap: 16px;
+    align-items: center;
+  }
+  select:hover,
+  select:open {
+    background: var(--surface);
+  }
+  select::picker-icon {
+    content: "";
+    width: 7px;
+    height: 7px;
+    margin-inline-start: auto;
+    margin-block-start: -3px;
+    border-right: 1.5px solid var(--muted);
+    border-bottom: 1.5px solid var(--muted);
+    rotate: 45deg;
+  }
+  select::picker(select) {
+    min-inline-size: max(anchor-size(self-inline), 180px);
+    max-inline-size: min(320px, calc(100vw - 16px));
+    max-block-size: min(320px, calc(100dvh - 24px));
+    margin-block: 5px;
+    padding: 4px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 0 0 1px var(--border), 0 12px 32px #0003;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    font: inherit;
+  }
+  select option {
+    min-height: 32px;
+    padding: 6px 10px;
+    gap: 16px;
+    border-radius: 4px;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+  select option:hover,
+  select option:focus-visible {
+    background: var(--hover);
+    outline: none;
+  }
+  select option:checked {
+    font-weight: 500;
+  }
+  select option::checkmark {
+    order: 1;
+    margin-inline-start: auto;
+    color: var(--muted);
+  }
+}
 button:disabled {
   opacity: 0.5;
   cursor: default;
@@ -421,14 +484,56 @@ input[type="checkbox"] {
   opacity: 0.85;
   background: var(--text);
 }
-.copy-fallback {
+.sharing-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 24px;
+}
+.sharing-state p {
+  margin: 4px 0 0;
+}
+.sharing-switch {
+  flex-shrink: 0;
+  width: 40px;
+  min-height: 24px;
+  height: 24px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--border);
+}
+.sharing-switch span {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.sharing-switch[aria-checked="true"] {
+  background: var(--text);
+  border-color: var(--text);
+}
+.sharing-switch[aria-checked="true"] span {
+  margin-left: auto;
+  background: var(--bg);
+}
+.share-link {
   display: flex;
   gap: 8px;
   margin-top: 16px;
 }
-.copy-fallback input {
+.share-link input {
   min-width: 0;
   flex: 1;
+  color: var(--muted);
+}
+fieldset legend {
+  font-weight: 500;
+  padding: 0 0 12px;
+}
+.sharing-message:empty {
+  display: none;
 }
 .data-grid {
   table-layout: fixed;
