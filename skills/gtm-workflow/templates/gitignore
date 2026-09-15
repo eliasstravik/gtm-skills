@@ -5,3 +5,5 @@ data/
 .nitro
 .workflow-data
 .vercel
+
+public/viewer-assets/

@@ -12,9 +12,9 @@
 6. Slack connector `slack/gtm-agent-<slug>` through `vercel connect create slack`: one browser trip creates the Slack app and installs it; the full bot profile is configured by `configure-slack.mjs` and synchronized with Slack as described in [Slack configuration](slack.md). Events forwarded to `/eve/v1/slack` on the agent project; `SLACK_CONNECTOR` set to the connector's uid.
 7. First agent deployment from git; the production address is read back.
 8. Unless `--no-workflows`, the workflow runtime is copied from `gtm-workflow/templates` into `workflows/` of the workspace repository (`gitignore` renamed, `env.example` removed, `package-lock.json` generated) and pushed as "Add the workflow runtime", so the project below is live before the first workflow exists. gtm-workspace treats a clone holding only `workflows/` as empty.
-9. Vercel project `gtm-<slug>-workflows`, git-connected to the workspace repository, root directory `workflows`, Node 22, framework `nitro`, system variables exposed, ignored build step `git diff --quiet HEAD^ HEAD -- .`, deployment protection off, preview deployments off. Linked from `~/.gtm/.links/gtm-<slug>-workflows/`, a second clone that only the Vercel CLI uses.
+9. Vercel project `gtm-<slug>-workflows`, git-connected to the workspace repository, root directory `workflows`, Node 22, framework `nitro`, system variables exposed, ignored build step `git diff --quiet HEAD^ HEAD -- .`, Vercel Authentication on All Deployments after staged machine-access verification, preview deployments off. Linked from `~/.gtm/.links/gtm-<slug>-workflows/`, a second clone that only the Vercel CLI uses.
 10. Turso database `gtm-<slug>` from the marketplace (`starter` plan, region `iad1` unless `--region`), connected to production: `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`.
-11. Workflow variables: `GTM_RUN_SECRET` and `CRON_SECRET` (one generated value), `GTM_NOTIFY_SECRET` (generated), `GTM_MODEL` (`openai/gpt-5.6-luna`), `GTM_AGENT_URL`, `GTM_RUNS_URL`. The same `GTM_RUN_SECRET` and `GTM_NOTIFY_SECRET` go on the agent project; when one side already has a value and the other does not, both are rotated.
+11. Workflow variables: `GTM_RUN_SECRET` and `CRON_SECRET` (one generated value), `GTM_NOTIFY_SECRET` (generated), `GTM_MODEL` (`openai/gpt-5.6-luna`), `GTM_AGENT_URL`, `GTM_VIEWER_PROTECTED`, `GTM_VIEWER_SHARE_ORIGIN`. The same `GTM_RUN_SECRET` and `GTM_NOTIFY_SECRET` go on the agent project; when one side already has a value and the other does not, both are rotated.
 12. Workflow deployment from git; `GTM_WORKFLOW_URL` set on the agent; the agent redeployed.
 13. Doctor, then the two Slack lines.
 
@@ -33,7 +33,8 @@
 | `GTM_NOTIFY_SECRET` | yes | yes | step 11 |
 | `GTM_MODEL`, `GTM_REASONING` | | yes, optional | step 11, by hand |
 | `GTM_AGENT_URL` | | yes | step 11 |
-| `GTM_RUNS_URL` | | yes | step 11; `doctor.mjs --fix` on older projects |
+| `GTM_WORKFLOW_BYPASS_SECRET`, `GTM_WORKFLOW_GATE_REQUIRED` | yes | | staged gate access; host-only injection |
+| `GTM_VIEWER_PROTECTED`, `GTM_VIEWER_SHARE_ORIGIN` | | yes | set only after native protection and companion verification |
 | `GTM_DATA_URL` | | optional | by hand, only to override the Turso page the runtime derives |
 | `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | | yes | step 10 |
 | Provider keys (`MONID_API_KEY`, …) | never | as needed | by hand |
@@ -50,3 +51,5 @@
 ## By hand
 
 The same result without the scripts is the Deploy button in `eliasstravik/gtm-agent`'s getting-started page plus the dashboard steps in gtm-workflow's [deploy.md](../../gtm-workflow/references/deploy.md).
+
+The share-only companion is sourced from the same repository and workflows root with `npm run build:share`. It holds only its private origin/project identity and uses production-to-production OIDC trust. See [viewer deployment](../../gtm-workflow/references/viewer.md).

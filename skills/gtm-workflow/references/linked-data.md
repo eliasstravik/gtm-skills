@@ -1,3 +1,5 @@
+> Current access: `/api/link/<slug>` returns the private viewer's Data URL. Legacy signed diagram/data tokens do not bypass the native gate. Public Data access requires an explicit revocable grant and matching authored policy; see [viewer](viewer.md).
+
 # Linked workflow data
 
 The runtime has a read-only, paginated viewer at `/gtm/<slug>/data`. Enable it with a `data` property on the workflow's registry entry. Workflows without that property keep the existing database data link.

@@ -42,6 +42,12 @@ A live agent answering in Slack, wired to its workspace repository and, unless d
 
 Secrets never pass through the conversation: the scripts generate them and place them with `vercel env add`; the GitHub token is the CLI's own (`gh auth token`), which reaches every repository that user can write, and the user may replace `GTM_GITHUB_TOKEN` with a fine-grained token later. A Vercel Hobby account cannot hold a team: say that a Pro team is needed and stop. A GitHub organization that has not installed the Vercel GitHub app makes `vercel git connect` fail: name the install (Vercel → Settings → Git) and run again. A Vercel configuration update can leave Slack unchanged. Follow [Slack configuration](references/slack.md); Doctor must verify both sides and the installed token before reporting success. Requires `gtm-workspace` and `gtm-workflow` installed alongside this skill; when either is missing, say to install it with `npx skills add eliasstravik/gtm-skills -s <name> -y` (add `-g` when this skill lives in the global skills directory), then retry.
 
+## Protected workflow viewer
+
+Setup stages an origin-scoped workflow bypass in the agent host, deploys that host, then enables native Vercel Authentication on All Deployments. The bypass and execution bearer never enter model-visible exports or user links. Doctor preserves protection and reports missing machine access or mismatched share-project trust. Existing signed intake senders need their own verified gate transport while preserving application signature checks; only pass `--intake-protection-verified` after checking each sender.
+
+One public sharing project uses the workspace repository's `workflows/` root and `npm run build:share`. It has production-to-production Trusted Sources access to its own private project, only the fixed GET proxy, and no database, execution or provider credentials. Enable Share after deployment and access verification. See [workflow viewer](../gtm-workflow/references/viewer.md).
+
 ## QC
 
 - The user did at most these by hand: two CLI logins, one Slack browser trip, the Turso terms once, the invite, the first sentence.

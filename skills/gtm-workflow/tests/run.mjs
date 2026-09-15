@@ -13,10 +13,24 @@ const { build } = require("esbuild");
 const dir = await mkdtemp(join(tmpdir(), "gtm-data-tests-"));
 try {
   await symlink(join(runtime, "node_modules"), join(dir, "node_modules"));
-  const outfile = join(dir, "linked-data.test.mjs");
-  await build({ entryPoints: [join(dirname(fileURLToPath(import.meta.url)), "linked-data.test.ts")], outfile, bundle: true, platform: "node", format: "esm", packages: "external", tsconfigRaw: { compilerOptions: {} } });
-  const result = spawnSync(process.execPath, ["--test", outfile], { stdio: "inherit" });
-  process.exitCode = result.status ?? 1;
+  for (const name of ["linked-data", "viewer-grants"]) {
+    const outfile = join(dir, `${name}.test.mjs`);
+    await build({
+      entryPoints: [
+        join(dirname(fileURLToPath(import.meta.url)), `${name}.test.ts`),
+      ],
+      outfile,
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      packages: "external",
+      tsconfigRaw: { compilerOptions: {} },
+    });
+    const result = spawnSync(process.execPath, ["--test", outfile], {
+      stdio: "inherit",
+    });
+    if (result.status !== 0) process.exitCode = result.status ?? 1;
+  }
 } finally {
   await rm(dir, { recursive: true, force: true });
 }
