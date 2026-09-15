@@ -142,6 +142,24 @@ await client.executeMultiple(
   "INSERT INTO companies VALUES ('acme','Acme Labs'),('orbit','Orbit Example'); INSERT INTO employment VALUES ('a','p00001','acme'),('b','p00001','orbit');",
 );
 const publicDir = resolve(process.argv[2]);
+if (process.env.GTM_VIEWER_FIXTURE_LINKS === "1") {
+  Object.assign(tables, {
+    people: sqliteTable("people", {
+      key: text().primaryKey(),
+      name: text(),
+      secret: text(),
+      website: text(),
+      profile: text(),
+    }),
+  });
+  entry.data.tables[0].columns.push("website", "profile");
+  entry.sharePolicy.tables[0].columns.push("website", "profile");
+  await client.executeMultiple(
+    "ALTER TABLE people ADD COLUMN website TEXT; ALTER TABLE people ADD COLUMN profile TEXT;" +
+      "UPDATE people SET website = 'example.com', profile = 'https://example.org/#profile' WHERE key = 'p00001';" +
+      "UPDATE people SET website = 'javascript:alert(1)' WHERE key = 'p00002';",
+  );
+}
 for (const port of process.env.GTM_VIEWER_FIXTURE_LOCAL === "1"
   ? [3944]
   : [3942, 3943])

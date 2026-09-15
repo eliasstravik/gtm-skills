@@ -19,6 +19,7 @@ try {
     "viewer-grants",
     "inspection",
     "viewer-api",
+    "web-url",
   ]) {
     const outfile = join(dir, `${name}.test.mjs`);
     await build({

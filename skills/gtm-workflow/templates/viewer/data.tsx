@@ -2,12 +2,34 @@ import React, { useEffect, useRef, useState } from "react";
 import { CONTRACT_VERSION } from "../lib/viewer-contract";
 import { href, navigate, query, shared, token } from "./navigation";
 import { Search, State, time, useRead } from "./common";
+import { webUrl } from "./web-url";
 const valueText = (value: unknown) =>
   value == null
     ? ""
     : typeof value === "object"
       ? JSON.stringify(value)
       : String(value);
+function CellValue({ value }: { value: unknown }) {
+  const url = webUrl(value);
+  if (url)
+    return (
+      <a
+        className="cell-link"
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        tabIndex={-1}
+        aria-label={`${valueText(value)} (opens in a new tab)`}
+      >
+        {valueText(value)}
+      </a>
+    );
+  return value == null ? (
+    <span className="muted">NULL</span>
+  ) : (
+    <>{valueText(value)}</>
+  );
+}
 export default function Data({ destinations }: any) {
   const state = useRead("data"),
     d = state.data,
@@ -253,6 +275,18 @@ export default function Data({ destinations }: any) {
                   if (!selected) return;
                   const [row, column] = selected;
                   if (
+                    event.key === "Enter" &&
+                    (event.target as Element).matches('[role="gridcell"]')
+                  ) {
+                    const anchor = (
+                      event.target as HTMLElement
+                    ).querySelector<HTMLAnchorElement>("a.cell-link");
+                    if (anchor) {
+                      event.preventDefault();
+                      anchor.click();
+                    }
+                  }
+                  if (
                     (event.ctrlKey || event.metaKey) &&
                     event.key.toLowerCase() === "c" &&
                     !window.getSelection()?.toString()
@@ -383,14 +417,16 @@ export default function Data({ destinations }: any) {
                             selected?.[0] === i && selected?.[1] === j
                           }
                           onClick={(e) => e.currentTarget.focus()}
-                          onFocus={() => setSelected([i, j])}
+                          onFocus={(event) => {
+                            // Let a nested link finish its click before selection can wrap the toolbar.
+                            if (event.target === event.currentTarget)
+                              setSelected([i, j]);
+                          }}
                         >
                           {c.href && j >= d.fields.length ? (
                             <a href={link(c.href)}>{valueText(c.value)}</a>
-                          ) : c.value == null ? (
-                            <span className="muted">NULL</span>
                           ) : (
-                            valueText(c.value)
+                            <CellValue value={c.value} />
                           )}
                         </td>
                       ))}
