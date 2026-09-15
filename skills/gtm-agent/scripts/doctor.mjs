@@ -1,8 +1,10 @@
 #!/usr/bin/env node
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { manifestIssues, installationIsCurrent, connectorUrl, connectorPatch } from "./slack-config.mjs";
 // Checks one GTM Agent deployment end to end and says what to fix. Read-only unless --fix.
 //   node doctor.mjs --slug acme --team acme-team [--github-owner acme] [--fix]
 // Exit 0 when everything passes, 1 otherwise. Prints one line per check; no secret values.
-import { fileURLToPath } from "node:url";
 import { api, connectors, deployFromGit, envNames, fail, http, latestProductionDeployment, parseArgs, productionUrl, project, REQUIRED_EVENTS, REQUIRED_SCOPES, run, setEnv, TRIGGER_PATH } from "./lib.mjs";
 
 /** The names one deployment uses; overrides cover deployments made before this skill existed. */
@@ -49,16 +51,28 @@ export async function check({ slug, team, githubOwner, fix = false, overrides = 
 
   // Slack connector
   const all = connectors(team);
-  const c = all.find((x) => x.uid === n.connector) ?? all.find((x) => x.type === "slack" && (x.triggerDestinations ?? []).some((d) => d.projectId === ap.id));
+  let c = all.find((x) => x.uid === n.connector) ?? all.find((x) => x.type === "slack" && (x.triggerDestinations ?? []).some((d) => d.projectId === ap.id));
   add("Slack connector exists", c, c?.uid ?? "none", "run setup.mjs");
   if (c) {
+    c = api(team, "GET", `/v1/connect/connectors/${c.id}`);
+    const configFix = `node scripts/configure-slack.mjs --team ${team} --connector ${c.uid} --apply; then synchronize the Slack manifest and reinstall at ${connectorUrl(team, c.id)}`;
+    add("Vercel Slack configuration matches the selected profile", Object.keys(connectorPatch(c)).length === 0, "", configFix);
+    const installations = api(team, "GET", `/v1/connect/connectors/${c.id}/installations`, undefined, { allowFail: true });
+    add("Slack installation approval is current", installationIsCurrent(c, installations?.installations), "", configFix);
+    let manifest;
+    if (overrides["slack-manifest"]) {
+      try { manifest = JSON.parse(readFileSync(overrides["slack-manifest"], "utf8")); }
+      catch { /* Report an invalid or missing export below, without its contents. */ }
+    }
+    const providerIssues = manifestIssues(manifest, c);
+    add("Slack-side scopes, events, and interactivity match the selected configuration", providerIssues.length === 0, providerIssues.join(" "), `Export this app's saved Slack App Manifest and rerun with --slack-manifest <file.json>. ${configFix}`);
     add("Slack app is installed in a workspace", c.defaultInstallationId, c.data?.slackTeam?.name ?? "", "open the connector in the Vercel Connect dashboard and install it");
     const events = new Set(c.events ?? []);
     const missingEvents = REQUIRED_EVENTS.filter((e) => !events.has(e));
-    add("Slack connector receives the message events", missingEvents.length === 0, missingEvents.length ? `missing ${missingEvents.join(", ")}` : "", "Connect dashboard → the connector → Advanced → Trigger Event Types: add them");
+    add("Slack connector receives the message events", missingEvents.length === 0, missingEvents.length ? `missing ${missingEvents.join(", ")}` : "", configFix);
     const scopes = new Set(c.data?.botScopes ?? []);
     const missingScopes = REQUIRED_SCOPES.filter((s) => !scopes.has(s));
-    add("Slack bot has the history and files scopes", missingScopes.length === 0, missingScopes.length ? `missing ${missingScopes.join(", ")}` : "", "Connect dashboard → the connector → Advanced → Bot Scopes: add them, then reinstall when Slack asks");
+    add("Slack bot has the history and files scopes", missingScopes.length === 0, missingScopes.length ? `missing ${missingScopes.join(", ")}` : "", configFix);
     const dest = (c.triggerDestinations ?? []).find((d) => d.projectId === ap.id);
     add("Slack events are forwarded to the agent", dest?.path === TRIGGER_PATH, dest?.path ?? "no destination", `vercel connect attach ${c.uid} --project ${n.agentProject} --environment production --triggers --trigger-path ${TRIGGER_PATH} --yes --scope ${team}`);
     const conn = api(team, "GET", `/v1/connect/connectors/${c.id}/projects/${ap.id}`, undefined, { allowFail: true });
@@ -72,6 +86,11 @@ export async function check({ slug, team, githubOwner, fix = false, overrides = 
   if (aurl) {
     const h = await http(`${aurl}/eve/v1/health`);
     add("Agent health route answers", h.status === 200, `${aurl}/eve/v1/health → ${h.status}`, "read the deployment's logs in Vercel");
+    const live = run("vercel", ["env", "run", "-e", "production", "--project", n.agentProject, "--scope", team, "--non-interactive", "--", "node", fileURLToPath(new URL("./slack-live-check.mjs", import.meta.url)), aurl]);
+    let grant;
+    try { grant = JSON.parse(live.stdout.trim().split("\n").filter(l => l.startsWith("{")).at(-1) ?? "{}"); } catch {}
+    const missing = REQUIRED_SCOPES.filter(scope => !grant?.scopes?.includes(scope));
+    add("Installed Slack token grants all selected bot scopes", grant?.ok && missing.length === 0, grant?.error ?? (missing.length ? `missing ${missing.join(", ")}` : ""), "Deploy the current agent and reapprove the Slack installation; run Doctor with access to the agent production environment.");
   }
 
   // Workflow project
@@ -121,7 +140,7 @@ export function print(results) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const a = parseArgs(process.argv.slice(2), { flags: ["fix"] });
-  if (!a.slug || !a.team) fail("usage: doctor.mjs --slug <org-slug> --team <vercel-team-slug> [--github-owner <owner>] [--agent-project <name>] [--workflow-project <name>] [--context-repo <name>] [--slack-connector <uid>] [--fix]");
+  if (!a.slug || !a.team) fail("usage: doctor.mjs --slug <org-slug> --team <vercel-team-slug> [--github-owner <owner>] [--agent-project <name>] [--workflow-project <name>] [--context-repo <name>] [--slack-connector <uid>] [--slack-manifest <saved-export.json>] [--fix]");
   const githubOwner = a["github-owner"] || run("gh", ["api", "user", "--jq", ".login"]).stdout.trim();
   const results = await check({ slug: a.slug, team: a.team, githubOwner, fix: Boolean(a.fix), overrides: a });
   process.exit(print(results) ? 0 : 1);

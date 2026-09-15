@@ -8,6 +8,7 @@
 // Exit 0: done. Exit 2: a human step is needed (the message says which); run again afterwards. Exit 1: failed.
 // Two things stay human: the Slack install (one browser trip, the script prints the address and waits) and, the first
 // time a Vercel team uses Turso, accepting the marketplace terms.
+import { connectorPatch, connectorUrl } from "./slack-config.mjs";
 import { randomBytes } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
@@ -83,12 +84,18 @@ ok(`Agent variables set (repository ${ctxRepo}, commits as ${ghUser})`);
 // 5. Slack connector: created and installed in one browser trip
 let connector = connectors(team).find((c) => c.uid === n.connector);
 if (!connector && !a["skip-slack"]) {
-  say(`\n→ Slack: a browser page will open (or copy the address below). Pick the Slack workspace, open Advanced and add\n   Trigger Event Types: ${REQUIRED_EVENTS.join(", ")}\n   Bot Scopes: ${REQUIRED_SCOPES.join(", ")}\n   then Allow. This script waits.\n`);
+  say(`\n→ Slack: a browser page will open (or copy the address below). Pick the Slack workspace. Configure the creation form with\n   Trigger Event Types: ${REQUIRED_EVENTS.join(", ")}\n   Bot Scopes: ${REQUIRED_SCOPES.join(", ")}\n   then Allow. This script waits.\n`);
   const code = await spawnStreaming("vercel", ["connect", "create", "slack", "--connection-method", "slack-app", "--name", n.agentProject, "--triggers", ...REQUIRED_EVENTS.flatMap((e) => ["--trigger-event", e]), "--trigger-path", TRIGGER_PATH, "--trigger-project", n.agentProject, "--yes", "--non-interactive", "--scope", team], { cwd: agentDir });
   connector = connectors(team).find((c) => c.uid === n.connector);
   if (code !== 0 || !connector) { say("\nThe Slack install did not complete. Finish it in the browser, then run this script again."); process.exit(2); }
 }
 if (connector) {
+  const patch = connectorPatch(connector);
+  if (Object.keys(patch).length) {
+    const result = api(team, "PATCH", `/v2/connect/connectors/${connector.id}`, patch);
+    connector = result.connector;
+    say(`Slack configuration saved. Synchronize the Slack App Manifest, then reinstall at ${connectorUrl(team, connector.id)}. See references/slack.md; Vercel saving the values alone does not verify Slack.`);
+  }
   const dest = (connector.triggerDestinations ?? []).find((d) => d.projectId === ap.id);
   if (dest?.path !== TRIGGER_PATH) vercel(["connect", "attach", connector.uid, "--project", n.agentProject, "--environment", "production", "--triggers", "--trigger-path", TRIGGER_PATH, "--yes"], { team, cwd: agentDir });
   if (!aenv.has("SLACK_CONNECTOR")) setEnv(team, n.agentProject, "SLACK_CONNECTOR", connector.uid);
@@ -181,5 +188,5 @@ if (withWorkflows) {
 say("\nChecking everything:");
 const healthy = print(await check({ slug, team, githubOwner, overrides: a }));
 
-say(`\nDone. In Slack: invite the app named ${n.agentProject} to your GTM channel, then say:\n  @${n.agentProject} set up our GTM workspace\n${a.channel ? "" : "Workflow notifications need a channel: add GTM_NOTIFY_CHANNEL (a channel id) on the agent project, or run again with --channel.\n"}`);
+say(`\n${healthy ? "Done" : "Setup needs the checks above completed"}. In Slack: invite the app named ${n.agentProject} to your GTM channel, then say:\n  @${n.agentProject} set up our GTM workspace\n${a.channel ? "" : "Workflow notifications need a channel: add GTM_NOTIFY_CHANNEL (a channel id) on the agent project, or run again with --channel.\n"}`);
 process.exit(healthy ? 0 : 1);

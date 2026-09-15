@@ -5,8 +5,7 @@ import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-export const REQUIRED_EVENTS = ["app_mention", "message.channels", "message.groups", "message.im"];
-export const REQUIRED_SCOPES = ["app_mentions:read", "chat:write", "channels:history", "groups:history", "im:history", "files:read"];
+export { REQUIRED_EVENTS, REQUIRED_SCOPES } from "./slack-config.mjs";
 export const TEMPLATE_REPO = "eliasstravik/gtm-agent";
 export const TRIGGER_PATH = "/eve/v1/slack";
 

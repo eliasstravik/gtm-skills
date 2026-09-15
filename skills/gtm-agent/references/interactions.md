@@ -10,7 +10,7 @@ Contents: [Deploy](#deploy) · [Deploy, asked from the hosted agent](#deploy-ask
 
 **Agent:** Setting up GTM Agent for Acme on your Vercel team now: the agent, its Slack app, the workspace repository, and a workflow project with its database; about five minutes. Two things will need you: the Slack install page, and, if this team has not used Turso before, accepting its marketplace terms.
 
-Slack needs you now: open https://vercel.com/api/v1/connex/clients/managed?… choose the Acme workspace, open Advanced and add the four trigger events and six bot scopes listed there, then Allow. I'll continue when it's done.
+Slack needs you now: choose the Acme workspace and approve the app. I will synchronize the selected permissions and events in Vercel and Slack, then verify the installed permissions. I'll continue when it's done.
 
 **Human:** Done.
 
@@ -36,14 +36,14 @@ Workflow notifications need a channel: tell me its id (bottom of the channel's A
 
 **Human:** Check the Acme deployment.
 
-**Agent:** Checked. Two things to fix: the Slack app doesn't receive direct messages (its Advanced settings lack the `message.im` event and the `im:history` scope; add them on the connector's Advanced page in Vercel Connect and reinstall when Slack asks), and the workflow project builds on every push, workspace changes included (a project setting; I can set it). Set the project setting now?
+**Agent:** Checked. Two things to fix: the Slack app doesn't receive direct messages (Slack lacks the `message.im` event and `im:history` permission; I can synchronize its configuration and complete the app reapproval), and the workflow project builds on every push, workspace changes included (a project setting; I can set it). Set the project setting now?
 
 1. Yes, set it (Recommended)
 2. Not now
 
 **Human:** 1
 
-**Agent:** Set. Only the Slack Advanced page is left, which is yours.
+**Agent:** Set. The Slack configuration is ready; I will finish the authorized app reapproval and verify the saved manifest and installed permissions.
 
 ## Upgrade
 
