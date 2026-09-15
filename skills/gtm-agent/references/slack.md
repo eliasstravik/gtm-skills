@@ -11,6 +11,8 @@ The supported GTM profile lives in `scripts/slack-config.mjs`: 14 bot scopes, fi
 5. In the Vercel connector's Installations row, choose Reinstall and complete Slack's Allow flow. Use an authorized authenticated browser when available; ask the user only for a login or approval the agent cannot complete within existing authorization.
 6. Deploy the current agent. Run Doctor with `--slack-manifest <fresh-saved-export.json>`. Doctor checks all selected scopes/events, the provider manifest, installation timestamp, trigger destination, and the actual installed token's grants through the protected agent diagnostic route. It runs the diagnostic helper with `vercel env run -e production --project <agent>`, using the project OIDC credential without pulling production secrets. If environment access or provider proof is unavailable, report the check as unverified rather than healthy.
 
+Slack scope removal does not remove old grants from existing tokens. Doctor reports extra token grants as a failure. Reapproval can be additive; when old grants remain, follow Slack's token-revocation procedure and verify again. An app uninstall can remove channel memberships, so record membership and obtain authorization for any disruptive reinstall before taking that route.
+
 A manifest export proves the saved configuration at export time, not future changes. Keep operator exports outside tracked repositories. Never print the app's secrets, OAuth token, or environment values.
 
 ## Behavior

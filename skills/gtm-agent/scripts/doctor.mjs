@@ -90,7 +90,8 @@ export async function check({ slug, team, githubOwner, fix = false, overrides = 
     let grant;
     try { grant = JSON.parse(live.stdout.trim().split("\n").filter(l => l.startsWith("{")).at(-1) ?? "{}"); } catch {}
     const missing = REQUIRED_SCOPES.filter(scope => !grant?.scopes?.includes(scope));
-    add("Installed Slack token grants all selected bot scopes", grant?.ok && missing.length === 0, grant?.error ?? (missing.length ? `missing ${missing.join(", ")}` : ""), "Deploy the current agent and reapprove the Slack installation; run Doctor with access to the agent production environment.");
+    const extra = (grant?.scopes ?? []).filter(scope => !REQUIRED_SCOPES.includes(scope));
+    add("Installed Slack token grants exactly the selected bot scopes", grant?.ok && missing.length === 0 && extra.length === 0, grant?.error ?? [missing.length ? `missing ${missing.join(", ")}` : "", extra.length ? `old grants retained: ${extra.join(", ")}` : ""].filter(Boolean).join("; "), extra.length ? "Follow references/slack.md to remove retained grants; ordinary reapproval can keep old scopes. Record channel memberships before any disruptive reinstall." : "Deploy the current agent and reapprove the Slack installation; run Doctor with access to the agent production environment.");
   }
 
   // Workflow project

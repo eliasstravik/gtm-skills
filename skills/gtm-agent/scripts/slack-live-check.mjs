@@ -9,9 +9,9 @@ if (!credential) {
   process.exit(1);
 }
 try {
-  const result = await fetch(new URL("/eve/v1/gtm/slack-health", url), {
+  const result = await fetch(new URL("/gtm/slack-health", url), {
     headers: { authorization: `Bearer ${credential}` }, redirect: "error", signal: AbortSignal.timeout(20000),
   });
   const body = await result.json();
-  console.log(JSON.stringify({ ok: result.ok && body.ok === true, scopes: body.scopes ?? [], error: body.error ?? (result.ok ? undefined : `HTTP ${result.status}`) }));
+  console.log(JSON.stringify({ ok: result.ok && body.ok === true, scopes: body.scopes ?? [], error: typeof body.error === "string" ? body.error : (result.ok ? undefined : `HTTP ${result.status}`) }));
 } catch { console.log(JSON.stringify({ ok: false, error: "Live Slack permission check unavailable; deploy the current agent and retry." })); }
