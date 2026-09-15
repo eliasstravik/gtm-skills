@@ -1,6 +1,25 @@
 {
   "extends": "nitro/tsconfig",
-  "compilerOptions": { "strict": true, "types": ["node"], "resolveJsonModule": true },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules", ".output", ".nitro"]
+  "compilerOptions": {
+    "strict": true,
+    "types": [
+      "node"
+    ],
+    "resolveJsonModule": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "#viewer-registry": [
+        "./node_modules/.gtm-viewer/registry.json"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    ".output",
+    ".nitro"
+  ]
 }

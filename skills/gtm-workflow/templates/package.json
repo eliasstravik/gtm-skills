@@ -1,14 +1,19 @@
 {
   "name": "gtm-workflows",
-  "version": "0.1.30",
+  "version": "0.1.31",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
-    "dev": "drizzle-kit migrate && WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS=900000 WORKFLOW_LOCAL_BODY_TIMEOUT_MS=900000 nitro dev --port 3939",
-    "build": "drizzle-kit migrate && nitro build",
+    "dev": "node scripts/build-viewer.mjs && drizzle-kit migrate && node scripts/viewer-migrate.mjs && WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS=900000 WORKFLOW_LOCAL_BODY_TIMEOUT_MS=900000 nitro dev --port 3939",
+    "build": "node scripts/build-viewer.mjs && drizzle-kit migrate && node scripts/viewer-migrate.mjs && nitro build",
     "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "viewer": "node scripts/start-viewer.mjs",
+    "viewer:register": "node scripts/viewer-registry.mjs",
+    "build:share": "node scripts/build-share.mjs && GTM_VIEWER_MODE=share nitro build"
   },
   "dependencies": {
     "@ai-sdk/gateway": "4.0.80",
@@ -21,10 +26,19 @@
     "drizzle-orm": "0.45.2",
     "nitro": "3.0.260903-beta",
     "workflow": "5.0.0-beta.51",
-    "zod": "4.6.2"
+    "zod": "4.6.2",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "@xyflow/react": "12.11.6",
+    "@dagrejs/dagre": "3.1.1",
+    "@vercel/oidc": "3.8.7"
   },
   "devDependencies": {
     "@types/node": "22.20.2",
-    "drizzle-kit": "0.31.10"
+    "drizzle-kit": "0.31.10",
+    "typescript": "6.0.3",
+    "esbuild": "0.28.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0"
   }
 }
