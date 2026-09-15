@@ -94,11 +94,12 @@ export default function Sharing({ meta }: any) {
   }
   return (
     <>
-      <button ref={trigger} onClick={open}>
+      <button type="button" ref={trigger} onClick={open}>
         Share
       </button>
       <dialog
         ref={dialog}
+        className="sharing-dialog"
         aria-labelledby="share-title"
         onCancel={dismiss}
         onClose={() => {
@@ -108,7 +109,7 @@ export default function Sharing({ meta }: any) {
       >
         <div className="section-heading">
           <h2 id="share-title">Share workflow</h2>
-          <button aria-label="Close sharing" onClick={dismiss}>
+          <button type="button" aria-label="Close sharing" onClick={dismiss}>
             ×
           </button>
         </div>
@@ -122,41 +123,6 @@ export default function Sharing({ meta }: any) {
             {!loaded && !message && <p role="status">Loading sharing…</p>}
             {loaded && (
               <>
-                <div className="sharing-state">
-                  <div>
-                    <h3>Sharing is {saved ? "on" : "off"}</h3>
-                    <p className="muted" id="sharing-description">
-                      {saved
-                        ? "Anyone with the link can view the selected tabs."
-                        : "Turn on sharing to create a link."}
-                    </p>
-                  </div>
-                  <button
-                    className="sharing-switch"
-                    role="switch"
-                    aria-label="Sharing"
-                    aria-describedby="sharing-description"
-                    aria-checked={!!saved}
-                    disabled={busy || (!saved && !views.length)}
-                    onClick={saved ? revoke : save}
-                  >
-                    <span />
-                  </button>
-                </div>
-                {saved && url && (
-                  <div className="share-link">
-                    <input
-                      aria-label="Share link"
-                      name="share-link"
-                      readOnly
-                      value={url}
-                      onFocus={(e) => e.target.select()}
-                    />
-                    <button disabled={busy} onClick={() => copy(url)}>
-                      Copy
-                    </button>
-                  </div>
-                )}
                 <fieldset disabled={busy}>
                   <legend>Shared tabs</legend>
                   {choices.map((v) => (
@@ -186,6 +152,7 @@ export default function Sharing({ meta }: any) {
                 {(changed || stale) && (
                   <div className="dialog-actions">
                     <button
+                      type="button"
                       className="primary"
                       disabled={busy || !views.length}
                       onClick={save}
@@ -193,6 +160,46 @@ export default function Sharing({ meta }: any) {
                       Save changes
                     </button>
                     <span className="muted">Unsaved changes</span>
+                  </div>
+                )}
+                <div className="sharing-state">
+                  <div>
+                    <h3>Sharing is {saved ? "on" : "off"}</h3>
+                    <p className="muted" id="sharing-description">
+                      {saved
+                        ? "Anyone with the link can view the selected tabs."
+                        : "Turn on sharing to create a link."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="sharing-switch"
+                    role="switch"
+                    aria-label="Sharing"
+                    aria-describedby="sharing-description"
+                    aria-checked={!!saved}
+                    disabled={busy || (!saved && !views.length)}
+                    onClick={saved ? revoke : save}
+                  >
+                    <span />
+                  </button>
+                </div>
+                {saved && url && (
+                  <div className="share-link">
+                    <input
+                      aria-label="Share link"
+                      name="share-link"
+                      readOnly
+                      value={url}
+                      onFocus={(e) => e.target.select()}
+                    />
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => copy(url)}
+                    >
+                      Copy
+                    </button>
                   </div>
                 )}
               </>
