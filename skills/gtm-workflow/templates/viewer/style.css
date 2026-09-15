@@ -576,6 +576,14 @@ fieldset legend {
 .data-grid td:hover {
   background: var(--surface);
 }
+.cell-link {
+  text-decoration: underline;
+  text-decoration-color: var(--muted);
+  text-underline-offset: 3px;
+}
+.cell-link:hover {
+  text-decoration-color: currentColor;
+}
 .data-grid td:focus,
 .data-grid td[aria-selected="true"] {
   outline: 2px solid var(--focus);
