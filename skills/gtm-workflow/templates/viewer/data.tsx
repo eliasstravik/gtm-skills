@@ -146,6 +146,7 @@ export default function Data({ destinations }: any) {
           <>
             <div className="toolbar">
               <select
+                name="data-table"
                 aria-label="Data table"
                 value={d.tabs.find((t: any) => t.current)?.href ?? ""}
                 onChange={(e) => navigate(link(e.target.value))}
@@ -162,6 +163,7 @@ export default function Data({ destinations }: any) {
                 onChange={(q) => update({ q: q || undefined })}
               />
               <select
+                name="filter-field"
                 aria-label="Filter field"
                 value={p.get("field") ?? ""}
                 onChange={(e) =>
@@ -181,6 +183,7 @@ export default function Data({ destinations }: any) {
               {p.has("field") && (
                 <>
                   <select
+                    name="filter-operator"
                     aria-label="Filter operator"
                     value={p.get("operator") ?? "eq"}
                     onChange={(e) => update({ operator: e.target.value })}

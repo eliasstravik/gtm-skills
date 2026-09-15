@@ -40,6 +40,7 @@ export default function Runs() {
     <section className="pane runs-pane" aria-label="Runs">
       <div className="toolbar">
         <select
+          name="filter-runs-by-status"
           aria-label="Filter runs by status"
           value={p.get("status") ?? ""}
           onChange={(e) =>
@@ -58,6 +59,7 @@ export default function Runs() {
           )}
         </select>
         <select
+          name="filter-runs-by-time"
           aria-label="Filter runs by time"
           value={p.get("period") ?? "all"}
           onChange={(e) =>

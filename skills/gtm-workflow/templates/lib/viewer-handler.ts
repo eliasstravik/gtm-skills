@@ -21,7 +21,7 @@ import {
   policyVersion,
   decodeGrant,
 } from "./viewer-grants";
-import { activeLink, saveLink } from "./viewer-sharing";
+import { activeLink, recoverLink, saveLink, shareUrl } from "./viewer-sharing";
 import { destinations } from "./viewer-destinations";
 import { rawClient } from "./db";
 import { publicDisplay } from "./viewer-display";
@@ -223,11 +223,25 @@ export async function viewerApi(req: Request, shared = false, service = false) {
       case "grants": {
         const client = rawClient();
         try {
+          const row = await activeLink(client, {
+            ...deploymentScope(),
+            workflowId: entry.id,
+          });
+          let url = "",
+            linkError = "";
+          if (row) {
+            try {
+              url = recoverLink(row);
+            } catch (error) {
+              if (!(error instanceof ViewerError)) throw error;
+              // Keep the grant visible so its owner can still turn sharing off.
+              linkError = error.message;
+            }
+          }
           return reply({
-            grant: await activeLink(client, {
-              ...deploymentScope(),
-              workflowId: entry.id,
-            }).then((row) => (row ? decodeGrant(row) : null)),
+            grant: row ? decodeGrant(row) : null,
+            url,
+            linkError,
             policy: policyVersion(currentPolicy(entry)),
             dataScope: currentPolicy(entry)?.tables.map(
               ({ name, columns, row }) => ({ name, columns, row }),
@@ -259,32 +273,13 @@ export async function viewerApi(req: Request, shared = false, service = false) {
             await api.revoke(String(body.id ?? ""));
             return reply({ revoked: true });
           }
-          const link = new URL("/share", process.env.GTM_VIEWER_SHARE_ORIGIN);
-          if (
-            link.protocol !== "https:" &&
-            !(
-              process.env.GTM_VIEWER_TEST === "1" &&
-              ["127.0.0.1", "localhost"].includes(link.hostname)
-            )
-          )
-            throw new ViewerError(
-              503,
-              "configuration",
-              "A secure hosted sharing origin is required.",
-            );
-          if (link.username || link.password)
-            throw new ViewerError(
-              503,
-              "configuration",
-              "Invalid sharing origin.",
-            );
+          const link = shareUrl(entry.id);
           const { grant, token } = await saveLink(
             client,
             { ...deploymentScope(), workflowId: entry.id },
             body,
             currentPolicy(entry),
           );
-          link.searchParams.set("workflow", entry.id);
           link.hash = new URLSearchParams({ token }).toString();
           return reply({ grant, url: link.href });
         } finally {

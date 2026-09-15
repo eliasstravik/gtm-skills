@@ -75,6 +75,41 @@ function decrypt(envelope: string, grant: Grant) {
     );
   }
 }
+export function shareUrl(workflowId: string, token = "") {
+  if (!process.env.GTM_VIEWER_SHARE_ORIGIN)
+    throw new ViewerError(503, "configuration", "Sharing is not configured.");
+  let link: URL;
+  try {
+    link = new URL("/share", process.env.GTM_VIEWER_SHARE_ORIGIN);
+  } catch {
+    throw new ViewerError(503, "configuration", "Invalid sharing origin.");
+  }
+  if (
+    link.protocol !== "https:" &&
+    !(
+      process.env.GTM_VIEWER_TEST === "1" &&
+      ["127.0.0.1", "localhost"].includes(link.hostname)
+    )
+  )
+    throw new ViewerError(
+      503,
+      "configuration",
+      "A secure hosted sharing origin is required.",
+    );
+  if (link.username || link.password)
+    throw new ViewerError(503, "configuration", "Invalid sharing origin.");
+  link.searchParams.set("workflow", workflowId);
+  if (token) link.hash = new URLSearchParams({ token }).toString();
+  return link;
+}
+/** Recover an existing link without creating or changing a grant. */
+export function recoverLink(row: Parameters<typeof decodeGrant>[0]) {
+  const grant = decodeGrant(row);
+  return shareUrl(
+    grant.workflowId,
+    decrypt(String(row.token_ciphertext), grant),
+  ).href;
+}
 const where = "workspace = ? AND environment = ? AND workflow_id = ?";
 const args = (scope: Scope) => [
   scope.workspace,

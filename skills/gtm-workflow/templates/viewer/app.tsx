@@ -38,7 +38,7 @@ function Workflow() {
               )}
               <h1>{meta.workflow.title}</h1>
             </div>
-            {!recipient && <Sharing meta={meta} />}
+            {!recipient && meta.hosted && <Sharing meta={meta} />}
           </header>
           <nav className="tabs" aria-label="Workflow views">
             {["logic", "runs", "data"]

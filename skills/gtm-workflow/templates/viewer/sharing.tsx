@@ -6,7 +6,6 @@ const name = (view: string) =>
 export default function Sharing({ meta }: any) {
   const dialog = useRef<HTMLDialogElement>(null),
     trigger = useRef<HTMLButtonElement>(null);
-  const [copyFailed, setCopyFailed] = useState(false);
   const [views, setViews] = useState<string[]>(["logic"]),
     [saved, setSaved] = useState<any>(null);
   const [policy, setPolicy] = useState<string | null>(null);
@@ -27,11 +26,12 @@ export default function Sharing({ meta }: any) {
     const result = await api("grants");
     setSaved(result.grant);
     setPolicy(result.policy);
+    if (dialog.current?.open) setUrl(result.url ?? "");
+    if (result.linkError) setMessage(result.linkError);
     setLoaded(true);
     if (reset) setViews(result.grant?.views ?? ["logic"]);
   }
   async function open() {
-    setCopyFailed(false);
     setLoaded(false);
     setUrl("");
     setMessage("");
@@ -49,11 +49,9 @@ export default function Sharing({ meta }: any) {
   async function copy(value: string) {
     try {
       await navigator.clipboard.writeText(value);
-      setCopyFailed(false);
       setMessage("Link copied.");
     } catch {
-      setCopyFailed(true);
-      setMessage("Copy failed. Select the link below or retry copy.");
+      setMessage("Copy failed. Select the link to copy it manually.");
     }
   }
   async function save() {
@@ -68,8 +66,8 @@ export default function Sharing({ meta }: any) {
       );
       setSaved(result.grant);
       setViews(result.grant.views);
-      setUrl(result.url);
-      await copy(result.url);
+      if (dialog.current?.open) setUrl(result.url);
+      setMessage(saved ? "Changes saved." : "Sharing turned on.");
     } catch (e) {
       setMessage((e as Error).message);
       if (e instanceof ApiError && e.status === 409) {
@@ -87,8 +85,7 @@ export default function Sharing({ meta }: any) {
       await api("revokeGrant", {}, { id: saved.id }, meta.csrf);
       setSaved(null);
       setUrl("");
-      setViews(["logic"]);
-      setMessage("Link turned off.");
+      setMessage("Sharing turned off. The old link no longer works.");
     } catch (e) {
       setMessage((e as Error).message);
     } finally {
@@ -117,22 +114,56 @@ export default function Sharing({ meta }: any) {
         </div>
         {!meta.shareEnabled ? (
           <p>
-            {meta.hosted
-              ? "Sharing is not configured. Ask your agent to check the hosted share setup."
-              : "Deploy this workflow to share it."}
+            Sharing is not configured. Ask your agent to check the hosted share
+            setup.
           </p>
         ) : (
           <>
-            <p>Anyone with the link can view the selected tabs.</p>
             {!loaded && !message && <p role="status">Loading sharing…</p>}
             {loaded && (
               <>
+                <div className="sharing-state">
+                  <div>
+                    <h3>Sharing is {saved ? "on" : "off"}</h3>
+                    <p className="muted" id="sharing-description">
+                      {saved
+                        ? "Anyone with the link can view the selected tabs."
+                        : "Turn on sharing to create a link."}
+                    </p>
+                  </div>
+                  <button
+                    className="sharing-switch"
+                    role="switch"
+                    aria-label="Sharing"
+                    aria-describedby="sharing-description"
+                    aria-checked={!!saved}
+                    disabled={busy || (!saved && !views.length)}
+                    onClick={saved ? revoke : save}
+                  >
+                    <span />
+                  </button>
+                </div>
+                {saved && url && (
+                  <div className="share-link">
+                    <input
+                      aria-label="Share link"
+                      name="share-link"
+                      readOnly
+                      value={url}
+                      onFocus={(e) => e.target.select()}
+                    />
+                    <button disabled={busy} onClick={() => copy(url)}>
+                      Copy
+                    </button>
+                  </div>
+                )}
                 <fieldset disabled={busy}>
-                  <legend className="sr-only">Shared tabs</legend>
+                  <legend>Shared tabs</legend>
                   {choices.map((v) => (
                     <label key={v}>
                       <input
                         type="checkbox"
+                        name={`share-${v}`}
                         checked={views.includes(v)}
                         disabled={v === "data" && !policy}
                         onChange={(e) => {
@@ -141,52 +172,36 @@ export default function Sharing({ meta }: any) {
                               ? [...views, v]
                               : views.filter((x) => x !== v),
                           );
-                          setUrl("");
+                          setMessage("");
                         }}
                       />
                       {name(v)}
                       {v === "data" && !policy && (
-                        <small> No permitted data configured</small>
+                        <small className="muted">Unavailable</small>
                       )}
                     </label>
                   ))}
                 </fieldset>
                 {stale && <p>Data access changed. Save to restore it.</p>}
                 {(changed || stale) && (
-                  <p className="muted">
-                    Changes apply to everyone using this link.
-                  </p>
-                )}
-                <div className="dialog-actions">
-                  <button
-                    className="primary"
-                    disabled={busy || !views.length}
-                    onClick={save}
-                  >
-                    {changed || stale ? "Save and copy link" : "Copy link"}
-                  </button>
-                  {saved && (
-                    <button disabled={busy} onClick={revoke}>
-                      Turn off link
+                  <div className="dialog-actions">
+                    <button
+                      className="primary"
+                      disabled={busy || !views.length}
+                      onClick={save}
+                    >
+                      Save changes
                     </button>
-                  )}
-                </div>
-                {url && copyFailed && (
-                  <div className="copy-fallback">
-                    <input
-                      aria-label="Share link"
-                      readOnly
-                      value={url}
-                      onFocus={(e) => e.target.select()}
-                    />
-                    <button onClick={() => copy(url)}>Retry copy</button>
+                    <span className="muted">Unsaved changes</span>
                   </div>
                 )}
               </>
             )}
           </>
         )}
-        <p role="status">{message}</p>
+        <p className="sharing-message" role="status">
+          {message}
+        </p>
       </dialog>
     </>
   );

@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { viewerApi } from "../templates/lib/viewer-handler";
 import { migrateViewer } from "../templates/lib/viewer-grants";
+import { csrfCookie } from "../templates/lib/viewer-access";
 import { client, runId, entry, fixtureRuns, run } from "./api-fixture";
 Object.assign(process.env, {
   VERCEL: "1",
@@ -118,6 +119,51 @@ test("browser mutation needs CSRF and both contract and environment identity mus
   old.searchParams.set("v", "1");
   assert.equal((await viewerApi(new Request(old))).status, 409);
 });
+test("opening sharing recovers the link without enabling it, and recovery failure still allows revocation", async () => {
+  const initial = await (await viewerApi(req("grants"))).json();
+  assert.equal(initial.grant, null);
+  assert.equal(initial.url, "");
+  const created = await (
+    await viewerApi(
+      req("saveLink", undefined, { views: ["logic"] }),
+      false,
+      true,
+    )
+  ).json();
+  const before = await client.execute("SELECT * FROM gtm_viewer_grants");
+  const recoveredResponse = await viewerApi(req("grants"));
+  assert.match(recoveredResponse.headers.get("cache-control")!, /no-store/);
+  const recovered = await recoveredResponse.json();
+  assert.equal(recovered.url, created.url);
+  assert.equal(recovered.grant.id, created.grant.id);
+  assert.deepEqual(
+    (await client.execute("SELECT * FROM gtm_viewer_grants")).rows,
+    before.rows,
+  );
+  const key = process.env.GTM_VIEWER_LINK_KEY;
+  try {
+    process.env.GTM_VIEWER_LINK_KEY = "cd".repeat(32);
+    const unavailable = await (await viewerApi(req("grants"))).json();
+    assert.equal(unavailable.grant.id, created.grant.id);
+    assert.equal(unavailable.url, "");
+    assert.match(unavailable.linkError, /cannot be recovered/);
+    assert.equal(
+      (
+        await viewerApi(
+          req("revokeGrant", undefined, { id: unavailable.grant.id }),
+          false,
+          true,
+        )
+      ).status,
+      200,
+    );
+    const disabled = await (await viewerApi(req("grants"))).json();
+    assert.equal(disabled.grant, null);
+    assert.equal(disabled.url, "");
+  } finally {
+    process.env.GTM_VIEWER_LINK_KEY = key;
+  }
+});
 test("list needs no run hydration; sparse run pages reach later top-level matches", async () => {
   const list = await (await viewerApi(req("list"))).json();
   assert.deepEqual(
@@ -151,6 +197,40 @@ test("list needs no run hydration; sparse run pages reach later top-level matche
     assert.equal(next.data[0].input, undefined);
   } finally {
     fixtureRuns.splice(0, fixtureRuns.length, ...originals);
+  }
+});
+test("local workflows do not advertise sharing and reject enabling it", async () => {
+  const vercel = process.env.VERCEL;
+  delete process.env.VERCEL;
+  try {
+    const url = "http://localhost:3939/api/viewer?v=2&workflow=stable";
+    const meta = await (
+      await viewerApi(
+        new Request(url + "&op=meta", {
+          headers: { host: "localhost:3939" },
+        }),
+      )
+    ).json();
+    assert.equal(meta.hosted, false);
+    assert.equal(meta.shareEnabled, false);
+    const csrf = csrfCookie();
+    const response = await viewerApi(
+      new Request(url + "&op=saveLink", {
+        method: "POST",
+        headers: {
+          host: "localhost:3939",
+          origin: "http://localhost:3939",
+          cookie: csrf.cookie,
+          "x-gtm-csrf": csrf.value,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ views: ["logic"] }),
+      }),
+    );
+    assert.equal(response.status, 409);
+    assert.equal((await response.json()).error.code, "sharing_disabled");
+  } finally {
+    process.env.VERCEL = vercel;
   }
 });
 test("stale Data policy preserves Diagram and requires explicit current-policy save", async () => {

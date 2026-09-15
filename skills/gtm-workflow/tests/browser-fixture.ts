@@ -130,6 +130,7 @@ process.env.VERCEL_ENV = "production";
 process.env.GTM_VIEWER_PROTECTED = "1";
 process.env.GTM_VIEWER_LABEL = "Acme";
 process.env.GTM_VIEWER_SHARE_ORIGIN = "http://127.0.0.1:3943";
+if (process.env.GTM_VIEWER_FIXTURE_LOCAL === "1") delete process.env.VERCEL;
 await migrateViewer(client);
 await client.executeMultiple(
   "CREATE TABLE people (key TEXT PRIMARY KEY,name TEXT,secret TEXT); CREATE TABLE companies (key TEXT PRIMARY KEY,name TEXT); CREATE TABLE employment (key TEXT PRIMARY KEY,person TEXT,company TEXT);",
@@ -141,7 +142,9 @@ await client.executeMultiple(
   "INSERT INTO companies VALUES ('acme','Acme Labs'),('orbit','Orbit Example'); INSERT INTO employment VALUES ('a','p00001','acme'),('b','p00001','orbit');",
 );
 const publicDir = resolve(process.argv[2]);
-for (const port of [3942, 3943])
+for (const port of process.env.GTM_VIEWER_FIXTURE_LOCAL === "1"
+  ? [3944]
+  : [3942, 3943])
   createServer(async (incoming, outgoing) => {
     try {
       const url = new URL(incoming.url!, `http://127.0.0.1:${port}`);
