@@ -9,8 +9,7 @@ export default function Sharing({ meta }: any) {
   const [copyFailed, setCopyFailed] = useState(false);
   const [views, setViews] = useState<string[]>(["logic"]),
     [saved, setSaved] = useState<any>(null);
-  const [policy, setPolicy] = useState<string | null>(null),
-    [scope, setScope] = useState<any[]>([]);
+  const [policy, setPolicy] = useState<string | null>(null);
   const [busy, setBusy] = useState(false),
     [loaded, setLoaded] = useState(false),
     [url, setUrl] = useState(""),
@@ -28,7 +27,6 @@ export default function Sharing({ meta }: any) {
     const result = await api("grants");
     setSaved(result.grant);
     setPolicy(result.policy);
-    setScope(result.dataScope ?? []);
     setLoaded(true);
     if (reset) setViews(result.grant?.views ?? ["logic"]);
   }
@@ -153,24 +151,7 @@ export default function Sharing({ meta }: any) {
                     </label>
                   ))}
                 </fieldset>
-                {views.includes("data") && (
-                  <p className="muted">
-                    Includes all permitted data, not just your current filters.
-                  </p>
-                )}
-                {(stale || views.includes("data")) && (
-                  <div className="data-scope">
-                    {stale && <p>Permitted data has changed.</p>}
-                    {scope.map((t) => (
-                      <p key={t.name}>
-                        {t.name}: {t.columns.join(", ")}.{" "}
-                        {t.row.column
-                          ? `Rows where ${t.row.column} equals ${t.row.equals}.`
-                          : "All rows."}
-                      </p>
-                    ))}
-                  </div>
-                )}
+                {stale && <p>Data access changed. Save to restore it.</p>}
                 {(changed || stale) && (
                   <p className="muted">
                     Changes apply to everyone using this link.

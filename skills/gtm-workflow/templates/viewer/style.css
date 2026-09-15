@@ -421,11 +421,6 @@ input[type="checkbox"] {
   opacity: 0.85;
   background: var(--text);
 }
-.data-scope {
-  font-size: 12px;
-  max-height: 160px;
-  overflow: auto;
-}
 .copy-fallback {
   display: flex;
   gap: 8px;
