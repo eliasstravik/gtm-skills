@@ -94,19 +94,27 @@ try {
   command("back");
   wait("1 matching records");
   clickText("button", "Share");
-  wait("Copy link");
+  wait("Sharing is off");
+  command("click", 'button[role="switch"]');
+  wait("Sharing is on");
   // Capture the clipboard handoff without reading the operating system clipboard.
   evaluate(
     'window.copied=""; navigator.clipboard.writeText=async text=>{window.copied=text}',
   );
-  clickText("button", "Copy link");
+  clickText("button", "Copy");
   wait("Link copied.");
   const first = evaluate("window.copied");
   assert.ok(first.includes("#"));
   shot("sharing");
   command("check", "dialog label:nth-of-type(2) input");
   command("check", "dialog label:nth-of-type(3) input");
-  clickText("button", "Save and copy link");
+  clickText("button", "Save changes");
+  wait("Changes saved.");
+  assert.equal(
+    evaluate('document.querySelector("input[name=share-link]").value'),
+    first,
+  );
+  clickText("button", "Copy");
   wait("Link copied.");
   assert.equal(evaluate("window.copied"), first);
   command("click", 'button[aria-label="Close sharing"]');
@@ -141,9 +149,13 @@ try {
   command("open", "http://127.0.0.1:3942/viewer?workflow=stable");
   wait("Employer found?");
   clickText("button", "Share");
-  wait("Turn off link");
-  clickText("button", "Turn off link");
-  wait("Link turned off.");
+  wait("Sharing is on");
+  assert.equal(
+    evaluate('document.querySelector("input[name=share-link]").value'),
+    first,
+  );
+  command("click", 'button[role="switch"]');
+  wait("Sharing turned off.");
   command("open", first);
   wait("This link was revoked.");
 } finally {
