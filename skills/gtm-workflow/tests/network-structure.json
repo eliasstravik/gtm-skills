@@ -1,0 +1,466 @@
+{
+  "graph": {
+    "nodes": [
+      {
+        "id": "start",
+        "type": "workflow_start",
+        "data": {
+          "label": "Read supplied CSV identities",
+          "nodeKind": "workflow_start"
+        }
+      },
+      {
+        "id": "imported",
+        "type": "conditional",
+        "data": {
+          "label": "Were new identities supplied?",
+          "nodeKind": "conditional"
+        }
+      },
+      {
+        "id": "import",
+        "type": "step",
+        "data": {
+          "label": "Import source identities",
+          "nodeKind": "step"
+        }
+      },
+      {
+        "id": "source",
+        "type": "step",
+        "data": {
+          "label": "Read durable source rows",
+          "nodeKind": "step"
+        }
+      },
+      {
+        "id": "freshPeople",
+        "type": "step",
+        "data": {
+          "label": "Skip fresh people",
+          "nodeKind": "step"
+        }
+      },
+      {
+        "id": "chunk",
+        "type": "conditional",
+        "data": {
+          "label": "More than one chunk of people?",
+          "nodeKind": "conditional"
+        }
+      },
+      {
+        "id": "children",
+        "type": "child",
+        "data": {
+          "label": "Start one bounded child at a time",
+          "nodeKind": "child"
+        }
+      },
+      {
+        "id": "lineage",
+        "type": "step",
+        "data": {
+          "label": "Record child identities",
+          "nodeKind": "step"
+        }
+      },
+      {
+        "id": "wait",
+        "type": "wait",
+        "data": {
+          "label": "Wait for child totals",
+          "nodeKind": "wait"
+        }
+      },
+      {
+        "id": "peopleCaps",
+        "type": "conditional",
+        "data": {
+          "label": "People remain and budget allows lookup?",
+          "nodeKind": "conditional"
+        },
+        "metadata": {
+          "loopId": "people"
+        }
+      },
+      {
+        "id": "identity",
+        "type": "conditional",
+        "data": {
+          "label": "Usable LinkedIn profile or email?",
+          "nodeKind": "conditional"
+        },
+        "metadata": {
+          "loopId": "people"
+        }
+      },
+      {
+        "id": "person",
+        "type": "step",
+        "data": {
+          "label": "Enrich the person through Clay",
+          "nodeKind": "step"
+        },
+        "metadata": {
+          "loopId": "people"
+        }
+      },
+      {
+        "id": "savePerson",
+        "type": "step",
+        "data": {
+          "label": "Save profile and current employment links",
+          "nodeKind": "step"
+        },
+        "metadata": {
+          "loopId": "people"
+        }
+      },
+      {
+        "id": "personError",
+        "type": "step",
+        "data": {
+          "label": "Preserve profile; save refresh error",
+          "nodeKind": "step"
+        },
+        "metadata": {
+          "loopId": "people"
+        }
+      },
+      {
+        "id": "selected",
+        "type": "step",
+        "data": {
+          "label": "Read and deduplicate selected employers",
+          "nodeKind": "step"
+        }
+      },
+      {
+        "id": "budget",
+        "type": "conditional",
+        "data": {
+          "label": "Companies exist and budget remains?",
+          "nodeKind": "conditional"
+        }
+      },
+      {
+        "id": "freshCompanies",
+        "type": "step",
+        "data": {
+          "label": "Skip fresh companies",
+          "nodeKind": "step"
+        }
+      },
+      {
+        "id": "companyCaps",
+        "type": "conditional",
+        "data": {
+          "label": "Companies remain within budget?",
+          "nodeKind": "conditional"
+        },
+        "metadata": {
+          "loopId": "companies"
+        }
+      },
+      {
+        "id": "domain",
+        "type": "conditional",
+        "data": {
+          "label": "Usable employer domain?",
+          "nodeKind": "conditional"
+        },
+        "metadata": {
+          "loopId": "companies"
+        }
+      },
+      {
+        "id": "company",
+        "type": "step",
+        "data": {
+          "label": "Enrich the company through ContactOut",
+          "nodeKind": "step"
+        },
+        "metadata": {
+          "loopId": "companies"
+        }
+      },
+      {
+        "id": "saveCompany",
+        "type": "step",
+        "data": {
+          "label": "Save the company profile",
+          "nodeKind": "step"
+        },
+        "metadata": {
+          "loopId": "companies"
+        }
+      },
+      {
+        "id": "companyError",
+        "type": "step",
+        "data": {
+          "label": "Preserve company; save refresh error",
+          "nodeKind": "step"
+        },
+        "metadata": {
+          "loopId": "companies"
+        }
+      },
+      {
+        "id": "end",
+        "type": "workflow_end",
+        "data": {
+          "label": "Return people, companies and total spend",
+          "nodeKind": "workflow_end"
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "start-imported-0",
+        "source": "start",
+        "target": "imported",
+        "type": "default"
+      },
+      {
+        "id": "imported-import-1",
+        "source": "imported",
+        "target": "import",
+        "type": "default",
+        "label": "Yes"
+      },
+      {
+        "id": "imported-source-2",
+        "source": "imported",
+        "target": "source",
+        "type": "default",
+        "label": "No"
+      },
+      {
+        "id": "import-source-3",
+        "source": "import",
+        "target": "source",
+        "type": "default"
+      },
+      {
+        "id": "source-freshPeople-4",
+        "source": "source",
+        "target": "freshPeople",
+        "type": "default"
+      },
+      {
+        "id": "freshPeople-chunk-5",
+        "source": "freshPeople",
+        "target": "chunk",
+        "type": "default"
+      },
+      {
+        "id": "chunk-children-6",
+        "source": "chunk",
+        "target": "children",
+        "type": "default",
+        "label": "Yes"
+      },
+      {
+        "id": "children-lineage-7",
+        "source": "children",
+        "target": "lineage",
+        "type": "default"
+      },
+      {
+        "id": "lineage-wait-8",
+        "source": "lineage",
+        "target": "wait",
+        "type": "default"
+      },
+      {
+        "id": "wait-selected-9",
+        "source": "wait",
+        "target": "selected",
+        "type": "default"
+      },
+      {
+        "id": "chunk-peopleCaps-10",
+        "source": "chunk",
+        "target": "peopleCaps",
+        "type": "default",
+        "label": "No"
+      },
+      {
+        "id": "peopleCaps-identity-11",
+        "source": "peopleCaps",
+        "target": "identity",
+        "type": "default",
+        "label": "Yes"
+      },
+      {
+        "id": "identity-person-12",
+        "source": "identity",
+        "target": "person",
+        "type": "default",
+        "label": "Yes"
+      },
+      {
+        "id": "identity-savePerson-13",
+        "source": "identity",
+        "target": "savePerson",
+        "type": "default",
+        "label": "No / record unmatched"
+      },
+      {
+        "id": "person-savePerson-14",
+        "source": "person",
+        "target": "savePerson",
+        "type": "default"
+      },
+      {
+        "id": "person-personError-15",
+        "source": "person",
+        "target": "personError",
+        "type": "error",
+        "label": "Lookup fails"
+      },
+      {
+        "id": "savePerson-peopleCaps-16",
+        "source": "savePerson",
+        "target": "peopleCaps",
+        "type": "loop",
+        "label": "Next person"
+      },
+      {
+        "id": "personError-peopleCaps-17",
+        "source": "personError",
+        "target": "peopleCaps",
+        "type": "loop",
+        "label": "Next person"
+      },
+      {
+        "id": "peopleCaps-selected-18",
+        "source": "peopleCaps",
+        "target": "selected",
+        "type": "default",
+        "label": "No"
+      },
+      {
+        "id": "selected-budget-19",
+        "source": "selected",
+        "target": "budget",
+        "type": "default"
+      },
+      {
+        "id": "budget-freshCompanies-20",
+        "source": "budget",
+        "target": "freshCompanies",
+        "type": "default",
+        "label": "Yes"
+      },
+      {
+        "id": "budget-end-21",
+        "source": "budget",
+        "target": "end",
+        "type": "default",
+        "label": "No"
+      },
+      {
+        "id": "freshCompanies-companyCaps-22",
+        "source": "freshCompanies",
+        "target": "companyCaps",
+        "type": "default"
+      },
+      {
+        "id": "companyCaps-domain-23",
+        "source": "companyCaps",
+        "target": "domain",
+        "type": "default",
+        "label": "Yes"
+      },
+      {
+        "id": "companyCaps-end-24",
+        "source": "companyCaps",
+        "target": "end",
+        "type": "default",
+        "label": "No"
+      },
+      {
+        "id": "domain-company-25",
+        "source": "domain",
+        "target": "company",
+        "type": "default",
+        "label": "Yes"
+      },
+      {
+        "id": "domain-saveCompany-26",
+        "source": "domain",
+        "target": "saveCompany",
+        "type": "default",
+        "label": "No / record unmatched"
+      },
+      {
+        "id": "company-saveCompany-27",
+        "source": "company",
+        "target": "saveCompany",
+        "type": "default"
+      },
+      {
+        "id": "company-companyError-28",
+        "source": "company",
+        "target": "companyError",
+        "type": "error",
+        "label": "Lookup fails"
+      },
+      {
+        "id": "saveCompany-companyCaps-29",
+        "source": "saveCompany",
+        "target": "companyCaps",
+        "type": "loop",
+        "label": "Next company"
+      },
+      {
+        "id": "companyError-companyCaps-30",
+        "source": "companyError",
+        "target": "companyCaps",
+        "type": "loop",
+        "label": "Next company"
+      }
+    ]
+  },
+  "stages": [
+    {
+      "id": "import-identities",
+      "title": "Import identities",
+      "description": "Import supplied identities when present; otherwise reuse the saved source rows.",
+      "nodes": ["import"]
+    },
+    {
+      "id": "prepare-people",
+      "title": "Prepare people",
+      "description": "Read saved source identities and skip recently enriched people.",
+      "nodes": ["source", "freshPeople"]
+    },
+    {
+      "id": "enrich-people",
+      "title": "Enrich people",
+      "description": "Look up usable identities and save profiles with current employment links. Failures preserve existing profiles.",
+      "nodes": ["person", "savePerson"]
+    },
+    {
+      "id": "choose-employers",
+      "title": "Choose employers",
+      "description": "Read and deduplicate employers linked to the selected people.",
+      "nodes": ["selected"]
+    },
+    {
+      "id": "enrich-companies",
+      "title": "Enrich companies",
+      "description": "Look up employer domains and save company profiles within the remaining budget.",
+      "nodes": ["company", "saveCompany"]
+    },
+    {
+      "id": "report-totals",
+      "title": "Report results",
+      "description": "Return people, company and spending totals.",
+      "nodes": ["end"]
+    }
+  ]
+}

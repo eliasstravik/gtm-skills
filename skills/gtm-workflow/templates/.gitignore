@@ -1,0 +1,9 @@
+/.swc
+/node_modules/
+/.output/
+/.nitro/
+/.vercel/
+/public/viewer-assets/
+/data/
+/.env*
+!/.env.example

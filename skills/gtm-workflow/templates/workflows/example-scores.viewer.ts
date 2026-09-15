@@ -3,6 +3,38 @@ import type { WorkflowData } from "../lib/data-api";
 
 /** Authored description of the row helper and workflow-specific calls. It never drives execution. */
 export const viewer = {
+  description:
+    "Read company websites and score their fit against the saved criteria.",
+  stages: [
+    {
+      id: "prepare-input",
+      title: "Prepare input",
+      description:
+        "Validate inputs and skip recently completed rows before applying the row and spending limits.",
+      nodes: ["start", "fresh"],
+    },
+    {
+      id: "process-record",
+      title: "Score companies",
+      description:
+        "Read company websites and score their fit against the saved criteria.",
+      nodes: ["action_0", "action_1"],
+    },
+    {
+      id: "save-results",
+      title: "Save results",
+      description:
+        "Save each successful result. The separate failure path retains row errors and estimated costs.",
+      nodes: ["save"],
+    },
+    {
+      id: "report-results",
+      title: "Report totals",
+      description:
+        "Return the recorded result counts and costs; child runs report to their parent.",
+      nodes: ["finish"],
+    },
+  ],
   id: "4bb87c60-4b7c-4598-8063-c2cf6cf95e71",
   graph: {
     nodes: [
@@ -233,7 +265,13 @@ export const viewer = {
     ],
     relations: [],
   },
-} satisfies { id: string; graph: Graph; sharePolicy: DataPolicy };
+} satisfies {
+  id: string;
+  description: string;
+  stages: import("../lib/viewer-contract").Display["stages"];
+  graph: Graph;
+  sharePolicy: DataPolicy;
+};
 
 export const data = {
   tables: [

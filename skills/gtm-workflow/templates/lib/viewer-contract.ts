@@ -21,6 +21,12 @@ export type Display = {
   slug: string;
   title: string;
   description?: string;
+  stages?: {
+    id: string;
+    title: string;
+    description: string;
+    nodes: string[];
+  }[];
   workflowName: string;
   graph?: Graph;
   revision: string;

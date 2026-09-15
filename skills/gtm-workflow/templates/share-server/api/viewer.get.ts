@@ -11,7 +11,11 @@ export default defineHandler(async (event) => {
     Response.json({ version: 1, error: { message } }, { status, headers });
   const incoming = new URL(event.req.url);
   const op = incoming.searchParams.get("op") ?? "workflow";
-  if (!["workflow", "runs", "run", "data"].includes(op))
+  if (
+    !["meta", "workflow", "runs", "run", "events", "data", "export"].includes(
+      op,
+    )
+  )
     return error(404, "View unavailable.");
   const token = event.req.headers.get("x-gtm-share-token") ?? "";
   if (!/^[A-Za-z0-9_-]{43}$/.test(token))
@@ -33,6 +37,7 @@ export default defineHandler(async (event) => {
     "workflow",
     "run",
     "cursor",
+    "eventCursor",
     "status",
     "period",
     "table",
@@ -40,6 +45,14 @@ export default defineHandler(async (event) => {
     "key",
     "relatedTable",
     "relatedKey",
+    "q",
+    "field",
+    "operator",
+    "value",
+    "sort",
+    "order",
+    "columns",
+    "children",
   ]) {
     const value = incoming.searchParams.get(key);
     if (value !== null) {
@@ -55,13 +68,33 @@ export default defineHandler(async (event) => {
       method: "GET",
       redirect: "error",
       cache: "no-store",
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.any([
+        event.req.signal,
+        AbortSignal.timeout(op === "export" ? 300000 : 15000),
+      ]),
       headers: {
         "x-vercel-trusted-oidc-idp-token": oidc,
         "x-gtm-share-token": token,
         "x-gtm-viewer-project": project,
       },
     });
+    if (
+      op === "export" &&
+      response.ok &&
+      response.headers.get("content-type")?.includes("text/csv")
+    )
+      return new Response(response.body, {
+        status: response.status,
+        headers: {
+          ...headers,
+          "content-type": "text/csv; charset=utf-8",
+          "content-disposition":
+            'attachment; filename="workflow-current-data.csv"',
+          "x-export-started-at":
+            response.headers.get("x-export-started-at") ?? "",
+          "x-export-consistency": "live-paginated-read",
+        },
+      });
     if (!response.headers.get("content-type")?.includes("application/json"))
       return error(503, "The private viewer is unavailable.");
     const reader = response.body?.getReader();

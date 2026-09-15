@@ -11,13 +11,18 @@ import {
 } from "@workflow/core/serialization";
 import { rawClient } from "./db";
 import { tables } from "../db/tables";
-import { readData, type WorkflowData } from "./data-api";
+import { readData, readCounts, type WorkflowData } from "./data-api";
 import { effectivePolicy } from "./viewer-policy";
 import { listChildren } from "./runs-api";
 import { ViewerError, grants } from "./viewer-grants";
 import { deploymentScope } from "./viewer-access";
 import type { Display, DataPolicy, View } from "./viewer-contract";
 import registryJson from "#viewer-registry";
+import { summarizeRun } from "./viewer-summary";
+const summaries = new Map<
+  string,
+  { until: number; value: Awaited<ReturnType<typeof summarizeRun>> }
+>();
 export type Entry = Display & {
   data: WorkflowData | null;
   sharePolicy: DataPolicy | null;
@@ -29,7 +34,7 @@ export const entryFor = (id: string) => {
   return entry;
 };
 export const currentPolicy = (entry: Entry) => effectivePolicy(entry, tables);
-export async function authorizeShare(entry: Entry, token: string, view: View) {
+export async function authorizeShare(entry: Entry, token: string, view?: View) {
   const client = rawClient();
   try {
     return await grants(client, {
@@ -133,18 +138,28 @@ export async function readRuns(entry: Entry, url: URL, shared = false) {
     workflowName: entry.workflowName,
     status: status as any,
     resolveData: "none",
-    pagination: { limit: 25, cursor, sortOrder: "desc" },
+    pagination: {
+      limit: url.searchParams.get("latest") === "1" ? 1 : 25,
+      cursor,
+      sortOrder: "desc",
+    },
   });
   const data = page.data
     .filter((r) => {
       try {
         ownsRun(entry, r, shared);
-        return new Date(r.createdAt).getTime() >= since;
+        return (
+          new Date(r.createdAt).getTime() >= since &&
+          (url.searchParams.get("children") === "1" ||
+            !r.attributes?.["gtm.viewer.parent"])
+        );
       } catch {
         return false;
       }
     })
-    .map(safeRun);
+    .map((r) =>
+      shared ? { ...safeRun(r), attributes: undefined } : safeRun(r),
+    );
   return { ...page, data };
 }
 export async function readRun(entry: Entry, url: URL, shared = false) {
@@ -154,6 +169,28 @@ export async function readRun(entry: Entry, url: URL, shared = false) {
   const world = await getWorld();
   const meta = await world.runs.get(id, { resolveData: "none" });
   ownsRun(entry, meta, shared); // Before fetching retained payloads or requesting a decryption key.
+  if (url.searchParams.get("op") === "events") {
+    const cursor = url.searchParams.get("eventCursor") ?? undefined;
+    if (cursor && cursor.length > 512)
+      throw new ViewerError(400, "invalid_cursor", "Invalid event cursor.");
+    const events = await world.events.list({
+      runId: id,
+      resolveData: "none",
+      pagination: { limit: 50, cursor, sortOrder: "asc" },
+    });
+    return {
+      events: events.data.map((e) => ({
+        id: e.eventId,
+        type: e.eventType,
+        invocation: e.correlationId,
+        createdAt: e.createdAt,
+        attempt:
+          e.eventType === "step_started" ? e.eventData?.attempt : undefined,
+      })),
+      cursor: events.cursor,
+      hasMore: events.hasMore,
+    };
+  }
   const parentId = meta.attributes?.["gtm.viewer.parent"];
   if (parentId) {
     const parent = await world.runs.get(parentId, { resolveData: "none" });
@@ -165,7 +202,38 @@ export async function readRun(entry: Entry, url: URL, shared = false) {
         "Child run lineage unavailable.",
       );
   }
-  const run = await world.runs.get(id);
+  const cacheKey = `${deploymentScope().workspace}:${deploymentScope().environment}:${entry.id}:${id}:${meta.status}`;
+  const cached = summaries.get(cacheKey);
+  const summary =
+    cached && cached.until > Date.now()
+      ? cached.value
+      : await summarizeRun((cursor) =>
+          world.steps.list({
+            runId: id,
+            resolveData: "none",
+            pagination: { limit: 100, cursor, sortOrder: "asc" },
+          }),
+        );
+  if (summaries.size > 500) summaries.clear();
+  summaries.set(cacheKey, {
+    until:
+      Date.now() +
+      (["completed", "failed", "cancelled"].includes(meta.status)
+        ? 60000
+        : 3000),
+    value: summary,
+  });
+  const childIds = await listChildren(id);
+  const children = [];
+  for (const childId of childIds.slice(0, 100)) {
+    try {
+      const child = await world.runs.get(childId, { resolveData: "none" });
+      ownsRun(entry, child, shared);
+      children.push({ id: child.runId, status: child.status });
+    } catch {
+      /* Missing or out-of-scope children remain unavailable. */
+    }
+  }
   const cursor = url.searchParams.get("cursor") ?? undefined;
   if (cursor && cursor.length > 512)
     throw new ViewerError(400, "invalid_cursor", "Invalid cursor.");
@@ -173,6 +241,34 @@ export async function readRun(entry: Entry, url: URL, shared = false) {
     runId: id,
     pagination: { limit: 25, cursor, sortOrder: "asc" },
   });
+  // Public runs never hydrate or return arbitrary business payloads, even with Data scope.
+  // Business records are read through the versioned table policy instead.
+  if (shared)
+    return {
+      run: { ...safeRun(meta), attributes: undefined },
+      steps: steps.data.map((s) => ({
+        id: s.stepId,
+        name: s.stepName,
+        label: stepLabel(entry, s.stepName),
+        status: s.status,
+        attempt: s.attempt,
+        createdAt: s.createdAt,
+        startedAt: s.startedAt,
+        completedAt: s.completedAt,
+        errorSummary:
+          s.status === "failed"
+            ? "Step failed. Ask the workflow owner for details."
+            : undefined,
+      })),
+      cursor: steps.cursor,
+      hasMore: steps.hasMore,
+      summary,
+      children,
+      childrenComplete: childIds.length <= 100,
+      overlay: "unavailable",
+      overlayReason: "Historical diagram unavailable in this shared trace.",
+    };
+  const run = await world.runs.get(id);
   let key: Awaited<ReturnType<typeof deriveRunPayloadKeys>> | undefined;
   let locked = false;
   try {
@@ -200,6 +296,7 @@ export async function readRun(entry: Entry, url: URL, shared = false) {
       steps.data.map(async (s) => ({
         id: s.stepId,
         name: s.stepName,
+        label: stepLabel(entry, s.stepName),
         status: s.status,
         attempt: s.attempt,
         createdAt: s.createdAt,
@@ -244,13 +341,22 @@ export async function readRun(entry: Entry, url: URL, shared = false) {
     steps: detail,
     cursor: steps.cursor,
     hasMore: steps.hasMore,
+    summary,
+    children,
+    childrenComplete: childIds.length <= 100,
     graph: artifact?.graph ?? null,
+    stages: artifact?.stages ?? [],
+    revision: artifact?.revision,
     mapped,
     overlay: artifact ? "available" : "unavailable",
     overlayReason: artifact
       ? undefined
       : "No retained graph matches this run deployment.",
   };
+}
+function stepLabel(entry: Entry, name: string) {
+  const nodes = entry.graph?.nodes.filter((n) => n.data.stepId === name) ?? [];
+  return nodes.length === 1 ? nodes[0].data.label : name.split("//").at(-1);
 }
 export async function readBusinessData(entry: Entry, url: URL, shared = false) {
   if (!entry.data)
@@ -274,6 +380,16 @@ export async function readBusinessData(entry: Entry, url: URL, shared = false) {
   const client = rawClient();
   try {
     return await readData(config, tables, client, url);
+  } finally {
+    client.close();
+  }
+}
+
+export async function readBusinessCounts(entry: Entry) {
+  if (!entry.data) return undefined;
+  const client = rawClient();
+  try {
+    return await readCounts(entry.data, tables, client);
   } finally {
     client.close();
   }

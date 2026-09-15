@@ -91,7 +91,7 @@ test("workspace, environment and immutable identity isolate grants, independentl
     client.close();
   }
 });
-test("every authorization policy change locks Data without removing separately granted Logic or Runs", async () => {
+test("incompatible policy changes invalidate the whole affected grant", async () => {
   const { client, api } = await fixture();
   try {
     const { token } = await api.create(
@@ -135,8 +135,12 @@ test("every authorization policy change locks Data without removing separately g
       await assert.rejects(() => api.authorize(token, "data", changed), {
         code: "policy_changed",
       });
-      await api.authorize(token, "logic", changed);
-      await api.authorize(token, "runs", changed);
+      await assert.rejects(() => api.authorize(token, "logic", changed), {
+        code: "policy_changed",
+      });
+      await assert.rejects(() => api.authorize(token, "runs", changed), {
+        code: "policy_changed",
+      });
     }
     assert.equal(
       policyVersion(policy),
@@ -150,7 +154,7 @@ test("malformed scope, expiry, tokens and unregistered data fail closed", async 
   const { client, api } = await fixture();
   try {
     for (const views of [
-      ["runs"],
+      [],
       ["logic", "execute"],
       ["logic", "logic"],
       null,
