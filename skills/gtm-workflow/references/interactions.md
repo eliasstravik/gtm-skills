@@ -19,7 +19,7 @@ Contents: [Create](#create) · [Create without a connected project](#create-with
 **Agent:** Building it now; about two minutes, since this is Acme's first workflow. Score inbound accounts scores your three companies against Lean B2B SaaS through AI Gateway, about $0.01 each, capped at 200 rows or $5 per run.
 
 Created Score inbound accounts.
-[Open diagram](http://localhost:3939/gtm/score-inbound-accounts) · [Open runs](http://localhost:3939/_workflow) · [Open data](https://local.drizzle.studio)
+[Open GTM Workflows](http://127.0.0.1:3939/viewer?workflow=example-score-inbound-accounts)
 
 **Human:** Run it.
 
@@ -34,6 +34,7 @@ Created Score inbound accounts.
 **Agent:** Nothing has run. Say "run Score inbound accounts" whenever you're ready.
 
 **Files:**
+
 - created `workflows/` (the runtime, copied from the skill's template; its installed packages and local database are not committed)
 - created `workflows/workflows/score-inbound-accounts.ts`
 - changed `workflows/workflows/index.ts`
@@ -64,6 +65,7 @@ Runs happen on the hosted copy, which needs a Vercel project connected to the Ac
 Once that is in place, ask me to run it and I'll offer a one-row test first.
 
 **Files:**
+
 - created `workflows/` (the runtime, from the template, with `package-lock.json`)
 - created `workflows/workflows/score-inbound-accounts.ts`
 - created `workflows/db/tables/inbound-scores.ts`
@@ -86,9 +88,10 @@ Once that is in place, ask me to run it and I'll offer a one-row test first.
 Created Enrich LinkedIn profiles; it asks in this channel before each paid lookup.
 
 Live. Ask me to run it and I'll test one profile first.
-[Open diagram](https://gtm-acme.vercel.app/gtm/enrich-linkedin-profiles?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
+[Open GTM Workflows](https://gtm-acme.vercel.app/viewer?workflow=example-enrich-linkedin-profiles)
 
 **Files:**
+
 - created `workflows/workflows/enrich-linkedin-profiles.ts`
 - created `workflows/db/tables/linkedin-enrichments.ts`
 - changed `workflows/workflows/index.ts`
@@ -106,7 +109,7 @@ Live. Ask me to run it and I'll test one profile first.
 Created Post email domain.
 
 Live. Ask me to run it on an email and it runs straight away.
-[Open diagram](https://gtm-acme.vercel.app/gtm/post-email-domain?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
+[Open GTM Workflows](https://gtm-acme.vercel.app/viewer?workflow=example-post-email-domain)
 
 **Human:** Run it on simon@ophena.com.
 
@@ -115,6 +118,7 @@ Live. Ask me to run it on an email and it runs straight away.
 Done: posted ophena.com in this channel.
 
 **Files:**
+
 - created `workflows/workflows/post-email-domain.ts`
 - created `workflows/db/tables/email-domains.ts`
 - changed `workflows/workflows/index.ts`
@@ -132,7 +136,7 @@ Done: posted ophena.com in this channel.
 Created Research people by email.
 
 Live. Ask me to run it and I'll test one email first.
-[Open diagram](https://gtm-acme.vercel.app/gtm/research-people-by-email?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
+[Open GTM Workflows](https://gtm-acme.vercel.app/viewer?workflow=example-research-people-by-email)
 
 **Human:** Test one: priya@quillhr.com.
 
@@ -141,6 +145,7 @@ Live. Ask me to run it and I'll test one email first.
 Done: Priya Nair, Head of Revenue Operations at Quill HR, London; matched. The agent made 5 tool calls (discover, inspect, run, get_run, inspect) and stopped when it had the answer; cost $0.21, of which $0.18 was Monid.
 
 **Files:**
+
 - created `workflows/workflows/research-people-by-email.ts`
 - created `workflows/db/tables/person-research.ts`
 - changed `workflows/workflows/index.ts`
@@ -174,9 +179,10 @@ Done: Priya Nair, Head of Revenue Operations at Quill HR, London; matched. The a
 **Agent:** Updating now: the current Lean B2B SaaS criteria, plus a headcount column read from the page it already fetches. The next run of the full list offers a one-row test first.
 
 Updated Score inbound accounts.
-[Open diagram](http://localhost:3939/gtm/score-inbound-accounts) · [Open runs](http://localhost:3939/_workflow) · [Open data](https://local.drizzle.studio)
+[Open GTM Workflows](http://127.0.0.1:3939/viewer?workflow=example-score-inbound-accounts)
 
 **Files:**
+
 - changed `workflows/workflows/score-inbound-accounts.ts`
 - changed `workflows/db/tables/inbound-scores.ts`
 - created `workflows/drizzle/0002_inbound_scores_headcount.sql` (with its journal and snapshot entries)
@@ -218,9 +224,10 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 **Human:** Done.
 
 **Agent:** Live: Score inbound accounts runs every Monday at 08:00 UTC on Vercel. It keeps its own copy of the criteria until you update the workflow.
-[Open diagram](https://gtm-acme.vercel.app/gtm/score-inbound-accounts?t=…) (shareable, valid 7 days) · [Open runs](https://vercel.com/acme/gtm-acme/observability/workflows) · [Open data](https://app.turso.tech/acme/databases/gtm-acme/data)
+[Open GTM Workflows](https://gtm-acme.vercel.app/viewer?workflow=example-score-inbound-accounts)
 
 **Files:**
+
 - changed `workflows/workflows/score-inbound-accounts.ts`
 - changed `workflows/vercel.json`
 - changed `workflows/.env` (by the connection, not committed)
@@ -272,6 +279,7 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 Upgraded the runtime.
 
 **Files:**
+
 - changed `workflows/lib/rows.ts`
 - changed `workflows/server/routes/gtm/[slug].get.ts`
 - changed `workflows/nitro.config.ts`
@@ -289,6 +297,8 @@ Upgraded the runtime.
 Deleted Score inbound accounts; it stays in history, ask me to restore it.
 
 **Files:**
+
 - deleted `workflows/workflows/score-inbound-accounts.ts`
 - changed `workflows/workflows/index.ts`
 - changed `workflows/vercel.json`
+  \n## Open UI\n\n**Human:** Open GTM Workflows UI.\n\n**Agent:** [Open GTM Workflows](verified-viewer-url)\n\nAn explicit repeat request receives the same entry again. The URL opens the discussed workflow, or the list without workflow context. No workflow starts. In Slack, the normal final reply carries one primary URL button with this label.\n

@@ -140,6 +140,7 @@ export function registrySource(register = false) {
       exportName,
       data: props.data ? readLiteral(props.data, file) : null,
       sharePolicy: viewer.sharePolicy ?? null,
+      ...(viewer.stages ? { stages: viewer.stages } : {}),
       ...(viewer.graph ? { graph: viewer.graph } : {}),
       ...(viewer.mappings ? { mappings: viewer.mappings } : {}),
     });

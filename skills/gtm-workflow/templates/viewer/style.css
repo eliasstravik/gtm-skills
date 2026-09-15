@@ -1,5 +1,6 @@
 :root {
-  font-family: Geist, Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  font-family: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   color: #171717;
   background: #fafafa;
   font-synthesis: none;
@@ -98,7 +99,7 @@ header {
   display: flex;
   gap: 12px;
   align-items: center;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   margin-bottom: 28px;
   flex-wrap: wrap;
@@ -126,13 +127,13 @@ header {
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: 14px;
   white-space: nowrap;
   text-transform: capitalize;
 }
 .muted {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 .eyebrow {
   font-size: 11px;
@@ -207,7 +208,7 @@ header {
 }
 .section-heading > a,
 .pagination {
-  font-size: 13px;
+  font-size: 14px;
 }
 .table-scroll {
   overflow: auto;
@@ -218,7 +219,7 @@ header {
 table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 13px;
+  font-size: 14px;
   text-align: left;
 }
 th,
@@ -243,7 +244,7 @@ caption {
 }
 code,
 pre {
-  font-family: "Geist Mono", ui-monospace, monospace;
+  font-family: "Geist Mono Variable", ui-monospace, monospace;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
@@ -285,7 +286,7 @@ time,
   gap: 20px;
 }
 .table-tabs a {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
 }
 .table-tabs a[aria-current] {
@@ -297,7 +298,7 @@ time,
   gap: 20px;
   flex-wrap: wrap;
   align-items: center;
-  font-size: 13px;
+  font-size: 14px;
 }
 .inspector-layout {
   display: grid;
@@ -351,7 +352,7 @@ time,
   justify-content: space-between;
   gap: 20px;
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  font-size: 14px;
 }
 .logic-layout {
   display: grid;
@@ -376,7 +377,7 @@ time,
   outline-offset: 2px;
 }
 .flow-node strong {
-  font-size: 13px;
+  font-size: 14px;
 }
 .node-kind {
   font-size: 10px;
@@ -397,7 +398,7 @@ time,
 .structure-list {
   padding: 20px;
   border-top: 1px solid var(--border);
-  font-size: 13px;
+  font-size: 14px;
 }
 .structure-list ol {
   display: grid;
@@ -436,13 +437,13 @@ dialog fieldset {
   gap: 12px;
 }
 dialog label {
-  font-size: 13px;
+  font-size: 14px;
   display: flex;
   align-items: center;
   gap: 10px;
 }
 dialog legend {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   margin-bottom: 14px;
 }
@@ -480,11 +481,11 @@ input:not([type="checkbox"]) {
   gap: 16px;
   padding: 14px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  font-size: 14px;
 }
 summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
 }
 .react-flow__controls button {
   border-radius: 0;
@@ -583,4 +584,247 @@ summary {
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+}
+.app-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 56px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.app-bar > a {
+  font-weight: 600;
+  text-decoration: none;
+}
+.workspace {
+  max-width: none;
+  padding: 32px;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+}
+.toolbar input[type="search"] {
+  min-width: 220px;
+  flex: 1;
+}
+.workflow-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px 150px;
+  padding: 16px 20px;
+  gap: 20px;
+}
+.workflow-row > div {
+  min-width: 0;
+  gap: 4px;
+}
+.workflow-name {
+  text-decoration: none;
+}
+.workflow-name h2 {
+  font-size: 15px;
+}
+.column-head {
+  color: var(--muted);
+  font-size: 14px;
+  background: color-mix(in srgb, var(--surface), var(--border) 15%);
+}
+.purpose {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.title-row > div:first-child {
+  min-width: 0;
+}
+.latest-summary {
+  padding: 12px 40px;
+  border-bottom: 1px solid var(--border);
+}
+.stage-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px 32px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.stage-nav a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 500;
+}
+.stage-nav a[aria-current] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.purpose:focus {
+  white-space: normal;
+}
+.record-inspector {
+  border: 1px solid var(--border);
+  padding: 20px;
+  background: var(--surface);
+  border-radius: 6px;
+}
+.record-inspector dl > div {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+}
+.record-inspector dt {
+  color: var(--muted);
+}
+.record-inspector dd {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  overflow-wrap: anywhere;
+}
+.numeric {
+  font-family: "Geist Mono Variable", monospace;
+  font-variant-numeric: tabular-nums;
+}
+.column-picker {
+  position: relative;
+}
+.column-picker label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 44px;
+}
+button,
+input,
+select,
+summary {
+  min-height: 44px;
+}
+input[type="checkbox"] {
+  min-height: unset;
+}
+.table-scroll th:first-child,
+.table-scroll td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+.react-flow__controls button {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+}
+.canvas .react-flow__attribution {
+  background: var(--surface);
+}
+.canvas .react-flow__attribution a {
+  color: var(--muted);
+  font-size: 14px;
+}
+.flow-node strong {
+  font-size: 14px;
+}
+.logic-layout {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.logic-layout > .inspector {
+  width: 340px;
+  max-width: 60vw;
+  min-width: 260px;
+  resize: horizontal;
+}
+.close-details {
+  align-self: flex-end;
+}
+@media (max-width: 800px) {
+  input,
+  select {
+    font-size: 16px;
+  }
+  .app-bar {
+    padding: 0 20px;
+  }
+  .workflow-row {
+    grid-template-columns: minmax(0, 1fr) 150px;
+    gap: 12px;
+  }
+  .workflow-row > span:last-child {
+    display: none;
+  }
+  .title-row {
+    gap: 10px;
+  }
+  .header-actions {
+    flex-wrap: wrap;
+  }
+  .breadcrumbs {
+    margin-bottom: 12px;
+  }
+  .logic-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .logic-layout > .inspector {
+    max-width: none;
+    width: auto;
+    resize: none;
+  }
+  .logic-layout:has(.has-selection) > div {
+    display: none;
+  }
+  .logic-layout:has(.has-selection) > .inspector {
+    order: -1;
+  }
+  .toolbar input[type="search"] {
+    min-width: 0;
+    width: 100%;
+    flex-basis: 100%;
+  }
+  .record-inspector dl > div {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .latest-summary {
+    padding: 12px 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.record-count {
+  display: block;
+  margin: 4px 0;
+}
+.run-summary {
+  padding: 16px 0;
+  overflow-wrap: anywhere;
+}
+.run-summary dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+.run-summary dd {
+  margin: 4px 0;
+  font-variant-numeric: tabular-nums;
 }

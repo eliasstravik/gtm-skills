@@ -13,6 +13,10 @@ export type WorkflowData = {
     label: string;
     columns: string[];
     labelColumn: string;
+    fields?: Record<
+      string,
+      { label?: string; type?: "text" | "url" | "date" | "number" | "boolean" }
+    >;
   }[];
   relations?: {
     from: string;
@@ -34,6 +38,9 @@ export type DataPage = {
   previous?: string;
   next?: string;
   all: string;
+  total: number;
+  fields: { id: string; label: string; type: string }[];
+  keys: string[];
 };
 
 const PAGE_SIZE = 25;
@@ -42,6 +49,35 @@ const has = (object: object, key: string) =>
   Object.prototype.hasOwnProperty.call(object, key);
 
 export class DataInputError extends Error {}
+
+/** Count registered business tables, respecting the same authored row restrictions. */
+export async function readCounts(
+  config: WorkflowData,
+  registry: Registry,
+  client: Pick<Client, "execute">,
+) {
+  return Promise.all(
+    config.tables.map(async (view) => {
+      const table = registry[view.name];
+      if (!table) throw new DataInputError("Unknown data table");
+      const policy = config.rowPolicies?.[view.name];
+      const field = policy?.column
+        ? getTableColumns(table)[policy.column]
+        : undefined;
+      if (policy?.column && (!field || policy.equals === undefined))
+        throw new DataInputError("Invalid row restriction");
+      const result = await client.execute({
+        sql: `SELECT COUNT(*) AS total FROM ${quote(getTableName(table))}${field ? ` WHERE ${quote(field.name)} = ?` : ""}`,
+        args: field ? [policy!.equals!] : [],
+      });
+      return {
+        table: view.name,
+        label: view.label,
+        total: Number(result.rows[0].total),
+      };
+    }),
+  );
+}
 
 /** All SQL identifiers come from the authored registry; URL values are bound parameters. */
 export async function readData(
@@ -113,6 +149,42 @@ export async function readData(
     conditions.push(`v.${column(selected.name, "key")} = ?`);
     args.push(key);
   }
+  const allowedColumn = (property: string) => {
+    if (!selected.columns.includes(property))
+      throw new DataInputError("Field is not available in this workflow");
+    return `v.${column(selected.name, property)}`;
+  };
+  const search = url.searchParams.get("q") ?? "";
+  if (search.length > 256) throw new DataInputError("Search is too long");
+  if (search) {
+    conditions.push(
+      `(${selected.columns.map((c) => `CAST(${allowedColumn(c)} AS TEXT) LIKE ? ESCAPE '\\'`).join(" OR ")})`,
+    );
+    args.push(
+      ...selected.columns.map(() => `%${search.replace(/[\\%_]/g, "\\$&")}%`),
+    );
+  }
+  const filter = url.searchParams.get("field");
+  if (filter) {
+    const field = allowedColumn(filter);
+    const op = url.searchParams.get("operator") ?? "eq";
+    const operators: Record<string, string> = {
+      eq: "=",
+      ne: "!=",
+      gt: ">",
+      lt: "<",
+    };
+    if (op === "missing") conditions.push(`${field} IS NULL`);
+    else if (Object.hasOwn(operators, op)) {
+      conditions.push(`${field} ${operators[op]} ?`);
+      args.push(url.searchParams.get("value") ?? "");
+    } else throw new DataInputError("Invalid filter operator");
+  }
+  const sort = url.searchParams.get("sort") ?? selected.labelColumn;
+  const order = url.searchParams.get("order") ?? "asc";
+  if (!["asc", "desc"].includes(order))
+    throw new DataInputError("Invalid sort direction");
+  const sortField = allowedColumn(sort);
   const relatedTable = url.searchParams.get("relatedTable");
   const relatedKey = url.searchParams.get("relatedKey");
   let context: string | undefined;
@@ -145,8 +217,12 @@ export async function readData(
     .map((c) => `v.${column(selected.name, c)} AS ${quote(c)}`)
     .join(", ");
   const result = await client.execute({
-    sql: `SELECT ${fields} FROM ${physical(selected.name)} v${conditions.length ? ` WHERE ${conditions.join(" AND ")}` : ""} ORDER BY v.${column(selected.name, "key")} LIMIT ? OFFSET ?`,
+    sql: `SELECT ${fields} FROM ${physical(selected.name)} v${conditions.length ? ` WHERE ${conditions.join(" AND ")}` : ""} ORDER BY ${sortField} ${order.toUpperCase()}, v.${column(selected.name, "key")} LIMIT ? OFFSET ?`,
     args: [...args, PAGE_SIZE + 1, page * PAGE_SIZE],
+  });
+  const total = await client.execute({
+    sql: `SELECT COUNT(*) AS total FROM ${physical(selected.name)} v${conditions.length ? ` WHERE ${conditions.join(" AND ")}` : ""}`,
+    args,
   });
   const records = result.rows.slice(0, PAGE_SIZE);
   const counts: Map<string, number>[] = [];
@@ -176,6 +252,17 @@ export async function readData(
         : {}),
     });
   return {
+    total: Number(total.rows[0].total),
+    keys: records.map((row) => String(row.key)),
+    fields: selected.columns.map((id) => ({
+      id,
+      label:
+        selected.fields?.[id]?.label ??
+        id.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll("_", " "),
+      type:
+        selected.fields?.[id]?.type ??
+        getTableColumns(registry[selected.name])[id].dataType,
+    })),
     title: selected.label,
     context,
     tabs: config.tables.map((v) => ({
@@ -188,20 +275,24 @@ export async function readData(
       ...relations.map((r) => other(r).label),
     ],
     rows: records.map((row) => [
-      ...selected.columns.map((c): Cell => ({
-        value: row[c],
-        ...(c === selected.labelColumn
-          ? { href: href({ table: selected.name, key: String(row.key) }) }
-          : {}),
-      })),
-      ...relations.map((r, i): Cell => ({
-        value: `View ${counts[i].get(String(row.key)) ?? 0}`,
-        href: href({
-          table: other(r).name,
-          relatedTable: selected.name,
-          relatedKey: String(row.key),
+      ...selected.columns.map(
+        (c): Cell => ({
+          value: row[c],
+          ...(c === selected.labelColumn
+            ? { href: href({ table: selected.name, key: String(row.key) }) }
+            : {}),
         }),
-      })),
+      ),
+      ...relations.map(
+        (r, i): Cell => ({
+          value: `View ${counts[i].get(String(row.key)) ?? 0}`,
+          href: href({
+            table: other(r).name,
+            relatedTable: selected.name,
+            relatedKey: String(row.key),
+          }),
+        }),
+      ),
     ]),
     ...(page > 0 ? { previous: pagination(page - 1) } : {}),
     ...(result.rows.length > PAGE_SIZE ? { next: pagination(page + 1) } : {}),

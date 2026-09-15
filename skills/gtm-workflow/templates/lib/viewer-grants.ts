@@ -76,7 +76,7 @@ export function grants(
       const views = options.views === undefined ? ["logic"] : options.views;
       if (
         !Array.isArray(views) ||
-        !views.includes("logic") ||
+        views.length === 0 ||
         views.length > 3 ||
         new Set(views).size !== views.length ||
         views.some((v) => !["logic", "runs", "data"].includes(v))
@@ -84,7 +84,7 @@ export function grants(
         throw new ViewerError(
           400,
           "invalid_scope",
-          "Choose Logic and optionally Runs or Data.",
+          "Choose at least one of Diagram, Runs and Data.",
         );
       if (views.includes("data") && !policy)
         throw new ViewerError(
@@ -150,7 +150,11 @@ export function grants(
       if (!result.rowsAffected)
         throw new ViewerError(404, "not_found", "Link not found.");
     },
-    async authorize(token: string, view: View, policy?: DataPolicy) {
+    async authorize(
+      token: string,
+      view: View | undefined,
+      policy?: DataPolicy,
+    ) {
       if (!/^[A-Za-z0-9_-]{43}$/.test(token))
         throw new ViewerError(404, "invalid_grant", "Link unavailable.");
       const rows = await client.execute({
@@ -164,10 +168,10 @@ export function grants(
         throw new ViewerError(410, "revoked", "This link was revoked.");
       if (grant.expiresAt !== null && grant.expiresAt <= clock())
         throw new ViewerError(410, "expired", "This link expired.");
-      if (!grant.views.includes(view))
+      if (view && !grant.views.includes(view))
         throw new ViewerError(403, "view_denied", "This view is not shared.");
       if (
-        view === "data" &&
+        grant.views.includes("data") &&
         (!policy || grant.dataPolicy !== policyVersion(policy))
       )
         throw new ViewerError(

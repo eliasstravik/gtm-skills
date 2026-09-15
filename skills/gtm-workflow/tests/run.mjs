@@ -13,7 +13,12 @@ const { build } = require("esbuild");
 const dir = await mkdtemp(join(tmpdir(), "gtm-data-tests-"));
 try {
   await symlink(join(runtime, "node_modules"), join(dir, "node_modules"));
-  for (const name of ["linked-data", "viewer-grants"]) {
+  for (const name of [
+    "linked-data",
+    "viewer-grants",
+    "inspection",
+    "viewer-api",
+  ]) {
     const outfile = join(dir, `${name}.test.mjs`);
     await build({
       entryPoints: [
@@ -25,6 +30,29 @@ try {
       format: "esm",
       packages: "external",
       tsconfigRaw: { compilerOptions: {} },
+      ...(name === "viewer-api"
+        ? {
+            plugins: [
+              {
+                name: "isolated-viewer-adapters",
+                setup(build) {
+                  build.onResolve(
+                    {
+                      filter:
+                        /^(#viewer-registry|workflow\/runtime|@workflow\/core\/serialization|\.\/db|\.\/runs-api|\.\.\/db\/tables)$/,
+                    },
+                    () => ({
+                      path: join(
+                        dirname(fileURLToPath(import.meta.url)),
+                        "api-fixture.ts",
+                      ),
+                    }),
+                  );
+                },
+              },
+            ],
+          }
+        : {}),
     });
     const result = spawnSync(process.execPath, ["--test", outfile], {
       stdio: "inherit",

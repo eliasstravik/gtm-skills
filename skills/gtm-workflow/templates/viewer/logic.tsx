@@ -1,4 +1,8 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useRef, useState } from "react";
+import { stageGraph } from "../lib/viewer-display";
+import { useRead, Payload, Status, time } from "./common";
+import { href, navigate, shared } from "./navigation";
+const viewports = new Map<string, { x: number; y: number; zoom: number }>();
 import {
   ReactFlow,
   Background,
@@ -20,7 +24,7 @@ function Node({ data }: any) {
       {data.parallel && <p className="muted">Parallel</p>}
       {data.count > 0 && (
         <p className="node-count">
-          {data.count} invocation{data.count === 1 ? "" : "s"}
+          {data.count} loaded invocation{data.count === 1 ? "" : "s"}
           {data.status ? ` · ${data.status}` : ""}
         </p>
       )}
@@ -29,18 +33,63 @@ function Node({ data }: any) {
   );
 }
 const nodeTypes = { viewer: Node };
-export default function Logic({
-  workflow,
-  useRead,
-  href,
-  Payload,
-  runsAllowed = true,
-}: any) {
+export default function Logic({ workflow, runsAllowed = true }: any) {
   const params = new URLSearchParams(location.search);
   const run = runsAllowed ? params.get("run") : null;
   const state = useRead("run", Boolean(run));
   const detail = run ? state.data : undefined;
-  const graph = detail?.graph ?? workflow.graph;
+  const source = detail?.graph ?? workflow.graph;
+  const expanded = (params.get("expanded") ?? "").split(",").filter(Boolean);
+  const stages = (detail?.graph ? detail.stages : workflow.stages) ?? [];
+  const structure = JSON.stringify([source, stages, expanded]);
+  const graph = useMemo(
+    () => (source ? stageGraph(source, stages, expanded) : undefined),
+    [structure],
+  );
+  const stage = stages.find(
+    (s: any) =>
+      s.id === params.get("node") || s.nodes.includes(params.get("node")),
+  );
+  const latest = useRead("runs", runsAllowed && !run);
+  const panel = useRef<HTMLElement>(null);
+  const [theme, setTheme] = useState<"light" | "dark">(
+    matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+  );
+  useEffect(() => {
+    const media = matchMedia("(prefers-color-scheme: dark)");
+    const change = () => setTheme(media.matches ? "dark" : "light");
+    media.addEventListener("change", change);
+    return () => media.removeEventListener("change", change);
+  }, []);
+  useEffect(() => {
+    if (params.get("node") && window.innerWidth < 800) panel.current?.focus();
+  }, [params.get("node")]);
+  const selection = params.get("node");
+  const previousSelection = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selection && previousSelection.current) {
+      const previous = previousSelection.current;
+      const link = [
+        ...document.querySelectorAll<HTMLAnchorElement>(
+          ".stage-nav a, .structure-list a",
+        ),
+      ].find((a) => new URL(a.href).searchParams.get("node") === previous);
+      link?.focus();
+    }
+    previousSelection.current = selection;
+    if (!selection) return;
+    const escape = (event: KeyboardEvent) => {
+      if (
+        event.key === "Escape" &&
+        !(event.target as Element).closest("dialog")
+      ) {
+        event.preventDefault();
+        navigate(href({ node: undefined }));
+      }
+    };
+    document.addEventListener("keydown", escape);
+    return () => document.removeEventListener("keydown", escape);
+  }, [selection]);
   const selected = graph?.nodes.find((n: any) => n.id === params.get("node"));
   const layout = useMemo(() => {
     const g = new dagre.graphlib.Graph();
@@ -60,12 +109,7 @@ export default function Logic({
           ...n.data,
           loop: n.metadata?.loopId,
           parallel: n.metadata?.parallelGroupId,
-          count: detail?.mapped?.[n.id]?.length ?? 0,
-          status: detail?.steps
-            ?.filter((s: any) => detail.mapped?.[n.id]?.includes(s.id))
-            .at(-1)?.status,
         },
-        selected: n.id === selected?.id,
       })),
       edges: (graph?.edges ?? []).map((e: any) => ({
         ...e,
@@ -80,13 +124,29 @@ export default function Logic({
         animated: false,
       })),
     };
-  }, [graph, detail, selected?.id]);
+  }, [graph]);
+  const nodes = useMemo(
+    () =>
+      layout.nodes.map((node: any) => ({
+        ...node,
+        selected: node.id === selected?.id,
+        data: {
+          ...node.data,
+          count: detail?.mapped?.[node.id]?.length ?? 0,
+          status: detail?.steps
+            ?.filter((s: any) => detail.mapped?.[node.id]?.includes(s.id))
+            .at(-1)?.status,
+        },
+      })),
+    [layout, detail, selected?.id],
+  );
+  const viewportKey = `${workflow.id}:${detail?.revision ?? workflow.revision}`;
   const focus =
     layout.nodes.find((n: any) => n.id === (selected?.id ?? "start")) ??
     layout.nodes[0];
   const canvasWidth =
     window.innerWidth > 800 ? window.innerWidth - 340 : window.innerWidth;
-  const viewport = {
+  const viewport = viewports.get(viewportKey) ?? {
     x: canvasWidth / 2 - 115 - (focus?.position.x ?? 0),
     y: 40 - (focus?.position.y ?? 0),
     zoom: 1,
@@ -98,9 +158,24 @@ export default function Logic({
     : [];
   return (
     <section>
+      {stages.length > 0 && (
+        <nav className="stage-nav" aria-label="Business stages">
+          {stages.map((s: any) => (
+            <a
+              key={s.id}
+              href={href({ node: expanded.includes(s.id) ? s.nodes[0] : s.id })}
+              aria-current={stage?.id === s.id ? "true" : undefined}
+            >
+              {s.title}
+            </a>
+          ))}
+        </nav>
+      )}
       <div className="logic-toolbar">
         <p className="muted">
-          Code-authored logic · Select a step to inspect it.
+          {stages.length
+            ? "Business stages · Select a stage to inspect exact steps."
+            : "Business overview unavailable. Showing the exact workflow structure."}
         </p>
         {runsAllowed &&
           (run ? (
@@ -111,6 +186,23 @@ export default function Logic({
             <a href={href({ view: "runs" })}>Select a run</a>
           ))}
       </div>
+      {!run && runsAllowed && (
+        <p className="latest-summary">
+          Latest run:{" "}
+          {latest.error ? (
+            "History unavailable"
+          ) : latest.loading ? (
+            "Loading…"
+          ) : latest.data?.data[0] ? (
+            <a href={href({ view: "runs", run: latest.data.data[0].id })}>
+              <Status value={latest.data.data[0].status} /> ·{" "}
+              {time(latest.data.data[0].createdAt)} · View run
+            </a>
+          ) : (
+            "Never run"
+          )}
+        </p>
+      )}
       {run &&
         (state.error ? (
           <p className="notice error" role="alert">
@@ -135,26 +227,42 @@ export default function Logic({
       ) : (
         <div className="logic-layout">
           <div>
-            <div className="canvas" aria-label="Workflow diagram">
+            <div className="canvas" role="region" aria-label="Workflow diagram">
               <ReactFlow
-                nodes={layout.nodes}
+                nodes={nodes}
                 edges={layout.edges}
                 nodeTypes={nodeTypes}
                 nodesDraggable={false}
                 nodesConnectable={false}
                 elementsSelectable
                 deleteKeyCode={null}
+                key={viewportKey}
+                colorMode={theme}
                 defaultViewport={viewport}
+                onMoveEnd={(_event, next) => viewports.set(viewportKey, next)}
                 minZoom={0.2}
                 maxZoom={1.5}
-                onNodeClick={(_e, n) => location.assign(href({ node: n.id }))}
+                onNodeClick={(_e, n) => navigate(href({ node: n.id }))}
+                onKeyDown={(event) => {
+                  const id = (event.target as Element)
+                    .closest("[data-id]")
+                    ?.getAttribute("data-id");
+                  if (id && (event.key === "Enter" || event.key === " ")) {
+                    event.preventDefault();
+                    navigate(href({ node: id }));
+                  }
+                }}
               >
                 <Background gap={20} size={1} />
                 <Controls showInteractive={false} />
               </ReactFlow>
             </div>
             <details className="structure-list" open={window.innerWidth < 800}>
-              <summary>Step list</summary>
+              <summary>
+                {stages.length
+                  ? "Stage outline and exact steps"
+                  : "Step outline"}
+              </summary>
               <ol role="list">
                 {graph.nodes.map((n: any) => (
                   <li key={n.id}>
@@ -164,19 +272,76 @@ export default function Logic({
               </ol>
             </details>
           </div>
-          <aside className="inspector" aria-label="Node details">
+          <aside
+            ref={panel}
+            tabIndex={-1}
+            className={`inspector ${selected ? "has-selection" : ""}`}
+            aria-label="Node details"
+          >
+            {selected && (
+              <button
+                className="close-details"
+                onClick={() => navigate(href({ node: undefined }))}
+              >
+                Close details
+              </button>
+            )}
             {selected ? (
               <>
-                <p className="eyebrow">STEP DETAILS</p>
+                <p className="eyebrow">
+                  {stage ? "BUSINESS STAGE" : "STEP DETAILS"}
+                </p>
                 <h2>{selected.data.label}</h2>
+                {stage && (
+                  <>
+                    <p>{stage.description}</p>
+                    <button
+                      onClick={() =>
+                        navigate(
+                          href({
+                            expanded: expanded.includes(stage.id)
+                              ? expanded
+                                  .filter((id) => id !== stage.id)
+                                  .join(",") || undefined
+                              : [...expanded, stage.id].join(","),
+                            node: expanded.includes(stage.id)
+                              ? stage.id
+                              : stage.nodes[0],
+                          }),
+                        )
+                      }
+                    >
+                      {expanded.includes(stage.id)
+                        ? "Collapse exact steps"
+                        : "Expand exact steps"}
+                    </button>
+                    <ul>
+                      {stage.nodes.map((id: string) => (
+                        <li key={id}>
+                          <a
+                            href={href({
+                              expanded: [
+                                ...new Set([...expanded, stage.id]),
+                              ].join(","),
+                              node: id,
+                            })}
+                          >
+                            {source.nodes.find((n: any) => n.id === id)?.data
+                              .label ?? id}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
                 <p className="muted">{selected.data.nodeKind}</p>
-                {selected.metadata?.loopId && (
+                {Boolean(selected.metadata?.loopId) && (
                   <p>Repeats within the row loop.</p>
                 )}
-                {selected.metadata?.parallelGroupId && (
+                {Boolean(selected.metadata?.parallelGroupId) && (
                   <p>
                     Runs in parallel with other calls in{" "}
-                    {selected.metadata.parallelGroupId}.
+                    {String(selected.metadata?.parallelGroupId)}.
                   </p>
                 )}
                 <code>{selected.data.stepId ?? selected.id}</code>

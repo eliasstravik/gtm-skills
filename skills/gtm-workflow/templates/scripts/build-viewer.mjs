@@ -1,5 +1,5 @@
 import { BaseBuilder, createBaseBuilderConfig } from "@workflow/builders";
-import { build } from "esbuild";
+import { bundleViewer } from "./bundle-viewer.mjs";
 import { mkdir, readFile, writeFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
@@ -68,17 +68,26 @@ const registry = registrySource().map((entry) => {
   for (const m of entry.mappings ?? [])
     if (!nodes.has(m.nodeId) || !stepIds.has(m.stepName))
       throw Error("Invalid call-site mapping");
+  const assigned = new Set(),
+    stageIds = new Set();
+  for (const stage of entry.stages ?? []) {
+    if (
+      !stage.id ||
+      nodes.has(stage.id) ||
+      stageIds.has(stage.id) ||
+      !stage.title?.trim() ||
+      !stage.description?.trim() ||
+      !stage.nodes?.length
+    )
+      throw Error("Invalid business stage");
+    stageIds.add(stage.id);
+    for (const id of stage.nodes) {
+      if (!nodes.has(id) || assigned.has(id))
+        throw Error("Unknown or multiply assigned stage node");
+      assigned.add(id);
+    }
+  }
   return { ...entry, workflowName: compiled.workflowId, graph, revision };
 });
 await writeFile(`${out}/registry.json`, JSON.stringify(registry));
-await mkdir("public/viewer-assets", { recursive: true });
-await build({
-  entryPoints: ["viewer/app.tsx"],
-  outfile: "public/viewer-assets/app.js",
-  bundle: true,
-  minify: true,
-  format: "esm",
-  platform: "browser",
-  jsx: "automatic",
-  define: { "process.env.NODE_ENV": '"production"' },
-});
+await bundleViewer();
