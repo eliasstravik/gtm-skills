@@ -11,7 +11,9 @@ Apply this skill when a request concerns a saved workflow: creating, changing, r
 
 When creating or changing a workflow that enriches connections or followers and their current companies, load [gtm-workflow-enrich-network](../gtm-workflow-enrich-network/SKILL.md) when installed for that recipe; this skill still owns its lifecycle. Ordinary runs of an unchanged workflow need only this skill.
 
-Bare `/gtm-workflow` or `/gtm-workflows` asks **What would you like to do?** with three choices: **Open GTM Workflows**, **Create a workflow**, **Manage a workflow**. Wait for the choice. Manage asks which workflow and action: change, run/test, schedule/deploy, upgrade/repair, or delete. Explicit requests route directly to that action. Bare entry performs no creation, execution or deployment. If Open finds no workspace, explain workspace setup; if the workspace has no workflows, show its empty list.
+Show the intent menu only when the user's entire request is `/gtm-workflow` or `/gtm-workflows`, with no action or other words. Ask **What would you like to do?** with three choices: **Open GTM Workflows**, **Create a workflow**, **Manage a workflow**, and wait. Manage asks which workflow and action: change, run/test, schedule/deploy, upgrade/repair, or delete. Bare entry performs no creation, execution or deployment.
+
+**Open GTM Workflows** is already an explicit Open request. Resolve the verified viewer URL and return it immediately using [entry links](references/entry-links.md); do not show the intent menu or ask the user to choose Open again. Loading this skill does not turn an explicit request into a bare invocation. Other explicit actions also go directly to their procedure. If Open finds no workspace, explain workspace setup; if the workspace has no workflows, show its empty list.
 
 ## Scope
 
