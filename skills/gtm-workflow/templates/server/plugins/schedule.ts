@@ -3,6 +3,7 @@ import { definePlugin } from "nitro";
 import { start } from "workflow/api";
 import { viewerAttributes } from "../../lib/viewer-provenance";
 import { workflows } from "../../workflows";
+import { findWorkflow } from "../../lib/workflow-registry";
 import vercelJson from "../../vercel.json";
 
 /**
@@ -16,7 +17,7 @@ export default definePlugin(() => {
     schedule: string;
   }[]) {
     const slug = path.replace(/^\/api\/run\//, "");
-    const wf = workflows[slug as keyof typeof workflows];
+    const wf = findWorkflow(workflows, slug);
     if (!wf) {
       console.warn(`[gtm] vercel.json schedules unknown workflow ${slug}`);
       continue;
