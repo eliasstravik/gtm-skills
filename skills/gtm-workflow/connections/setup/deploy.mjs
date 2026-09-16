@@ -42,7 +42,13 @@ async function provisionHosted({ workspace, team, githubOwner, upgrade = false, 
   for (const name of [workflowName, adminName, shareProject, ...(agentProject ? [agentProject] : [])]) requireThat(/^[a-z0-9][a-z0-9-]{0,99}$/.test(name), "invalid_project_name");
   requireThat(!config.production?.repository || config.production.repository === `${owner}/${repo}`, "production_repository_changed", 409);
   const component = config.component ?? await installComponent();
-  const workflow = await ensureProject({ api, journal, teamId: teamData.id, definition: { name: workflowName, framework: "nitro", rootDirectory: "workflows", gitRepository: { type: "github", repo: `${owner}/${repo}` }, ssoProtection: { deploymentType: "all" } } });
+  let workflow;
+  try { workflow = await ensureProject({ api, journal, teamId: teamData.id, definition: { name: workflowName, framework: "nitro", rootDirectory: "workflows", gitRepository: { type: "github", repo: `${owner}/${repo}` }, ssoProtection: { deploymentType: "all" } } }); }
+  catch (error) {
+    if (error.code !== "github_repository_access_required") throw error;
+    return { status: "human_step", stage: "github_repository_access", repository: `${owner}/${repo}`,
+      settings: "https://github.com/settings/installations", instruction: "Add this repository to the Vercel GitHub App's selected repositories, preserve existing selections, then resume setup." };
+  }
   const admin = await ensureProject({ api, journal, teamId: teamData.id, definition: { name: adminName, framework: null, ssoProtection: { deploymentType: "all" } } });
   const fixed = { teamId: teamData.id, ownerId: user.id, projectId: workflow.id, adminProjectId: admin.id };
   requireThat(!config.production || (config.production.projectId === fixed.projectId && config.production.adminProjectId === fixed.adminProjectId && config.production.teamId === fixed.teamId), "production_binding_changed", 409);

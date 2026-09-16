@@ -2,9 +2,15 @@ import { spawnSync } from "node:child_process";
 import { requireThat, ConnectionError } from "../src/errors.mjs";
 export function captured(command, args, { input, cwd } = {}) {
   const result = spawnSync(command, args, { input, cwd, encoding: "utf8", stdio: "pipe", maxBuffer: 8 * 1024 * 1024 });
+  if (result.status !== 0 && command === "vercel" && args[0] === "api" && args.includes("POST") && args[1] === "/v10/projects" &&
+    /repository[^\n]{0,200}couldn't be found/i.test(result.stderr ?? ""))
+    throw new ConnectionError("github_repository_access_required", 409);
   if (result.status !== 0 && command === "vercel" && args[0] === "integration" && args[1] === "add" &&
     /accept-terms|terms[^\n]{0,100}accept/i.test(`${result.stdout ?? ""}\n${result.stderr ?? ""}`))
     throw new ConnectionError("marketplace_terms_required", 409);
+  if (result.status !== 0 && command === "vercel" && args[0] === "integration" && args[1] === "add" &&
+    /Additional setup required\. Opening browser/.test(`${result.stdout ?? ""}\n${result.stderr ?? ""}`))
+    throw new ConnectionError("marketplace_browser_setup_required", 409);
   requireThat(result.status === 0, `${command.replace(/[^a-z0-9]/gi, "_")}_command_failed`, 503);
   return result.stdout;
 }

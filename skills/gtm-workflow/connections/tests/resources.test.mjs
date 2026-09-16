@@ -73,3 +73,43 @@ test("project creation reconciles an uncertain response and refuses a substitute
   await assert.rejects(ensureProject(args), /project_creation_unresolved/);
   assert.equal(creates, 1);
 });
+
+test("GitHub App access denial can resume after access is granted", async () => {
+  const { ensureProject } = await import("../setup/resources.mjs");
+  const data = new Map(), journal = { get: async key => data.get(key), set: async (key, value) => data.set(key, value) };
+  const definition = { name: "connections" }; let allowed = false, projects = [];
+  const api = async method => {
+    if (method === "POST") {
+      if (!allowed) throw new ConnectionError("github_repository_access_required", 409);
+      projects = [{ id: "admin", accountId: "team", name: definition.name }];
+    }
+    return { projects };
+  };
+  const options = { api, journal, teamId: "team", definition };
+  await assert.rejects(ensureProject(options), /github_repository_access_required/);
+  allowed = true;
+  assert.equal((await ensureProject(options)).id, "admin");
+});
+
+test("marketplace browser setup waits without creating duplicate resources", async () => {
+  const directory = await mkdtemp(join(homedir(), ".gtm-db-test-"));
+  const data = new Map(), journal = { get: async key => data.get(key), set: async (key, value) => data.set(key, value) };
+  let creates = 0;
+  const options = { api: async () => ({ envs: [] }), team: "test", project: { id: "admin", name: "admin" }, fixed: { teamId: "team" }, state: { directory }, journal,
+    run: (_command, args) => {
+      if (args[1] === "list") return '{"resources":[]}';
+      creates++; throw new ConnectionError("marketplace_browser_setup_required", 409);
+    } };
+  try {
+    assert.equal((await ensureDatabase(options)).stage, "database_browser_setup");
+    assert.equal((await ensureDatabase(options)).stage, "database_browser_setup");
+    assert.equal(creates, 1);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test("safe errors survive the separately loaded immutable component boundary", async () => {
+  const { safeError } = await import("../src/errors.mjs");
+  const isolated = await import("../src/errors.mjs?immutable-component");
+  assert.deepEqual(safeError(new isolated.ConnectionError("github_repository_access_required", 409)), { error: "github_repository_access_required", status: 409 });
+  assert.deepEqual(safeError(new Error("sensitive CLI output")), { error: "connections_unavailable", status: 503 });
+});

@@ -22,9 +22,15 @@ export async function ensureProject({ api, journal, teamId, definition }) {
   const key = `project:${definition.name}`, prior = await journal.get(key);
   let project = await projectByName(api, definition.name);
   if (!project) {
-    requireThat(!prior, "project_creation_unresolved", 409);
+    requireThat(!prior || prior.phase === "access_required", "project_creation_unresolved", 409);
     await journal.set(key, { phase: "create_attempted", name: definition.name, teamId });
-    try { await api("POST", "/v10/projects", definition); } catch { /* A lost response may still have created the project. */ }
+    try { await api("POST", "/v10/projects", definition); } catch (error) {
+      if (error.code === "github_repository_access_required") {
+        await journal.set(key, { phase: "access_required", name: definition.name, teamId });
+        throw error;
+      }
+      // A lost response may still have created the project.
+    }
     project = await projectByName(api, definition.name);
     requireThat(project, "project_creation_unresolved", 409);
   }
@@ -63,6 +69,9 @@ export async function ensureDatabase({ api, team, project, fixed, state, journal
   };
   let resource = list();
   const prior = await journal.get(key);
+  const browserStep = () => ({ status: "human_step", stage: "database_browser_setup", projectId: project.id,
+    instruction: "Complete the Turso marketplace setup opened by Vercel, then resume. No database credentials need to be copied." });
+  if (!resource && prior?.phase === "browser_required") return browserStep();
   if (!resource) {
     requireThat(!prior || prior.phase !== "create_attempted", "database_creation_unresolved", 409);
     await journal.set(key, { phase: "create_attempted", name });
@@ -72,6 +81,10 @@ export async function ensureDatabase({ api, team, project, fixed, state, journal
     } catch (error) {
       resource = list();
       if (!resource) {
+        if (error.code === "marketplace_browser_setup_required") {
+          await journal.set(key, { phase: "browser_required", name });
+          return browserStep();
+        }
         if (error.code !== "marketplace_terms_required") throw error;
         await journal.set(key, { phase: "terms_required", name });
         return { status: "human_step", stage: "database_terms", projectId: project.id,

@@ -1,10 +1,10 @@
 export class ConnectionError extends Error {
-  constructor(code, status = 400) { super(code); this.code = code; this.status = status; }
+  constructor(code, status = 400) { super(code); this.name = "ConnectionError"; this.code = code; this.status = status; }
 }
 export const requireThat = (condition, code, status = 400) => {
   if (!condition) throw new ConnectionError(code, status);
 };
-export const safeError = (error) => error instanceof ConnectionError
+export const safeError = (error) => error instanceof ConnectionError || error?.name === "ConnectionError" && /^[a-z][a-z0-9_]{1,100}$/.test(error.code) && Number.isInteger(error.status) && error.status >= 400 && error.status < 600
   ? { error: error.code, status: error.status, ...(error.code === "unlock_os_credential_store" ? {
     instruction: "Unlock your OS credential store. On Linux, start and unlock a Secret Service provider such as GNOME Keyring in your desktop session, then rerun setup.",
   } : {}) }
