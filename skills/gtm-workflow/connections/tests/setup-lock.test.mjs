@@ -11,5 +11,5 @@ test("only one setup holds an instance lock, and release permits a resume", asyn
     await assert.rejects(setupLock({ directory }), /setup_already_running/);
     await release(); await release();
     const next = await setupLock({ directory }); await next();
-  } finally { await rm(directory, { recursive: true, force: true }); }
+  } finally { await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); }
 });

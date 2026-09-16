@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { initialize, request, clearSession, localMode, integratedMode } from "./transport.mjs";
 import "@fontsource-variable/geist/index.css";
-import "../shared/style.css";
+import "../viewer/style.css";
 import "./style.css";
 const messages = {
   private_browser_required: "Open this project's private Workflows URL and sign in through Vercel to manage connections.",

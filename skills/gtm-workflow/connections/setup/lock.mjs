@@ -2,15 +2,17 @@ import { createClient } from "@libsql/client";
 import { open, lstat } from "node:fs/promises";
 import { join } from "node:path";
 import { requireThat, ConnectionError } from "../src/errors.mjs";
+import { windowsState } from "../local/windows-state.mjs";
 
 /** SQLite holds the local OS lock. Process exit releases it, including a crash. */
 export async function setupLock(state) {
   const path = join(state.directory, "provisioning-lock.db");
-  try { const file = await open(path, "wx", 0o600); await file.close(); }
+  try { const file = await open(path, "wx", 0o600); await file.close(); windowsState(path, "protect"); }
   catch (error) { if (error.code !== "EEXIST") throw error; }
   const stat = await lstat(path);
-  requireThat(stat.isFile() && !stat.isSymbolicLink() && !(stat.mode & 0o077) &&
+  requireThat(stat.isFile() && !stat.isSymbolicLink() && (process.platform === "win32" || !(stat.mode & 0o077)) &&
     (!process.getuid || stat.uid === process.getuid()), "unsafe_state_file", 403);
+  windowsState(path);
   const db = createClient({ url: `file:${path}`, timeout: 0 });
   let tx;
   try { tx = await db.transaction("write"); }

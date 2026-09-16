@@ -8,4 +8,5 @@ data/
 .vercel
 
 public/viewer-assets/
+public/connections-assets/
 /.swc

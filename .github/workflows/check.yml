@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -32,6 +32,10 @@ jobs:
           dbus-run-session -- bash -c 'printf "synthetic-ci-keyring-password" | gnome-keyring-daemon --unlock --components=secrets; npm test'
       - name: Verify Connections with native macOS storage
         if: runner.os == 'macOS'
+        working-directory: skills/gtm-workflow/connections
+        run: npm test
+      - name: Verify Connections with native Windows storage and private state
+        if: runner.os == 'Windows'
         working-directory: skills/gtm-workflow/connections
         run: npm test
   check:

@@ -1,10 +1,10 @@
 # Deploy
 
-For first-time hosting, use the trusted installed skill's `scripts/setup.mjs --workspace <path> --deploy --team <team> [--github-owner <owner>]`. This shared setup works without GTM Agent or Slack. It creates the repository when needed, private workflow project, separate Connections project and database, protected machine access, and share companion. It preserves existing credentials and authored files. See [Connections setup](connections.md) for registration, consent, resume, and verification.
+Connections uses an existing protected workflow project. Run the trusted skill's `scripts/setup.mjs --workspace <path> --deploy --team <team> --workflow-project <existing-project>`. It configures project-scoped access and creates no additional projects or databases. See [Connections setup](connections.md) for the token setup and browser verification.
 
-The local owner process uses signed-in GitHub and Vercel CLIs. The hosted workflow/agent receives no owner token or Connections administration credentials. Unsupported identity and integration registration steps use the documented owner dashboard flow; remaining provisioning stays in the CLI. Enter provider keys directly in the protected Production Connections form. Local keys are never uploaded automatically.
+Enter provider keys directly in the private Workflows UI's Connections tab. Local keys are never uploaded automatically. Production changes save Vercel Secrets and take effect after a deliberate workflow deployment.
 
-After setup, ordinary authored workflow deployment is a push to the workspace repository's production branch. The project builds from `workflows/`. Deploying Connections itself requires an explicit trusted component upgrade; editing a workspace cannot change its manager. Connection CRUD only saves settings. Apply them with a deliberate workflow deployment.
+Ordinary authored workflow deployment is a push to the workspace repository's production branch. The project builds from `workflows/`; Connections deploys with that runtime. Preserve the existing isolated share project and its access restrictions.
 
 ## Verify deployment
 

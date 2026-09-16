@@ -20,9 +20,10 @@ async function main() {
     const current = await privateJson(join(state.directory, "manager.json"));
     let alive = false; if (current) try { process.kill(current.pid, 0); alive = true; } catch {}
     if (alive) {
-      requireThat(current.ipcPath.startsWith(state.directory + "/m-"), "invalid_ipc_path", 403);
+      requireThat(process.platform === "win32" ? current.ipcPath.startsWith(`\\\\.\\pipe\\gtm-connections-${state.id}-`) : current.ipcPath.startsWith(state.directory + "/m-"), "invalid_ipc_path", 403);
+      requireThat(typeof current.ipcToken === "string" && /^[a-f0-9]{64}$/.test(current.ipcToken), "reopen_connections", 409);
       const result = await new Promise((resolve, reject) => {
-        const req = httpRequest({ socketPath: current.ipcPath, path: "/connections", timeout: 5000 }, (res) => {
+        const req = httpRequest({ socketPath: current.ipcPath, path: "/connections", headers: { authorization: `Bearer ${current.ipcToken}` }, timeout: 5000 }, (res) => {
           let size = 0; const chunks = []; res.on("data", (chunk) => { size += chunk.length; if (size > 2 * 1024 * 1024) req.destroy(Error("inventory_too_large")); else chunks.push(chunk); });
           res.on("end", () => { try { requireThat(res.statusCode === 200, "inventory_unavailable", 503); resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch (error) { reject(error); } });
         }); req.on("error", reject); req.on("timeout", () => req.destroy(Error("inventory_unavailable"))); req.end();
