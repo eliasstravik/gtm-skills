@@ -45,7 +45,9 @@ export async function api(
 export function useRead(op: string, enabled = true) {
   useLocation();
   const p = query();
-  for (const name of ["node", "step", "expanded", "columns"]) p.delete(name);
+  for (const name of ["node", "step", "expanded"]) p.delete(name);
+  // Data columns are projected by the API, so Apply must trigger a new read.
+  if (op !== "data") p.delete("columns");
   if (op !== "events") p.delete("eventCursor");
   if (["meta", "workflow"].includes(op))
     for (const key of [...p.keys()])

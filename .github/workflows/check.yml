@@ -19,6 +19,18 @@ jobs:
       - run: node skills/gtm-workflow/tests/authoring.mjs skills/gtm-workflow/templates
       - run: npm run build
         working-directory: skills/gtm-workflow/templates
+      - run: npm install --global agent-browser@0.34.0
+      - run: agent-browser install --with-deps
+      - name: Verify column Apply updates without reload or polling
+        run: |
+          GTM_VIEWER_FIXTURE_COLUMNS=1 node skills/gtm-workflow/tests/serve.mjs skills/gtm-workflow/templates &
+          fixture_pid=$!
+          trap 'kill "$fixture_pid"' EXIT
+          for attempt in $(seq 1 50); do
+            if curl --fail --silent http://127.0.0.1:3942/viewer > /dev/null; then break; fi
+            sleep 0.1
+          done
+          node skills/gtm-workflow/tests/columns-browser-check.mjs /tmp/gtm-columns
       - run: node node_modules/typescript/bin/tsc --noEmit
         working-directory: skills/gtm-workflow/templates
       - run: npm run build:share
