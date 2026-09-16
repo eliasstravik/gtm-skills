@@ -22,6 +22,7 @@ try {
     "viewer-api",
     "web-url",
     "reliability",
+    "cli-mcp",
   ]) {
     const outfile = join(dir, `${name}.test.mjs`);
     await build({

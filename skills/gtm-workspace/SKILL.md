@@ -13,6 +13,8 @@ Apply this skill when a request concerns a GTM workspace as a whole, its organiz
 
 One workspace holds one organization's GTM context as Markdown under `~/.gtm/<org-slug>/`, with git as its memory. This skill owns the workspace root, `ORG.md`, `members/`, and workspace health, and hosts the shared standards in `references/`. ICPs, personas, fit checks, and `workflows/` belong to the other gtm skills; Doctor never inspects the internals of `workflows/`.
 
+Workflow hosting and provider connections belong to `gtm-workflow`. Route standalone Local or Vercel setup to its shared `scripts/setup.mjs`; do not require GTM Agent or Slack. Workspace Doctor delegates connection health to that skill's Doctor.
+
 ## Inputs
 
 The request; the workspace found by the discovery order in [the contract](references/contract.md); facts from the user, the company's own public site, and other safe public sources, never invented; a member's email from the user or a source, never inferred.
@@ -27,7 +29,7 @@ Talk by the six rules in [interaction](references/interaction.md); reproduce [th
 
 | Job | Do |
 | --- | --- |
-| Create | When `~/.gtm/` already holds an empty clone with a remote (empty, or holding only `workflows/`, which the `gtm-agent` skill pushes first), scaffold into it, take its directory name as the slug, do not ask where it lives, and after the commit run `git push -u origin main`; a clone that is neither empty nor a workspace (a GitHub-initialised README, say) is reported as a problem in business terms, never scaffolded over. Otherwise ask where it lives: this computer only (recommended), or also a private GitHub repository named `gtm-<slug>`, and `git init` on `main`. Copy `templates/AGENTS.md`, `CLAUDE.md`, and `ORG.md` into `~/.gtm/<slug>/`, fill `ORG.md` from the user and public sources, commit, and when shared run `gh repo create gtm-<slug> --private --source . --push`; the first push into an empty repository is `git push -u origin main`. Import is Create by copying or cloning an existing workspace into `~/.gtm/<slug>/` instead of scaffolding. |
+| Create | When `~/.gtm/` already holds an empty clone with a remote (empty, or holding only `workflows/`, which shared `gtm-workflow` setup can publish first), scaffold into it, take its directory name as the slug, do not ask where it lives, and after the commit run `git push -u origin main`; a clone that is neither empty nor a workspace (a GitHub-initialised README, say) is reported as a problem in business terms, never scaffolded over. Otherwise ask where it lives: this computer only (recommended), or also a private GitHub repository named `gtm-<slug>`, and `git init` on `main`. Copy `templates/AGENTS.md`, `CLAUDE.md`, and `ORG.md` into `~/.gtm/<slug>/`, fill `ORG.md` from the user and public sources, commit, and when shared run `gh repo create gtm-<slug> --private --source . --push`; the first push into an empty repository is `git push -u origin main`. Import is Create by copying or cloning an existing workspace into `~/.gtm/<slug>/` instead of scaffolding. |
 | Update | Change `ORG.md` facts, or add, change, or remove `members/<slug>/MEMBER.md` from the template; email is required. |
 | Doctor | Compare the root shape and every file to `templates/` and the contract; report deviations in business terms; offer the fixes as options; rewrite what the user accepts, including legacy layouts (a root README or `.gitignore`, `suborgs/`, missing or misordered fields). The workspace slug is the directory name, never derived from the H1. |
 

@@ -72,3 +72,7 @@ Deploy matching private/share contract version 2 together. Mixed versions fail c
 ## Read-only data
 
 Data supports bounded server-side search, filter, sort and stable tie-break ordering. CSV includes the full filtered permitted dataset, checks authorization during streaming, escapes values and neutralizes spreadsheet formulas. Export cancellation stops the request. Record values may change during export; it is a live paginated read.
+
+## Connections navigation
+
+Private Workflows and Connections are root destinations on separate trusted origins. Use the shared [Connections setup](connections.md) to establish their binding. The share build has no Connections navigation, routes, source, configuration, or connection metadata. Opening either private page never starts workflow execution.

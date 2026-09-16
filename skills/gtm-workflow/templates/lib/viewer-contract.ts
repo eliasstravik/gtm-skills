@@ -43,6 +43,7 @@ export type Graph = {
   }[];
 };
 export type Display = {
+  connections?: import("./connections-contract").ConnectionUsage[];
   businessGraph?: BusinessGraph;
   source?: string;
   id: string;

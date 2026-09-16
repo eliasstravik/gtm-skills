@@ -16,6 +16,12 @@ export default function Workspace() {
     );
   return (
     <main className="workspace">
+      {state.data?.connectionsUrl && (
+        <nav className="tabs root-navigation" aria-label="Workspace">
+          <a href="/viewer" aria-current="page">Workflows</a>
+          <a href={state.data.connectionsUrl}>Connections</a>
+        </nav>
+      )}
       <div className="title-row">
         <h1>Workflows</h1>
         <Search

@@ -3,6 +3,37 @@ on: [push, pull_request]
 permissions:
   contents: read
 jobs:
+  connections:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+        working-directory: skills/gtm-workflow/connections
+      - run: npm ci --ignore-scripts
+        working-directory: skills/gtm-workflow/connections/local
+      - run: npm run build
+        working-directory: skills/gtm-workflow/connections
+      - name: Prepare Linux Secret Service
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes gnome-keyring libsecret-tools dbus-x11
+      - name: Verify Connections with native Linux storage
+        if: runner.os == 'Linux'
+        working-directory: skills/gtm-workflow/connections
+        run: |
+          dbus-run-session -- bash -c 'printf "synthetic-ci-keyring-password" | gnome-keyring-daemon --unlock --components=secrets; npm test'
+      - name: Verify Connections with native macOS storage
+        if: runner.os == 'macOS'
+        working-directory: skills/gtm-workflow/connections
+        run: npm test
   check:
     runs-on: ubuntu-latest
     steps:

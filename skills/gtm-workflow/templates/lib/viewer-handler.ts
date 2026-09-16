@@ -28,6 +28,7 @@ import { publicDisplay } from "./viewer-display";
 import { bearerOk } from "./sign";
 import { DataInputError, type DataPage } from "./data-api";
 import { exportCsv } from "./viewer-csv";
+import { connectionsOrigin } from "./viewer-link";
 const reply = (
   data: unknown,
   status = 200,
@@ -115,6 +116,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         workflows,
         environment: deploymentScope().environment,
         workspace: process.env.GTM_VIEWER_LABEL ?? "GTM workspace",
+        connectionsUrl: connectionsOrigin(),
       });
     }
     const entry = entryFor(url.searchParams.get("workflow") ?? "");

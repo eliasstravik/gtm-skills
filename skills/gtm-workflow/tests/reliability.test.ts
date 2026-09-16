@@ -58,6 +58,7 @@ test("package upgrade updates stock startup commands and preserves custom script
     scripts: {
       dev: "drizzle-kit migrate && nitro dev --port 3939",
       build: "drizzle-kit migrate && nitro build",
+      viewer: "node scripts/start-viewer.mjs",
       custom: "keep",
     },
     dependencies: { workflow: "old", customer: "keep" },

@@ -1,17 +1,17 @@
 {
   "name": "gtm-workflows",
-  "version": "0.1.46",
+  "version": "0.1.47",
   "private": true,
   "type": "module",
   "engines": {
     "node": "22.x"
   },
   "scripts": {
-    "dev": "node scripts/build-viewer.mjs && drizzle-kit migrate && node scripts/profile-migrate.mjs && node scripts/viewer-migrate.mjs && WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS=900000 WORKFLOW_LOCAL_BODY_TIMEOUT_MS=900000 nitro dev --port 3939",
+    "dev": "node scripts/local-launch.mjs dev",
     "build": "node scripts/build-viewer.mjs && drizzle-kit migrate && node scripts/profile-migrate.mjs && node scripts/viewer-migrate.mjs && nitro build",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
-    "viewer": "node scripts/start-viewer.mjs",
+    "viewer": "node scripts/local-launch.mjs viewer",
     "viewer:register": "node scripts/viewer-registry.mjs",
     "build:share": "node scripts/build-share.mjs && GTM_VIEWER_MODE=share nitro build"
   },

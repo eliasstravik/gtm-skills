@@ -1,0 +1,9 @@
+{
+  "name": "gtm-connections-local",
+  "version": "0.1.47",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@napi-rs/keyring": "2.1.0"
+  }
+}
