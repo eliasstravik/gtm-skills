@@ -203,6 +203,28 @@ async function resolve(
   });
   const profiles = found.rows.map((row) => decode(entity, row));
   const strong = identityFields[entity].filter((f) => f !== "linkedin_url");
+  // Domain/name evidence cannot bridge incompatible platform URLs. A refresh
+  // of a known target or an exact strong identifier can establish a changed slug.
+  for (const candidate of profiles) {
+    const knownUrl = candidate.linkedin_url;
+    const suppliedUrl = identity.linkedin_url;
+    const knownAlias = (candidate.identifiers_json ?? []).some(
+      (alias: any) =>
+        alias.namespace === "linkedin_url" && alias.value === suppliedUrl,
+    );
+    const matchingStrongId = strong.some(
+      (field) => identity[field] && identity[field] === candidate[field],
+    );
+    if (
+      knownUrl &&
+      suppliedUrl &&
+      knownUrl !== suppliedUrl &&
+      !knownAlias &&
+      !matchingStrongId &&
+      candidate.key !== targetKey
+    )
+      return { status: "ambiguous" };
+  }
   for (const field of strong) {
     const values = new Set(
       [identity[field], ...profiles.map((p) => p[field])].filter(Boolean),

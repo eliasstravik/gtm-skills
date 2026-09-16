@@ -739,3 +739,38 @@ test("email evidence and network imports share identities without accepting mode
     db.close();
   }
 });
+
+test("a shared domain and name cannot reconcile different company URLs", async () => {
+  const db = await database();
+  const original = await resolveIdentity(db, "companies", {
+    linkedin_url: "https://linkedin.com/company/brand-one",
+    domain: "shared.example",
+    name: "Brand",
+  });
+  assert.equal(original.status, "resolved");
+  for (const identity of [
+    {
+      linkedin_url: "https://linkedin.com/company/brand-two",
+      domain: "shared.example",
+      name: "Brand",
+    },
+    {
+      linkedin_url: "https://linkedin.com/company/brand-two",
+      linkedin_company_id: "new-id",
+      domain: "shared.example",
+      name: "Brand",
+    },
+  ])
+    assert.equal(
+      (await resolveIdentity(db, "companies", identity)).status,
+      "ambiguous",
+    );
+  if (original.status !== "resolved") throw Error("fixture");
+  const unchanged = await getProfile(db, "companies", original.profile.key);
+  assert.equal(
+    unchanged?.linkedin_url,
+    "https://www.linkedin.com/company/brand-one",
+  );
+  assert.equal(unchanged?.linkedin_company_id, null);
+  db.close();
+});
