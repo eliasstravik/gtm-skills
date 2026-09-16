@@ -38,6 +38,14 @@ const reply = (
     { status, headers: { ...viewerHeaders, ...headers } },
   );
 const failures = new Map<string, { count: number; until: number }>();
+function connectionsOrigin() {
+  try {
+    const value = process.env.GTM_CONNECTIONS_ORIGIN, url = new URL(value!);
+    if (url.origin !== value || url.username || url.password) return undefined;
+    if (process.env.VERCEL ? url.protocol !== "https:" : url.protocol !== "http:" || url.hostname !== "127.0.0.1") return undefined;
+    return url.origin;
+  } catch { return undefined; }
+}
 export async function viewerApi(req: Request, shared = false, service = false) {
   try {
     if (service && (!process.env.VERCEL || !bearerOk(req)))
@@ -115,6 +123,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         workflows,
         environment: deploymentScope().environment,
         workspace: process.env.GTM_VIEWER_LABEL ?? "GTM workspace",
+        connectionsUrl: connectionsOrigin(),
       });
     }
     const entry = entryFor(url.searchParams.get("workflow") ?? "");

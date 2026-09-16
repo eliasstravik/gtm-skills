@@ -186,6 +186,7 @@ export function registrySource(register = false) {
       exportName,
       data: props.data ? readLiteral(props.data, file) : null,
       sharePolicy: viewer.sharePolicy ?? null,
+      ...(viewer.connections === undefined ? {} : { connections: validateConnections(viewer.connections) }),
       ...(viewer.businessGraph ? { businessGraph: viewer.businessGraph } : {}),
       ...(viewer.stages ? { stages: viewer.stages } : {}),
       ...(viewer.graph ? { graph: viewer.graph } : {}),
@@ -205,6 +206,16 @@ export function registrySource(register = false) {
     }
   }
   return entries;
+}
+function validateConnections(value) {
+  if (!Array.isArray(value) || value.length > 100) throw Error("Invalid declared connections");
+  return value.map((item) => {
+    if (!item || typeof item !== "object" || Object.keys(item).some((key) => !["connection", "provider"].includes(key)) ||
+      typeof item.connection !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(item.connection) ||
+      (item.provider !== undefined && (typeof item.provider !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9 ._-]{0,63}$/.test(item.provider))))
+      throw Error("Invalid declared connections");
+    return { connection: item.connection, ...(item.provider === undefined ? {} : { provider: item.provider }) };
+  });
 }
 if (process.argv[1] === new URL(import.meta.url).pathname)
   console.log(`Registered ${registrySource(true).length} workflow identities.`);

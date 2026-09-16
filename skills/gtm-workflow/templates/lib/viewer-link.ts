@@ -1,4 +1,5 @@
 import { entryFor } from "./viewer-reader";
+import { configuredNames } from "./connections-contract";
 /** Canonical private entry. Resolves only display metadata and never imports workflow code. */
 export function viewerLink(req: Request, workflow?: string) {
   const entry = workflow ? entryFor(workflow) : undefined;
@@ -19,8 +20,6 @@ export function viewerLink(req: Request, workflow?: string) {
     diagramUrl: view("logic"),
     runsUrl: view("runs"),
     dataUrl: view("data"),
-    keys: Object.keys(process.env).filter(
-      (k) => k.endsWith("_API_KEY") && process.env[k],
-    ),
+    keys: configuredNames(process.env),
   };
 }

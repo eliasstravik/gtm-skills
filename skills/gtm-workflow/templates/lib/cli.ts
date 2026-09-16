@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { FatalError } from "workflow";
 import type { McpServer } from "./mcp";
 import { failure } from "./failure";
+import { mcpCredentialAdapter, cliEnvironment } from "./cli-mcp-proxy";
 
 /**
  * The Claude Code and Codex backends of runAgent: the whole agent runs inside this one step through the CLI on the
@@ -38,13 +39,17 @@ export async function runAgentCli(o: CliAgentOptions): Promise<CliAgentResult> {
   "use step";
   if (process.env.VERCEL) throw new FatalError(`The ${o.backend} backend runs only on a personal computer; switch the stage to the gateway backend before hosting it`);
   const dir = await mkdtemp(join(tmpdir(), "gtm-agent-"));
+  const adapters: Awaited<ReturnType<typeof mcpCredentialAdapter>>[] = [];
   try {
-    const servers = Object.entries(o.mcp ?? {}).map(([name, s]) => {
+    const servers: [string, { url: string; headers: Record<string, string> }][] = [];
+    for (const [name, s] of Object.entries(o.mcp ?? {})) {
       const key = s.keyEnv ? process.env[s.keyEnv] : undefined;
       if (s.keyEnv && !key) throw new FatalError(`Set ${s.keyEnv} for the MCP server at ${s.url}`);
-      const headers = key ? { [s.header ?? "Authorization"]: s.bearer === false ? key : `Bearer ${key}` } : {};
-      return [name, { url: s.url, headers }] as const;
-    });
+      if (key) {
+        const adapter = await mcpCredentialAdapter(s, key); adapters.push(adapter);
+        servers.push([name, { url: adapter.url, headers: adapter.headers }]);
+      } else servers.push([name, { url: s.url, headers: {} }]);
+    }
     const prompt = `${o.instructions}\n\n---\n\n${o.prompt}`;
     if (o.backend === "claude") {
       const builtins = o.web ? "WebSearch,WebFetch" : "";
@@ -90,6 +95,7 @@ export async function runAgentCli(o: CliAgentOptions): Promise<CliAgentResult> {
     if (error instanceof FatalError || (error instanceof Error && error.message.startsWith('{"layer":'))) throw error;
     throw failure(error, { layer: "cli_result", provider: o.backend, operation: "decode" });
   } finally {
+    await Promise.all(adapters.map((adapter) => adapter.close()));
     await rm(dir, { recursive: true, force: true });
   }
 }
@@ -97,7 +103,7 @@ runAgentCli.maxRetries = 0;
 
 function run(cmd: string, args: string[], stdin: string, cwd: string, timeoutMs?: number): Promise<string> {
   // A nested claude or codex must not see the parent session's variables.
-  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("CLAUDE") && !k.startsWith("CODEX")));
+  const env = cliEnvironment(process.env);
   return new Promise((resolve, reject) => {
     const limit = timeoutMs ?? 900_000;
     if (!Number.isFinite(limit) || limit <= 0) return reject(new Error("CLI timeout must be positive and finite"));

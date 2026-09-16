@@ -1,0 +1,23 @@
+.root-navigation { padding: 0; margin-bottom: 28px; }
+.connection-actions, .connection-footer { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.connection-list { margin-top: 24px; border-top: 1px solid var(--border); }
+.connection-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 24px; align-items: center; padding: 18px 12px; border-bottom: 1px solid var(--border); }
+.connection-usage { display: flex; flex-direction: column; gap: 4px; }
+.connection-menu { position: relative; }
+.connection-menu summary { padding: 5px 10px; min-height: 32px; border: 1px solid var(--border); border-radius: 6px; }
+.connection-menu > div { position: absolute; z-index: 2; right: 0; min-width: 160px; display: grid; gap: 4px; padding: 6px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+.connection-menu button { text-align: left; border: 0; }
+.connection-fields { display: flex; flex-direction: column; gap: 8px; margin: 20px 0; }
+.connection-fields label { margin-top: 8px; }
+.connection-fields input:focus-visible { outline-offset: -1px; }
+.connection-dialog .dialog-actions { justify-content: flex-end; margin-top: 24px; }
+.connection-footer { margin-top: 24px; }
+.connection-footer a { margin-left: auto; }
+.notice .button { display: inline-block; margin-top: 16px; }
+@media (max-width: 640px) {
+  .connection-row { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 18px 0; }
+  .connection-usage { grid-column: 1; }
+  .connection-menu { grid-column: 2; grid-row: 1; }
+  .connection-fields input, .connection-fields select { font-size: 16px; }
+  .connection-footer a { margin-left: 0; }
+}
