@@ -1,6 +1,6 @@
 # Connections and standalone setup
 
-Connections belongs to the workflow workspace. Its trusted application ships outside `templates/`, installs under the user's `~/.gtm/components/` directory, and runs on its own origin. The root navigation is Workflows / Connections. Public sharing keeps its existing Diagram, Runs and Data surface.
+Connections belongs to the workflow workspace. Production runs at `/connections` inside the existing private workflow project. Local mode uses the trusted OS-keychain manager installed under `~/.gtm/components/`. The root navigation is Workflows / Connections. Public sharing contains neither the Connections page nor its management API.
 
 ## Local setup and discovery
 
@@ -23,27 +23,23 @@ Existing `.env` and `.env.local` credentials remain external configuration. Prec
 
 ## Production setup without an agent
 
-With GitHub and Vercel CLI sessions signed in, run:
+Use the existing workflow project with Vercel Authentication protecting all deployments. Run from the installed skill directory:
 
 ```sh
-node scripts/setup.mjs --deploy --workspace /path/to/gtm-acme --team acme --github-owner acme --json
+node scripts/setup.mjs --deploy --workspace /path/to/gtm-acme --team acme --workflow-project gtm-acme-workflows --json
 ```
 
-The same command supports standalone workspaces and optional agent wiring. It publishes only an unchanged scaffold that it created; staged user work or changed scaffold files require explicit publication first. Existing authored workflows and repository changes are preserved. An existing runtime needs the current Connections route before deployment setup.
+Setup creates no projects, databases, identity applications or integrations. It saves a project-scoped Vercel API token as the Production Secret `GTM_CONNECTIONS_VERCEL_TOKEN` and three nonsecret bindings: `GTM_CONNECTIONS_ENABLED`, `GTM_CONNECTIONS_TEAM_ID`, and `GTM_CONNECTIONS_ORIGIN`. Deploy the current runtime, then open `/connections` through the normal private Workflows URL. Local provider keys stay local.
 
-Setup binds a workflow project, a separate non-Git-connected Connections project, and the existing isolated share companion. It provisions the databases and protected transport through the CLI/API. The administration database is separate from workflow data. No public share grant is created. Local provider values stay local; enter Production keys in the protected Production form.
+Vercel CLI OAuth sessions may reject token creation. In that case, use the signed-in Vercel account's Tokens page, select the team and **only the workflow project**, create the token, and save it directly as that project's Production Secret `GTM_CONNECTIONS_VERCEL_TOKEN`. Resume setup. Never use an account-wide or team-wide runtime token, and never paste a token in chat, arguments or source files.
 
-A current team OWNER runs provisioning. Ordinary hosted use requires Sign in with Vercel and a fresh full team membership check on every request. OWNER and MEMBER may write; DEVELOPER, VIEWER and BILLING may read. Other, unconfirmed and removed memberships are denied. Machine credentials provide runtime reads and never authorize human administration.
+Anyone admitted through a native private Vercel browser session may manage connections, including Viewers. There is no additional login, registration or administrator list. Existing agent bearer credentials retain read-only connection discovery. Automation bypasses, workload identity and workflow share grants cannot authorize connection management. Deployment-wide Vercel share links must be removed before enabling this feature.
 
-Each team owns an identity app and a private classic integration. Setup checks supported CLI capabilities and prepares the remaining dashboard steps. Follow the exact stage result rather than inventing a registration command. Keep the local callback listener running. Use the authenticated local password form for registration secrets; the installation callback validates the same CLI owner and only the fixed workflow project before the owner CLI writes the administration Secret. The hosted app has no bootstrap endpoint.
+The application checks the native session cookie's expected shape, then sends only that cookie to a fixed protected probe URL for Vercel to validate. A separate anonymous probe must be denied. Decoding a cookie alone grants no access. Mutation requests also require same-origin browser provenance and a session-bound CSRF token. A changed native cookie format or unavailable protection check fails closed. This cookie-format dependency must be verified against live Vercel during upgrades.
 
-After registration, setup resumes deployment automatically. Sign in on the resulting Connections origin, open **Setup verification**, and download the safe verification file. It proves the current owner session, installation, manager deployment and serving workflow deployment; it contains no credentials. Finish within five minutes:
+The project-scoped API token lives in the workflow runtime. Code deployed to that project is trusted with this token, just as it is trusted with provider credentials. Review authored code before deploying it. Keep the share companion isolated and exclude connection management from its build.
 
-```sh
-node scripts/setup.mjs --deploy --workspace /path/to/gtm-acme --team acme --github-owner acme --verification /path/to/connections-verification.json --json
-```
-
-Exit 0 means verified ready; exit 2 names one remaining human step; exit 1 identifies a failure. A failed deployment resumes without rewriting saved credentials. An uncertain Secret write requires explicit reapplication of the staged grant in the local setup form. Expired bootstrap credentials are removed; any installation requiring revocation is reported separately. Verified completion deletes temporary registration credentials from the OS store.
+Setup reports `deployment_required`; Doctor reports `browser_verification_required` when configuration is present. Neither claims live readiness from environment metadata alone. Verify signed-in access, synthetic connection CRUD, automation denial, and public-share exclusion on the serving deployment.
 
 ## Inventory and changes
 
@@ -62,10 +58,10 @@ viewer: {
 
 Omitted usage metadata means usage is incomplete, not that the connection is unused. Include a direct provider separately only when code actually calls it directly. Existing nested Claude/Codex subscription execution uses a filtered child environment; declared authenticated MCP access goes through a per-invocation adapter that injects upstream credentials outside the model process.
 
-Add, replace and disconnect are write-only. Production edits save a Vercel Secret and await the next ordinary deployment. Local edits await a deliberate runner restart. Neither mode automatically deploys, executes a workflow, cancels in-flight work or revokes a provider credential. Uncertain saves remain unresolved; refresh and explicitly replace them before continuing. “Deployment refreshed after save” describes deployment timing, not proof of which key value ran.
+Add, replace and disconnect are write-only. Production edits save a Vercel Secret and await the next ordinary deployment. Local edits await a deliberate runner restart. Neither mode automatically deploys, executes a workflow, cancels in-flight work or revokes a provider credential. If a save response is lost, do not retry automatically. Refresh the metadata and explicitly enter a replacement if needed. Production uses metadata version checks before writes; Vercel does not provide an atomic compare-and-swap, so simultaneous administrators should coordinate changes. The UI says saved, not verified active. Shared, integration-owned, duplicate and multi-target variables remain read-only and link to Vercel settings.
 
 ## Upgrades
 
-Upgrade the runtime while preserving authored workflows, tables, migrations, database contents and custom dependencies. Merge `.env.*` and generated-asset ignore entries. Then run shared setup with `--upgrade` to install another immutable component and explicitly select the published workflow source. Ordinary retries retain their source commit. The component's source commit and content digest are verified before deployment; installed skill copies carry release provenance even without a Git checkout.
+Upgrade the runtime while preserving authored workflows, tables, migrations, database contents and custom dependencies. Merge `.env.*` and generated-asset ignore entries. Copy template-owned `connections-ui/` together with the server and build changes. Run shared setup with `--upgrade` for the local component. Installed local components retain release provenance even without a Git checkout. Production Connections ships with the reviewed workflow runtime.
 
 Run Doctor for the selected target after an upgrade. A successful build or saved registration is not production readiness: complete the live sign-in and serving-deployment verification. Provider keys are not required to onboard an empty workspace.

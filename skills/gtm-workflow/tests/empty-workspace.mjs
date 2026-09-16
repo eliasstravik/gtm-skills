@@ -20,7 +20,7 @@ function run(command, args, extraEnv = {}) {
   assert.equal(result.status, 0, result.stdout + result.stderr);
 }
 try {
-  for (const name of ["lib", "scripts", "viewer", "server", "viewer-server", "share-server", "db", "drizzle", "skills", "package.json", "tsconfig.json", "nitro.config.ts", "drizzle.config.ts", "vercel.json"])
+  for (const name of ["lib", "scripts", "viewer", "connections-ui", "server", "viewer-server", "share-server", "db", "drizzle", "skills", "package.json", "tsconfig.json", "nitro.config.ts", "drizzle.config.ts", "vercel.json"])
     await cp(join(source, name), join(target, name), { recursive: true });
   await mkdir(join(target, "node_modules"));
   for (const name of await readdir(join(source, "node_modules")))

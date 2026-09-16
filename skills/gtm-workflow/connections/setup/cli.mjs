@@ -2,6 +2,8 @@ import { spawnSync } from "node:child_process";
 import { requireThat, ConnectionError } from "../src/errors.mjs";
 export function captured(command, args, { input, cwd } = {}) {
   const result = spawnSync(command, args, { input, cwd, encoding: "utf8", stdio: "pipe", maxBuffer: 8 * 1024 * 1024 });
+  if (result.status !== 0 && command === "vercel" && args[0] === "api" && args[1] === "/v3/user/tokens" && /Cannot create tokens for this app/.test(result.stderr ?? ""))
+    throw new ConnectionError("project_token_dashboard_required", 409);
   if (result.status !== 0 && command === "vercel" && args[0] === "api" && args.includes("POST") && args[1] === "/v10/projects" &&
     /repository[^\n]{0,200}couldn't be found/i.test(result.stderr ?? ""))
     throw new ConnectionError("github_repository_access_required", 409);

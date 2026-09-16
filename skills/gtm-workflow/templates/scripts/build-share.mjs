@@ -1,3 +1,3 @@
 import { bundleViewer } from "./bundle-viewer.mjs";
 import { mkdir } from "node:fs/promises";
-await bundleViewer();
+await bundleViewer({ share: true });

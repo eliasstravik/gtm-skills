@@ -11,7 +11,7 @@ try {
   const state = await workspaceState(values.workspace), config = await privateJson(state.configPath);
   requireThat(config?.component && await componentDigest(config.component.path) === config.component.digest, "component_digest_mismatch", 403);
   if (values.target === "production") {
-    const { doctorHosted } = await import(pathToFileURL(join(config.component.path, "setup/deploy.mjs")));
+    const { doctorHosted } = await import(pathToFileURL(join(config.component.path, "setup/private-project.mjs")));
     const result = await doctorHosted(state, config);
     console.log(JSON.stringify(result)); process.exitCode = result.status === "production_ready" ? 0 : 2;
   } else {

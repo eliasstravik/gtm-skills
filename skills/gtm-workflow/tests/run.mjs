@@ -23,6 +23,7 @@ try {
     "web-url",
     "reliability",
     "cli-mcp",
+    "connections-management",
   ]) {
     const outfile = join(dir, `${name}.test.mjs`);
     await build({

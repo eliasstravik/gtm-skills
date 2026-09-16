@@ -55,9 +55,9 @@ async function main() {
   let result = local;
   if (values.deploy) {
     const state = await workspaceState(workspace), config = await privateJson(state.configPath);
-    const { setupHosted } = await import(pathToFileURL(join(config.component.path, "setup/deploy.mjs")));
+    const { setupHosted } = await import(pathToFileURL(join(config.component.path, "setup/private-project.mjs")));
     result = await setupHosted({ workspace, team: values.team, githubOwner: values["github-owner"], upgrade: values.upgrade, verification: values.verification, workflowProject: values["workflow-project"], shareProject: values["share-project"], agentProject: values["agent-project"], agentRepository: values["agent-repository"], intakeProtectionVerified: values["intake-protection-verified"] });
   }
-  console.log(JSON.stringify(result)); process.exitCode = result.status === "human_step" ? 2 : 0;
+  console.log(JSON.stringify(result)); process.exitCode = ["human_step", "deployment_required"].includes(result.status) ? 2 : 0;
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch((error) => { console.error(JSON.stringify(safeError(error))); process.exitCode = 1; });

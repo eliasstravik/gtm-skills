@@ -27,6 +27,7 @@ try {
     "lib",
     "scripts",
     "viewer",
+    "connections-ui",
     "db",
     "package.json",
     "tsconfig.json",

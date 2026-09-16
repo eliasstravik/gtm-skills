@@ -6,7 +6,7 @@ export function connectionsOrigin() {
     const value = process.env.GTM_CONNECTIONS_ORIGIN, url = new URL(value!);
     if (url.origin !== value || url.username || url.password) return undefined;
     if (process.env.VERCEL ? url.protocol !== "https:" : url.protocol !== "http:" || url.hostname !== "127.0.0.1") return undefined;
-    return url.origin;
+    return process.env.VERCEL && process.env.GTM_CONNECTIONS_ENABLED === "1" ? `${url.origin}/connections` : url.origin;
   } catch { return undefined; }
 }
 /** Canonical private entry. Resolves only display metadata and never imports workflow code. */

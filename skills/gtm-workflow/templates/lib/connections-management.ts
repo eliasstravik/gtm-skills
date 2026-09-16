@@ -1,0 +1,101 @@
+import { connectionInventory, services, providerVariable, type ConnectionWorkflow } from "./connections-contract";
+import { connectionConfiguration, connectionHeaders, privateConnectionBrowser, ConnectionsError, insist } from "./connections-access";
+
+type Configuration = ReturnType<typeof connectionConfiguration>;
+type Metadata = { id: string; variable: string; version: string; editable: boolean; comment: string };
+type Api = (method: string, path: string, body?: unknown) => Promise<any>;
+
+async function readJson(response: Response | Request, limit: number) {
+  const reader = response.body?.getReader();
+  insist(reader, "invalid_response", 503);
+  const chunks: Uint8Array[] = []; let size = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read(); if (done) break;
+      size += value.length; insist(size <= limit, "request_too_large", 413); chunks.push(value);
+    }
+    return JSON.parse(Buffer.concat(chunks).toString());
+  } finally { await reader.cancel(); }
+}
+export function connectionsVercel(config: Configuration, fetcher = fetch): Api {
+  return async (method, path, body) => {
+    const url = new URL(path, "https://api.vercel.com"); url.searchParams.set("teamId", config.teamId);
+    insist(url.origin === "https://api.vercel.com", "invalid_api_path");
+    let response: Response;
+    try {
+      response = await fetcher(url, { method, redirect: "error", signal: AbortSignal.timeout(20000),
+        headers: { authorization: `Bearer ${config.token}`, "content-type": "application/json" },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+    } catch { throw new ConnectionsError(method === "GET" ? "vercel_unavailable" : "save_outcome_requires_review", 503); }
+    if (!response.ok) {
+      await response.body?.cancel();
+      throw new ConnectionsError(method !== "GET" && response.status >= 500 ? "save_outcome_requires_review" : "vercel_request_denied", 503);
+    }
+    if (response.status === 204) return null;
+    try { return await readJson(response, 2 * 1024 * 1024); }
+    catch { throw new ConnectionsError(method === "GET" ? "vercel_unavailable" : "save_outcome_requires_review", 503); }
+  };
+}
+export async function connectionMetadata(api: Api, projectId: string): Promise<Metadata[]> {
+  const result = await api("GET", `/v10/projects/${encodeURIComponent(projectId)}/env?decrypt=false`);
+  insist(Array.isArray(result.envs) && !result.pagination?.next, "environment_inventory_incomplete", 503);
+  const rows: Metadata[] = result.envs.filter((row: any) => providerVariable(row.key) && Array.isArray(row.target) && row.target.includes("production"))
+    .map((row: any) => {
+      insist(typeof row.id === "string", "invalid_environment_metadata", 503);
+      return { id: row.id, variable: row.key, version: `${row.id}:${row.updatedAt ?? "unknown"}`,
+        editable: !row.configurationId && !row.integrationId && !row.sharedEnvVariableId && !row.system &&
+          row.target.length === 1 && typeof row.updatedAt === "number",
+        comment: typeof row.comment === "string" ? row.comment.slice(0, 500) : "" };
+    });
+  return rows.map((row) => ({ ...row, editable: row.editable && rows.filter((other) => other.variable === row.variable).length === 1 }));
+}
+export async function changeConnection(api: Api, projectId: string, input: any) {
+  insist(input && typeof input === "object" && providerVariable(input.variable), "invalid_provider_variable", 400);
+  insist(["add", "replace", "disconnect"].includes(input.action) && typeof input.version === "string", "invalid_change", 400);
+  if (input.action !== "disconnect") insist(typeof input.value === "string" && input.value.trim().length > 0 && input.value.length <= 8192 && !/[\r\n\0]/.test(input.value), "invalid_key", 400);
+  const rows = (await connectionMetadata(api, projectId)).filter((row) => row.variable === input.variable);
+  insist(rows.length <= 1, "use_vercel_settings", 409);
+  const row = rows[0];
+  insist((row?.version ?? "absent") === input.version && (input.action !== "add" || !row), "connection_changed", 409);
+  insist(!row || row.editable, "use_vercel_settings", 409);
+  const base = `/v9/projects/${encodeURIComponent(projectId)}/env/`;
+  if (input.action === "disconnect") {
+    if (row) await api("DELETE", base + encodeURIComponent(row.id));
+  } else {
+    const body = { value: input.value, type: "sensitive", visibility: "secret", target: ["production"], ...(row ? { comment: row.comment } : {}) };
+    try {
+      await (row ? api("PATCH", base + encodeURIComponent(row.id), body) : api("POST", `/v10/projects/${encodeURIComponent(projectId)}/env`, { ...body, key: input.variable }));
+    } finally { body.value = undefined; input.value = undefined; }
+  }
+  return { saved: true, requiresDeployment: true };
+}
+export async function connectionsManagement(req: Request, workflows: ConnectionWorkflow[], operation = "inventory") {
+  try {
+    const config = connectionConfiguration();
+    const session = await privateConnectionBrowser(req, config);
+    insist(["GET", "POST"].includes(req.method), "method_not_allowed", 405);
+    if (operation === "session") {
+      insist(req.method === "GET", "method_not_allowed", 405);
+      return Response.json(session, { headers: connectionHeaders });
+    }
+    const api = connectionsVercel(config);
+    if (req.method === "POST") {
+      const input = await readJson(req, 16384);
+      const result = await changeConnection(api, config.projectId, input);
+      return Response.json(result, { headers: connectionHeaders });
+    }
+    const rows = await connectionMetadata(api, config.projectId);
+    return Response.json({ mode: "production", canWrite: true, services,
+      workflowsUrl: `${config.origin}/viewer`, vercelUrl: `https://vercel.com/${encodeURIComponent(config.teamId)}/${encodeURIComponent(config.projectId)}/settings/environment-variables`,
+      deploymentUrl: `https://vercel.com/${encodeURIComponent(config.teamId)}/${encodeURIComponent(config.projectId)}/deployments`,
+      connections: connectionInventory(rows.map((row) => row.variable), workflows, Boolean(process.env.VERCEL_OIDC_TOKEN)).map((entry) => ({
+        ...entry, status: entry.fields.length ? "Saved in Vercel · deploy to apply changes" : "No saved key",
+        fields: entry.fields.map((field) => { const row = rows.find((row) => row.variable === field.variable)!;
+          return { variable: row.variable, version: row.version, editable: row.editable, state: "saved" }; }),
+      })),
+    }, { headers: connectionHeaders });
+  } catch (error) {
+    return Response.json({ error: error instanceof ConnectionsError ? error.code : "connections_unavailable" },
+      { status: error instanceof ConnectionsError ? error.status : 503, headers: connectionHeaders });
+  }
+}
