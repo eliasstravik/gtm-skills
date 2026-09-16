@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, rm, symlink, chmod } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { workspaceState, writePrivateJson, privateJson } from "../local/state.mjs";
+import { spawnSync } from "node:child_process";
 
 test("concurrent registrations converge and independent clones retain distinct identities", async () => {
   const root = await mkdtemp(join(homedir(), ".gtm-state-test-"));
@@ -17,7 +18,7 @@ test("concurrent registrations converge and independent clones retain distinct i
     assert.notEqual(clone.id, registrations[0].id);
     const reads = await Promise.all(Array.from({ length: 24 }, () => workspaceState(first, { ...options, create: false })));
     assert.ok(reads.every((entry) => entry.id === registrations[0].id));
-    const alias = join(root, "alias"); await symlink(first, alias);
+    const alias = join(root, "alias"); await symlink(first, alias, process.platform === "win32" ? "junction" : "dir");
     assert.equal((await workspaceState(alias, options)).id, registrations[0].id);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
@@ -26,7 +27,10 @@ test("state files reject links and permissions exposing metadata to another OS u
   try {
     await writePrivateJson(file, { safe: true }); await symlink(file, link);
     await assert.rejects(() => privateJson(link), /unsafe_state_file/);
-    await chmod(file, 0o644);
+    if (process.platform === "win32") {
+      const result = spawnSync("icacls.exe", [file, "/grant", "*S-1-1-0:R"], { encoding: "utf8" });
+      assert.equal(result.status, 0, "synthetic test file ACL must be widened for the rejection test");
+    } else await chmod(file, 0o644);
     await assert.rejects(() => privateJson(file), /unsafe_state_file/);
   } finally { await rm(root, { recursive: true, force: true }); }
 });

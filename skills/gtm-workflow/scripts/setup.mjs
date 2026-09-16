@@ -20,7 +20,10 @@ export async function setupLocal(workspace, { upgrade = false } = {}) {
   let scaffold = prior?.scaffold;
   if (!existsSync(join(runtime, "package.json"))) {
     requireThat(!existsSync(runtime) || !(await (await import("node:fs/promises")).readdir(runtime)).length, "workflow_directory_not_empty", 409);
-    await cp(join(skill, "templates"), runtime, { recursive: true, filter: (source) => !/(?:^|\/)(?:node_modules|\.output|\.nitro|\.vercel|data|\.env(?:\.[^/]+)?)(?:\/|$)/.test(source) && !source.includes("public/viewer-assets") });
+    await cp(join(skill, "templates"), runtime, { recursive: true, filter: (source) => {
+      const path = source.replaceAll("\\", "/");
+      return !/(?:^|\/)(?:node_modules|\.output|\.nitro|\.vercel|data|\.env(?:\.[^/]+)?)(?:\/|$)/.test(path) && !/public\/(?:viewer|connections)-assets/.test(path);
+    } });
     await rename(join(runtime, "gitignore"), join(runtime, ".gitignore"));
     await rm(join(runtime, "env.example"), { force: true });
     await writeFile(join(runtime, "workflows/index.ts"), "export const workflows = {};\n");
@@ -28,7 +31,8 @@ export async function setupLocal(workspace, { upgrade = false } = {}) {
     await writePrivateJson(state.configPath, { ...prior, workspace: state.workspace, workspaceId: state.id, scaffold });
   }
   const run = (command, args, cwd, env = inspectionEnvironment(process.env)) => {
-    const result = spawnSync(command, args, { cwd, env, encoding: "utf8", stdio: "pipe", maxBuffer: 8 * 1024 * 1024 });
+    const windowsNpm = process.platform === "win32" && command === "npm";
+    const result = spawnSync(windowsNpm ? "npm.cmd" : command, args, { cwd, env, encoding: "utf8", stdio: "pipe", maxBuffer: 8 * 1024 * 1024, shell: windowsNpm });
     requireThat(result.status === 0, `local_setup_${args[0].split("/").pop().replace(/[^a-zA-Z0-9]/g, "_")}_failed`, 503);
   };
   const component = prior?.component && !upgrade ? prior.component : await installComponent();

@@ -4,7 +4,8 @@ import { mkdtemp, mkdir, rm, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { workspaceState, writePrivateJson } from "../local/state.mjs";
+import { workspaceState, writePrivateJson, privateJson } from "../local/state.mjs";
+import { request as httpRequest } from "node:http";
 import { startLocal } from "../local/server.mjs";
 import { nativeStore } from "../local/storage.mjs";
 test("real local HTTP and native credential CRUD never expose stored values", async () => {
@@ -17,6 +18,15 @@ test("real local HTTP and native credential CRUD never expose stored values", as
   let server;
   try {
     server = await startLocal(workspace, { open: false, stateOptions, store, environment: {} });
+    const transport = await privateJson(join(state.directory, "manager.json"));
+    const ipc = (token) => new Promise((resolve, reject) => {
+      const request = httpRequest({ socketPath: transport.ipcPath, path: "/connections", headers: token ? { authorization: `Bearer ${token}` } : {} }, (response) => {
+        response.resume(); response.on("end", () => resolve(response.statusCode));
+      }); request.on("error", reject); request.end();
+    });
+    assert.equal(await ipc(), 401);
+    assert.equal(await ipc("wrong"), 401);
+    assert.equal(await ipc(transport.ipcToken), 200);
     assert.equal((await fetch(`${server.origin}/api/connections`)).status, 401);
     assert.equal((await fetch(`${server.origin}/api/health`)).status, 401);
     assert.equal((await fetch(`${server.origin}/api/connections`, { headers: { "x-forwarded-host": "anything" } })).status, 403);

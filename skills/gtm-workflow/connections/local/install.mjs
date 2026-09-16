@@ -22,7 +22,7 @@ async function files(path, prefix = "") {
   for (const entry of (await readdir(path, { withFileTypes: true })).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
     if (["node_modules", ".vercel", ".git"].includes(entry.name)) continue;
     requireThat(!entry.isSymbolicLink(), "symlink_in_component");
-    const name = join(prefix, entry.name);
+    const name = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) entries.push(...await files(join(path, entry.name), name)); else entries.push(name);
   }
   return entries;
@@ -72,7 +72,7 @@ export async function installComponent(source = componentSource) {
   }
   const env = inspectionEnvironment(process.env);
   for (const cwd of [temporary, join(temporary, "local")]) {
-    const result = spawnSync("npm", ["ci", "--ignore-scripts", "--no-audit", "--no-fund"], { cwd, env, encoding: "utf8", stdio: "pipe" });
+    const result = spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", ["ci", "--ignore-scripts", "--no-audit", "--no-fund"], { cwd, env, encoding: "utf8", stdio: "pipe", shell: process.platform === "win32" });
     requireThat(result.status === 0, "component_install_failed", 503);
   }
   const build = spawnSync(process.execPath, ["build.mjs"], { cwd: temporary, env, encoding: "utf8", stdio: "pipe" });
