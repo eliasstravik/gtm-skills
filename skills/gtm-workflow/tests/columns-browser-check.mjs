@@ -29,8 +29,8 @@ const bounds = () => {
 command('open', url);
 viewport(1440, 900);
 command('set', 'media', 'dark');
-command('record', 'start', join(output, 'column-selector.webm'), url);
-try {
+// Keep acceptance in one tab; record demos separately from viewport changes.
+{
   viewport(1440, 900);
   command('wait', '--text', 'Acme Labs');
   open(); bounds();
@@ -76,7 +76,7 @@ try {
   command('press', 'Escape');
   viewport(1440, 900);
   open();
-} finally { command('record', 'stop'); }
+}
 viewport(1440, 900);
 command('screenshot', join(output, 'columns-dark.png'));
 command('set', 'media', 'light');
