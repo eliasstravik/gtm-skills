@@ -5,6 +5,7 @@ import { resumeHook, start } from "workflow/api";
 import { z } from "zod";
 import { db, table, upsert, type TableName } from "./db";
 import { canNotify, notify, type SlackTarget } from "./notify";
+import { rowFailure } from "./failure";
 
 export type Row = { key: string } & Record<string, unknown>;
 export type StepResult = Record<string, unknown> & { costUsd: number };
@@ -185,7 +186,7 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
           // A failed row is charged its estimate: it may have paid before it threw, so the cap never undercounts.
           await save(o.table, {
             key: row.key,
-            error: String(error),
+            error: rowFailure(error, getWorkflowMetadata().workflowRunId),
             cost_usd: o.estimateUsd,
           });
           throw error;

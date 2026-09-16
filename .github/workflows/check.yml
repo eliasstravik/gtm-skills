@@ -15,6 +15,7 @@ jobs:
       - run: node --test skills/gtm-agent/tests/*.test.mjs
       - run: node --test skills/gtm-workspace/tests/*.test.mjs
       - run: node skills/gtm-workflow/tests/run.mjs skills/gtm-workflow/templates
+      - run: node skills/gtm-workflow/tests/reliability-e2e.mjs skills/gtm-workflow/templates
       - run: node skills/gtm-workflow/tests/authoring.mjs skills/gtm-workflow/templates
       - run: npm run build
         working-directory: skills/gtm-workflow/templates
