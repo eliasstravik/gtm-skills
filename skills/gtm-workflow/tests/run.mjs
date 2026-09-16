@@ -21,6 +21,7 @@ try {
     "inspection",
     "viewer-api",
     "web-url",
+    "reliability",
   ]) {
     const outfile = join(dir, `${name}.test.mjs`);
     await build({
@@ -33,6 +34,23 @@ try {
       format: "esm",
       packages: "external",
       tsconfigRaw: { compilerOptions: {} },
+      ...(name === "reliability"
+        ? {
+            plugins: [
+              {
+                name: "workflow-test-context",
+                setup(build) {
+                  build.onResolve({ filter: /^workflow$/ }, () => ({
+                    path: join(
+                      dirname(fileURLToPath(import.meta.url)),
+                      "reliability-fixture.ts",
+                    ),
+                  }));
+                },
+              },
+            ],
+          }
+        : {}),
       ...(name === "viewer-api"
         ? {
             plugins: [

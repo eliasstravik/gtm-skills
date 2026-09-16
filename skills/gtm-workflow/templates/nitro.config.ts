@@ -1,4 +1,5 @@
 import { defineConfig } from "nitro";
+import "./lib/local-runtime";
 import type {} from "workflow/nitro";
 import vercelJson from "./vercel.json";
 const mode = process.env.GTM_VIEWER_MODE;

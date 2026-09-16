@@ -2,6 +2,7 @@ import { defineHandler } from "nitro";
 import { getRun } from "workflow/api";
 import { listApprovals } from "../../../lib/approval-api";
 import { bearerOk } from "../../../lib/sign";
+import { rowFailure } from "../../../lib/failure";
 
 /**
  * Read a run: { status, output, error, approvals }. Status is pending, running, completed, failed, or cancelled.
@@ -13,7 +14,7 @@ export default defineHandler(async (event) => {
   const run = getRun(id);
   const status = await run.status;
   const output = status === "completed" ? await run.returnValue : undefined;
-  const error = status === "failed" ? await run.returnValue.then(() => undefined, (e: unknown) => String(e)) : undefined;
+  const error = status === "failed" ? await run.returnValue.then(() => undefined, (e: unknown) => rowFailure(e, id)) : undefined;
   const approvals = await listApprovals(id);
   return { status, output, error, approvals };
 });

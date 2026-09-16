@@ -1,4 +1,5 @@
 import type { Client } from "@libsql/client";
+import { failure, reportFailure, type FailureContext } from "../failure";
 import {
   reserve,
   dispatch,
@@ -72,18 +73,47 @@ export async function maximumCharge(
   key: string,
   fetcher: typeof fetch = fetch,
 ): Promise<number | null> {
-  const response = await fetcher("https://api.monid.ai/v1/inspect", {
-    method: "POST",
-    headers: headers(key),
-    body: JSON.stringify({
-      provider: operation.provider,
-      endpoint: operation.endpoint,
-    }),
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!response.ok) return null;
-  const info = (await response.json()) as any,
-    p = info.price;
+  let response: Response;
+  try {
+    response = await fetcher("https://api.monid.ai/v1/inspect", {
+      method: "POST",
+      headers: headers(key),
+      body: JSON.stringify({
+        provider: operation.provider,
+        endpoint: operation.endpoint,
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch (error) {
+    throw failure(error, {
+      layer: "provider_transport",
+      provider: "monid",
+      endpoint: "/v1/inspect",
+      operation: `${operation.provider}:${operation.endpoint}`,
+    });
+  }
+  if (!response.ok) {
+    reportFailure(undefined, {
+      layer: "provider_response",
+      provider: "monid",
+      endpoint: "/v1/inspect",
+      operation: `${operation.provider}:${operation.endpoint}`,
+      httpStatus: response.status,
+    });
+    return null;
+  }
+  let info: any;
+  try {
+    info = await response.json();
+  } catch (error) {
+    throw failure(error, {
+      layer: "provider_response",
+      provider: "monid",
+      endpoint: "/v1/inspect",
+      httpStatus: response.status,
+    });
+  }
+  const p = info.price;
   if (
     p?.amount?.currency !== "USD" ||
     typeof p.amount.value !== "number" ||
@@ -150,6 +180,7 @@ export async function startLookup(
   }
   if (!(await dispatch(client, lease, reserved.id)))
     return { state: "uncertain" };
+  let layer: FailureContext["layer"] = "provider_transport";
   try {
     const response = await fetcher("https://api.monid.ai/v1/run", {
       method: "POST",
@@ -165,7 +196,19 @@ export async function startLookup(
       }),
       signal: AbortSignal.timeout(60000),
     });
+    layer = "provider_response";
     const run = (await response.json()) as ProviderRun;
+    if (!response.ok || (terminal(run) && run.status !== "COMPLETED"))
+      reportFailure(undefined, {
+        layer: "provider_response",
+        provider: "monid",
+        endpoint: "/v1/run",
+        operation: `${operation.provider}:${operation.endpoint}`,
+        runId: lease.id,
+        requestId: run.runId,
+        httpStatus: response.status,
+      });
+    layer = "step";
     if (run.runId) await saveJob(client, reserved.id, run.runId);
     if (terminal(run)) {
       await settle(client, reserved.id, actualCost(run), run);
@@ -175,7 +218,15 @@ export async function startLookup(
       return { state: "pending", attemptId: reserved.id, jobId: run.runId };
     await uncertain(client, reserved.id);
     return { state: "uncertain" };
-  } catch {
+  } catch (error) {
+    reportFailure(error, {
+      layer,
+      provider: "monid",
+      endpoint: "/v1/run",
+      operation: `${operation.provider}:${operation.endpoint}`,
+      runId: lease.id,
+      requestId: reserved.id,
+    });
     await uncertain(client, reserved.id);
     return { state: "uncertain" };
   }
@@ -187,17 +238,43 @@ export async function pollLookup(
   key: string,
   fetcher: typeof fetch = fetch,
 ): Promise<LookupResult> {
+  let layer: FailureContext["layer"] = "provider_transport";
   try {
     const response = await fetcher(
       `https://api.monid.ai/v1/runs/${encodeURIComponent(jobId)}`,
       { headers: headers(key), signal: AbortSignal.timeout(30000) },
     );
-    if (!response.ok) return { state: "pending", attemptId, jobId };
+    if (!response.ok) {
+      reportFailure(undefined, {
+        layer: "provider_response",
+        provider: "monid",
+        endpoint: "/v1/runs/:id",
+        requestId: jobId,
+        httpStatus: response.status,
+      });
+      return { state: "pending", attemptId, jobId };
+    }
+    layer = "provider_response";
     const run = (await response.json()) as ProviderRun;
     if (!terminal(run)) return { state: "pending", attemptId, jobId };
+    if (run.status !== "COMPLETED")
+      reportFailure(undefined, {
+        layer: "provider_response",
+        provider: "monid",
+        endpoint: "/v1/runs/:id",
+        requestId: jobId,
+        httpStatus: response.status,
+      });
+    layer = "step";
     await settle(client, attemptId, actualCost(run), run);
     return { state: "ready", attemptId, run };
-  } catch {
+  } catch (error) {
+    reportFailure(error, {
+      layer,
+      provider: "monid",
+      endpoint: "/v1/runs/:id",
+      requestId: jobId,
+    });
     return { state: "pending", attemptId, jobId };
   }
 }
