@@ -12,6 +12,16 @@ const command = (...args) => {
 };
 const evaluate = code => JSON.parse(command('eval', code));
 const wait = code => command('wait', '--fn', code);
+// A polling refresh happens after 15 seconds. Apply must update the table before it.
+const promptly = code => assert.equal(evaluate(`new Promise(resolve => {
+  const deadline = Date.now() + 2000;
+  const check = () => {
+    if (${code}) return resolve(true);
+    if (Date.now() >= deadline) return resolve(false);
+    setTimeout(check, 20);
+  };
+  check();
+})`), true, `Table did not update promptly: ${code}`);
 const viewport = (width, height) => {
   command('set', 'viewport', String(width), String(height));
   wait(`innerWidth === ${width} && innerHeight === ${height}`);
@@ -33,11 +43,13 @@ command('set', 'media', 'dark');
 {
   viewport(1440, 900);
   command('wait', '--text', 'Acme Labs');
+  command('eval', 'window.columnAcceptancePage = true');
   open(); bounds();
   command('fill', '[name=column-search]', 'domain');
   assert.equal(evaluate('document.querySelectorAll(".columns-option").length'), 2);
   command('check', 'input[value=email_domain]');
   command('click', '.columns-apply');
+  promptly('[...document.querySelectorAll("thead th")].some(x=>x.textContent.includes("email domain"))');
   wait('document.querySelector(".columns-trigger").textContent.includes("7")');
   assert.ok(evaluate('new URL(location.href).searchParams.get("columns").split(",").includes("email_domain")'));
   assert.ok(evaluate('[...document.querySelectorAll("thead th")].some(x=>x.textContent.includes("email domain"))'));
@@ -48,6 +60,7 @@ command('set', 'media', 'dark');
   assert.equal(evaluate('document.activeElement.className'), 'columns-trigger');
   open();
   command('click', '.columns-reset');
+  promptly('document.querySelectorAll("thead th button").length === 6');
   wait('document.querySelector(".columns-trigger").textContent.includes("6")');
   assert.equal(evaluate('new URL(location.href).searchParams.has("columns")'), false);
   open();
@@ -55,8 +68,13 @@ command('set', 'media', 'dark');
   command('uncheck', 'input[type=checkbox][value=domain]');
   wait('document.querySelector(".columns-description").textContent.startsWith("5 of")');
   command('click', '.columns-apply');
+  promptly('document.querySelectorAll("thead th button").length === 5 && ![...document.querySelectorAll("thead th button")].some(x=>x.textContent.trim() === "domain")');
   wait('document.querySelector(".columns-trigger").textContent.includes("5")');
-  assert.equal(evaluate('[...document.querySelectorAll("thead th button")].some(x=>x.textContent === "domain")'), false);
+  assert.equal(evaluate('[...document.querySelectorAll("thead th button")].some(x=>x.textContent.trim() === "domain")'), false);
+  command('eval', 'history.back()');
+  promptly('document.querySelectorAll("thead th button").length === 6');
+  command('eval', 'history.forward()');
+  promptly('document.querySelectorAll("thead th button").length === 5');
   open();
   command('click', '.columns-reset');
   wait('document.querySelector(".columns-trigger").textContent.includes("6")');
@@ -75,6 +93,7 @@ command('set', 'media', 'dark');
   command('fill', '[name=column-search]', 'name');
   command('press', 'Escape');
   viewport(1440, 900);
+  assert.equal(evaluate('window.columnAcceptancePage'), true, 'Column changes must not reload the page');
   open();
 }
 viewport(1440, 900);
