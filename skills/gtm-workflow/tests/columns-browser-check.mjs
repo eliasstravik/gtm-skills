@@ -26,6 +26,7 @@ const bounds = () => {
   const result = evaluate('(()=>{const p=document.querySelector(".columns-popover").getBoundingClientRect(); return {left:p.left,right:p.right,top:p.top,bottom:p.bottom,width:innerWidth,height:innerHeight}})()');
   assert.ok(result.left >= 0 && result.right <= result.width && result.top >= 0 && result.bottom <= result.height, JSON.stringify(result));
 };
+command('open', url);
 viewport(1440, 900);
 command('set', 'media', 'dark');
 command('record', 'start', join(output, 'column-selector.webm'), url);
