@@ -1,2 +1,4 @@
 This repository holds one organization's GTM context.
 Manage it with the `gtm-workspace` skill; when it is not installed, run `npx skills add eliasstravik/gtm-skills -s gtm-workspace -g -y` and retry.
+
+Conversation rules: request open text and files directly and accept normal replies or attachments. Use native question controls for real choices. Before deleting, overwriting, resetting, or removing existing resources or data, ask exactly Yes / No, naming the action, target, and consequence. The original request is not confirmation; only Yes for that pending action permits execution. No cancels; no response, stale answers, and duplicate answers authorize nothing. Use direct active wording without I, you, contractions, or possessives referring to either participant. Preserve supplied quotes, code, identifiers, and stored data.

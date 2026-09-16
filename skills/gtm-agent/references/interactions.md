@@ -8,17 +8,17 @@ Contents: [Deploy](#deploy) · [Deploy, asked from the hosted agent](#deploy-ask
 
 **Human:** Get gtm-agent running for Acme in Slack.
 
-**Agent:** Setting up GTM Agent for Acme on your Vercel team now: the agent, its Slack app, the workspace repository, and a workflow project with its database; about five minutes. Two things will need you: the Slack install page, and, if this team has not used Turso before, accepting its marketplace terms.
+**Agent:** Setting up GTM Agent for Acme on the selected Vercel team now: the agent, its Slack app, the workspace repository, and a workflow project with its database; about five minutes. Two manual steps remain: the Slack install page, and, if this team has not used Turso before, accepting its marketplace terms.
 
-Slack needs you now: choose the Acme workspace and approve the app. I will synchronize the selected permissions and events in Vercel and Slack, then verify the installed permissions. I'll continue when it's done.
+Open the Slack installation page: choose the Acme workspace and approve the app. The setup then synchronizes the selected permissions and events in Vercel and Slack and verifies the installed permissions.
 
 **Human:** Done.
 
-**Agent:** GTM Agent is live for Acme. In Slack, invite gtm-agent-acme to your GTM channel, then say:
+**Agent:** GTM Agent is live for Acme. In Slack, invite gtm-agent-acme to the GTM channel, then say:
 
 @gtm-agent-acme set up our GTM workspace
 
-Workflow notifications need a channel: tell me its id (bottom of the channel's About tab) and I'll set it.
+Workflow notifications need a channel: supply its id from the bottom of the channel's About tab.
 
 **Files:** none in the workspace (the runtime under `workflows/` was pushed to gtm-acme; the agent copy lives in gtm-agent-acme)
 
@@ -28,7 +28,7 @@ Workflow notifications need a channel: tell me its id (bottom of the channel's A
 
 **Human:** Connect the workflow project.
 
-**Agent:** That's done from a computer, not from here: a teammate with the GitHub and Vercel CLIs signed in tells their coding agent "connect the workflow project for Acme", and it creates the project and its database and wires me to it. Nothing to paste anywhere.
+**Agent:** That's done from a computer, not from here: a teammate with the GitHub and Vercel CLIs signed in tells their coding agent "connect the workflow project for Acme", and it creates the project and its database and connects the agent to it. Nothing to paste anywhere.
 
 ## Doctor
 
@@ -36,14 +36,14 @@ Workflow notifications need a channel: tell me its id (bottom of the channel's A
 
 **Human:** Check the Acme deployment.
 
-**Agent:** Checked. Two things to fix: the Slack app doesn't receive direct messages (Slack lacks the `message.im` event and `im:history` permission; I can synchronize its configuration and complete the app reapproval), and the workflow project builds on every push, workspace changes included (a project setting; I can set it). Set the project setting now?
+**Agent:** Checked. Two things to fix: the Slack app doesn't receive direct messages (Slack lacks the `message.im` event and `im:history` permission; synchronizing its configuration and reapproving the app fixes this), and the workflow project builds on every push, workspace changes included (a project setting; the setting can be changed). Set the project setting now?
 
 1. Yes, set it (Recommended)
 2. Not now
 
 **Human:** 1
 
-**Agent:** Set. The Slack configuration is ready; I will finish the authorized app reapproval and verify the saved manifest and installed permissions.
+**Agent:** Set. The Slack configuration is ready. Completing the authorized app reapproval and checking the saved manifest and installed permissions.
 
 ## Upgrade
 

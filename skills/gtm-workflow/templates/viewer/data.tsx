@@ -3,6 +3,7 @@ import { CONTRACT_VERSION } from "../lib/viewer-contract";
 import { href, navigate, query, shared, token } from "./navigation";
 import { Search, State, time, useRead } from "./common";
 import { webUrl } from "./web-url";
+import { ColumnChooser } from "./column-chooser";
 const valueText = (value: unknown) =>
   value == null
     ? ""
@@ -288,29 +289,9 @@ export default function Data({ destinations }: any) {
                 </>
               )}
               <button onClick={state.retry}>Refresh</button>
-              <details className="column-chooser">
-                <summary>Columns</summary>
-                {(d.availableFields ?? d.fields).map((field: any) => (
-                  <label key={field.id} style={{ display: "block" }}>
-                    <input
-                      type="checkbox"
-                      checked={visible.includes(field.id)}
-                      disabled={
-                        visible.length === 1 && visible.includes(field.id)
-                      }
-                      onChange={(event) =>
-                        update({
-                          columns: (event.target.checked
-                            ? [...visible, field.id]
-                            : visible.filter((id: string) => id !== field.id)
-                          ).join(","),
-                        })
-                      }
-                    />
-                    {field.label}
-                  </label>
-                ))}
-              </details>
+              <ColumnChooser key={p.get("table") ?? "default"}
+                fields={d.availableFields ?? d.fields} visible={visible}
+                onChange={columns => update({ columns: columns?.join(",") })} />
               <button
                 disabled={exporting || !d.total}
                 onClick={() => download("csv")}

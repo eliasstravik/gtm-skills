@@ -16,7 +16,7 @@ Contents: [Create](#create) · [Update](#update) · [Delete](#delete) · [Doctor
 
 **Human:** 1, in the US or UK, with at least 8 years in sales.
 
-**Agent:** I'll create the persona Revenue Leader: job titles VP Sales, Head of Sales, or Chief Revenue Officer; seniority VP or C-level; sales function; US or UK; 8 or more years of experience. The other six criteria stay Unknown until you give them; I don't borrow criteria from Acme's company record or its members.
+**Agent:** Creating the persona Revenue Leader: job titles VP Sales, Head of Sales, or Chief Revenue Officer; seniority VP or C-level; sales function; US or UK; 8 or more years of experience. The other six criteria stay Unknown until supplied; Acme's company and member facts do not define prospect criteria.
 
 Created Revenue Leader.
 
@@ -29,13 +29,13 @@ Created Revenue Leader.
 
 **Human:** Revenue Leader should speak English, and rule out anyone at an agency.
 
-**Agent:** I'll set Languages on Revenue Leader to English and add "works at an agency" as a disqualifier.
+**Agent:** Setting Languages on Revenue Leader to English and adding "works at an agency" as a disqualifier.
 
 Updated Revenue Leader.
 
 **Human:** And add a signal: they've posted about pipeline or forecasting recently.
 
-**Agent:** I'll add a person signal to Revenue Leader: recent posts about pipeline or forecasting.
+**Agent:** Adding a person signal to Revenue Leader: recent posts about pipeline or forecasting.
 
 Updated Revenue Leader.
 
@@ -52,13 +52,19 @@ Updated Revenue Leader.
 
 1. Marketing Lead (Recommended)
 2. Revenue Leader
-3. Neither; show me all personas
+3. Neither; show all personas
 
 **Human:** 1
 
-**Agent:** I'll remove the persona Marketing Lead (Head of Marketing or CMO; marketing function; US or UK). No workflow carries a copy of it.
+**Agent:** Delete persona Marketing Lead? This removes its saved definition. No workflow carries a copy of it.
 
-Deleted Marketing Lead. It stays in the workspace's history; ask me to restore it if you change your mind.
+Options: Yes; No.
+
+**Human:** Yes.
+
+**Agent:** Removing the persona Marketing Lead (Head of Marketing or CMO; marketing function; US or UK). No workflow carries a copy of it.
+
+Deleted Marketing Lead. It stays in the workspace's history; request restoration when needed.
 
 **Files:**
 - deleted `personas/marketing-lead/PERSONA.md`
@@ -77,7 +83,7 @@ Deleted Marketing Lead. It stays in the workspace's history; ask me to restore i
 
 **Human:** 1
 
-**Agent:** I'll add the name Ops Buyer to that persona; its criteria stay as they are.
+**Agent:** Adding the name Ops Buyer to that persona; its criteria stay as they are.
 
 Updated Ops Buyer.
 

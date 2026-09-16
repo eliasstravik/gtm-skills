@@ -70,7 +70,7 @@ Fit only; recurring scoring belongs in a gtm-workflow.
 
 **Human:** Save these somewhere.
 
-**Agent:** Fit checks don't save anything. For a list you'll score again, ask me to build a workflow that scores inbound companies against Lean B2B SaaS; it keeps a table you can sort and share.
+**Agent:** Fit checks don't save anything. For repeated scoring, request a workflow that scores inbound companies against Lean B2B SaaS and keeps a sortable, shareable table.
 
 **Files:** none
 
@@ -80,7 +80,7 @@ Fit only; recurring scoring belongs in a gtm-workflow.
 
 **Human:** Score brightpath.io, quillhr.com, and northfield.co against our ICP.
 
-**Agent:** I have only the three web addresses. Brightpath's and Quill HR's public sites cover most criteria; Northfield's says almost nothing.
+**Agent:** Only three web addresses are available. Brightpath's and Quill HR's public sites cover most criteria; Northfield's says almost nothing.
 
 1. Look up all three with Crustdata: 3 calls at $0.02 each, $0.06 in total, filling size, industry, location, and tech stack (Recommended)
 2. Score from the public sites only, free, with lower confidence
