@@ -15,6 +15,7 @@ const wait = code => command('wait', '--fn', code);
 const viewport = (width, height) => {
   command('set', 'viewport', String(width), String(height));
   wait(`innerWidth === ${width} && innerHeight === ${height}`);
+  command("eval", "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
 };
 const url = 'http://127.0.0.1:3942/viewer?workflow=stable&view=data&table=companies';
 const open = () => {
