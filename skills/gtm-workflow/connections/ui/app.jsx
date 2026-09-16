@@ -101,13 +101,6 @@ function App() {
   async function logout() {
     try { await request("/api/logout", {}); } finally { clearSession(); setInventory(null); setSelection(null); setError(localMode ? "reopen_connections" : "sign_in_required"); }
   }
-  async function downloadVerification() {
-    try {
-      const receipt = await request("/api/verification"), url = URL.createObjectURL(new Blob([JSON.stringify(receipt)], { type: "application/json" }));
-      const link = document.createElement("a"); link.href = url; link.download = "connections-verification.json"; link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (failure) { setError(failure.message); }
-  }
   return <main className="workspace">
     <nav className="tabs root-navigation" aria-label="Workspace"><a href={inventory?.workflowsUrl ?? "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Workflows</a><a href={integratedMode ? "/connections" : "/"} aria-current="page">Connections</a></nav>
     <div className="title-row"><div><h1>Connections</h1><p className="muted">{localMode ? "Local" : "Production"}{inventory?.workspaceName ? ` · ${inventory.workspaceName}` : ""}</p></div>
@@ -115,7 +108,7 @@ function App() {
         {inventory.canWrite ? <button type="button" className="primary" onClick={(event) => select(event, { action: "add" })}>Add connection</button> : null}</div> : null}
     </div>
     {loading ? <p className="notice" role="status">Loading connections…</p> : null}
-    {error ? <div className="notice" role="alert"><p>{message(error)}</p>{!localMode && error === "sign_in_required" ? <a className="button" href="/auth/login">Sign in with Vercel</a> : null}</div> : null}
+    {error ? <div className="notice" role="alert"><p>{message(error)}</p></div> : null}
     {inventory ? <>
       {!inventory.canWrite ? <p className="notice">Read-only access. A project owner or member can change Production connections.</p> : null}
       <div className="connection-list">{inventory.connections.map((row) => <div className="connection-row" key={row.id}>
@@ -127,7 +120,6 @@ function App() {
       </div>)}</div>
       {!inventory.connections.length ? <p className="notice">No connections yet. Add a service key to make it available to workflows.</p> : null}
       <div className="connection-footer"><button type="button" onClick={start}>Refresh</button>{!integratedMode ? <button type="button" onClick={logout}>Sign out</button> : null}{inventory.productionUrl ? <a href={inventory.productionUrl}>Open Production</a> : null}{inventory.deploymentUrl ? <a href={inventory.deploymentUrl}>Open deployment settings</a> : null}</div>
-      {!localMode && inventory.canVerify ? <details><summary>Setup verification</summary><p className="muted">Download proof of this sign-in and the live connection to your workflow project. It contains project metadata and no credentials.</p><button type="button" onClick={downloadVerification}>Download verification</button></details> : null}
       {selection ? <EntryForm key={`${selection.action}-${selection.field?.variable ?? "new"}`} selection={selection} inventory={inventory} close={closeEntry} updated={refresh} /> : null}
     </> : null}
   </main>;
