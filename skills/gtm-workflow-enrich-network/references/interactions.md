@@ -1,6 +1,6 @@
 # Example interactions
 
-These are illustrative outcomes. Questions use the host's native controls, one at a time. Prices come from inspected services and are stated before execution; the examples prescribe no vendor or price.
+These are illustrative outcomes. Structured choices use native controls; open text and file requests use normal conversation replies, one at a time. Prices come from inspected services and are stated before execution; the examples prescribe no vendor or price.
 
 ## CSV, services not yet selected
 
@@ -10,17 +10,21 @@ These are illustrative outcomes. Questions use the host's native controls, one a
 
 Options: CSV; existing database or table; service that retrieves the list.
 
-**User:** This CSV of my connections.
+**User:** CSV.
 
 **Agent:** Which services should enrich the people and companies?
 
-Options: use suitable connected services; I'll name the services; help me find services.
+Options: use suitable connected services; Name the services; Find suitable services.
 
 **User:** Use suitable connected services.
 
-The agent inspects the CSV and connected capabilities, presents real compatible choices with their coverage and prices when a choice is needed, then builds through `gtm-workflow`. It does not assume the first connected service can enrich both people and companies.
+**Agent:** Upload the CSV of connections or followers. Include a LinkedIn profile URL, email, or provider ID where available; names alone may remain unresolved.
 
-**Agent:** Building your network workflow with shared people and companies and all confirmed current roles. I'll keep the imported list for future runs.
+**User:** Attaches connections.csv through the normal upload flow.
+
+The file request has no action button. The normal attachment continues the same conversation. The agent inspects the CSV and connected capabilities, presents real compatible choices with their coverage and prices when a choice is needed, then builds through `gtm-workflow`. It does not assume the first connected service can enrich both people and companies.
+
+**Agent:** Building the network workflow with shared people and companies and all confirmed current roles. Keeping the imported list for future runs.
 
 After verification, the save carries the dependency's diagram, runs, and data links.
 

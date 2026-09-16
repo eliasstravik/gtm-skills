@@ -142,6 +142,16 @@ await client.executeMultiple(
   "INSERT INTO companies VALUES ('acme','Acme Labs'),('orbit','Orbit Example'); INSERT INTO employment VALUES ('a','p00001','acme'),('b','p00001','orbit');",
 );
 const publicDir = resolve(process.argv[2]);
+if (process.env.GTM_VIEWER_FIXTURE_COLUMNS === "1") {
+  const names = ["domain", "description", "industries", "company_size_label", "headquarters_label", "enriched_at", "enrichment_status", "linkedin_url", "tagline", "website_url", "email_domain", "founded_year", "phone", "revenue", "funding", "technologies", "locations", "specialties", "identifiers", "sources", "provenance", "section_status", "raw_responses", "last_attempt_at", "error", "cost_usd", "created_at", "updated_at"];
+  Object.assign(tables, { companies: sqliteTable("companies", {
+    key: text().primaryKey(), name: text(), ...Object.fromEntries(names.map(name => [name, text()])),
+  }) });
+  entry.data.tables.find(table => table.name === "companies")!.columns.push(...names);
+  Object.assign(entry.data.tables.find(table => table.name === "companies")!, { defaultColumns: ["name", "domain", "description", "industries", "company_size_label", "enrichment_status"] });
+  for (const name of names) await client.execute(`ALTER TABLE companies ADD COLUMN ${name} TEXT`);
+  await client.execute("UPDATE companies SET domain='example.com', description='Synthetic company for interface checks', industries='Software', company_size_label='11–50', headquarters_label='Stockholm', enrichment_status='Enriched'");
+}
 if (process.env.GTM_VIEWER_FIXTURE_LINKS === "1") {
   Object.assign(tables, {
     people: sqliteTable("people", {

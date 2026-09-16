@@ -3,7 +3,7 @@
 ## Bare entry
 
 User: /gtm-workflows
-Agent: What would you like to do?
+Agent: Choose a workflow action.
 
 1. Open GTM Workflows
 2. Create a workflow
@@ -21,13 +21,13 @@ Contents: [Create](#create) · [Create without a connected project](#create-with
 
 **Agent:** Where do the companies come from?
 
-1. Web addresses you give me, kept as the workflow's list; you can add more any time (Recommended)
+1. Supplied web addresses, kept as an editable workflow list (Recommended)
 2. A data provider queried on every run, which needs that provider's key
 3. A table another workflow fills
 
 **Human:** 1: brightpath.io, quillhr.com, northfield.co
 
-**Agent:** Building it now; about two minutes, since this is Acme's first workflow. Score inbound accounts scores your three companies against Lean B2B SaaS through AI Gateway, about $0.01 each, capped at 200 rows or $5 per run.
+**Agent:** Building it now; about two minutes, since this is Acme's first workflow. Score inbound accounts scores the three supplied companies against Lean B2B SaaS through AI Gateway, about $0.01 each, capped at 200 rows or $5 per run.
 
 Created Score inbound accounts.
 [Open GTM Workflows](http://127.0.0.1:3939/viewer?workflow=example-score-inbound-accounts)
@@ -42,7 +42,7 @@ Created Score inbound accounts.
 
 **Human:** 3
 
-**Agent:** Nothing has run. Say "run Score inbound accounts" whenever you're ready.
+**Agent:** Nothing has run. Say "run Score inbound accounts" when ready.
 
 **Files:**
 
@@ -61,19 +61,19 @@ Created Score inbound accounts.
 
 **Agent:** Where do the companies come from?
 
-1. Web addresses you give me, kept as the workflow's list; you can add more any time (Recommended)
+1. Supplied web addresses, kept as an editable workflow list (Recommended)
 2. A data provider queried on every run, which needs that provider's key
 3. A table another workflow fills
 
 **Human:** 1: brightpath.io, quillhr.com, northfield.co
 
-**Agent:** Building it now; about two minutes, since this is Acme's first workflow. Score inbound accounts scores your three companies against Lean B2B SaaS through AI Gateway, about $0.01 each, capped at 200 rows or $5 per run.
+**Agent:** Building it now; about two minutes, since this is Acme's first workflow. Score inbound accounts scores the three supplied companies against Lean B2B SaaS through AI Gateway, about $0.01 each, capped at 200 rows or $5 per run.
 
 Created Score inbound accounts.
 
 Runs happen on the hosted copy, which needs a Vercel project connected to the Acme repository once; after that every save deploys by itself. To connect it, a teammate with the GitHub and Vercel CLIs signed in says to their coding agent: "connect the workflow project for Acme". That creates the project and its database and wires this agent to it; nothing to paste anywhere.
 
-Once that is in place, ask me to run it and I'll offer a one-row test first.
+After setup, request a run to start with a one-row test.
 
 **Files:**
 
@@ -94,11 +94,11 @@ Once that is in place, ask me to run it and I'll offer a one-row test first.
 
 **Human:** here
 
-**Agent:** Building it now; about three minutes. Enrich LinkedIn profiles takes profile addresses you give at run time, enriches each through Monid's ContactOut lookup, about $0.26 per row, capped at 200 rows or $5 per run.
+**Agent:** Building it now; about three minutes. Enrich LinkedIn profiles takes profile addresses supplied at run time, enriches each through Monid's ContactOut lookup, about $0.26 per row, capped at 200 rows or $5 per run.
 
 Created Enrich LinkedIn profiles; it asks in this channel before each paid lookup.
 
-Live. Ask me to run it and I'll test one profile first.
+Live. Request a run to start with a one-profile test.
 [Open GTM Workflows](https://gtm-acme.vercel.app/viewer?workflow=example-enrich-linkedin-profiles)
 
 **Files:**
@@ -115,11 +115,11 @@ Live. Ask me to run it and I'll test one profile first.
 
 **Human:** Build a workflow: I give it a work email, it takes the domain and posts it here.
 
-**Agent:** Building it now; about three minutes. Post email domain takes emails you give at run time, reads the domain off each, and posts it in this channel; no AI and nothing paid, capped at 100 rows per run.
+**Agent:** Building it now; about three minutes. Post email domain takes emails supplied at run time, reads the domain off each, and posts it in this channel; no AI and nothing paid, capped at 100 rows per run.
 
 Created Post email domain.
 
-Live. Ask me to run it on an email and it runs straight away.
+Live. Request a run on one email to start immediately.
 [Open GTM Workflows](https://gtm-acme.vercel.app/viewer?workflow=example-post-email-domain)
 
 **Human:** Run it on simon@ophena.com.
@@ -142,11 +142,11 @@ Done: posted ophena.com in this channel.
 
 **Human:** Build a workflow that takes a work email and researches the person through Monid, like a research agent would: find the right endpoint, run it, then corroborate on LinkedIn and the web.
 
-**Agent:** Building it now; about three minutes. Research people by email takes emails you give at run time and sends an agent through Monid's tools for each, up to 12 tool turns, about $0.30 and 5 minutes per row, capped at 200 rows or $20 per run.
+**Agent:** Building it now; about three minutes. Research people by email takes emails supplied at run time and sends an agent through Monid's tools for each, up to 12 tool turns, about $0.30 and 5 minutes per row, capped at 200 rows or $20 per run.
 
 Created Research people by email.
 
-Live. Ask me to run it and I'll test one email first.
+Live. Request a run to start with a one-email test.
 [Open GTM Workflows](https://gtm-acme.vercel.app/viewer?workflow=example-research-people-by-email)
 
 **Human:** Test one: priya@quillhr.com.
@@ -169,7 +169,7 @@ Done: Priya Nair, Head of Revenue Operations at Quill HR, London; matched. The a
 
 **Human:** Let's look at Score inbound accounts.
 
-**Agent:** Score inbound accounts: what would you like to do?
+**Agent:** Score inbound accounts: choose an action.
 
 1. Update it
 2. Run it
@@ -228,13 +228,13 @@ Done: 34 companies scored; 1 failed (Northfield's site couldn't be reached; it w
 
 **Human:** Put Score inbound accounts on a weekly schedule, hosted, Monday mornings.
 
-**Agent:** Adding the Monday 08:00 UTC schedule now. Hosting needs a Vercel project connected to the gtm-acme repository once; after that every save deploys by itself. Say "connect the workflow project for Acme" and I'll create it (the gtm-agent skill does that here: the project, its database, and `GTM_WORKFLOW_URL` and `GTM_RUN_SECRET` in `workflows/.env`), then check that the deployment is live.
+**Agent:** Adding the Monday 08:00 UTC schedule now. Hosting needs a Vercel project connected to the gtm-acme repository once; after that every save deploys by itself. Request "connect the workflow project for Acme" to create the project and its database, connect the workflow credentials, and verify the live deployment.
 
 Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
 **Human:** Done.
 
-**Agent:** Live: Score inbound accounts runs every Monday at 08:00 UTC on Vercel. It keeps its own copy of the criteria until you update the workflow.
+**Agent:** Live: Score inbound accounts runs every Monday at 08:00 UTC on Vercel. It keeps its own copy of the criteria until the workflow is updated.
 [Open GTM Workflows](https://gtm-acme.vercel.app/viewer?workflow=example-score-inbound-accounts)
 
 **Files:**
@@ -249,7 +249,7 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
 **Human:** Run Score inbound accounts on the hosted copy.
 
-**Agent:** Your last save is live. The full run is 3 rows × about $0.01, about $0.03, under the $5 cap; hosted results live in the hosted database, separate from this computer's.
+**Agent:** The last save is live. The full run is 3 rows × about $0.01, about $0.03, under the $5 cap; hosted results live in the hosted database, separate from this computer's.
 
 1. Run all 3 hosted now (Recommended)
 2. Test one row hosted first
@@ -267,7 +267,7 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
 **Human:** Test one profile.
 
-**Agent:** Not started: there is no Monid key yet, so every row would fail. Add `MONID_API_KEY` in the workflow project's settings and Redeploy, then ask me again and I'll test one profile first.
+**Agent:** Not started: there is no Monid key yet, so every row would fail. Add `MONID_API_KEY` in the workflow project's settings and Redeploy, then request a one-profile test.
 
 **Files:** none
 
@@ -277,13 +277,19 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
 **Human:** Upgrade the workflow runtime.
 
-**Agent:** Your runtime is behind the installed skill: three shared files and two packages. Upgrading replaces shared code only; your workflows, tables, data, schedules, and keys stay as they are.
+**Agent:** The runtime is behind the installed skill: three shared files and two packages. Upgrading replaces shared code only; authored workflows, tables, data, schedules, and keys stay as they are.
 
 1. Upgrade now (Recommended)
-2. Show me what changes first
+2. Show the changes first
 3. Not now
 
 **Human:** 1
+
+**Agent:** Replace the shared workflow runtime files and dependency lockfile? Authored workflows, tables, data, schedules, and keys stay unchanged.
+
+Options: Yes; No.
+
+**Human:** Yes.
 
 **Agent:** Upgrading now. Verified: the runtime starts and the diagram opens; it goes live with this save.
 
@@ -303,9 +309,15 @@ Upgraded the runtime.
 
 **Human:** Delete Score inbound accounts.
 
+**Agent:** Delete Score inbound accounts and its Monday schedule? The table inbound_scores keeps its 37 rows.
+
+Options: Yes; No.
+
+**Human:** Yes.
+
 **Agent:** Removing Score inbound accounts and its Monday schedule now; the table inbound_scores keeps its 37 rows.
 
-Deleted Score inbound accounts; it stays in history, ask me to restore it.
+Deleted Score inbound accounts; it stays in history, request restoration.
 
 **Files:**
 

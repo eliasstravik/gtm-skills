@@ -12,11 +12,11 @@ Contents: [Create](#create) · [Update](#update) · [Delete](#delete) · [Doctor
 
 1. Widen Lean B2B SaaS to 20–200 employees instead (Recommended)
 2. Create a separate ICP named Small SaaS
-3. Show me Lean B2B SaaS first
+3. Show Lean B2B SaaS first
 
 **Human:** 2
 
-**Agent:** I'll create the ICP Small SaaS: B2B software, 20–100 employees, US or UK, subscription revenue. The other eight criteria stay Unknown until you give them; I don't borrow criteria from Acme's own company record.
+**Agent:** Creating the ICP Small SaaS: B2B software, 20–100 employees, US or UK, subscription revenue. The other eight criteria stay Unknown until supplied; Acme's company facts do not define prospect criteria.
 
 Created Small SaaS.
 
@@ -29,13 +29,13 @@ Created Small SaaS.
 
 **Human:** Lean B2B SaaS should require HubSpot or Salesforce, and rule out agencies and consultancies.
 
-**Agent:** I'll set Tech stack on Lean B2B SaaS to HubSpot or Salesforce and add agencies and consultancies as disqualifiers. The workflow Score inbound accounts keeps its own copy of the earlier criteria until you ask me to update it.
+**Agent:** Setting Tech stack on Lean B2B SaaS to HubSpot or Salesforce and adding agencies and consultancies as disqualifiers. The workflow Score inbound accounts keeps its own copy of the earlier criteria until explicitly updated.
 
 Updated Lean B2B SaaS.
 
 **Human:** Also accept Canada.
 
-**Agent:** I'll add Canada to the accepted locations on Lean B2B SaaS.
+**Agent:** Adding Canada to the accepted locations on Lean B2B SaaS.
 
 Updated Lean B2B SaaS.
 
@@ -55,9 +55,15 @@ Updated Lean B2B SaaS.
 
 **Human:** 1
 
-**Agent:** I'll remove the ICP Small SaaS (B2B software, 20–100 employees, US or UK, subscription revenue).
+**Agent:** Delete ICP Small SaaS? This removes its saved definition.
 
-Deleted Small SaaS. It stays in the workspace's history; ask me to restore it if you change your mind.
+Options: Yes; No.
+
+**Human:** Yes.
+
+**Agent:** Removing the ICP Small SaaS (B2B software, 20–100 employees, US or UK, subscription revenue).
+
+Deleted Small SaaS. It stays in the workspace's history; request restoration when needed.
 
 **Files:**
 - deleted `icps/small-saas/ICP.md`
@@ -76,7 +82,13 @@ Deleted Small SaaS. It stays in the workspace's history; ask me to restore it if
 
 **Human:** 1
 
-**Agent:** I'll remove the empty ICP Enterprise and move EU Fintech into a folder named after it. Enterprise is gone but stays in the workspace's history if you want it back.
+**Agent:** Remove the empty ICP Enterprise and move EU Fintech? Enterprise will remain recoverable from workspace history.
+
+Options: Yes; No.
+
+**Human:** Yes.
+
+**Agent:** Removing the empty ICP Enterprise and moving EU Fintech into a folder named after it. Enterprise is gone but stays in the workspace's history for restoration when needed.
 
 Removed Enterprise; moved EU Fintech into its own folder.
 

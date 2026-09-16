@@ -8,20 +8,20 @@ Contents: [Create](#create) · [Create into a shared checkout](#create-into-a-sh
 
 **Human:** Set up a GTM workspace for Acme, acme.com.
 
-**Agent:** I'll create the Acme workspace and fill its company record from what you tell me and from acme.com's own public pages; anything I can't confirm stays Unknown rather than guessed. One choice first: where should it live?
+**Agent:** Creating the Acme workspace and filling its company record from supplied facts and from acme.com's own public pages; unconfirmed facts stay Unknown. One choice first: where should it live?
 
 1. On this computer only (Recommended)
-2. On this computer and in a private GitHub repository under your account, so teammates and their agents can share it
+2. On this computer and in a private GitHub repository under the signed-in account, so teammates and their agents can share it
 
 **Human:** 2
 
-**Agent:** From acme.com I filled 9 of the 13 company facts: B2B software, product analytics for SaaS teams, sold by subscription, 11–50 people, Austin, Texas. Annual revenue, Company type, Employees, and Tech stack stay Unknown until you tell me. I'll create the workspace with this company record and publish it as the private GitHub repository gtm-acme under your account.
+**Agent:** acme.com supplies 9 of the 13 company facts: B2B software, product analytics for SaaS teams, sold by subscription, 11–50 people, Austin, Texas. Annual revenue, Company type, Employees, and Tech stack stay Unknown until confirmed. Creating the workspace with this company record and publishing it as the private GitHub repository gtm-acme under the signed-in account.
 
 Created the Acme workspace and published it as gtm-acme.
 
 **Human:** We're 30 people, privately held, and we run on HubSpot and Segment. Add Priya Shah as a member: priya@acme.com, Head of Sales, Austin.
 
-**Agent:** I'll set Employees to 30, Company type to Privately held, and Tech stack to HubSpot and Segment, and add Priya Shah as a member with that email, role, and location.
+**Agent:** Setting Employees to 30, Company type to Privately held, and Tech stack to HubSpot and Segment, and adding Priya Shah as a member with that email, role, and location.
 
 Updated Acme's company record and added Priya Shah.
 
@@ -38,7 +38,7 @@ Updated Acme's company record and added Priya Shah.
 
 **Human:** Set up our GTM workspace for Acme Corp, acme.com.
 
-**Agent:** From acme.com I filled 9 of the 13 company facts: B2B software, product analytics for SaaS teams, sold by subscription, 11–50 people, Austin, Texas. Annual revenue, Company type, Employees, and Tech stack stay Unknown until you tell me. I'll create the Acme Corp workspace with this company record in the shared repository your team already connected.
+**Agent:** acme.com supplies 9 of the 13 company facts: B2B software, product analytics for SaaS teams, sold by subscription, 11–50 people, Austin, Texas. Annual revenue, Company type, Employees, and Tech stack stay Unknown until confirmed. Creating the Acme Corp workspace with this company record in the shared repository already connected by the team.
 
 Created the Acme Corp workspace.
 
@@ -60,13 +60,13 @@ Created the Acme Corp workspace.
 
 **Human:** 1
 
-**Agent:** I'll add Tom Okafor as a member of Acme with that email, role, and location.
+**Agent:** Adding Tom Okafor as a member of Acme with that email, role, and location.
 
 Added Tom Okafor.
 
 **Human:** Also, our annual revenue is about $4M now.
 
-**Agent:** I'll set Acme's Annual revenue to about $4M.
+**Agent:** Setting Acme's Annual revenue to about $4M.
 
 Updated Acme's Annual revenue.
 
@@ -88,7 +88,13 @@ Updated Acme's Annual revenue.
 
 **Human:** 1
 
-**Agent:** I'll add Tech stack as Unknown, remove the README, and move Acme Europe's details into the company record's notes; nothing else changes.
+**Agent:** Apply the workspace repair? This replaces the company record, removes the README, and moves the old Acme Europe record into the company notes.
+
+Options: Yes; No.
+
+**Human:** Yes.
+
+**Agent:** Adding Tech stack as Unknown, removing the README, and moving Acme Europe's details into the company record's notes; nothing else changes.
 
 Updated Acme's company record and removed the README and the old suborgs folder.
 
