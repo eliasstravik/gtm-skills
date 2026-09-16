@@ -40,6 +40,11 @@ try {
               {
                 name: "workflow-test-context",
                 setup(build) {
+                  // Keep the CLI entrypoint guard tied to its original module URL.
+                  build.onResolve({ filter: /scripts\/upgrade-package\.mjs$/ }, () => ({
+                    path: join(dirname(fileURLToPath(import.meta.url)), "../scripts/upgrade-package.mjs"),
+                    external: true,
+                  }));
                   build.onResolve({ filter: /^workflow$/ }, () => ({
                     path: join(
                       dirname(fileURLToPath(import.meta.url)),
