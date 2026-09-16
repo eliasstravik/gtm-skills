@@ -272,8 +272,7 @@ if (withWorkflows) {
     mkdirSync(gtmHome, { recursive: true });
     must("gh", ["repo", "clone", ctxRepo, workspaceDir]);
   }
-  // Workspace and connection provisioning have one implementation. The same
-  // setup runs without an agent project for standalone installations.
+  // Configure Connections on the existing workflow project through shared setup.
   const sharedSetup = join(dirname(skillDir), "gtm-workflow", "scripts", "setup.mjs");
   const code = await spawnStreaming(process.execPath, [sharedSetup, "--deploy", "--workspace", workspaceDir, "--team", team,
     "--github-owner", githubOwner, "--workflow-project", n.workflowProject, "--agent-project", n.agentProject,
@@ -281,7 +280,7 @@ if (withWorkflows) {
     ...(a["intake-protection-verified"] ? ["--intake-protection-verified"] : []),
     ...(a.verification ? ["--verification", a.verification] : [])]);
   if (code !== 0) process.exit(code);
-  ok("Workflow and Connections setup verified");
+  ok("Connections configuration completed; verify the serving deployment in your browser");
 }
 
 // 8. Doctor

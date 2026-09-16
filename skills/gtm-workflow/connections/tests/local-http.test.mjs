@@ -52,6 +52,7 @@ test("real local HTTP and native credential CRUD never expose stored values", as
     await fetch(`${server.origin}/api/logout`, { method: "POST", headers: authenticated, body: "{}" });
     assert.equal((await fetch(`${server.origin}/api/connections`, { headers: authenticated })).status, 401);
   } finally {
-    store.remove("BLITZ_API_KEY"); if (server) await server.close(); await rm(root, { recursive: true, force: true });
+    store.remove("BLITZ_API_KEY"); if (server) await server.close();
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });
