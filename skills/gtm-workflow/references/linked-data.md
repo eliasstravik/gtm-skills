@@ -2,6 +2,8 @@
 
 # Linked workflow data
 
+For enriched People and Companies, use [shared profiles](shared-profiles.md). Its population rules and structured experience references replace the workflow-specific example below. Other workflow domains can continue using physical link tables.
+
 The runtime has a read-only, paginated viewer at `/gtm/<slug>/data`. Enable it with a `data` property on the workflow's registry entry. Workflows without that property keep the existing database data link.
 
 The `data` property is configuration, not a workflow stage. Import `WorkflowData` as a type from `lib/data-api.ts`; route-only code must not be imported as executable code into a workflow. Table names and column names below are Drizzle registry/property names. Supply actual names from the generated schema.

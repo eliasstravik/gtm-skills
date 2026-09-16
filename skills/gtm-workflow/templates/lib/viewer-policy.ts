@@ -8,6 +8,7 @@ export function effectivePolicy(
 ): DataPolicy | undefined {
   if (!entry.data || !entry.sharePolicy) return;
   const policy = entry.sharePolicy;
+  if (!["1", "2"].includes(policy.version)) return;
   const all = new Set([
     ...entry.data.tables.map((t) => t.name),
     ...(entry.data.relations ?? []).map((r) => r.through),
@@ -21,11 +22,38 @@ export function effectivePolicy(
   for (const view of entry.data.tables) {
     const allowed = policy.tables.find((t) => t.name === view.name)!.columns;
     if (
-      [...view.columns, "key", view.labelColumn ?? "key"].some(
-        (c) => !allowed.includes(c),
-      )
+      [
+        ...(view.defaultColumns ?? view.columns),
+        "key",
+        view.labelColumn ?? "key",
+      ].some((c) => !allowed.includes(c)) ||
+      allowed.some((c) => !view.columns.includes(c) && c !== "key")
     )
       return;
+    if (policy.version === "2") {
+      const shared = policy.tables.find((t) => t.name === view.name)!;
+      if (
+        JSON.stringify(shared.row) !==
+        JSON.stringify(entry.data.rowPolicies?.[view.name])
+      )
+        return;
+      if (
+        allowed.some((c) =>
+          [
+            "raw_responses_json",
+            "sources_json",
+            "provenance_json",
+            "identifiers_json",
+            "section_status_json",
+          ].includes(c),
+        )
+      )
+        return;
+      if (
+        allowed.some((c) => c.endsWith("_json") && !shared.nested?.[c]?.length)
+      )
+        return;
+    }
   }
   for (const relation of entry.data.relations ?? []) {
     const edge = policy.tables.find((t) => t.name === relation.through)!;
@@ -33,6 +61,12 @@ export function effectivePolicy(
       ![relation.fromColumn, relation.toColumn].every((c) =>
         edge.columns.includes(c),
       )
+    )
+      return;
+    if (
+      relation.reference &&
+      (policy.version !== "2" ||
+        relation.reference !== "current-experiences-v1")
     )
       return;
   }

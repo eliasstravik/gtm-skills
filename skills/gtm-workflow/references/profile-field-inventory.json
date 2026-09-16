@@ -1,0 +1,3952 @@
+{
+  "status": "Shared profile storage contract v1",
+  "researched_at": "2026-09-15",
+  "coverage_scope": "Finite union of inspected schemas, documented examples and catalog metadata; not a guarantee of provider-populated fields or all possible LinkedIn data.",
+  "columns": {
+    "shared": [
+      {
+        "name": "key",
+        "type": "TEXT",
+        "note": "Required stable internal identity. Never a person's name or a company-name slug."
+      },
+      {
+        "name": "created_at",
+        "type": "TEXT",
+        "note": "Required UTC time when we first created this record."
+      },
+      {
+        "name": "updated_at",
+        "type": "TEXT",
+        "note": "Required UTC time of the latest local record change."
+      },
+      {
+        "name": "enriched_at",
+        "type": "TEXT",
+        "note": "Time of the last accepted successful profile lookup. Failed attempts do not advance it."
+      },
+      {
+        "name": "last_attempt_at",
+        "type": "TEXT",
+        "note": "Time of the latest attempted lookup."
+      },
+      {
+        "name": "enrichment_status",
+        "type": "TEXT",
+        "note": "Pending, enriched, partial, no_match, ambiguous, failed, or budget_deferred. Freshness is evaluated separately."
+      },
+      {
+        "name": "error",
+        "type": "TEXT",
+        "note": "Latest safe, human-readable error; no credentials or headers."
+      },
+      {
+        "name": "cost_usd",
+        "type": "REAL",
+        "note": "Cost attributed to the latest attempt, nullable when unknown. Aggregate spend comes from run accounting, not a sum of these mutable rows."
+      },
+      {
+        "name": "identifiers_json",
+        "type": "JSON[]",
+        "note": "Provider/platform identifier namespace, value, observed time, and source. Keep numeric and opaque LinkedIn identifiers distinct."
+      },
+      {
+        "name": "sources_json",
+        "type": "JSON[]",
+        "note": "Source/import/workflow membership, original row key, network owner/kind when supplied, connection date, first and last observation."
+      },
+      {
+        "name": "provenance_json",
+        "type": "JSON{}",
+        "note": "For each field or section: provider, endpoint, response reference/path, fetched time, provider-updated time if returned, and reported/inferred classification when known."
+      },
+      {
+        "name": "section_status_json",
+        "type": "JSON{}",
+        "note": "Per section: complete, partial, unsupported, not_requested, unknown, or failed, with returned count and provider total/cursor when available."
+      },
+      {
+        "name": "raw_responses_json",
+        "type": "JSON{}",
+        "note": "Latest retained response envelope per provider/endpoint/mode, plus the response supporting current values if a later attempt failed or was ambiguous. Includes unmapped fields. No unbounded history or secrets."
+      }
+    ],
+    "people": [
+      {
+        "name": "linkedin_url",
+        "type": "TEXT",
+        "note": "Canonical profile URL. H, BP, CP, D, O."
+      },
+      {
+        "name": "linkedin_slug",
+        "type": "TEXT",
+        "note": "Public URL identifier. H `publicIdentifier`, D; BP ID aliases require adapter checks."
+      },
+      {
+        "name": "linkedin_profile_id",
+        "type": "TEXT",
+        "note": "Opaque LinkedIn member/profile identifier. H `id`; never cast to a number."
+      },
+      {
+        "name": "linkedin_numeric_id",
+        "type": "TEXT",
+        "note": "Numeric platform identifier when explicitly returned. BP `linkedin_num_id`; stored as text to preserve precision."
+      },
+      {
+        "name": "linkedin_urn",
+        "type": "TEXT",
+        "note": "URN/object identity as returned. H `objectUrn`, D `urn`; retain identifier namespace."
+      },
+      {
+        "name": "full_name",
+        "type": "TEXT",
+        "note": "Provider name; join first/last only when needed and mark as derived. CP, BP, D, O."
+      },
+      {
+        "name": "first_name",
+        "type": "TEXT",
+        "note": "Given name. H, BP, D."
+      },
+      {
+        "name": "last_name",
+        "type": "TEXT",
+        "note": "Family/display surname, including suffixes as returned. H, BP, D."
+      },
+      {
+        "name": "headline",
+        "type": "TEXT",
+        "note": "Profile headline, not a substitute for a verified current job. H, D, O."
+      },
+      {
+        "name": "about",
+        "type": "TEXT",
+        "note": "Full profile summary. H `about`, O `summary`, BP `about`."
+      },
+      {
+        "name": "industry",
+        "type": "TEXT",
+        "note": "Person's reported/provider industry. O, M Ploid summary."
+      },
+      {
+        "name": "primary_job_title",
+        "type": "TEXT",
+        "note": "Provider's primary title; otherwise a derived display value only when a primary role is supported. CP, M Clay `title`, D `jobTitle`."
+      },
+      {
+        "name": "primary_company_key",
+        "type": "TEXT",
+        "note": "Derived reference from a confidently matched primary employer. Nullable for ambiguous or multiple unranked current roles."
+      },
+      {
+        "name": "job_function",
+        "type": "TEXT",
+        "note": "Provider classification. O `job_function`; do not imply LinkedIn authored it."
+      },
+      {
+        "name": "seniority",
+        "type": "TEXT",
+        "note": "Provider classification. O `seniority`; no extra AI classification implied."
+      },
+      {
+        "name": "location_label",
+        "type": "TEXT",
+        "note": "Original location display text. H `location.linkedinText`, O `location`, M Clay `location_name`."
+      },
+      {
+        "name": "country_code",
+        "type": "TEXT",
+        "note": "Country code when supplied or deterministically normalized. H, BP, CP."
+      },
+      {
+        "name": "country",
+        "type": "TEXT",
+        "note": "Country name. H parsed location, O, M Clay."
+      },
+      {
+        "name": "region",
+        "type": "TEXT",
+        "note": "State/region. H parsed location."
+      },
+      {
+        "name": "city",
+        "type": "TEXT",
+        "note": "Parsed city. H; BP `city` can contain a full location string and must not be copied blindly."
+      },
+      {
+        "name": "location_json",
+        "type": "JSON{}",
+        "note": "Full original and parsed location components, including region codes and alternate country labels. H."
+      },
+      {
+        "name": "followers_count",
+        "type": "INTEGER",
+        "note": "Follower count. H `followerCount`, BP/D/O `followers`, M Clay `num_followers`."
+      },
+      {
+        "name": "connections_count",
+        "type": "INTEGER",
+        "note": "Connection count value. H `connectionsCount`, BP/D `connections`, CP estimated network size."
+      },
+      {
+        "name": "connections_count_kind",
+        "type": "TEXT",
+        "note": "Derived interpretation: exact, lower_bound, estimate, or unknown. Preserve a displayed `500+` as a lower bound when evidenced."
+      },
+      {
+        "name": "recommendations_count",
+        "type": "INTEGER",
+        "note": "Provider-reported count, separate from number of returned recommendations. BP."
+      },
+      {
+        "name": "profile_photo_url",
+        "type": "TEXT",
+        "note": "Preferred image URL. H `profilePicture.url`/`photo`, BP `avatar`, O `profile_picture_url`, M Clay `picture_url_orig`."
+      },
+      {
+        "name": "cover_photo_url",
+        "type": "TEXT",
+        "note": "Preferred cover image. H `coverPicture.url`, BP `banner_image`."
+      },
+      {
+        "name": "images_json",
+        "type": "JSON{}",
+        "note": "All returned profile/cover image variants and dimensions. H."
+      },
+      {
+        "name": "avatar_is_default",
+        "type": "BOOL",
+        "note": "Provider says the avatar is a placeholder. BP `default_avatar`."
+      },
+      {
+        "name": "is_open_to_work",
+        "type": "BOOL",
+        "note": "Explicit profile/provider status. H `openToWork`; O `work_status` only when unambiguous."
+      },
+      {
+        "name": "is_hiring",
+        "type": "BOOL",
+        "note": "Hiring flag. H `hiring`."
+      },
+      {
+        "name": "is_premium",
+        "type": "BOOL",
+        "note": "Premium flag. H `premium`."
+      },
+      {
+        "name": "is_influencer",
+        "type": "BOOL",
+        "note": "Platform/provider influencer flag. H, BP."
+      },
+      {
+        "name": "is_creator",
+        "type": "BOOL",
+        "note": "Creator flag. H `creator`."
+      },
+      {
+        "name": "is_verified",
+        "type": "BOOL",
+        "note": "Returned verification flag, with provider meaning retained. H `verified`."
+      },
+      {
+        "name": "is_memorialized",
+        "type": "BOOL",
+        "note": "Account state when returned. H `memorialized`, BP `memorialized_account`."
+      },
+      {
+        "name": "registered_at",
+        "type": "TEXT",
+        "note": "Account registration timestamp when provided; unknown stays null. H `registeredAt`."
+      },
+      {
+        "name": "primary_locale",
+        "type": "TEXT",
+        "note": "Normalized language-country code when both components are known. H `primaryLocale`."
+      },
+      {
+        "name": "locales_json",
+        "type": "JSON[]",
+        "note": "Available profile language variants. H `profileLocales`."
+      },
+      {
+        "name": "localized_headlines_json",
+        "type": "JSON[]",
+        "note": "Locale/headline pairs. H `multiLocaleHeadline`."
+      },
+      {
+        "name": "profile_actions_json",
+        "type": "JSON[]",
+        "note": "Returned profile buttons, labels, action types, and URLs. H `profileActions`."
+      },
+      {
+        "name": "message_option_type",
+        "type": "TEXT",
+        "note": "Provider's messaging-option descriptor. H `composeOptionType`; not proof we can contact the person."
+      },
+      {
+        "name": "experiences_json",
+        "type": "JSON[]",
+        "note": "Complete returned work history with linked company keys and current-status evidence. H, M Clay, D, O."
+      },
+      {
+        "name": "education_json",
+        "type": "JSON[]",
+        "note": "Schools, qualifications, fields, dates, and related details. H, BP, D, O."
+      },
+      {
+        "name": "skills_json",
+        "type": "JSON[]",
+        "note": "Skill names, endorsements, associated positions. H, D, O."
+      },
+      {
+        "name": "languages_json",
+        "type": "JSON[]",
+        "note": "Language and proficiency. H, M Clay, O."
+      },
+      {
+        "name": "certifications_json",
+        "type": "JSON[]",
+        "note": "Credentials, issuers, identifiers, URLs, issue/expiry dates. H, D, O."
+      },
+      {
+        "name": "projects_json",
+        "type": "JSON[]",
+        "note": "Project descriptions, dates, affiliations, contributors. H, D, O."
+      },
+      {
+        "name": "volunteering_json",
+        "type": "JSON[]",
+        "note": "Organization, role, cause, dates, description when available. H, BP, O."
+      },
+      {
+        "name": "publications_json",
+        "type": "JSON[]",
+        "note": "Titles, publishers, authors, dates, descriptions, URLs. H, D, O."
+      },
+      {
+        "name": "patents_json",
+        "type": "JSON[]",
+        "note": "Patent titles, numbers, dates, descriptions, URLs. H, BP, D."
+      },
+      {
+        "name": "courses_json",
+        "type": "JSON[]",
+        "note": "Course titles and affiliations. H, BP."
+      },
+      {
+        "name": "honors_awards_json",
+        "type": "JSON[]",
+        "note": "Awards, issuers, dates, descriptions, affiliations. H, BP."
+      },
+      {
+        "name": "organizations_json",
+        "type": "JSON[]",
+        "note": "Memberships, positions, dates, organizations. H, BP."
+      },
+      {
+        "name": "recommendations_json",
+        "type": "JSON[]",
+        "note": "Returned recommendations with received/given/unknown direction. H, BP, D. Never guess direction from an unspecified list."
+      },
+      {
+        "name": "interests_json",
+        "type": "JSON[]",
+        "note": "Returned interest groups and referenced items. H."
+      },
+      {
+        "name": "causes_json",
+        "type": "JSON[]",
+        "note": "Explicitly returned causes, without inferring beliefs from them. H."
+      },
+      {
+        "name": "services_json",
+        "type": "JSON{}",
+        "note": "Profile services, description, media, rating, request URL. H."
+      },
+      {
+        "name": "featured_json",
+        "type": "JSON{}",
+        "note": "Featured cards/slides, links, images, titles and descriptions. H."
+      },
+      {
+        "name": "websites_json",
+        "type": "JSON[]",
+        "note": "Personal/profile links with labels and type when returned. H `websites`, BP `bio_links`."
+      },
+      {
+        "name": "social_profiles_json",
+        "type": "JSON[]",
+        "note": "Other returned social identities, with platform, username and URL if known. O GitHub/Twitter."
+      },
+      {
+        "name": "emails_json",
+        "type": "JSON[]",
+        "note": "Returned contact emails with type and verification metadata. H, D, O. Storage does not authorize another lookup."
+      },
+      {
+        "name": "phones_json",
+        "type": "JSON[]",
+        "note": "Returned phone values and type/source when known. D, O."
+      },
+      {
+        "name": "profile_highlights_json",
+        "type": "JSON{}",
+        "note": "Provider top-card snapshots: current positions/employer, top education, top skills, associated company websites. H, BP, D, O. Retains source claims without silently overriding full history."
+      },
+      {
+        "name": "related_profiles_json",
+        "type": "JSON[]",
+        "note": "Provider's related/also-viewed profiles. H, BP. These are not automatically network members."
+      },
+      {
+        "name": "posts_preview_json",
+        "type": "JSON[]",
+        "note": "Posts included in a profile response. BP. No separate feed crawl implied."
+      },
+      {
+        "name": "activity_preview_json",
+        "type": "JSON[]",
+        "note": "Included activity snippets. BP. Not a complete activity history."
+      }
+    ],
+    "companies": [
+      {
+        "name": "linkedin_url",
+        "type": "TEXT",
+        "note": "Canonical company-page URL. H, BC, CC, O `li_vanity`."
+      },
+      {
+        "name": "linkedin_slug",
+        "type": "TEXT",
+        "note": "Page universal/public name. H `universalName`, BC `id` after adapter verification."
+      },
+      {
+        "name": "linkedin_company_id",
+        "type": "TEXT",
+        "note": "Stable platform company ID when returned. H `id`, BC `company_id`; text preserves precision."
+      },
+      {
+        "name": "name",
+        "type": "TEXT",
+        "note": "Company/page display name. H, BC, CC, O."
+      },
+      {
+        "name": "tagline",
+        "type": "TEXT",
+        "note": "Page slogan. H `tagline`, BC `slogan`."
+      },
+      {
+        "name": "description",
+        "type": "TEXT",
+        "note": "Full company/about text. H, BC, CC, O."
+      },
+      {
+        "name": "additional_information",
+        "type": "TEXT",
+        "note": "Additional returned company description/context. BC; retain alternate source versions in raw response."
+      },
+      {
+        "name": "website_url",
+        "type": "TEXT",
+        "note": "Full website URL exactly supplied, with a separate normalized version only if useful. H, BC, CC, O."
+      },
+      {
+        "name": "domain",
+        "type": "TEXT",
+        "note": "Provider domain or deterministically extracted hostname; do not automatically merge company records by it. CC, O, BC `website_simplified`."
+      },
+      {
+        "name": "email_domain",
+        "type": "TEXT",
+        "note": "Provider-supplied email domain when different from website domain. O nested company profile."
+      },
+      {
+        "name": "industries_json",
+        "type": "JSON[]",
+        "note": "Industry names, identifiers and classification source when returned. H, BC, CC, O."
+      },
+      {
+        "name": "specialties_json",
+        "type": "JSON[]",
+        "note": "Stated company specialties. H `specialities`, BC/ O `specialties`."
+      },
+      {
+        "name": "company_type",
+        "type": "TEXT",
+        "note": "Public/private/nonprofit/etc. H `companyType`, BC `organization_type`, CC, O `type`."
+      },
+      {
+        "name": "ownership_status",
+        "type": "TEXT",
+        "note": "Separate provider ownership label. CC. Do not conflate it with page type."
+      },
+      {
+        "name": "founded_on",
+        "type": "TEXT",
+        "note": "Partial date, preserving year/month/day precision. H `foundedOn`, CC."
+      },
+      {
+        "name": "founded_year",
+        "type": "INTEGER",
+        "note": "Deterministically derived from `founded_on`, or directly reported year. BC `founded`, O `founded_at`."
+      },
+      {
+        "name": "company_size_label",
+        "type": "TEXT",
+        "note": "Original range or size display. BC `company_size`, CC, O `size` when textual."
+      },
+      {
+        "name": "employee_count_min",
+        "type": "INTEGER",
+        "note": "Lower endpoint of a reported range. H `employeeCountRange.start`."
+      },
+      {
+        "name": "employee_count_max",
+        "type": "INTEGER",
+        "note": "Upper endpoint, null for open-ended ranges. H `employeeCountRange.end`."
+      },
+      {
+        "name": "linkedin_employee_count",
+        "type": "INTEGER",
+        "note": "LinkedIn-associated profiles, explicitly identified as such. BC `employees_in_linkedin`, O `employees`."
+      },
+      {
+        "name": "reported_employee_count",
+        "type": "INTEGER",
+        "note": "Other supplied employee-count values. CC employee count, numeric O `size`, H `employeeCount` until its basis is verified."
+      },
+      {
+        "name": "reported_employee_count_basis",
+        "type": "TEXT",
+        "note": "Reported_total, provider_estimate, or unknown; never assume payroll headcount. Application interpretation with provenance."
+      },
+      {
+        "name": "followers_count",
+        "type": "INTEGER",
+        "note": "Page followers. H, BC, CC, O."
+      },
+      {
+        "name": "headquarters_label",
+        "type": "TEXT",
+        "note": "Original headquarters display string. BC `headquarters`, O `headquarter`."
+      },
+      {
+        "name": "headquarters_country_code",
+        "type": "TEXT",
+        "note": "From an explicitly marked HQ location, not the first country in a multi-country list. H."
+      },
+      {
+        "name": "headquarters_country",
+        "type": "TEXT",
+        "note": "Country name from HQ evidence. H, CC, O."
+      },
+      {
+        "name": "headquarters_region",
+        "type": "TEXT",
+        "note": "State/region from HQ evidence. H, CC."
+      },
+      {
+        "name": "headquarters_city",
+        "type": "TEXT",
+        "note": "City from HQ evidence. H, CC."
+      },
+      {
+        "name": "headquarters_address",
+        "type": "TEXT",
+        "note": "Street/address display from HQ evidence. H, CC."
+      },
+      {
+        "name": "headquarters_postal_code",
+        "type": "TEXT",
+        "note": "Postal code as text. H, CC."
+      },
+      {
+        "name": "locations_json",
+        "type": "JSON[]",
+        "note": "Every returned office/address, raw label, parsed parts and primary/HQ flag. H, BC, O."
+      },
+      {
+        "name": "country_codes_json",
+        "type": "JSON[]",
+        "note": "Countries represented in the page/location result. BC `country_codes_array`/`country_code`; distinct from HQ country."
+      },
+      {
+        "name": "directions_urls_json",
+        "type": "JSON[]",
+        "note": "Returned map/directions links; associate to an office only with evidence. BC."
+      },
+      {
+        "name": "logo_url",
+        "type": "TEXT",
+        "note": "Preferred logo image. H, BC, CC, O."
+      },
+      {
+        "name": "cover_image_url",
+        "type": "TEXT",
+        "note": "Preferred background image. H `backgroundCover`, BC `image`."
+      },
+      {
+        "name": "images_json",
+        "type": "JSON{}",
+        "note": "All logo/cover variants and dimensions. H `logos`/`backgroundCovers`."
+      },
+      {
+        "name": "page_type",
+        "type": "TEXT",
+        "note": "Platform page classification. H `pageType`."
+      },
+      {
+        "name": "is_active",
+        "type": "BOOL",
+        "note": "Provider's page-active flag. H `active`; not proof the business is operating."
+      },
+      {
+        "name": "is_verified",
+        "type": "BOOL",
+        "note": "Page verification flag. H `pageVerified`."
+      },
+      {
+        "name": "is_showcase",
+        "type": "BOOL",
+        "note": "Showcase-page flag. H `showcase`."
+      },
+      {
+        "name": "is_paid_page",
+        "type": "BOOL",
+        "note": "Provider's paid-company flag. H `paidCompany`."
+      },
+      {
+        "name": "is_auto_generated",
+        "type": "BOOL",
+        "note": "Auto-generated page flag. H `autoGenerated`."
+      },
+      {
+        "name": "call_to_action_url",
+        "type": "TEXT",
+        "note": "Page CTA target. H `callToActionUrl`."
+      },
+      {
+        "name": "jobs_url",
+        "type": "TEXT",
+        "note": "Link to jobs search, not a job inventory. H `jobSearchUrl`."
+      },
+      {
+        "name": "affiliated_pages_json",
+        "type": "JSON[]",
+        "note": "Related affiliated/showcase page snapshots. H, BC. Do not treat affiliation as legal ownership."
+      },
+      {
+        "name": "similar_companies_json",
+        "type": "JSON[]",
+        "note": "Suggested similar organizations. H, BC. Do not auto-enrich them."
+      },
+      {
+        "name": "employee_previews_json",
+        "type": "JSON[]",
+        "note": "Employee cards included in the page result. BC `employees`. Not the company's whole workforce or the user's network."
+      },
+      {
+        "name": "alumni_json",
+        "type": "JSON{}",
+        "note": "Alumni payload/information when present. BC names these fields but its example is null; preserve native substructure until verified."
+      },
+      {
+        "name": "posts_preview_json",
+        "type": "JSON[]",
+        "note": "Included updates with post IDs, dates, text, media, engagement and repost data. BC `updates`."
+      },
+      {
+        "name": "technologies_json",
+        "type": "JSON[]",
+        "note": "Provider's technology names and evidence if supplied. O."
+      },
+      {
+        "name": "revenue_json",
+        "type": "JSON{}",
+        "note": "Raw revenue text, normalized amount/range/currency/period when supported, and estimate classification. O. Never assume a bare `$` means USD."
+      },
+      {
+        "name": "funding_json",
+        "type": "JSON{}",
+        "note": "Funding totals, status, round count, last round, all returned rounds and their investors. BC, O."
+      },
+      {
+        "name": "investors_json",
+        "type": "JSON[]",
+        "note": "Separately returned investor identities/names. BC. Preserve relation to individual rounds inside funding."
+      },
+      {
+        "name": "crunchbase_url",
+        "type": "TEXT",
+        "note": "Returned Crunchbase profile link. BC."
+      },
+      {
+        "name": "stock_info_json",
+        "type": "JSON{}",
+        "note": "Returned market/ticker/price information without guessing a null sample's schema. BC."
+      }
+    ]
+  },
+  "column_counts": {
+    "shared": 13,
+    "people": 67,
+    "companies": 55
+  },
+  "source_mappings": {
+    "harvest_person": {
+      "table": "people",
+      "mapping": {
+        "id": "linkedin_profile_id",
+        "publicIdentifier": "linkedin_slug",
+        "linkedinUrl": "linkedin_url",
+        "firstName": "first_name",
+        "lastName": "last_name",
+        "emails": "emails_json",
+        "websites": "websites_json",
+        "companyWebsites": "profile_highlights_json.company_websites",
+        "headline": "headline",
+        "openToWork": "is_open_to_work",
+        "hiring": "is_hiring",
+        "premium": "is_premium",
+        "influencer": "is_influencer",
+        "memorialized": "is_memorialized",
+        "creator": "is_creator",
+        "location": "location_json",
+        "objectUrn": "linkedin_urn",
+        "registeredAt": "registered_at",
+        "topSkills": "profile_highlights_json.top_skills",
+        "connectionsCount": "connections_count",
+        "followerCount": "followers_count",
+        "verified": "is_verified",
+        "about": "about",
+        "currentPosition": "profile_highlights_json.current_positions",
+        "profileTopEducation": "profile_highlights_json.top_education",
+        "profileActions": "profile_actions_json",
+        "profilePicture": "images_json.profile",
+        "coverPicture": "images_json.cover",
+        "photo": "profile_photo_url",
+        "profileLocales": "locales_json",
+        "primaryLocale": "primary_locale",
+        "multiLocaleHeadline": "localized_headlines_json",
+        "services": "services_json",
+        "featured": "featured_json",
+        "experience": "experiences_json",
+        "education": "education_json",
+        "certifications": "certifications_json",
+        "projects": "projects_json",
+        "volunteering": "volunteering_json",
+        "receivedRecommendations": "recommendations_json",
+        "skills": "skills_json",
+        "publications": "publications_json",
+        "courses": "courses_json",
+        "patents": "patents_json",
+        "honorsAndAwards": "honors_awards_json",
+        "languages": "languages_json",
+        "organizations": "organizations_json",
+        "causes": "causes_json",
+        "composeOptionType": "message_option_type",
+        "moreProfiles": "related_profiles_json",
+        "interests": "interests_json"
+      },
+      "keys": [
+        "id",
+        "publicIdentifier",
+        "linkedinUrl",
+        "firstName",
+        "lastName",
+        "emails",
+        "websites",
+        "companyWebsites",
+        "headline",
+        "openToWork",
+        "hiring",
+        "premium",
+        "influencer",
+        "memorialized",
+        "creator",
+        "location",
+        "objectUrn",
+        "registeredAt",
+        "topSkills",
+        "connectionsCount",
+        "followerCount",
+        "verified",
+        "about",
+        "currentPosition",
+        "profileTopEducation",
+        "profileActions",
+        "profilePicture",
+        "coverPicture",
+        "photo",
+        "profileLocales",
+        "primaryLocale",
+        "multiLocaleHeadline",
+        "services",
+        "featured",
+        "experience",
+        "education",
+        "certifications",
+        "projects",
+        "volunteering",
+        "receivedRecommendations",
+        "skills",
+        "publications",
+        "courses",
+        "patents",
+        "honorsAndAwards",
+        "languages",
+        "organizations",
+        "causes",
+        "composeOptionType",
+        "moreProfiles",
+        "interests"
+      ],
+      "evidence": "OpenAPI schema",
+      "documented_root_fields_mapped": 51
+    },
+    "harvest_company": {
+      "table": "companies",
+      "mapping": {
+        "id": "linkedin_company_id",
+        "universalName": "linkedin_slug",
+        "linkedinUrl": "linkedin_url",
+        "name": "name",
+        "tagline": "tagline",
+        "website": "website_url",
+        "logo": "logo_url",
+        "foundedOn": "founded_on",
+        "employeeCount": "reported_employee_count",
+        "employeeCountRange": "company_size_label",
+        "followerCount": "followers_count",
+        "description": "description",
+        "companyType": "company_type",
+        "locations": "locations_json",
+        "specialities": "specialties_json",
+        "industries": "industries_json",
+        "logos": "images_json.logos",
+        "backgroundCover": "cover_image_url",
+        "backgroundCovers": "images_json.covers",
+        "active": "is_active",
+        "jobSearchUrl": "jobs_url",
+        "pageVerified": "is_verified",
+        "pageType": "page_type",
+        "showcase": "is_showcase",
+        "paidCompany": "is_paid_page",
+        "autoGenerated": "is_auto_generated",
+        "callToActionUrl": "call_to_action_url",
+        "similarOrganizations": "similar_companies_json",
+        "affiliatedPages": "affiliated_pages_json"
+      },
+      "keys": [
+        "id",
+        "universalName",
+        "linkedinUrl",
+        "name",
+        "tagline",
+        "website",
+        "logo",
+        "foundedOn",
+        "employeeCount",
+        "employeeCountRange",
+        "followerCount",
+        "description",
+        "companyType",
+        "locations",
+        "specialities",
+        "industries",
+        "logos",
+        "backgroundCover",
+        "backgroundCovers",
+        "active",
+        "jobSearchUrl",
+        "pageVerified",
+        "pageType",
+        "showcase",
+        "paidCompany",
+        "autoGenerated",
+        "callToActionUrl",
+        "similarOrganizations",
+        "affiliatedPages"
+      ],
+      "evidence": "OpenAPI schema",
+      "documented_root_fields_mapped": 29
+    },
+    "bright_person": {
+      "table": "people",
+      "mapping": {
+        "id": "identifiers_json",
+        "linkedin_id": "identifiers_json",
+        "name": "full_name",
+        "city": "location_label",
+        "location": "location_label",
+        "country_code": "country_code",
+        "position": "primary_job_title",
+        "about": "about",
+        "posts": "posts_preview_json",
+        "current_company": "profile_highlights_json.current_company",
+        "experience": "experiences_json",
+        "url": "linkedin_url",
+        "people_also_viewed": "related_profiles_json",
+        "similar_profiles": "related_profiles_json",
+        "educations_details": "profile_highlights_json.education_summary",
+        "education": "education_json",
+        "recommendations_count": "recommendations_count",
+        "avatar": "profile_photo_url",
+        "courses": "courses_json",
+        "languages": "languages_json",
+        "certifications": "certifications_json",
+        "recommendations": "recommendations_json",
+        "volunteer_experience": "volunteering_json",
+        "followers": "followers_count",
+        "connections": "connections_count",
+        "current_company_company_id": "profile_highlights_json.current_company_id",
+        "current_company_name": "profile_highlights_json.current_company_name",
+        "publications": "publications_json",
+        "patents": "patents_json",
+        "projects": "projects_json",
+        "organizations": "organizations_json",
+        "input_url": "sources_json",
+        "activity": "activity_preview_json",
+        "linkedin_num_id": "linkedin_numeric_id",
+        "banner_image": "cover_photo_url",
+        "honors_and_awards": "honors_awards_json",
+        "default_avatar": "avatar_is_default",
+        "memorialized_account": "is_memorialized",
+        "bio_links": "websites_json",
+        "first_name": "first_name",
+        "last_name": "last_name",
+        "influencer": "is_influencer"
+      },
+      "keys": [
+        "about",
+        "activity",
+        "avatar",
+        "banner_image",
+        "bio_links",
+        "certifications",
+        "city",
+        "connections",
+        "country_code",
+        "courses",
+        "current_company",
+        "current_company_company_id",
+        "current_company_name",
+        "default_avatar",
+        "education",
+        "educations_details",
+        "experience",
+        "first_name",
+        "followers",
+        "honors_and_awards",
+        "id",
+        "influencer",
+        "input_url",
+        "languages",
+        "last_name",
+        "linkedin_id",
+        "linkedin_num_id",
+        "location",
+        "memorialized_account",
+        "name",
+        "organizations",
+        "patents",
+        "people_also_viewed",
+        "position",
+        "posts",
+        "projects",
+        "publications",
+        "recommendations",
+        "recommendations_count",
+        "similar_profiles",
+        "url",
+        "volunteer_experience"
+      ],
+      "evidence": "published response example",
+      "documented_root_fields_mapped": 42
+    },
+    "bright_company": {
+      "table": "companies",
+      "mapping": {
+        "id": "linkedin_slug",
+        "name": "name",
+        "country_code": "country_codes_json",
+        "country_codes_array": "country_codes_json",
+        "locations": "locations_json",
+        "formatted_locations": "locations_json",
+        "followers": "followers_count",
+        "employees_in_linkedin": "linkedin_employee_count",
+        "about": "description",
+        "description": "description",
+        "unformatted_about": "description",
+        "specialties": "specialties_json",
+        "company_size": "company_size_label",
+        "organization_type": "company_type",
+        "industries": "industries_json",
+        "website": "website_url",
+        "crunchbase_url": "crunchbase_url",
+        "founded": "founded_year",
+        "company_id": "linkedin_company_id",
+        "employees": "employee_previews_json",
+        "headquarters": "headquarters_label",
+        "image": "cover_image_url",
+        "logo": "logo_url",
+        "similar": "similar_companies_json",
+        "url": "linkedin_url",
+        "updates": "posts_preview_json",
+        "slogan": "tagline",
+        "affiliated": "affiliated_pages_json",
+        "funding": "funding_json",
+        "investors": "investors_json",
+        "stock_info": "stock_info_json",
+        "get_directions_url": "directions_urls_json",
+        "additional_information": "additional_information",
+        "alumni": "alumni_json.alumni",
+        "alumni_information": "alumni_json.information",
+        "website_simplified": "domain"
+      },
+      "keys": [
+        "about",
+        "additional_information",
+        "affiliated",
+        "alumni",
+        "alumni_information",
+        "company_id",
+        "company_size",
+        "country_code",
+        "country_codes_array",
+        "crunchbase_url",
+        "description",
+        "employees",
+        "employees_in_linkedin",
+        "followers",
+        "formatted_locations",
+        "founded",
+        "funding",
+        "get_directions_url",
+        "headquarters",
+        "id",
+        "image",
+        "industries",
+        "investors",
+        "locations",
+        "logo",
+        "name",
+        "organization_type",
+        "similar",
+        "slogan",
+        "specialties",
+        "stock_info",
+        "unformatted_about",
+        "updates",
+        "url",
+        "website",
+        "website_simplified"
+      ],
+      "evidence": "published response example",
+      "documented_root_fields_mapped": 36
+    },
+    "monid_clay_person": {
+      "table": "people",
+      "mapping": {
+        "name": "full_name",
+        "title": "primary_job_title",
+        "org": "profile_highlights_json.current_company_name",
+        "headline": "headline",
+        "country": "country",
+        "location_name": "location_label",
+        "experience": "experiences_json",
+        "education": "education_json",
+        "languages": "languages_json",
+        "num_followers": "followers_count",
+        "picture_url_orig": "profile_photo_url",
+        "url": "linkedin_url"
+      },
+      "evidence": "catalog summary, not an exhaustive response schema",
+      "documented_root_fields_mapped": 12
+    },
+    "devfusion_person": {
+      "table": "people",
+      "mapping": {
+        "linkedinUrl": "linkedin_url",
+        "linkedinPublicUrl": "linkedin_url",
+        "firstName": "first_name",
+        "lastName": "last_name",
+        "fullName": "full_name",
+        "headline": "headline",
+        "connections": "connections_count",
+        "followers": "followers_count",
+        "email": "emails_json",
+        "mobileNumber": "phones_json",
+        "publicIdentifier": "linkedin_slug",
+        "urn": "linkedin_urn",
+        "jobTitle": "primary_job_title",
+        "jobStartedOn": "profile_highlights_json.primary_job_start",
+        "jobLocation": "profile_highlights_json.primary_job_location",
+        "jobStillWorking": "profile_highlights_json.primary_job_is_current",
+        "currentJobDuration": "profile_highlights_json.primary_job_duration_text",
+        "currentJobDurationInYrs": "profile_highlights_json.primary_job_duration_years",
+        "companyName": "profile_highlights_json.current_company_name",
+        "companyIndustry": "profile_highlights_json.current_company_industry",
+        "companyWebsite": "profile_highlights_json.current_company_website",
+        "companyLinkedin": "profile_highlights_json.current_company_linkedin_url",
+        "companySize": "profile_highlights_json.current_company_size",
+        "experiences": "experiences_json",
+        "educations": "education_json",
+        "skills": "skills_json",
+        "languages": "languages_json",
+        "certifications": "certifications_json",
+        "publications": "publications_json",
+        "recommendations": "recommendations_json"
+      },
+      "evidence": "developer output examples and named section list",
+      "documented_root_fields_mapped": 30
+    },
+    "contactout_person": {
+      "table": "people",
+      "mapping": {
+        "url": "linkedin_url",
+        "email": "emails_json",
+        "work_email": "emails_json",
+        "personal_email": "emails_json",
+        "phone": "phones_json",
+        "github": "social_profiles_json",
+        "twitter": "social_profiles_json",
+        "full_name": "full_name",
+        "headline": "headline",
+        "industry": "industry",
+        "company": "profile_highlights_json.current_company",
+        "location": "location_label",
+        "languages": "languages_json",
+        "country": "country",
+        "summary": "about",
+        "experience": "experiences_json",
+        "education": "education_json",
+        "skills": "skills_json",
+        "certifications": "certifications_json",
+        "publications": "publications_json",
+        "projects": "projects_json",
+        "volunteering_experiences": "volunteering_json",
+        "followers": "followers_count",
+        "job_function": "job_function",
+        "seniority": "seniority",
+        "work_status": "is_open_to_work",
+        "profile_picture_url": "profile_photo_url",
+        "updated_at": "provenance_json.provider_updated_at"
+      },
+      "evidence": "documented LinkedIn URL response",
+      "documented_root_fields_mapped": 28
+    },
+    "contactout_company": {
+      "table": "companies",
+      "mapping": {
+        "li_vanity": "linkedin_url",
+        "name": "name",
+        "domain": "domain",
+        "description": "description",
+        "website": "website_url",
+        "logo_url": "logo_url",
+        "type": "company_type",
+        "headquarter": "headquarters_label",
+        "country": "headquarters_country",
+        "size": "reported_employee_count",
+        "founded_at": "founded_year",
+        "locations": "locations_json",
+        "industry": "industries_json",
+        "specialties": "specialties_json",
+        "technologies": "technologies_json",
+        "revenue": "revenue_json",
+        "employees": "linkedin_employee_count",
+        "followers": "followers_count",
+        "funding": "funding_json"
+      },
+      "evidence": "documented domain enrichment response",
+      "documented_root_fields_mapped": 19
+    }
+  },
+  "mapping_rules": [
+    "Mappings name the storage destination, not a literal copy operation or a tested adapter.",
+    "All original source values remain in raw_responses_json, including alternate values mapped to one canonical field.",
+    "Structured sections preserve all nested provider fields in raw responses; canonical nested names are described in the Markdown proposal.",
+    "Recommendations carry received/given/unknown direction; ambiguous direction stays unknown.",
+    "Company range endpoints additionally populate employee_count_min/max; the label is a read projection.",
+    "Parsed locations additionally populate scalar location columns only when semantics are established.",
+    "Profile image objects additionally populate preferred image URL columns.",
+    "Primary locale retains its native object in raw responses while its canonical text requires enough components.",
+    "Company country is a headquarters country only when the endpoint establishes that meaning; otherwise retain only source evidence.",
+    "Reported employee count remains separate from explicit LinkedIn employee count. Harvest employeeCount semantics need adapter validation.",
+    "No provider-defined update time is copied over our local updated_at."
+  ],
+  "native_field_inventory": {
+    "harvest_person": [
+      {
+        "path": "id",
+        "type": "string"
+      },
+      {
+        "path": "publicIdentifier",
+        "type": "string"
+      },
+      {
+        "path": "linkedinUrl",
+        "type": "string"
+      },
+      {
+        "path": "firstName",
+        "type": "string"
+      },
+      {
+        "path": "lastName",
+        "type": "string"
+      },
+      {
+        "path": "emails",
+        "type": "array"
+      },
+      {
+        "path": "emails[]",
+        "type": "object"
+      },
+      {
+        "path": "emails[].email",
+        "type": "string"
+      },
+      {
+        "path": "emails[].deliverable",
+        "type": "boolean"
+      },
+      {
+        "path": "emails[].catchAllDomain",
+        "type": "boolean"
+      },
+      {
+        "path": "emails[].validEmailServer",
+        "type": "boolean"
+      },
+      {
+        "path": "emails[].free",
+        "type": "boolean"
+      },
+      {
+        "path": "emails[].status",
+        "type": "string"
+      },
+      {
+        "path": "emails[].qualityScore",
+        "type": "integer"
+      },
+      {
+        "path": "websites",
+        "type": "array"
+      },
+      {
+        "path": "websites[]",
+        "type": "string"
+      },
+      {
+        "path": "companyWebsites",
+        "type": "array"
+      },
+      {
+        "path": "companyWebsites[]",
+        "type": "unresolved_reference",
+        "reference": "CompanyWebsite"
+      },
+      {
+        "path": "headline",
+        "type": "string"
+      },
+      {
+        "path": "openToWork",
+        "type": "boolean"
+      },
+      {
+        "path": "hiring",
+        "type": "boolean"
+      },
+      {
+        "path": "premium",
+        "type": "boolean"
+      },
+      {
+        "path": "influencer",
+        "type": "boolean"
+      },
+      {
+        "path": "memorialized",
+        "type": "boolean"
+      },
+      {
+        "path": "creator",
+        "type": "boolean"
+      },
+      {
+        "path": "location",
+        "type": "object"
+      },
+      {
+        "path": "location.linkedinText",
+        "type": "string"
+      },
+      {
+        "path": "location.countryCode",
+        "type": "string"
+      },
+      {
+        "path": "location.parsed",
+        "type": "object"
+      },
+      {
+        "path": "location.parsed.text",
+        "type": "string"
+      },
+      {
+        "path": "location.parsed.countryCode",
+        "type": "string"
+      },
+      {
+        "path": "location.parsed.regionCode",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "location.parsed.country",
+        "type": "string"
+      },
+      {
+        "path": "location.parsed.countryFull",
+        "type": "string"
+      },
+      {
+        "path": "location.parsed.state",
+        "type": "string"
+      },
+      {
+        "path": "location.parsed.city",
+        "type": "string"
+      },
+      {
+        "path": "objectUrn",
+        "type": "string"
+      },
+      {
+        "path": "registeredAt",
+        "type": "string"
+      },
+      {
+        "path": "topSkills",
+        "type": "array"
+      },
+      {
+        "path": "topSkills[]",
+        "type": "string"
+      },
+      {
+        "path": "connectionsCount",
+        "type": "integer"
+      },
+      {
+        "path": "followerCount",
+        "type": "integer"
+      },
+      {
+        "path": "verified",
+        "type": "boolean"
+      },
+      {
+        "path": "about",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition",
+        "type": "array"
+      },
+      {
+        "path": "currentPosition[]",
+        "type": "object"
+      },
+      {
+        "path": "currentPosition[].position",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].location",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].employmentType",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].workplaceType",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].companyName",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].companyLinkedinUrl",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].companyId",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].duration",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].description",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].skills",
+        "type": "array"
+      },
+      {
+        "path": "currentPosition[].skills[]",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].experienceGroupId",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].startDate",
+        "type": "object"
+      },
+      {
+        "path": "currentPosition[].startDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "currentPosition[].startDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "currentPosition[].startDate.text",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].endDate",
+        "type": "object"
+      },
+      {
+        "path": "currentPosition[].endDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "currentPosition[].endDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "currentPosition[].endDate.text",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].companyLogo",
+        "type": "object"
+      },
+      {
+        "path": "currentPosition[].companyLogo.url",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "currentPosition[].companyLogo.sizes",
+        "type": "array"
+      },
+      {
+        "path": "currentPosition[].companyLogo.sizes[]",
+        "type": "object"
+      },
+      {
+        "path": "currentPosition[].companyLogo.sizes[].url",
+        "type": "string"
+      },
+      {
+        "path": "currentPosition[].companyLogo.sizes[].width",
+        "type": "integer"
+      },
+      {
+        "path": "currentPosition[].companyLogo.sizes[].height",
+        "type": "integer"
+      },
+      {
+        "path": "currentPosition[].companyUniversalName",
+        "type": "string"
+      },
+      {
+        "path": "profileTopEducation",
+        "type": "array"
+      },
+      {
+        "path": "profileTopEducation[]",
+        "type": "object"
+      },
+      {
+        "path": "profileTopEducation[].schoolName",
+        "type": "string"
+      },
+      {
+        "path": "profileTopEducation[].schoolLinkedinUrl",
+        "type": "string"
+      },
+      {
+        "path": "profileTopEducation[].schoolId",
+        "type": "string"
+      },
+      {
+        "path": "profileTopEducation[].degree",
+        "type": "string"
+      },
+      {
+        "path": "profileTopEducation[].fieldOfStudy",
+        "type": "string"
+      },
+      {
+        "path": "profileTopEducation[].skills",
+        "type": "array"
+      },
+      {
+        "path": "profileTopEducation[].skills[]",
+        "type": "string"
+      },
+      {
+        "path": "profileTopEducation[].startDate",
+        "type": "object"
+      },
+      {
+        "path": "profileTopEducation[].startDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "profileTopEducation[].startDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "profileTopEducation[].startDate.text",
+        "type": "string"
+      },
+      {
+        "path": "profileTopEducation[].endDate",
+        "type": "object"
+      },
+      {
+        "path": "profileTopEducation[].endDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "profileTopEducation[].endDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "profileTopEducation[].endDate.text",
+        "type": "string"
+      },
+      {
+        "path": "profileTopEducation[].period",
+        "type": "string"
+      },
+      {
+        "path": "profileTopEducation[].schoolLogo",
+        "type": "object"
+      },
+      {
+        "path": "profileTopEducation[].schoolLogo.url",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "profileTopEducation[].schoolLogo.sizes",
+        "type": "array"
+      },
+      {
+        "path": "profileTopEducation[].schoolLogo.sizes[]",
+        "type": "object"
+      },
+      {
+        "path": "profileTopEducation[].schoolLogo.sizes[].url",
+        "type": "string"
+      },
+      {
+        "path": "profileTopEducation[].schoolLogo.sizes[].width",
+        "type": "integer"
+      },
+      {
+        "path": "profileTopEducation[].schoolLogo.sizes[].height",
+        "type": "integer"
+      },
+      {
+        "path": "profileActions",
+        "type": "array"
+      },
+      {
+        "path": "profileActions[]",
+        "type": "object"
+      },
+      {
+        "path": "profileActions[].label",
+        "type": "string"
+      },
+      {
+        "path": "profileActions[].url",
+        "type": "string"
+      },
+      {
+        "path": "profilePicture",
+        "type": "object"
+      },
+      {
+        "path": "profilePicture.url",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "profilePicture.sizes",
+        "type": "array"
+      },
+      {
+        "path": "profilePicture.sizes[]",
+        "type": "object"
+      },
+      {
+        "path": "profilePicture.sizes[].url",
+        "type": "string"
+      },
+      {
+        "path": "profilePicture.sizes[].width",
+        "type": "integer"
+      },
+      {
+        "path": "profilePicture.sizes[].height",
+        "type": "integer"
+      },
+      {
+        "path": "coverPicture",
+        "type": "object"
+      },
+      {
+        "path": "coverPicture.url",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "coverPicture.sizes",
+        "type": "array"
+      },
+      {
+        "path": "coverPicture.sizes[]",
+        "type": "object"
+      },
+      {
+        "path": "coverPicture.sizes[].url",
+        "type": "string"
+      },
+      {
+        "path": "coverPicture.sizes[].width",
+        "type": "integer"
+      },
+      {
+        "path": "coverPicture.sizes[].height",
+        "type": "integer"
+      },
+      {
+        "path": "photo",
+        "type": "string"
+      },
+      {
+        "path": "profileLocales",
+        "type": "array"
+      },
+      {
+        "path": "profileLocales[]",
+        "type": "object"
+      },
+      {
+        "path": "profileLocales[].country",
+        "type": "string"
+      },
+      {
+        "path": "profileLocales[].language",
+        "type": "string"
+      },
+      {
+        "path": "primaryLocale",
+        "type": "object"
+      },
+      {
+        "path": "primaryLocale.country",
+        "type": "string"
+      },
+      {
+        "path": "primaryLocale.language",
+        "type": "string"
+      },
+      {
+        "path": "multiLocaleHeadline",
+        "type": "array"
+      },
+      {
+        "path": "multiLocaleHeadline[]",
+        "type": "object"
+      },
+      {
+        "path": "multiLocaleHeadline[].headline",
+        "type": "string"
+      },
+      {
+        "path": "multiLocaleHeadline[].locale",
+        "type": "string"
+      },
+      {
+        "path": "services",
+        "type": "object"
+      },
+      {
+        "path": "services.description",
+        "type": "string"
+      },
+      {
+        "path": "services.media",
+        "type": "array"
+      },
+      {
+        "path": "services.media[]",
+        "type": "object"
+      },
+      {
+        "path": "services.media[].title",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "services.media[].subtitle",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "services.media[].url",
+        "type": "string"
+      },
+      {
+        "path": "services.media[].image",
+        "type": "object"
+      },
+      {
+        "path": "services.media[].image.url",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "services.media[].image.sizes",
+        "type": "array"
+      },
+      {
+        "path": "services.media[].image.sizes[]",
+        "type": "object"
+      },
+      {
+        "path": "services.media[].image.sizes[].url",
+        "type": "string"
+      },
+      {
+        "path": "services.media[].image.sizes[].width",
+        "type": "integer"
+      },
+      {
+        "path": "services.media[].image.sizes[].height",
+        "type": "integer"
+      },
+      {
+        "path": "services.servicesList",
+        "type": "array"
+      },
+      {
+        "path": "services.servicesList[]",
+        "type": "string"
+      },
+      {
+        "path": "services.rating",
+        "type": "string"
+      },
+      {
+        "path": "services.requestUrl",
+        "type": "string"
+      },
+      {
+        "path": "featured",
+        "type": "object"
+      },
+      {
+        "path": "featured.images",
+        "type": "array"
+      },
+      {
+        "path": "featured.images[]",
+        "type": "object"
+      },
+      {
+        "path": "featured.link",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "featured.title",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "featured.subtitle",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "featured.slides",
+        "type": "array"
+      },
+      {
+        "path": "featured.slides[]",
+        "type": "object"
+      },
+      {
+        "path": "featured.slides[].title",
+        "type": "string"
+      },
+      {
+        "path": "featured.slides[].subtitle",
+        "type": "string"
+      },
+      {
+        "path": "featured.slides[].description",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "featured.slides[].url",
+        "type": "string"
+      },
+      {
+        "path": "featured.slides[].image",
+        "type": "object"
+      },
+      {
+        "path": "featured.slides[].image.url",
+        "type": "string"
+      },
+      {
+        "path": "experience",
+        "type": "array"
+      },
+      {
+        "path": "experience[]",
+        "type": "object"
+      },
+      {
+        "path": "experience[].position",
+        "type": "string"
+      },
+      {
+        "path": "experience[].location",
+        "type": "string"
+      },
+      {
+        "path": "experience[].employmentType",
+        "type": "string"
+      },
+      {
+        "path": "experience[].workplaceType",
+        "type": "string"
+      },
+      {
+        "path": "experience[].companyName",
+        "type": "string"
+      },
+      {
+        "path": "experience[].companyLinkedinUrl",
+        "type": "string"
+      },
+      {
+        "path": "experience[].companyId",
+        "type": "string"
+      },
+      {
+        "path": "experience[].duration",
+        "type": "string"
+      },
+      {
+        "path": "experience[].description",
+        "type": "string"
+      },
+      {
+        "path": "experience[].skills",
+        "type": "array"
+      },
+      {
+        "path": "experience[].skills[]",
+        "type": "string"
+      },
+      {
+        "path": "experience[].experienceGroupId",
+        "type": "string"
+      },
+      {
+        "path": "experience[].startDate",
+        "type": "object"
+      },
+      {
+        "path": "experience[].startDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "experience[].startDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "experience[].startDate.text",
+        "type": "string"
+      },
+      {
+        "path": "experience[].endDate",
+        "type": "object"
+      },
+      {
+        "path": "experience[].endDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "experience[].endDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "experience[].endDate.text",
+        "type": "string"
+      },
+      {
+        "path": "experience[].companyLogo",
+        "type": "object"
+      },
+      {
+        "path": "experience[].companyLogo.url",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "experience[].companyLogo.sizes",
+        "type": "array"
+      },
+      {
+        "path": "experience[].companyLogo.sizes[]",
+        "type": "object"
+      },
+      {
+        "path": "experience[].companyLogo.sizes[].url",
+        "type": "string"
+      },
+      {
+        "path": "experience[].companyLogo.sizes[].width",
+        "type": "integer"
+      },
+      {
+        "path": "experience[].companyLogo.sizes[].height",
+        "type": "integer"
+      },
+      {
+        "path": "experience[].companyUniversalName",
+        "type": "string"
+      },
+      {
+        "path": "education",
+        "type": "array"
+      },
+      {
+        "path": "education[]",
+        "type": "object"
+      },
+      {
+        "path": "education[].schoolName",
+        "type": "string"
+      },
+      {
+        "path": "education[].schoolLinkedinUrl",
+        "type": "string"
+      },
+      {
+        "path": "education[].schoolId",
+        "type": "string"
+      },
+      {
+        "path": "education[].degree",
+        "type": "string"
+      },
+      {
+        "path": "education[].fieldOfStudy",
+        "type": "string"
+      },
+      {
+        "path": "education[].skills",
+        "type": "array"
+      },
+      {
+        "path": "education[].skills[]",
+        "type": "string"
+      },
+      {
+        "path": "education[].startDate",
+        "type": "object"
+      },
+      {
+        "path": "education[].startDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "education[].startDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "education[].startDate.text",
+        "type": "string"
+      },
+      {
+        "path": "education[].endDate",
+        "type": "object"
+      },
+      {
+        "path": "education[].endDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "education[].endDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "education[].endDate.text",
+        "type": "string"
+      },
+      {
+        "path": "education[].period",
+        "type": "string"
+      },
+      {
+        "path": "education[].schoolLogo",
+        "type": "object"
+      },
+      {
+        "path": "education[].schoolLogo.url",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "education[].schoolLogo.sizes",
+        "type": "array"
+      },
+      {
+        "path": "education[].schoolLogo.sizes[]",
+        "type": "object"
+      },
+      {
+        "path": "education[].schoolLogo.sizes[].url",
+        "type": "string"
+      },
+      {
+        "path": "education[].schoolLogo.sizes[].width",
+        "type": "integer"
+      },
+      {
+        "path": "education[].schoolLogo.sizes[].height",
+        "type": "integer"
+      },
+      {
+        "path": "certifications",
+        "type": "array"
+      },
+      {
+        "path": "certifications[]",
+        "type": "object"
+      },
+      {
+        "path": "certifications[].title",
+        "type": "string"
+      },
+      {
+        "path": "certifications[].issuedAt",
+        "type": "string"
+      },
+      {
+        "path": "certifications[].link",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "certifications[].issuedBy",
+        "type": "string"
+      },
+      {
+        "path": "certifications[].issuedByLink",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "certifications[].issuedByLogo",
+        "type": "object"
+      },
+      {
+        "path": "certifications[].issuedByLogo.url",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "certifications[].issuedByLogo.sizes",
+        "type": "array"
+      },
+      {
+        "path": "certifications[].issuedByLogo.sizes[]",
+        "type": "object"
+      },
+      {
+        "path": "certifications[].issuedByLogo.sizes[].url",
+        "type": "string"
+      },
+      {
+        "path": "certifications[].issuedByLogo.sizes[].width",
+        "type": "integer"
+      },
+      {
+        "path": "certifications[].issuedByLogo.sizes[].height",
+        "type": "integer"
+      },
+      {
+        "path": "projects",
+        "type": "array"
+      },
+      {
+        "path": "projects[]",
+        "type": "object"
+      },
+      {
+        "path": "projects[].title",
+        "type": "string"
+      },
+      {
+        "path": "projects[].duration",
+        "type": "string"
+      },
+      {
+        "path": "projects[].startDate",
+        "type": "object"
+      },
+      {
+        "path": "projects[].startDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "projects[].startDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "projects[].startDate.text",
+        "type": "string"
+      },
+      {
+        "path": "projects[].endDate",
+        "type": "object"
+      },
+      {
+        "path": "projects[].endDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "projects[].endDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "projects[].endDate.text",
+        "type": "string"
+      },
+      {
+        "path": "projects[].associatedWith",
+        "type": "string"
+      },
+      {
+        "path": "projects[].associatedWithLink",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "projects[].description",
+        "type": "string"
+      },
+      {
+        "path": "projects[].contributors",
+        "type": "array"
+      },
+      {
+        "path": "projects[].contributors[]",
+        "type": "object"
+      },
+      {
+        "path": "projects[].contributors[].linkedinUrl",
+        "type": "string"
+      },
+      {
+        "path": "volunteering",
+        "type": "array"
+      },
+      {
+        "path": "volunteering[]",
+        "type": "object"
+      },
+      {
+        "path": "volunteering[].role",
+        "type": "string"
+      },
+      {
+        "path": "volunteering[].organizationName",
+        "type": "string"
+      },
+      {
+        "path": "volunteering[].duration",
+        "type": "string"
+      },
+      {
+        "path": "volunteering[].startDate",
+        "type": "object"
+      },
+      {
+        "path": "volunteering[].startDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "volunteering[].startDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "volunteering[].startDate.text",
+        "type": "string"
+      },
+      {
+        "path": "volunteering[].endDate",
+        "type": "object"
+      },
+      {
+        "path": "volunteering[].endDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "volunteering[].endDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "volunteering[].endDate.text",
+        "type": "string"
+      },
+      {
+        "path": "receivedRecommendations",
+        "type": "array"
+      },
+      {
+        "path": "receivedRecommendations[]",
+        "type": "object"
+      },
+      {
+        "path": "skills",
+        "type": "array"
+      },
+      {
+        "path": "skills[]",
+        "type": "object"
+      },
+      {
+        "path": "skills[].name",
+        "type": "string"
+      },
+      {
+        "path": "skills[].positions",
+        "type": "array"
+      },
+      {
+        "path": "skills[].positions[]",
+        "type": "string"
+      },
+      {
+        "path": "skills[].endorsements",
+        "type": "string"
+      },
+      {
+        "path": "publications",
+        "type": "array"
+      },
+      {
+        "path": "publications[]",
+        "type": "object"
+      },
+      {
+        "path": "publications[].title",
+        "type": "string"
+      },
+      {
+        "path": "publications[].publishedAt",
+        "type": "string"
+      },
+      {
+        "path": "publications[].description",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "publications[].link",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "courses",
+        "type": "array"
+      },
+      {
+        "path": "courses[]",
+        "type": "object"
+      },
+      {
+        "path": "courses[].title",
+        "type": "string"
+      },
+      {
+        "path": "courses[].associatedWith",
+        "type": "string"
+      },
+      {
+        "path": "courses[].associatedWithLink",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "patents",
+        "type": "array"
+      },
+      {
+        "path": "patents[]",
+        "type": "object"
+      },
+      {
+        "path": "patents[].title",
+        "type": "string"
+      },
+      {
+        "path": "patents[].number",
+        "type": "string"
+      },
+      {
+        "path": "patents[].issuedAt",
+        "type": "string"
+      },
+      {
+        "path": "patents[].description",
+        "type": "string"
+      },
+      {
+        "path": "patents[].url",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "honorsAndAwards",
+        "type": "array"
+      },
+      {
+        "path": "honorsAndAwards[]",
+        "type": "object"
+      },
+      {
+        "path": "honorsAndAwards[].title",
+        "type": "string"
+      },
+      {
+        "path": "honorsAndAwards[].issuedBy",
+        "type": "string"
+      },
+      {
+        "path": "honorsAndAwards[].issuedAt",
+        "type": "string"
+      },
+      {
+        "path": "honorsAndAwards[].description",
+        "type": "string"
+      },
+      {
+        "path": "honorsAndAwards[].associatedWith",
+        "type": "string"
+      },
+      {
+        "path": "honorsAndAwards[].associatedWithLink",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "languages",
+        "type": "array"
+      },
+      {
+        "path": "languages[]",
+        "type": "object"
+      },
+      {
+        "path": "languages[].name",
+        "type": "string"
+      },
+      {
+        "path": "languages[].proficiency",
+        "type": "string"
+      },
+      {
+        "path": "organizations",
+        "type": "array"
+      },
+      {
+        "path": "organizations[]",
+        "type": "object"
+      },
+      {
+        "path": "organizations[].name",
+        "type": "string"
+      },
+      {
+        "path": "organizations[].positionHeld",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "organizations[].description",
+        "type": "string"
+      },
+      {
+        "path": "organizations[].startDate",
+        "type": "object"
+      },
+      {
+        "path": "organizations[].startDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "organizations[].startDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "organizations[].startDate.text",
+        "type": "string"
+      },
+      {
+        "path": "organizations[].endDate",
+        "type": "object"
+      },
+      {
+        "path": "organizations[].endDate.month",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "organizations[].endDate.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "organizations[].endDate.text",
+        "type": "string"
+      },
+      {
+        "path": "organizations[].companyLinkedinUrl",
+        "type": "string"
+      },
+      {
+        "path": "organizations[].logo",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "causes",
+        "type": "array"
+      },
+      {
+        "path": "causes[]",
+        "type": "string"
+      },
+      {
+        "path": "composeOptionType",
+        "type": "string"
+      },
+      {
+        "path": "moreProfiles",
+        "type": "array"
+      },
+      {
+        "path": "moreProfiles[]",
+        "type": "object"
+      },
+      {
+        "path": "moreProfiles[].id",
+        "type": "string"
+      },
+      {
+        "path": "moreProfiles[].firstName",
+        "type": "string"
+      },
+      {
+        "path": "moreProfiles[].lastName",
+        "type": "string"
+      },
+      {
+        "path": "moreProfiles[].position",
+        "type": "string"
+      },
+      {
+        "path": "moreProfiles[].publicIdentifier",
+        "type": "string"
+      },
+      {
+        "path": "moreProfiles[].linkedinUrl",
+        "type": "string"
+      },
+      {
+        "path": "interests",
+        "type": "array"
+      },
+      {
+        "path": "interests[]",
+        "type": "object"
+      },
+      {
+        "path": "interests[].interestName",
+        "type": "string"
+      },
+      {
+        "path": "interests[].elements",
+        "type": "array"
+      },
+      {
+        "path": "interests[].elements[]",
+        "type": "object"
+      },
+      {
+        "path": "interests[].elements[].title",
+        "type": "string"
+      },
+      {
+        "path": "interests[].elements[].subtitle",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "interests[].elements[].link",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "interests[].elements[].caption",
+        "type": "string"
+      },
+      {
+        "path": "interests[].elements[].image",
+        "type": "object"
+      },
+      {
+        "path": "interests[].elements[].image.url",
+        "type": "string"
+      }
+    ],
+    "harvest_company": [
+      {
+        "path": "id",
+        "type": "string"
+      },
+      {
+        "path": "universalName",
+        "type": "string"
+      },
+      {
+        "path": "linkedinUrl",
+        "type": "string"
+      },
+      {
+        "path": "name",
+        "type": "string"
+      },
+      {
+        "path": "tagline",
+        "type": "string"
+      },
+      {
+        "path": "website",
+        "type": "string"
+      },
+      {
+        "path": "logo",
+        "type": "string"
+      },
+      {
+        "path": "foundedOn",
+        "type": "object"
+      },
+      {
+        "path": "foundedOn.month",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "foundedOn.year",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "foundedOn.day",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "employeeCount",
+        "type": "integer"
+      },
+      {
+        "path": "employeeCountRange",
+        "type": "object"
+      },
+      {
+        "path": "employeeCountRange.start",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "employeeCountRange.end",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "followerCount",
+        "type": "integer"
+      },
+      {
+        "path": "description",
+        "type": "string"
+      },
+      {
+        "path": "companyType",
+        "type": "string"
+      },
+      {
+        "path": "locations",
+        "type": "array"
+      },
+      {
+        "path": "locations[]",
+        "type": "object"
+      },
+      {
+        "path": "locations[].country",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "locations[].city",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "locations[].geographicArea",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "locations[].line1",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "locations[].line2",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "locations[].postalCode",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "locations[].headquarter",
+        "type": "boolean"
+      },
+      {
+        "path": "locations[].description",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "locations[].parsed",
+        "type": "object"
+      },
+      {
+        "path": "locations[].parsed.text",
+        "type": "string"
+      },
+      {
+        "path": "locations[].parsed.countryCode",
+        "type": "string"
+      },
+      {
+        "path": "locations[].parsed.regionCode",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "locations[].parsed.country",
+        "type": "string"
+      },
+      {
+        "path": "locations[].parsed.countryFull",
+        "type": "string"
+      },
+      {
+        "path": "locations[].parsed.state",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "locations[].parsed.city",
+        "type": "string",
+        "nullable": true
+      },
+      {
+        "path": "specialities",
+        "type": "array"
+      },
+      {
+        "path": "specialities[]",
+        "type": "string"
+      },
+      {
+        "path": "industries",
+        "type": "array"
+      },
+      {
+        "path": "industries[]",
+        "type": "object"
+      },
+      {
+        "path": "industries[].id",
+        "type": "string"
+      },
+      {
+        "path": "industries[].name",
+        "type": "string"
+      },
+      {
+        "path": "industries[].urn",
+        "type": "string"
+      },
+      {
+        "path": "industries[].title",
+        "type": "string"
+      },
+      {
+        "path": "industries[].hierarchy",
+        "type": "string"
+      },
+      {
+        "path": "logos",
+        "type": "array"
+      },
+      {
+        "path": "logos[]",
+        "type": "object"
+      },
+      {
+        "path": "logos[].url",
+        "type": "string"
+      },
+      {
+        "path": "logos[].width",
+        "type": "integer"
+      },
+      {
+        "path": "logos[].height",
+        "type": "integer"
+      },
+      {
+        "path": "backgroundCover",
+        "type": "string"
+      },
+      {
+        "path": "backgroundCovers",
+        "type": "array"
+      },
+      {
+        "path": "backgroundCovers[]",
+        "type": "object"
+      },
+      {
+        "path": "backgroundCovers[].url",
+        "type": "string"
+      },
+      {
+        "path": "backgroundCovers[].width",
+        "type": "integer"
+      },
+      {
+        "path": "backgroundCovers[].height",
+        "type": "integer"
+      },
+      {
+        "path": "active",
+        "type": "boolean"
+      },
+      {
+        "path": "jobSearchUrl",
+        "type": "string"
+      },
+      {
+        "path": "pageVerified",
+        "type": "boolean"
+      },
+      {
+        "path": "pageType",
+        "type": "string"
+      },
+      {
+        "path": "showcase",
+        "type": "boolean"
+      },
+      {
+        "path": "paidCompany",
+        "type": "boolean"
+      },
+      {
+        "path": "autoGenerated",
+        "type": "boolean"
+      },
+      {
+        "path": "callToActionUrl",
+        "type": "string"
+      },
+      {
+        "path": "similarOrganizations",
+        "type": "array"
+      },
+      {
+        "path": "similarOrganizations[]",
+        "type": "object"
+      },
+      {
+        "path": "similarOrganizations[].id",
+        "type": "string"
+      },
+      {
+        "path": "similarOrganizations[].universalName",
+        "type": "string"
+      },
+      {
+        "path": "similarOrganizations[].linkedinUrl",
+        "type": "string"
+      },
+      {
+        "path": "similarOrganizations[].name",
+        "type": "string"
+      },
+      {
+        "path": "similarOrganizations[].logo",
+        "type": "string"
+      },
+      {
+        "path": "similarOrganizations[].employeeCountRange",
+        "type": "object"
+      },
+      {
+        "path": "similarOrganizations[].employeeCountRange.start",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "similarOrganizations[].employeeCountRange.end",
+        "type": "integer",
+        "nullable": true
+      },
+      {
+        "path": "similarOrganizations[].followerCount",
+        "type": "integer"
+      },
+      {
+        "path": "similarOrganizations[].description",
+        "type": "string"
+      },
+      {
+        "path": "similarOrganizations[].industries",
+        "type": "array"
+      },
+      {
+        "path": "similarOrganizations[].industries[]",
+        "type": "object"
+      },
+      {
+        "path": "similarOrganizations[].industries[].id",
+        "type": "string"
+      },
+      {
+        "path": "similarOrganizations[].industries[].name",
+        "type": "string"
+      },
+      {
+        "path": "similarOrganizations[].industries[].urn",
+        "type": "string"
+      },
+      {
+        "path": "similarOrganizations[].industries[].title",
+        "type": "string"
+      },
+      {
+        "path": "similarOrganizations[].industries[].hierarchy",
+        "type": "string"
+      },
+      {
+        "path": "similarOrganizations[].backgroundCover",
+        "type": "string"
+      },
+      {
+        "path": "affiliatedPages",
+        "type": "array"
+      },
+      {
+        "path": "affiliatedPages[]",
+        "type": "object"
+      },
+      {
+        "path": "affiliatedPages[].id",
+        "type": "string"
+      },
+      {
+        "path": "affiliatedPages[].universalName",
+        "type": "string"
+      },
+      {
+        "path": "affiliatedPages[].linkedinUrl",
+        "type": "string"
+      },
+      {
+        "path": "affiliatedPages[].name",
+        "type": "string"
+      },
+      {
+        "path": "affiliatedPages[].logo",
+        "type": "string"
+      },
+      {
+        "path": "affiliatedPages[].followerCount",
+        "type": "integer"
+      },
+      {
+        "path": "affiliatedPages[].description",
+        "type": "string"
+      },
+      {
+        "path": "affiliatedPages[].industries",
+        "type": "array"
+      },
+      {
+        "path": "affiliatedPages[].industries[]",
+        "type": "object"
+      },
+      {
+        "path": "affiliatedPages[].industries[].id",
+        "type": "string"
+      },
+      {
+        "path": "affiliatedPages[].industries[].name",
+        "type": "string"
+      },
+      {
+        "path": "affiliatedPages[].industries[].urn",
+        "type": "string"
+      },
+      {
+        "path": "affiliatedPages[].industries[].title",
+        "type": "string"
+      },
+      {
+        "path": "affiliatedPages[].industries[].hierarchy",
+        "type": "string"
+      },
+      {
+        "path": "affiliatedPages[].logos",
+        "type": "array"
+      },
+      {
+        "path": "affiliatedPages[].logos[]",
+        "type": "object"
+      },
+      {
+        "path": "affiliatedPages[].logos[].url",
+        "type": "string"
+      },
+      {
+        "path": "affiliatedPages[].logos[].width",
+        "type": "integer"
+      },
+      {
+        "path": "affiliatedPages[].logos[].height",
+        "type": "integer"
+      },
+      {
+        "path": "affiliatedPages[].showcase",
+        "type": "boolean"
+      },
+      {
+        "path": "affiliatedPages[].paidCompany",
+        "type": "boolean"
+      }
+    ],
+    "bright_person": [
+      {
+        "path": "about",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "activity",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "avatar",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "banner_image",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "bio_links",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "certifications",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "city",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "connections",
+        "observed_types": [
+          "int"
+        ]
+      },
+      {
+        "path": "country_code",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "courses",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "current_company",
+        "observed_types": [
+          "dict"
+        ]
+      },
+      {
+        "path": "current_company.company_id",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "current_company.link",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "current_company.location",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "current_company.name",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "current_company_company_id",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "current_company_name",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "default_avatar",
+        "observed_types": [
+          "bool"
+        ]
+      },
+      {
+        "path": "education",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "educations_details",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "experience",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "experience[]",
+        "observed_types": [
+          "dict"
+        ]
+      },
+      {
+        "path": "experience[].company",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "experience[].company_logo_url",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "experience[].description_html",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "experience[].subtitle",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "experience[].title",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "first_name",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "followers",
+        "observed_types": [
+          "int"
+        ]
+      },
+      {
+        "path": "honors_and_awards",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "id",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "influencer",
+        "observed_types": [
+          "bool"
+        ]
+      },
+      {
+        "path": "input_url",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "languages",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "last_name",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "linkedin_id",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "linkedin_num_id",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "location",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "memorialized_account",
+        "observed_types": [
+          "bool"
+        ]
+      },
+      {
+        "path": "name",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "organizations",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "patents",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "people_also_viewed",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "people_also_viewed[]",
+        "observed_types": [
+          "dict"
+        ]
+      },
+      {
+        "path": "people_also_viewed[].about",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "people_also_viewed[].location",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "people_also_viewed[].name",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "people_also_viewed[].profile_link",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "position",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "posts",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "projects",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "publications",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "recommendations",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "recommendations_count",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "similar_profiles",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "url",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "volunteer_experience",
+        "observed_types": [
+          "NoneType"
+        ]
+      }
+    ],
+    "bright_company": [
+      {
+        "path": "about",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "additional_information",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "affiliated",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "affiliated[]",
+        "observed_types": [
+          "dict"
+        ]
+      },
+      {
+        "path": "affiliated[].Links",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "affiliated[].location",
+        "observed_types": [
+          "NoneType",
+          "str"
+        ]
+      },
+      {
+        "path": "affiliated[].subtitle",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "affiliated[].title",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "alumni",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "alumni_information",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "company_id",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "company_size",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "country_code",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "country_codes_array",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "country_codes_array[]",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "crunchbase_url",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "description",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "employees",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "employees[]",
+        "observed_types": [
+          "dict"
+        ]
+      },
+      {
+        "path": "employees[].img",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "employees[].link",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "employees[].subtitle",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "employees[].title",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "employees_in_linkedin",
+        "observed_types": [
+          "int"
+        ]
+      },
+      {
+        "path": "followers",
+        "observed_types": [
+          "int"
+        ]
+      },
+      {
+        "path": "formatted_locations",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "formatted_locations[]",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "founded",
+        "observed_types": [
+          "int"
+        ]
+      },
+      {
+        "path": "funding",
+        "observed_types": [
+          "dict"
+        ]
+      },
+      {
+        "path": "funding.last_round_date",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "funding.last_round_raised",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "funding.last_round_type",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "funding.rounds",
+        "observed_types": [
+          "int"
+        ]
+      },
+      {
+        "path": "get_directions_url",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "get_directions_url[]",
+        "observed_types": [
+          "dict"
+        ]
+      },
+      {
+        "path": "get_directions_url[].directions_url",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "headquarters",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "id",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "image",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "industries",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "investors",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "investors[]",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "locations",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "locations[]",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "logo",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "name",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "organization_type",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "similar",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "similar[]",
+        "observed_types": [
+          "dict"
+        ]
+      },
+      {
+        "path": "similar[].Links",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "similar[].location",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "similar[].subtitle",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "similar[].title",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "slogan",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "specialties",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "stock_info",
+        "observed_types": [
+          "NoneType"
+        ]
+      },
+      {
+        "path": "unformatted_about",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "updates[]",
+        "observed_types": [
+          "dict"
+        ]
+      },
+      {
+        "path": "updates[].comments_count",
+        "observed_types": [
+          "int"
+        ]
+      },
+      {
+        "path": "updates[].date",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].images",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "updates[].images[]",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].likes_count",
+        "observed_types": [
+          "int"
+        ]
+      },
+      {
+        "path": "updates[].post_id",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].post_url",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].repost",
+        "observed_types": [
+          "dict"
+        ]
+      },
+      {
+        "path": "updates[].repost.repost_date",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].repost.repost_hangtags",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "updates[].repost.repost_hangtags[]",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].repost.repost_id",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].repost.repost_text",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].repost.repost_title",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].repost.repost_url",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].repost.tagged_companies",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "updates[].repost.tagged_companies[]",
+        "observed_types": [
+          "dict"
+        ]
+      },
+      {
+        "path": "updates[].repost.tagged_companies[].link",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].repost.tagged_companies[].name",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].repost.tagged_companies[].type",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].repost.tagged_users",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "updates[].repost.tagged_users[]",
+        "observed_types": [
+          "dict"
+        ]
+      },
+      {
+        "path": "updates[].repost.tagged_users[].link",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].repost.tagged_users[].name",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].repost.tagged_users[].type",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].repost.videos",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "updates[].repost.videos[]",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].text",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].text_html",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].time",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].title",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "updates[].videos",
+        "observed_types": [
+          "list"
+        ]
+      },
+      {
+        "path": "updates[].videos[]",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "url",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "website",
+        "observed_types": [
+          "str"
+        ]
+      },
+      {
+        "path": "website_simplified",
+        "observed_types": [
+          "str"
+        ]
+      }
+    ]
+  },
+  "known_documentation_gaps": [
+    "HarvestAPI Profile.companyWebsites refers to undefined CompanyWebsite schema.",
+    "HarvestAPI recommendations are opaque objects; complete nested shape is not specified.",
+    "Bright Data null examples do not establish nested shapes for alumni, stock or absent sections.",
+    "Monid Clay person summary is descriptive, not a machine-readable output contract.",
+    "No paid profile lookup was executed to verify documented fields."
+  ]
+}

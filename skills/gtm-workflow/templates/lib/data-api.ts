@@ -1,30 +1,28 @@
 import type { Client, InValue } from "@libsql/client";
 import { getTableColumns, getTableName } from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
+import type { RowPolicy, DataRelation } from "./viewer-contract";
 
 /** Explicit, workflow-scoped views. Column names are Drizzle property names. */
 export type WorkflowData = {
-  rowPolicies?: Record<
-    string,
-    { version: string; column?: string; equals?: string }
-  >;
+  rowPolicies?: Record<string, RowPolicy>;
   tables: {
     name: string;
     label: string;
     columns: string[];
+    defaultColumns?: string[];
+    searchableColumns?: string[];
+    nested?: Record<string, string[]>;
     labelColumn: string;
     fields?: Record<
       string,
-      { label?: string; type?: "text" | "url" | "date" | "number" | "boolean" }
+      {
+        label?: string;
+        type?: "text" | "url" | "date" | "number" | "boolean" | "json";
+      }
     >;
   }[];
-  relations?: {
-    from: string;
-    to: string;
-    through: string;
-    fromColumn: string;
-    toColumn: string;
-  }[];
+  relations?: DataRelation[];
 };
 type Registry = Record<string, SQLiteTable>;
 type Relation = NonNullable<WorkflowData["relations"]>[number];
@@ -40,6 +38,7 @@ export type DataPage = {
   all: string;
   total: number;
   fields: { id: string; label: string; type: string }[];
+  availableFields?: { id: string; label: string; type: string }[];
   keys: string[];
 };
 
@@ -49,6 +48,89 @@ const has = (object: object, key: string) =>
   Object.prototype.hasOwnProperty.call(object, key);
 
 export class DataInputError extends Error {}
+
+function cellValue(
+  value: unknown,
+  field: string,
+  nested?: Record<string, string[]>,
+) {
+  if (typeof value !== "string" || !field.endsWith("_json")) return value;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  const allowed = nested?.[field];
+  if (!allowed) return parsed;
+  // Shared sections expose named scalar leaves only. Original evidence never rides along.
+  const project = (item: unknown) =>
+    item && typeof item === "object" && !Array.isArray(item)
+      ? Object.fromEntries(
+          Object.entries(item).filter(
+            ([key, v]) =>
+              allowed.includes(key) &&
+              (v === null ||
+                ["string", "number", "boolean"].includes(typeof v)),
+          ),
+        )
+      : allowed.includes("$value") &&
+          ["string", "number", "boolean"].includes(typeof item)
+        ? item
+        : null;
+  return Array.isArray(parsed)
+    ? parsed.map(project).filter(Boolean)
+    : project(parsed);
+}
+
+function population(
+  config: WorkflowData,
+  registry: Registry,
+  name: string,
+  alias: string,
+  args: InValue[],
+) {
+  const policy = config.rowPolicies?.[name];
+  if (!policy) return "";
+  if (
+    !policy.version ||
+    [policy.column, policy.membership, policy.currentCompanies].filter(Boolean)
+      .length > 1
+  )
+    throw new DataInputError("Invalid row restriction");
+  const column = (table: string, property: string) => {
+    if (
+      !has(registry, table) ||
+      !has(getTableColumns(registry[table]), property)
+    )
+      throw new DataInputError("Invalid row column");
+    return quote(getTableColumns(registry[table])[property].name);
+  };
+  const prefix = alias ? `${alias}.` : "";
+  if (policy.membership) {
+    if (
+      policy.version !== "shared-profiles-v1" ||
+      policy.membership.column !== "sources_json"
+    )
+      throw new DataInputError("Unsupported membership policy");
+    args.push(policy.membership.workflowId);
+    return ` AND EXISTS (SELECT 1 FROM json_each(COALESCE(${prefix}${column(name, "sources_json")},'[]')) member WHERE json_extract(member.value,'$.workflow_id') = ?)`;
+  }
+  if (policy.currentCompanies) {
+    if (policy.version !== "shared-profiles-v1")
+      throw new DataInputError("Unsupported company population");
+    const people = policy.currentCompanies.peopleTable;
+    column(people, "sources_json");
+    column(people, "experiences_json");
+    args.push(policy.currentCompanies.workflowId);
+    return ` AND ${prefix}${column(name, "key")} IN (SELECT DISTINCT json_extract(role.value,'$.company_key') FROM ${quote(getTableName(registry[people]))} population_person, json_each(COALESCE(population_person.${column(people, "experiences_json")},'[]')) role WHERE json_extract(role.value,'$.current_status') = 'current' AND EXISTS (SELECT 1 FROM json_each(COALESCE(population_person.${column(people, "sources_json")},'[]')) member WHERE json_extract(member.value,'$.workflow_id') = ?))`;
+  }
+  if (!policy.column) return "";
+  if (policy.equals === undefined)
+    throw new DataInputError("Invalid row restriction");
+  args.push(policy.equals);
+  return ` AND ${prefix}${column(name, policy.column)} = ?`;
+}
 
 /** Count registered business tables, respecting the same authored row restrictions. */
 export async function readCounts(
@@ -60,15 +142,11 @@ export async function readCounts(
     config.tables.map(async (view) => {
       const table = registry[view.name];
       if (!table) throw new DataInputError("Unknown data table");
-      const policy = config.rowPolicies?.[view.name];
-      const field = policy?.column
-        ? getTableColumns(table)[policy.column]
-        : undefined;
-      if (policy?.column && (!field || policy.equals === undefined))
-        throw new DataInputError("Invalid row restriction");
+      const args: InValue[] = [];
+      const restriction = population(config, registry, view.name, "v", args);
       const result = await client.execute({
-        sql: `SELECT COUNT(*) AS total FROM ${quote(getTableName(table))}${field ? ` WHERE ${quote(field.name)} = ?` : ""}`,
-        args: field ? [policy!.equals!] : [],
+        sql: `SELECT COUNT(*) AS total FROM ${quote(getTableName(table))} v WHERE 1=1${restriction}`,
+        args,
       });
       return {
         table: view.name,
@@ -108,12 +186,7 @@ export async function readData(
     return found;
   };
   const rowPolicy = (name: string, alias: string, args: InValue[]) => {
-    const policy = config.rowPolicies?.[name];
-    if (!policy?.column) return "";
-    if (policy.equals === undefined)
-      throw new DataInputError("Invalid row restriction");
-    args.push(policy.equals);
-    return ` AND ${alias ? alias + "." : ""}${column(name, policy.column)} = ?`;
+    return population(config, registry, name, alias, args);
   };
   const selected = view(
     url.searchParams.get("table") ?? config.tables[0]?.name ?? "",
@@ -132,13 +205,29 @@ export async function readData(
   );
   const other = (r: Relation) => view(r.from === selected.name ? r.to : r.from);
   const nearColumn = (r: Relation) =>
-    column(r.through, r.from === selected.name ? r.fromColumn : r.toColumn);
+    r.reference
+      ? quote(r.from === selected.name ? "__from" : "__to")
+      : column(r.through, r.from === selected.name ? r.fromColumn : r.toColumn);
   const farColumn = (r: Relation) =>
-    column(r.through, r.from === selected.name ? r.toColumn : r.fromColumn);
+    r.reference
+      ? quote(r.from === selected.name ? "__to" : "__from")
+      : column(r.through, r.from === selected.name ? r.toColumn : r.fromColumn);
+  const through = (r: Relation) => {
+    if (!r.reference) return physical(r.through);
+    if (
+      r.reference !== "current-experiences-v1" ||
+      r.through !== r.from ||
+      r.fromColumn !== "key" ||
+      r.toColumn !== "experiences_json"
+    )
+      throw new DataInputError("Unsupported structured relationship");
+    return `(SELECT p.*, p.${column(r.through, "key")} AS __from, json_extract(role.value,'$.company_key') AS __to FROM ${physical(r.through)} p, json_each(COALESCE(p.${column(r.through, "experiences_json")},'[]')) role WHERE json_extract(role.value,'$.current_status') = 'current')`;
+  };
   relations.forEach((r) => {
     other(r);
     nearColumn(r);
     farColumn(r);
+    through(r);
   });
   const conditions: string[] = [];
   const args: InValue[] = [];
@@ -156,12 +245,15 @@ export async function readData(
   };
   const search = url.searchParams.get("q") ?? "";
   if (search.length > 256) throw new DataInputError("Search is too long");
-  if (search) {
+  const searchColumns =
+    selected.searchableColumns ??
+    selected.columns.filter((c) => !c.endsWith("_json"));
+  if (search && searchColumns.length) {
     conditions.push(
-      `(${selected.columns.map((c) => `CAST(${allowedColumn(c)} AS TEXT) LIKE ? ESCAPE '\\'`).join(" OR ")})`,
+      `(${searchColumns.map((c) => `CAST(${allowedColumn(c)} AS TEXT) LIKE ? ESCAPE '\\'`).join(" OR ")})`,
     );
     args.push(
-      ...selected.columns.map(() => `%${search.replace(/[\\%_]/g, "\\$&")}%`),
+      ...searchColumns.map(() => `%${search.replace(/[\\%_]/g, "\\$&")}%`),
     );
   }
   const filter = url.searchParams.get("field");
@@ -199,20 +291,32 @@ export async function readData(
     args.push(relatedKey);
     const throughRestriction = rowPolicy(relation.through, "e", args);
     conditions.push(
-      `EXISTS (SELECT 1 FROM ${physical(relation.through)} e WHERE e.${nearColumn(relation)} = v.${column(selected.name, "key")} AND e.${farColumn(relation)} = ?${throughRestriction})`,
+      `EXISTS (SELECT 1 FROM ${through(relation)} e WHERE e.${nearColumn(relation)} = v.${column(selected.name, "key")} AND e.${farColumn(relation)} = ?${throughRestriction})`,
     );
     const source = view(relatedTable);
     const sourceArgs: InValue[] = [relatedKey];
-    const sourceRestriction = rowPolicy(source.name, "", sourceArgs);
+    const sourceRestriction = rowPolicy(source.name, "v", sourceArgs);
     const record = await client.execute({
-      sql: `SELECT ${column(source.name, source.labelColumn)} AS label FROM ${physical(source.name)} WHERE ${column(source.name, "key")} = ?${sourceRestriction} LIMIT 1`,
+      sql: `SELECT v.${column(source.name, source.labelColumn)} AS label FROM ${physical(source.name)} v WHERE v.${column(source.name, "key")} = ?${sourceRestriction} LIMIT 1`,
       args: sourceArgs,
     });
     if (sourceRestriction && !record.rows.length)
       throw new DataInputError("Related record is unavailable");
     context = `Connected to ${record.rows[0]?.label ?? relatedKey}`;
   }
-  const props = [...new Set(["key", ...selected.columns])];
+  const requested = url.searchParams.get("columns")?.split(",");
+  const visible =
+    requested ??
+    (key !== null
+      ? selected.columns.filter((c) => c !== "raw_responses_json")
+      : (selected.defaultColumns ?? selected.columns));
+  if (
+    !visible.length ||
+    new Set(visible).size !== visible.length ||
+    visible.some((c) => !selected.columns.includes(c))
+  )
+    throw new DataInputError("Unavailable requested field");
+  const props = [...new Set(["key", ...visible])];
   const fields = props
     .map((c) => `v.${column(selected.name, c)} AS ${quote(c)}`)
     .join(", ");
@@ -234,7 +338,7 @@ export async function readData(
         rowPolicy(r.through, "e", countArgs) +
         rowPolicy(other(r).name, "target", countArgs);
       const joined = await client.execute({
-        sql: `SELECT e.${nearColumn(r)} AS owner, COUNT(DISTINCT e.${farColumn(r)}) AS total FROM ${physical(r.through)} e JOIN ${physical(other(r).name)} target ON target.${column(other(r).name, "key")} = e.${farColumn(r)} WHERE e.${nearColumn(r)} IN (${records.map(() => "?").join(",")})${countRestriction} GROUP BY e.${nearColumn(r)}`,
+        sql: `SELECT e.${nearColumn(r)} AS owner, COUNT(DISTINCT e.${farColumn(r)}) AS total FROM ${through(r)} e JOIN ${physical(other(r).name)} target ON target.${column(other(r).name, "key")} = e.${farColumn(r)} WHERE e.${nearColumn(r)} IN (${records.map(() => "?").join(",")})${countRestriction} GROUP BY e.${nearColumn(r)}`,
         args: countArgs,
       });
       for (const row of joined.rows)
@@ -254,11 +358,18 @@ export async function readData(
   return {
     total: Number(total.rows[0].total),
     keys: records.map((row) => String(row.key)),
-    fields: selected.columns.map((id) => ({
+    fields: visible.map((id) => ({
       id,
       label:
         selected.fields?.[id]?.label ??
         id.replace(/([a-z])([A-Z])/g, "$1 $2").replaceAll("_", " "),
+      type:
+        selected.fields?.[id]?.type ??
+        getTableColumns(registry[selected.name])[id].dataType,
+    })),
+    availableFields: selected.columns.map((id) => ({
+      id,
+      label: selected.fields?.[id]?.label ?? id.replaceAll("_", " "),
       type:
         selected.fields?.[id]?.type ??
         getTableColumns(registry[selected.name])[id].dataType,
@@ -271,13 +382,13 @@ export async function readData(
       href: href({ table: v.name }),
     })),
     columns: [
-      ...selected.columns.map((c) => c.replaceAll("_", " ")),
+      ...visible.map((c) => c.replaceAll("_", " ")),
       ...relations.map((r) => other(r).label),
     ],
     rows: records.map((row) => [
-      ...selected.columns.map(
+      ...visible.map(
         (c): Cell => ({
-          value: row[c],
+          value: cellValue(row[c], c, selected.nested),
           ...(c === selected.labelColumn
             ? { href: href({ table: selected.name, key: String(row.key) }) }
             : {}),

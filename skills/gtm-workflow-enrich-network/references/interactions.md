@@ -20,13 +20,13 @@ Options: use suitable connected services; I'll name the services; help me find s
 
 The agent inspects the CSV and connected capabilities, presents real compatible choices with their coverage and prices when a choice is needed, then builds through `gtm-workflow`. It does not assume the first connected service can enrich both people and companies.
 
-**Agent:** Building your network workflow with linked people and companies, up to five current roles per person. I'll keep the imported list for future runs.
+**Agent:** Building your network workflow with shared people and companies and all confirmed current roles. I'll keep the imported list for future runs.
 
 After verification, the save carries the dependency's diagram, runs, and data links.
 
 **User:** Test one person.
 
-**Agent:** Running one person and up to five current employers within the stated test budget.
+**Agent:** Running one person and their identified current employers within the stated test budget.
 
 **Agent:** Done: one person, two companies, three employment links. Two roles share the same company, so it was enriched once. Total cost: the recorded amount.
 

@@ -10,6 +10,17 @@ const valueText = (value: unknown) =>
       ? JSON.stringify(value)
       : String(value);
 function CellValue({ value }: { value: unknown }) {
+  if (value !== null && typeof value === "object")
+    return (
+      <details className="structured-value">
+        <summary>
+          {Array.isArray(value)
+            ? `${value.length} ${value.length === 1 ? "entry" : "entries"}`
+            : "View details"}
+        </summary>
+        <StructuredValue value={value} />
+      </details>
+    );
   const url = webUrl(value);
   if (url)
     return (
@@ -30,6 +41,55 @@ function CellValue({ value }: { value: unknown }) {
     <>{valueText(value)}</>
   );
 }
+function StructuredValue({ value }: { value: unknown }): React.ReactNode {
+  if (Array.isArray(value))
+    return (
+      <ol>
+        {value.map((item, i) => (
+          <li key={i}>
+            {item && typeof item === "object" ? (
+              <details>
+                <summary>
+                  {[
+                    item.title ?? item.name ?? item.school_name,
+                    item.company_name,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || `Entry ${i + 1}`}
+                </summary>
+                <StructuredValue value={item} />
+              </details>
+            ) : (
+              <CellValue value={item} />
+            )}
+          </li>
+        ))}
+      </ol>
+    );
+  if (value && typeof value === "object")
+    return (
+      <dl>
+        {Object.entries(value)
+          .filter(([, item]) => item != null)
+          .map(([key, item]) => (
+            <React.Fragment key={key}>
+              <dt>{key.replaceAll("_", " ")}</dt>
+              <dd>
+                {item && typeof item === "object" ? (
+                  <details>
+                    <summary>Details</summary>
+                    <StructuredValue value={item} />
+                  </details>
+                ) : (
+                  <CellValue value={item} />
+                )}
+              </dd>
+            </React.Fragment>
+          ))}
+      </dl>
+    );
+  return <CellValue value={value} />;
+}
 export default function Data({ destinations }: any) {
   const state = useRead("data"),
     d = state.data,
@@ -38,7 +98,7 @@ export default function Data({ destinations }: any) {
     [exporting, setExporting] = useState(false);
   const [selected, setSelected] = useState<[number, number] | null>(null),
     [widths, setWidths] = useState<Record<number, number>>({});
-  const [detail, setDetail] = useState("");
+  const [detail, setDetail] = useState<unknown>("");
   const grid = useRef<HTMLTableElement>(null),
     popover = useRef<HTMLDialogElement>(null),
     origin = useRef<HTMLElement | null>(null);
@@ -70,6 +130,7 @@ export default function Data({ destinations }: any) {
       relatedTable: next.get("relatedTable") ?? undefined,
       relatedKey: next.get("relatedKey") ?? undefined,
       run: undefined,
+      ...(next.has("key") ? { columns: undefined } : {}),
       ...(changedTable
         ? {
             q: undefined,
@@ -91,13 +152,14 @@ export default function Data({ destinations }: any) {
       setMessage("Copy failed. Select the value and copy it.");
     }
   }
-  async function download() {
+  async function download(format: "csv" | "json" = "csv") {
     setExporting(true);
     setMessage("");
     abort.current = new AbortController();
     try {
       const params = query();
       params.set("op", "export");
+      params.set("format", format);
       params.set("v", String(CONTRACT_VERSION));
       params.set("columns", visible.join(","));
       const response = await fetch(`/api/viewer?${params}`, {
@@ -111,7 +173,7 @@ export default function Data({ destinations }: any) {
       const url = URL.createObjectURL(blob),
         anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = "workflow-current-data.csv";
+      anchor.download = `workflow-current-data.${format}`;
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       setMessage(
@@ -226,8 +288,40 @@ export default function Data({ destinations }: any) {
                 </>
               )}
               <button onClick={state.retry}>Refresh</button>
-              <button disabled={exporting || !d.total} onClick={download}>
+              <details className="column-chooser">
+                <summary>Columns</summary>
+                {(d.availableFields ?? d.fields).map((field: any) => (
+                  <label key={field.id} style={{ display: "block" }}>
+                    <input
+                      type="checkbox"
+                      checked={visible.includes(field.id)}
+                      disabled={
+                        visible.length === 1 && visible.includes(field.id)
+                      }
+                      onChange={(event) =>
+                        update({
+                          columns: (event.target.checked
+                            ? [...visible, field.id]
+                            : visible.filter((id: string) => id !== field.id)
+                          ).join(","),
+                        })
+                      }
+                    />
+                    {field.label}
+                  </label>
+                ))}
+              </details>
+              <button
+                disabled={exporting || !d.total}
+                onClick={() => download("csv")}
+              >
                 Export CSV
+              </button>
+              <button
+                disabled={exporting || !d.total}
+                onClick={() => download("json")}
+              >
+                Export JSON
               </button>
               {exporting && (
                 <button onClick={() => abort.current?.abort()}>
@@ -250,7 +344,7 @@ export default function Data({ destinations }: any) {
                   <button
                     onClick={(e) => {
                       origin.current = e.currentTarget;
-                      setDetail(valueText(cell.value));
+                      setDetail(cell.value);
                       popover.current?.showModal();
                     }}
                   >
@@ -423,7 +517,7 @@ export default function Data({ destinations }: any) {
                               setSelected([i, j]);
                           }}
                         >
-                          {c.href && j >= d.fields.length ? (
+                          {c.href ? (
                             <a href={link(c.href)}>{valueText(c.value)}</a>
                           ) : (
                             <CellValue value={c.value} />
@@ -469,7 +563,7 @@ export default function Data({ destinations }: any) {
             ×
           </button>
         </div>
-        <pre>{detail}</pre>
+        <StructuredValue value={detail} />
         <button onClick={() => copy(detail)}>Copy value</button>
       </dialog>
     </section>

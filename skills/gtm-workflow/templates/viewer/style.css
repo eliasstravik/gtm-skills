@@ -96,7 +96,9 @@ button:hover,
     border-radius: 8px;
     background: var(--surface);
     color: var(--text);
-    box-shadow: 0 0 0 1px var(--border), 0 12px 32px #0003;
+    box-shadow:
+      0 0 0 1px var(--border),
+      0 12px 32px #0003;
     overflow: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
@@ -652,4 +654,52 @@ fieldset legend {
   .diagram-actions {
     right: 12px;
   }
+}
+
+.column-chooser {
+  position: relative;
+}
+.column-chooser summary {
+  cursor: pointer;
+  padding: 8px;
+}
+.column-chooser[open] {
+  position: absolute;
+  z-index: 20;
+  top: 12px;
+  right: 220px;
+  max-height: 65vh;
+  overflow: auto;
+  padding: 8px 16px;
+  border: 1px solid #444;
+  border-radius: 6px;
+  background: #151515;
+  min-width: 220px;
+}
+.column-chooser label {
+  padding: 3px 0;
+}
+.structured-value summary {
+  cursor: pointer;
+}
+.structured-value[open] {
+  max-height: 360px;
+  overflow: auto;
+  white-space: normal;
+}
+.structured-value ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+.structured-value li {
+  margin: 8px 0;
+}
+.structured-value dt {
+  color: #aaa;
+  font-size: 12px;
+  margin-top: 8px;
+}
+.structured-value dd {
+  margin-left: 0;
+  overflow-wrap: anywhere;
 }
