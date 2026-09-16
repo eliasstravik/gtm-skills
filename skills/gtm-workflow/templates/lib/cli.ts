@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FatalError } from "workflow";
 import type { McpServer } from "./mcp";
+import { failure } from "./failure";
 
 /**
  * The Claude Code and Codex backends of runAgent: the whole agent runs inside this one step through the CLI on the
@@ -58,7 +59,7 @@ export async function runAgentCli(o: CliAgentOptions): Promise<CliAgentResult> {
       }
       if (allowed.length) args.push("--allowedTools", ...allowed);
       const reply = JSON.parse(await run("claude", args, prompt, dir, o.timeoutMs)) as { is_error?: boolean; result?: string; structured_output?: unknown; total_cost_usd?: number; num_turns?: number; usage?: { input_tokens?: number; output_tokens?: number }; terminal_reason?: string };
-      if (reply.is_error) throw new Error(`claude: ${reply.result ?? reply.terminal_reason}`);
+      if (reply.is_error) throw failure(undefined, { layer: "cli_result", provider: "claude", operation: "agent" });
       return {
         value: o.schema ? reply.structured_output ?? JSON.parse(reply.result ?? "null") : reply.result ?? "",
         costUsd: reply.total_cost_usd ?? 0,
@@ -85,6 +86,9 @@ export async function runAgentCli(o: CliAgentOptions): Promise<CliAgentResult> {
     await run("codex", args, prompt, dir, o.timeoutMs);
     const text = await readFile(join(dir, "last.txt"), "utf8");
     return { value: o.schema ? JSON.parse(text) : text.trim(), costUsd: 0, modelCalls: 1, usage: { inputTokens: 0, outputTokens: 0 } };
+  } catch (error) {
+    if (error instanceof FatalError || (error instanceof Error && error.message.startsWith('{"layer":'))) throw error;
+    throw failure(error, { layer: "cli_result", provider: o.backend, operation: "decode" });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -95,16 +99,41 @@ function run(cmd: string, args: string[], stdin: string, cwd: string, timeoutMs?
   // A nested claude or codex must not see the parent session's variables.
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("CLAUDE") && !k.startsWith("CODEX")));
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"], ...(timeoutMs && { timeout: timeoutMs, killSignal: "SIGTERM" }) });
+    const limit = timeoutMs ?? 900_000;
+    if (!Number.isFinite(limit) || limit <= 0) return reject(new Error("CLI timeout must be positive and finite"));
+    const child = spawn(cmd, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
     let out = "";
-    let err = "";
-    child.stdout.on("data", (d) => (out += d));
-    child.stderr.on("data", (d) => (err += d));
-    child.on("error", (e) => reject(new Error(`${cmd} could not start: ${e.message}`)));
+    let bytes = 0;
+    let stopped = false;
+    let killTimer: ReturnType<typeof setTimeout> | undefined;
+    const stop = (error: Error) => {
+      if (stopped) return;
+      stopped = true;
+      child.kill("SIGTERM");
+      killTimer = setTimeout(() => child.kill("SIGKILL"), 1000);
+      reject(error);
+    };
+    const timer = setTimeout(() => stop(failure(undefined, { layer: "cli_timeout", provider: cmd })), limit);
+    const consume = (data: Buffer, stdout: boolean) => {
+      bytes += data.length;
+      if (bytes > 4_000_000) return stop(failure({ code: "ERR_OUTPUT_LIMIT" }, { layer: "cli_result", provider: cmd }));
+      if (stdout) out += data.toString();
+    };
+    child.stdout.on("data", (data) => consume(data, true));
+    child.stderr.on("data", (data) => consume(data, false));
+    child.stdin.on("error", (error) => {
+      if ((error as NodeJS.ErrnoException).code !== "EPIPE") stop(failure(error, { layer: "cli_launch", provider: cmd }));
+    });
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      reject(failure(error, { layer: "cli_launch", provider: cmd }));
+    });
     child.on("close", (code, signal) => {
+      clearTimeout(timer);
+      clearTimeout(killTimer);
+      if (stopped) return;
       if (code === 0) return resolve(out);
-      if (signal && timeoutMs) return reject(new Error(`${cmd} was stopped after ${Math.round(timeoutMs / 1000)}s`));
-      reject(new Error(`${cmd} exited ${code ?? signal}: ${(err.trim() || out).slice(-800)}`));
+      reject(failure({ code: signal }, { layer: "cli_exit", provider: cmd, ...(code !== null && { exitCode: code }) }));
     });
     child.stdin.end(stdin);
   });

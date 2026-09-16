@@ -21,6 +21,7 @@ try {
     "inspection",
     "viewer-api",
     "web-url",
+    "reliability",
   ]) {
     const outfile = join(dir, `${name}.test.mjs`);
     await build({
@@ -33,6 +34,28 @@ try {
       format: "esm",
       packages: "external",
       tsconfigRaw: { compilerOptions: {} },
+      ...(name === "reliability"
+        ? {
+            plugins: [
+              {
+                name: "workflow-test-context",
+                setup(build) {
+                  // Keep the CLI entrypoint guard tied to its original module URL.
+                  build.onResolve({ filter: /scripts\/upgrade-package\.mjs$/ }, () => ({
+                    path: join(dirname(fileURLToPath(import.meta.url)), "../scripts/upgrade-package.mjs"),
+                    external: true,
+                  }));
+                  build.onResolve({ filter: /^workflow$/ }, () => ({
+                    path: join(
+                      dirname(fileURLToPath(import.meta.url)),
+                      "reliability-fixture.ts",
+                    ),
+                  }));
+                },
+              },
+            ],
+          }
+        : {}),
       ...(name === "viewer-api"
         ? {
             plugins: [

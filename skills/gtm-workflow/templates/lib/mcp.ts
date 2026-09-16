@@ -2,6 +2,7 @@ import { createMCPClient } from "@ai-sdk/mcp";
 import { FatalError } from "workflow";
 import { cached } from "./cache";
 import type { ProfileAgentContext } from "./profiles/agent-bridge";
+import { failure, failureDetails, reportFailure, serverName } from "./failure";
 
 /**
  * Hosted MCP servers for agent stages. Every call is a "use step": a fresh client per call, the key read from the
@@ -56,8 +57,14 @@ export async function listMcpTools(
           })),
           costUsd: 0,
         };
+      } catch (error) {
+        throw failure(error, {
+          layer: "mcp_transport",
+          provider: serverName(server.url),
+          operation: "listTools",
+        });
       } finally {
-        await mcp.close();
+        await close(mcp, server);
       }
     },
   );
@@ -107,10 +114,21 @@ export async function callMcpTool(
         tool: name,
         error:
           typeof content === "string" ? content.slice(0, 4000) : bound(content),
+        diagnostic: failureDetails(undefined, {
+          layer: "mcp_tool",
+          provider: serverName(server.url),
+          operation: name,
+        }),
       };
     return bound(content);
+  } catch (error) {
+    throw failure(error, {
+      layer: "mcp_transport",
+      provider: serverName(server.url),
+      operation: name,
+    });
   } finally {
-    await mcp.close();
+    await close(mcp, server);
   }
 }
 callMcpTool.maxRetries = 0;
@@ -126,10 +144,34 @@ async function connect(server: McpServer) {
     headers[server.header ?? "Authorization"] =
       server.bearer === false ? key : `Bearer ${key}`;
   }
-  return createMCPClient({
-    initializationOptions: requestOptions(server),
-    transport: { type: "http", url: server.url, headers },
-  });
+  try {
+    return await createMCPClient({
+      initializationOptions: requestOptions(server),
+      transport: { type: "http", url: server.url, headers },
+    });
+  } catch (error) {
+    throw failure(error, {
+      layer: "mcp_transport",
+      provider: serverName(server.url),
+      operation: "connect",
+    });
+  }
+}
+
+async function close(
+  mcp: Awaited<ReturnType<typeof connect>>,
+  server: McpServer,
+) {
+  try {
+    await mcp.close();
+  } catch (error) {
+    // Closing a session must not replace the result of a possibly billed call.
+    reportFailure(error, {
+      layer: "mcp_transport",
+      provider: serverName(server.url),
+      operation: "close",
+    });
+  }
 }
 
 const requestOptions = (server: McpServer) => ({
