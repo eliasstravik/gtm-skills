@@ -54,3 +54,47 @@ test("optimistic versions and workspace lease reject conflicting writes", async 
     assert.equal(f.values.size, 0);
   } finally { f.journal.close(); }
 });
+
+test("explicit replacement supersedes an uncertain write even when timestamps are identical", async () => {
+  const f = await fixture(), now = Date.now;
+  const uncertain = { id: randomUUID(), variable: "CUSTOM_API_KEY", action: "add", value: sentinel, version: "absent" };
+  try {
+    Date.now = () => 1700000000000;
+    f.store.set = (name, value) => { f.values.set(name, value); throw Error("lost native response"); };
+    await assert.rejects(f.manager.change({ ...uncertain }, "owner"));
+    f.store.set = (name, value) => f.values.set(name, value);
+    const replacement = { id: randomUUID(), variable: "CUSTOM_API_KEY", action: "replace", value: "synthetic-replacement", version: `operation:${uncertain.id}`, supersede: true };
+    await f.manager.change({ ...replacement }, "owner");
+    assert.equal((await f.journal.operation(uncertain.id)).superseded_by, replacement.id);
+    assert.equal((await runtimeEnvironment(f)).CUSTOM_API_KEY, replacement.value);
+  } finally { Date.now = now; f.journal.close(); }
+});
+test("a crash before dispatch never blocks a new attempt or claims a native write happened", async () => {
+  const f = await fixture(), abandoned = { id: randomUUID(), variable: "CUSTOM_API_KEY", action: "add", version: "absent" };
+  try {
+    await f.journal.prepare(abandoned, "owner", null);
+    const lease = await f.journal.acquire(); await f.journal.release(lease);
+    assert.equal((await f.journal.operation(abandoned.id)).phase, "failed");
+    assert.equal((await runtimeEnvironment(f)).CUSTOM_API_KEY, undefined);
+    assert.equal(f.values.size, 0);
+  } finally { f.journal.close(); }
+});
+
+test("a stale worker cannot finalize saved metadata or release a replacement worker's lease", async () => {
+  const f = await fixture(), now = Date.now;
+  let clock = now(), nextLease;
+  const input = { id: randomUUID(), variable: "CUSTOM_API_KEY", action: "add", value: sentinel, version: "absent" };
+  try {
+    Date.now = () => clock;
+    f.store.set = async (name, value) => {
+      f.values.set(name, value); clock += 61000;
+      nextLease = await f.journal.acquire();
+    };
+    await assert.rejects(f.manager.change({ ...input }, "owner"), /save_outcome_requires_review/);
+    assert.equal((await f.journal.operation(input.id)).phase, "unresolved");
+    assert.equal((await f.journal.list()).length, 0);
+    await f.journal.fence(nextLease);
+    await assert.rejects(runtimeEnvironment(f), /resolve_connection_before_restart/);
+    await f.journal.release(nextLease);
+  } finally { Date.now = now; f.journal.close(); }
+});

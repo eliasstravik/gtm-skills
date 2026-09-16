@@ -16,7 +16,7 @@ export function connectionDefinition(variable: string) {
   const known = services.find((service) => (service.variables as readonly string[]).includes(variable));
   return known ?? {
     id: variable.slice(0, -8).toLowerCase().replaceAll("_", "-"),
-    name: variable.slice(0, -8).toLowerCase().split("_").map((part) => part[0].toUpperCase() + part.slice(1)).join(" "),
+    name: variable.slice(0, -8).toLowerCase().split("_").filter(Boolean).map((part) => part[0].toUpperCase() + part.slice(1)).join(" "),
     variables: [variable],
   };
 }

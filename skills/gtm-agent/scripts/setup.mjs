@@ -1,9 +1,4 @@
 #!/usr/bin/env node
-import {
-  prepareViewer,
-  activateViewer,
-  enableSharing,
-} from "./viewer-config.mjs";
 // Deploys one GTM Agent end to end and wires it to its workspace repository and workflow project. Idempotent: every
 // step checks what exists and moves on, so it can be run again after a fix. Needs gh and vercel signed in, Node 22+.
 //
@@ -11,11 +6,10 @@ import {
 //                  [--region iad1] [--no-workflows] [--slack-connector slack/existing] [--skip-slack]
 //
 // Exit 0: done. Exit 2: a human step is needed (the message says which); run again afterwards. Exit 1: failed.
-// Two things stay human: the Slack install (one browser trip, the script prints the address and waits) and, the first
-// time a Vercel team uses Turso, accepting the marketplace terms.
+// Human steps: native account login, Slack installation, provider terms, and the
+// owner-controlled Connections registrations and sign-in verification.
 import { connectorPatch, connectorUrl } from "./slack-config.mjs";
-import { randomBytes } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -62,7 +56,6 @@ const n = names(slug, a);
 const gtmHome = join(homedir(), ".gtm");
 const agentDir = join(gtmHome, ".agents", slug);
 const workspaceDir = join(gtmHome, slug);
-const linkDir = join(gtmHome, ".links", n.workflowProject);
 const skillDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const templates = join(dirname(skillDir), "gtm-workflow", "templates");
 
@@ -266,234 +259,29 @@ if (connector) {
 }
 
 // 6. Deploy the agent from git and learn its address
-todo("Deploying the agent (about a minute)");
-await waitForDeployment(team, deployFromGit(team, n.agentProject));
+if (!withWorkflows || !project(team, n.agentProject)?.targets?.production) {
+  todo("Deploying the agent (about a minute)");
+  await waitForDeployment(team, deployFromGit(team, n.agentProject));
+}
 const agentUrl = productionUrl(team, n.agentProject);
 ok(`Agent live at ${agentUrl}`);
 
 // 7. Workflow project, optional
 if (withWorkflows) {
-  // 7a. The workflow runtime in the context repository, so the project is live before the first workflow
   if (!existsSync(join(workspaceDir, ".git"))) {
     mkdirSync(gtmHome, { recursive: true });
     must("gh", ["repo", "clone", ctxRepo, workspaceDir]);
   }
-  run("git", ["pull", "-q", "--ff-only"], { cwd: workspaceDir });
-  if (!existsSync(join(workspaceDir, "workflows", "package.json"))) {
-    todo(
-      "Adding the workflow runtime to the context repository (npm install takes a minute)",
-    );
-    const wf = join(workspaceDir, "workflows");
-    cpSync(templates, wf, { recursive: true });
-    renameSync(join(wf, "gitignore"), join(wf, ".gitignore"));
-    rmSync(join(wf, "env.example"), { force: true });
-    must("npm", ["install", "--no-audit", "--no-fund", "--silent"], {
-      cwd: wf,
-    });
-    if (
-      run("git", ["rev-parse", "--verify", "HEAD"], { cwd: workspaceDir })
-        .status !== 0
-    )
-      must("git", ["symbolic-ref", "HEAD", "refs/heads/main"], {
-        cwd: workspaceDir,
-      });
-    must("git", ["add", "workflows"], { cwd: workspaceDir });
-    must(
-      "git",
-      [
-        "-c",
-        "user.name=gtm-agent setup",
-        `-c`,
-        `user.email=${ghUser}@users.noreply.github.com`,
-        "commit",
-        "-q",
-        "-m",
-        "Add the workflow runtime",
-      ],
-      { cwd: workspaceDir },
-    );
-    must("git", ["push", "-q", "-u", "origin", "main"], { cwd: workspaceDir });
-    ok("Workflow runtime pushed to the context repository");
-  } else ok("Context repository already has the workflow runtime");
-
-  // 7b. Project, linked to the repository with root directory workflows
-  if (!project(team, n.workflowProject)) {
-    vercel(["project", "add", n.workflowProject], { team });
-    ok(`Created Vercel project ${n.workflowProject}`);
-  }
-  if (!existsSync(join(linkDir, ".git"))) {
-    mkdirSync(dirname(linkDir), { recursive: true });
-    must("gh", ["repo", "clone", ctxRepo, linkDir]);
-  }
-  vercel(["link", "--yes", "--project", n.workflowProject, "--team", team], {
-    cwd: linkDir,
-  });
-  let wp = project(team, n.workflowProject);
-  if (wp.link?.repo !== n.contextRepo) {
-    vercel(["git", "connect", `https://github.com/${ctxRepo}`], {
-      team,
-      cwd: linkDir,
-    });
-    wp = project(team, n.workflowProject);
-  }
-  if (wp.link?.repo !== n.contextRepo)
-    fail(
-      `Could not connect ${n.workflowProject} to ${ctxRepo}; install the Vercel GitHub app for ${githubOwner} and run again.`,
-    );
-  const want = {
-    rootDirectory: "workflows",
-    nodeVersion: "22.x",
-    framework: "nitro",
-    autoExposeSystemEnvs: true,
-    commandForIgnoringBuildStep: "git diff --quiet HEAD^ HEAD -- .",
-    previewDeploymentsDisabled: true,
-  };
-  const patch = Object.fromEntries(
-    Object.entries(want).filter(
-      ([k, v]) => JSON.stringify(wp[k] ?? null) !== JSON.stringify(v),
-    ),
-  );
-  if (Object.keys(patch).length)
-    api(team, "PATCH", `/v9/projects/${wp.id}`, patch);
-  ok(
-    `Vercel project ${n.workflowProject} is connected to ${ctxRepo} (root workflows, Node 22; existing protection preserved)`,
-  );
-
-  // 7c. Turso from the marketplace
-  let wenv = envNames(team, n.workflowProject);
-  if (!wenv.has("TURSO_DATABASE_URL")) {
-    todo("Creating a Turso database from the Vercel marketplace");
-    const r = vercel(
-      [
-        "integration",
-        "add",
-        "tursocloud/database",
-        "--name",
-        n.contextRepo,
-        "--plan",
-        "starter",
-        "-m",
-        `region=${a.region || "iad1"}`,
-        "-e",
-        "production",
-        "--no-env-pull",
-        "--yes",
-      ],
-      { team, cwd: linkDir, allowFail: true },
-    );
-    wenv = envNames(team, n.workflowProject);
-    if (!wenv.has("TURSO_DATABASE_URL")) {
-      say(r.stdout + r.stderr);
-      say(
-        `\nTurso needs one human step on this team: run \`vercel integration accept-terms tursocloud --scope ${team}\` in a terminal, accept, then run this script again.`,
-      );
-      process.exit(2);
-    }
-    ok("Turso database connected");
-  } else ok("Turso database already connected");
-
-  // 7d. Secrets and settings, the same values on both projects
-  const aenv2 = envNames(team, n.agentProject);
-  const pair = (key, agentKey = key) => {
-    const both = aenv2.has(agentKey) && wenv.has(key);
-    if (both) return;
-    const value = randomBytes(32).toString("hex");
-    setEnv(team, n.workflowProject, key, value, { force: true });
-    setEnv(team, n.agentProject, agentKey, value, { force: true });
-    if (key === "GTM_RUN_SECRET")
-      setEnv(team, n.workflowProject, "CRON_SECRET", value, { force: true });
-  };
-  pair("GTM_RUN_SECRET");
-  pair("GTM_NOTIFY_SECRET");
-  if (!wenv.has("CRON_SECRET"))
-    say(
-      "  note: CRON_SECRET was missing; run again with GTM_RUN_SECRET removed from both projects to rotate the pair",
-    );
-  if (!wenv.has("GTM_MODEL"))
-    setEnv(
-      team,
-      n.workflowProject,
-      "GTM_MODEL",
-      a["workflow-model"] || "openai/gpt-5.6-luna",
-      { secret: false },
-    );
-  setEnv(team, n.workflowProject, "GTM_AGENT_URL", agentUrl, {
-    secret: false,
-    force: true,
-  });
-  ok("Workflow project variables set");
-
-  // Preserve machine access before protecting the private viewer. Active intake needs a configured sender bypass.
-  const registryText = run("gh", [
-    "api",
-    `repos/${ctxRepo}/contents/workflows/workflows/index.ts`,
-    "--jq",
-    ".content",
-  ]);
-  if (
-    registryText.status === 0 &&
-    /\bintake\s*[:,}]/.test(
-      Buffer.from(registryText.stdout.trim(), "base64").toString(),
-    ) &&
-    !a["intake-protection-verified"]
-  )
-    fail(
-      "Active intake is registered. Verify each sender's deployment-gate credential, then rerun with --intake-protection-verified.",
-    );
-  // Existing projects must receive the compatible source upgrade before the gate changes.
-  const agentSource = run("gh", [
-    "api",
-    `repos/${githubOwner}/${n.agentRepo}/contents/agent/lib/host.ts`,
-    "--jq",
-    ".content",
-  ]);
-  const workflowSource = run("gh", [
-    "api",
-    `repos/${ctxRepo}/contents/workflows/package.json`,
-    "--jq",
-    ".content",
-  ]);
-  const hostCode = Buffer.from(agentSource.stdout.trim(), "base64").toString();
-  const runtimePackage = Buffer.from(
-    workflowSource.stdout.trim(),
-    "base64",
-  ).toString();
-  if (
-    agentSource.status !== 0 ||
-    workflowSource.status !== 0 ||
-    !hostCode.includes("GTM_WORKFLOW_BYPASS_SECRET") ||
-    !runtimePackage.includes("build:share")
-  )
-    fail(
-      "Upgrade the agent host and workflow runtime source before enabling the protected viewer. Existing protection was preserved.",
-    );
-  const viewer = prepareViewer({
-    team,
-    workflowProject: n.workflowProject,
-    agentProject: n.agentProject,
-    owner: githubOwner,
-    repo: n.contextRepo,
-    shareProject: a["share-project"],
-  });
-  await waitForDeployment(team, deployFromGit(team, n.agentProject));
-  activateViewer(team, n.workflowProject, viewer);
-
-  // 7e. Deploy the workflow project and point the agent at it
-  todo("Deploying the workflow project (about two minutes)");
-  await waitForDeployment(team, deployFromGit(team, n.workflowProject));
-  const wfUrl = productionUrl(team, n.workflowProject);
-  setEnv(team, n.agentProject, "GTM_WORKFLOW_URL", wfUrl, {
-    secret: false,
-    force: true,
-  });
-  ok(`Workflow project live at ${wfUrl}`);
-  todo("Redeploying the agent with the workflow connection");
-  await waitForDeployment(team, deployFromGit(team, n.agentProject));
-  ok("Agent redeployed");
-  await waitForDeployment(team, deployFromGit(team, viewer.shareProject));
-  enableSharing(team, n.workflowProject, viewer);
-  await waitForDeployment(team, deployFromGit(team, n.workflowProject));
-  ok("Scoped workflow sharing deployed");
+  // Workspace and connection provisioning have one implementation. The same
+  // setup runs without an agent project for standalone installations.
+  const sharedSetup = join(dirname(skillDir), "gtm-workflow", "scripts", "setup.mjs");
+  const code = await spawnStreaming(process.execPath, [sharedSetup, "--deploy", "--workspace", workspaceDir, "--team", team,
+    "--github-owner", githubOwner, "--workflow-project", n.workflowProject, "--agent-project", n.agentProject,
+    "--agent-repository", agentRepo, ...(a["share-project"] ? ["--share-project", a["share-project"]] : []),
+    ...(a["intake-protection-verified"] ? ["--intake-protection-verified"] : []),
+    ...(a.verification ? ["--verification", a.verification] : [])]);
+  if (code !== 0) process.exit(code);
+  ok("Workflow and Connections setup verified");
 }
 
 // 8. Doctor

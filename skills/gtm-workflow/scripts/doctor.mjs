@@ -12,7 +12,8 @@ try {
   requireThat(config?.component && await componentDigest(config.component.path) === config.component.digest, "component_digest_mismatch", 403);
   if (values.target === "production") {
     const { doctorHosted } = await import(pathToFileURL(join(config.component.path, "setup/deploy.mjs")));
-    console.log(JSON.stringify(await doctorHosted(state, config)));
+    const result = await doctorHosted(state, config);
+    console.log(JSON.stringify(result)); process.exitCode = result.status === "production_ready" ? 0 : 2;
   } else {
     const { nativeStore } = await import(pathToFileURL(join(config.component.path, "local/storage.mjs")));
     const store = nativeStore(state.id);

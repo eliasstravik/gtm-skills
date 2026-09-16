@@ -3,7 +3,7 @@ import { Readable } from "node:stream";
 import { chmod, unlink } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 import { randomUUID } from "node:crypto";
 import { localAuth } from "./auth.mjs";
 import { workspaceState, privateJson, writePrivateJson } from "./state.mjs";
@@ -52,7 +52,8 @@ export async function startLocal(workspace, { open = true, publish = true, state
   await new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
   const origin = `http://127.0.0.1:${server.address().port}`, auth = localAuth(origin);
   const manager = createManager({ journal, storage: localStorage({ journal, store, environment }), active,
-    context: { mode: "local", workspace: state.id, workflowsUrl: config.workflowsUrl } });
+    context: { mode: "local", workspace: state.id, workspaceName: basename(state.workspace), workflowsUrl: config.workflowsUrl,
+      ...(config.production?.origin ? { productionUrl: config.production.origin } : {}) } });
   handler = createHandler({ mode: "local", origin, manager, auth, publicDirectory: fileURLToPath(new URL("../dist/public", import.meta.url)) });
   const ipcPath = join(state.directory, `m-${randomUUID().slice(0, 8)}.sock`);
   const ipc = createServer(async (request, response) => {

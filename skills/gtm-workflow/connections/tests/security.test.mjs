@@ -68,7 +68,20 @@ test("Vercel reads disable decryption and writes retain Secret visibility", asyn
   const storage = vercelStorage(api, fixed), rows = await storage.list();
   assert.match(calls[0].path, /decrypt=false/); assert.equal(JSON.stringify(rows).includes(sentinel), false);
   await storage.write({ id: randomUUID(), variable: "BLITZ_API_KEY", action: "replace", value: sentinel, version: rows[0].version }, rows[0]);
-  assert.equal(calls[1].body.visibility, "secret"); assert.equal(calls[1].body.type, "sensitive");
-  assert.match(calls[1].body.comment, /^Existing note \[gtm-operation:/);
+  const write = calls.find((call) => call.method === "PATCH");
+  assert.equal(write.body.visibility, "secret"); assert.equal(write.body.type, "sensitive");
+  assert.match(write.body.comment, /^Existing note \[gtm-operation:/);
   assert.equal(JSON.stringify(envMetadata(raw)).includes(sentinel), false);
+});
+
+test("a provider edit between the form read and dispatch prevents the stale write", async () => {
+  let current = { id: "env", key: "BLITZ_API_KEY", type: "sensitive", visibility: "secret", target: ["production"], updatedAt: 1 };
+  let writes = 0;
+  const storage = vercelStorage(async (method) => {
+    if (method !== "GET") { writes++; throw Error("must not dispatch"); }
+    return { envs: [current] };
+  }, fixed);
+  const rows = await storage.list(); current = { ...current, updatedAt: 2 };
+  await assert.rejects(storage.write({ id: randomUUID(), variable: "BLITZ_API_KEY", action: "replace", value: "synthetic", version: rows[0].version }), /connection_changed/);
+  assert.equal(writes, 0);
 });

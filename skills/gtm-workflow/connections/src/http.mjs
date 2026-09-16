@@ -5,7 +5,7 @@ export const securityHeaders = {
   "cache-control": "private, no-store", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff", "x-frame-options": "DENY",
   "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
 };
-export function createHandler({ mode, origin, manager, auth, publicDirectory, ready = true, installationId, projectId }) {
+export function createHandler({ mode, origin, manager, auth, publicDirectory, ready = true, installationId, projectId, verification }) {
   return async (request, peer) => {
     let response;
     try {
@@ -30,9 +30,13 @@ export function createHandler({ mode, origin, manager, auth, publicDirectory, re
         else {
           const principal = await auth.authorize(request);
           if (path === "/api/session" && request.method === "GET") response = Response.json({ csrf: principal.csrf, write: principal.write, mode });
+          else if (path === "/api/verification" && request.method === "GET" && verification) {
+            requireThat(principal.role === "OWNER", "owner_verification_required", 403);
+            response = Response.json(await verification(principal));
+          }
           else if (path === "/api/logout" && request.method === "POST") {
             const cookie = await auth.logout(request); response = Response.json({ signedOut: true }, { headers: cookie ? { "set-cookie": cookie } : {} });
-          } else if (path === "/api/connections" && request.method === "GET") response = Response.json({ ...await manager.inventory(), canWrite: principal.write });
+          } else if (path === "/api/connections" && request.method === "GET") response = Response.json({ ...await manager.inventory(), canWrite: principal.write, canVerify: mode === "production" && principal.role === "OWNER" });
           else if (path === "/api/connections" && request.method === "POST") {
             requireThat(principal.write, "read_only", 403);
             response = Response.json(await manager.change(await readJson(request), principal.actor));

@@ -17,6 +17,18 @@ import { writeSetupConfiguration } from "./configuration.mjs";
 import { setupLock } from "./lock.mjs";
 import { installationListener, verifyOwner, installStagedGrant, cleanupBootstrap } from "./bootstrap.mjs";
 
+export async function saveStagedIdentity({ api, fixed, journal, store, reapply = false }) {
+  await verifyOwner(api, fixed);
+  const registration = await journal.get("registration");
+  requireThat(registration?.clientId === fixed.clientId && registration?.integrationId === fixed.integrationId && registration.identitySettingsVerified === true, "registration_binding_changed", 409);
+  const secret = store.loadForRuntime("IDENTITY_CLIENT_SECRET");
+  requireThat(typeof secret === "string" && secret.length >= 16, "staged_identity_missing", 409);
+  for (const [key, value, sensitive] of [["CONNECTIONS_CLIENT_ID", fixed.clientId, false], ["CONNECTIONS_CLIENT_SECRET", secret, true]]) {
+    await verifyOwner(api, fixed);
+    await writeSetupConfiguration({ api, journal, projectId: fixed.adminProjectId, key, value, secret: sensitive, reapply });
+  }
+}
+
 export async function registration(workspace) {
   const state = await workspaceState(workspace), release = await setupLock(state);
   try {
@@ -37,8 +49,10 @@ async function startRegistration(workspace) {
   const completed = new Promise((resolve) => { installed = resolve; });
   let listener, server;
   try {
-  if (prior && prior.phase !== "complete" && prior.expires <= Date.now()) await cleanupBootstrap({ api, fixed, journal, store });
+  if (prior && !["admin_configured", "deployed_verified", "complete", "expired"].includes(prior.phase) && prior.expires <= Date.now())
+    await cleanupBootstrap({ api, fixed, journal, store });
   const stage = await journal.get("bootstrap");
+  requireThat(!(stage?.phase === "expired" && stage.installationId), "expired_installation_requires_revocation", 409);
   const resumable = stage && ["exchange_started", "token_staged", "admin_write_attempted", "admin_configured"].includes(stage.phase);
   if (!resumable && stage?.phase !== "complete") listener = await installationListener({ api, fixed, journal, store, onInstalled: installed });
   if (stage?.phase === "complete") installed({ status: "complete" });
@@ -61,7 +75,8 @@ async function startRegistration(workspace) {
         if (path === "/api/details" && request.method === "GET") response = Response.json({ team: fixed.team, project: fixed.workflowName,
           identityCallback: `${fixed.origin}/auth/callback`, integrationCallback: listener?.redirect, scopes: listener?.scopes ?? [],
           identitySettings: `https://vercel.com/${encodeURIComponent(fixed.team)}/~/settings/apps`,
-          integrationSettings: "https://vercel.com/dashboard/integrations/console", phase: (await journal.get("bootstrap"))?.phase });
+          integrationSettings: "https://vercel.com/dashboard/integrations/console", phase: (await journal.get("bootstrap"))?.phase,
+          registrationSaved: Boolean(await journal.get("registration")) && Boolean(store.loadForRuntime("IDENTITY_CLIENT_SECRET")) });
         else if (path === "/api/registration" && request.method === "POST") {
           requireThat(listener, "registration_already_staged", 409);
           const body = await readJson(request);
@@ -80,11 +95,14 @@ async function startRegistration(workspace) {
           fixed.integrationId = body.integrationId; fixed.integrationSlug = body.integrationSlug; fixed.clientId = body.clientId;
           await journal.set("registration", { clientId: body.clientId, integrationId: body.integrationId, integrationSlug: body.integrationSlug, identitySettingsVerified: true });
           await writePrivateJson(state.configPath, { ...config, production: { ...fixed, clientId: body.clientId } });
-          for (const [key, value, secret] of [["CONNECTIONS_CLIENT_ID", body.clientId, false], ["CONNECTIONS_CLIENT_SECRET", body.clientSecret, true]]) {
-            await verifyOwner(api, fixed);
-            await writeSetupConfiguration({ api, journal, projectId: fixed.adminProjectId, key, value, secret });
-          }
+          await saveStagedIdentity({ api, fixed, journal, store });
           body.clientSecret = undefined; body.integrationSecret = undefined;
+          response = Response.json({ status: "registration_saved", consent: listener.redirect });
+        } else if (path === "/api/registration-resume" && request.method === "POST") {
+          requireThat(listener, "registration_already_staged", 409);
+          const body = await readJson(request);
+          requireThat(Object.keys(body).every((key) => key === "reapply") && typeof body.reapply === "boolean", "invalid_resume");
+          await saveStagedIdentity({ api, fixed, journal, store, reapply: body.reapply });
           response = Response.json({ status: "registration_saved", consent: listener.redirect });
         } else if (path === "/api/resume" && request.method === "POST") {
           const body = await readJson(request);

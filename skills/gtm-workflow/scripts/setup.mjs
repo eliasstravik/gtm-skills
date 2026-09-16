@@ -10,18 +10,22 @@ import { installComponent, componentSource } from "../connections/local/install.
 import { workspaceState, privateJson, writePrivateJson } from "../connections/local/state.mjs";
 import { inspectionEnvironment } from "../connections/local/inspection-environment.mjs";
 import { safeError, requireThat } from "../connections/src/errors.mjs";
+import { scaffoldManifest } from "./scaffold-manifest.mjs";
 const skill = dirname(dirname(fileURLToPath(import.meta.url)));
 export async function setupLocal(workspace, { upgrade = false } = {}) {
   process.umask(0o077);
   await mkdir(workspace, { recursive: true });
   const state = await workspaceState(workspace, { create: true }), prior = await privateJson(state.configPath);
   const runtime = join(workspace, "workflows");
+  let scaffold = prior?.scaffold;
   if (!existsSync(join(runtime, "package.json"))) {
     requireThat(!existsSync(runtime) || !(await (await import("node:fs/promises")).readdir(runtime)).length, "workflow_directory_not_empty", 409);
-    await cp(join(skill, "templates"), runtime, { recursive: true, filter: (source) => !/(?:^|\/)(?:node_modules|\.output|\.nitro|\.vercel|data)(?:\/|$)/.test(source) });
+    await cp(join(skill, "templates"), runtime, { recursive: true, filter: (source) => !/(?:^|\/)(?:node_modules|\.output|\.nitro|\.vercel|data|\.env(?:\.[^/]+)?)(?:\/|$)/.test(source) && !source.includes("public/viewer-assets") });
     await rename(join(runtime, "gitignore"), join(runtime, ".gitignore"));
     await rm(join(runtime, "env.example"), { force: true });
     await writeFile(join(runtime, "workflows/index.ts"), "export const workflows = {};\n");
+    scaffold = await scaffoldManifest(runtime);
+    await writePrivateJson(state.configPath, { ...prior, workspace: state.workspace, workspaceId: state.id, scaffold });
   }
   const run = (command, args, cwd, env = inspectionEnvironment(process.env)) => {
     const result = spawnSync(command, args, { cwd, env, encoding: "utf8", stdio: "pipe", maxBuffer: 8 * 1024 * 1024 });
@@ -34,7 +38,7 @@ export async function setupLocal(workspace, { upgrade = false } = {}) {
   const store = nativeStore(state.id);
   for (const name of ["GTM_RUN_SECRET", "GTM_CONNECTIONS_READ_SECRET"]) if (!store.loadForRuntime(name)) store.set(name, randomBytes(32).toString("base64url"));
   const journal = await openJournal({ url: `file:${state.database}` }); journal.close();
-  await writePrivateJson(state.configPath, { ...prior, workspace: state.workspace, workspaceId: state.id, component,
+  await writePrivateJson(state.configPath, { ...prior, workspace: state.workspace, workspaceId: state.id, component, scaffold,
     workflowsUrl: prior?.workflowsUrl ?? "http://127.0.0.1:3939/viewer" });
   if (!existsSync(join(runtime, "node_modules"))) run("npm", ["ci", "--ignore-scripts", "--no-audit", "--no-fund"], runtime);
   const env = { ...inspectionEnvironment(process.env), GTM_ENV_MANAGED: "1", WORKFLOW_TARGET_WORLD: "local", WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS: "false" };
@@ -44,7 +48,7 @@ export async function setupLocal(workspace, { upgrade = false } = {}) {
     next: `node ${join(skill, "scripts/connections.mjs")} open --workspace ${JSON.stringify(state.workspace)} --target local` };
 }
 async function main() {
-  const { values } = parseArgs({ options: { workspace: { type: "string" }, local: { type: "boolean" }, deploy: { type: "boolean" }, team: { type: "string" }, "github-owner": { type: "string" }, json: { type: "boolean" }, upgrade: { type: "boolean" } } });
+  const { values } = parseArgs({ options: { workspace: { type: "string" }, local: { type: "boolean" }, deploy: { type: "boolean" }, team: { type: "string" }, "github-owner": { type: "string" }, json: { type: "boolean" }, upgrade: { type: "boolean" }, verification: { type: "string" }, "workflow-project": { type: "string" }, "share-project": { type: "string" }, "agent-project": { type: "string" }, "agent-repository": { type: "string" }, "intake-protection-verified": { type: "boolean" } } });
   requireThat(values.workspace && Boolean(values.local) !== Boolean(values.deploy), "choose_local_or_deploy");
   const workspace = resolve(values.workspace);
   const local = await setupLocal(workspace, { upgrade: values.upgrade });
@@ -52,7 +56,7 @@ async function main() {
   if (values.deploy) {
     const state = await workspaceState(workspace), config = await privateJson(state.configPath);
     const { setupHosted } = await import(pathToFileURL(join(config.component.path, "setup/deploy.mjs")));
-    result = await setupHosted({ workspace, team: values.team, githubOwner: values["github-owner"], upgrade: values.upgrade });
+    result = await setupHosted({ workspace, team: values.team, githubOwner: values["github-owner"], upgrade: values.upgrade, verification: values.verification, workflowProject: values["workflow-project"], shareProject: values["share-project"], agentProject: values["agent-project"], agentRepository: values["agent-repository"], intakeProtectionVerified: values["intake-protection-verified"] });
   }
   console.log(JSON.stringify(result)); process.exitCode = result.status === "human_step" ? 2 : 0;
 }

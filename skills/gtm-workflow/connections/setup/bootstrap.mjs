@@ -12,7 +12,7 @@ function verifyTransaction(stage, fixed) {
 export async function cleanupBootstrap({ api, fixed, journal, store, completed = false }) {
   await verifyOwner(api, fixed);
   const stage = await journal.get("bootstrap"); verifyTransaction(stage, fixed);
-  requireThat(completed ? stage.phase === "deployed_verified" : stage.expires <= Date.now(), "bootstrap_cleanup_not_ready", 409);
+  requireThat(completed ? stage.phase === "deployed_verified" : stage.expires <= Date.now() && !["admin_configured", "deployed_verified", "complete"].includes(stage.phase), "bootstrap_cleanup_not_ready", 409);
   // If native deletion fails, leave the stage unfinished so cleanup can resume.
   for (const key of ["INTEGRATION_CLIENT_SECRET", "INTEGRATION_TOKEN", "IDENTITY_CLIENT_SECRET"]) store.remove(key);
   await journal.set("bootstrap", { ...stage, phase: completed ? "complete" : "expired", expires: 0 });
@@ -61,7 +61,7 @@ export async function installStagedGrant({ api, fixed, journal, store, fetcher =
   await verifyOwner(api, fixed);
   const stage = await journal.get("bootstrap");
   verifyTransaction(stage, fixed);
-  requireThat(stage?.expires > Date.now() && ["exchange_started", "token_staged", "admin_write_attempted", "admin_configured"].includes(stage.phase), "installation_transaction_expired", 403);
+  requireThat((stage?.phase === "admin_configured" || stage?.expires > Date.now()) && ["exchange_started", "token_staged", "admin_write_attempted", "admin_configured"].includes(stage.phase), "installation_transaction_expired", 403);
   requireThat(typeof stage.installationId === "string" && (!fixed.installationId || fixed.installationId === stage.installationId), "installation_binding_changed", 403);
   fixed = { ...fixed, installationId: stage.installationId };
   const token = store.loadForRuntime("INTEGRATION_TOKEN"); requireThat(token, "staged_grant_missing", 409);
@@ -69,7 +69,7 @@ export async function installStagedGrant({ api, fixed, journal, store, fetcher =
   validateInstallation(await integrationApi("GET", `/v1/integrations/configuration/${fixed.installationId}`), fixed);
   const project = await integrationApi("GET", `/v9/projects/${fixed.projectId}`);
   requireThat(project.accountId === fixed.teamId && project.id === fixed.projectId, "installation_project_denied", 403);
-  await journal.set("bootstrap", { ...stage, phase: "admin_write_attempted" });
+  if (stage.phase !== "admin_configured") await journal.set("bootstrap", { ...stage, phase: "admin_write_attempted" });
   for (const [key, value, secret] of [["CONNECTIONS_INTEGRATION_TOKEN", token, true], ["CONNECTIONS_INSTALLATION_ID", fixed.installationId, false], ["CONNECTIONS_INTEGRATION_ID", fixed.integrationId, false]]) {
     await verifyOwner(api, fixed);
     await writeSetupConfiguration({ api, journal, projectId: fixed.adminProjectId, key, value, secret, reapply });

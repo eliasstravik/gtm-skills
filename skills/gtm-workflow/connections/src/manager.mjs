@@ -6,7 +6,7 @@ export function createManager({ journal, storage, active, context }) {
   async function inventory() {
     const [saved, snapshot, operations, metadata] = await Promise.all([storage.list(), active().catch(() => null), journal.operations(), journal.list()]);
     for (const operation of operations) if (!saved.some((row) => row.variable === operation.variable))
-      saved.push({ variable: operation.variable, version: "absent", state: operation.phase === "saved" && operation.action === "disconnect" ? "disconnected" : "unknown", editable: true });
+      saved.push({ variable: operation.variable, version: "absent", state: operation.phase === "saved" && operation.action === "disconnect" ? "disconnected" : context.mode === "production" ? "absent" : "unknown", editable: true });
     for (const field of saved) field.label ??= metadata.find((entry) => entry.variable === field.variable)?.label;
     const names = saved.map((row) => row.variable);
     const rows = connectionInventory(names, [], snapshot?.connections?.some((row) => row.platformIdentity) ?? false);
@@ -28,11 +28,13 @@ export function createManager({ journal, storage, active, context }) {
       if (row.fields.some((field) => field.state === "external")) row.status = "Configured externally";
       if (last?.phase === "unresolved" || last?.phase === "write_attempted") row.status = "Save outcome unresolved";
       else if (last?.phase === "saved") {
+        const unchanged = row.fields.some((field) => field.version === last.saved_version);
         const refreshed = context.mode === "local"
           ? snapshot && Number(snapshot.generation) >= Number(last.saved_version)
-          : snapshot?.deploymentCreatedAt > Number(last.updated_at) && snapshot?.deploymentId !== last.deployment && row.fields.some((field) => field.version === last.saved_version);
+          : snapshot?.deploymentCreatedAt > Number(last.updated_at) && snapshot?.deploymentId !== last.deployment && unchanged;
         row.status = refreshed ? last.action === "replace" ? context.mode === "local" ? "Runner restarted after save" : "Deployment refreshed after save" : row.active ? "Configured" : "Disconnected"
           : context.mode === "local" ? snapshot ? "Saved, restart local runner to apply" : "Saved locally, runner not started" : "Saved, awaiting deployment";
+        if (context.mode === "production" && !unchanged) row.status = "Saved state changed; active version unknown";
       }
     }
     return { version: 1, ...context, services, connections: rows, active: snapshot ? {
@@ -47,7 +49,7 @@ export function createManager({ journal, storage, active, context }) {
         requireThat(existing.variable === input.variable && existing.action === input.action, "operation_conflict", 409);
         return { operation: existing.id, phase: existing.phase };
       }
-      const prior = (await journal.operations()).find((op) => op.variable === input.variable && ["unresolved", "write_attempted"].includes(op.phase));
+      const prior = (await journal.operations()).find((op) => op.variable === input.variable && !op.superseded_by && ["unresolved", "write_attempted"].includes(op.phase));
       requireThat(!prior || input.supersede === true, "explicit_replacement_required", 409);
       requireThat(!prior || input.action === "replace", "replacement_required", 409);
       const saved = (await storage.list()).find((row) => row.variable === input.variable);
@@ -57,14 +59,13 @@ export function createManager({ journal, storage, active, context }) {
       const snapshot = await active().catch(() => null);
       await journal.prepare(input, actor, snapshot?.deploymentId);
       await journal.fence(lease);
-      await journal.phase(input.id, "write_attempted");
+      await journal.phase(input.id, "write_attempted", null, lease);
       try {
         await journal.fence(lease);
         // No automatic retry. A lost response leaves the operation unresolved.
         const version = await storage.write(input, saved);
         await journal.fence(lease);
-        const generation = await journal.saved(input);
-        await journal.phase(input.id, "saved", context.mode === "local" ? String(generation) : version);
+        await journal.saved(input, lease, context.mode === "local" ? undefined : version);
         return { operation: input.id, phase: "saved" };
       } catch (error) {
         await journal.phase(input.id, error instanceof ConnectionError && error.status >= 400 && error.status < 500 && error.code !== "lease_expired" ? "failed" : "unresolved");

@@ -25,11 +25,13 @@ export function vercelTransport({ token, teamId, fetcher = fetch }) {
   return async (method, path, body) => {
     requireThat(path.startsWith("/") && !path.startsWith("//"), "invalid_api_path");
     const url = new URL(path, "https://api.vercel.com"); url.searchParams.set("teamId", teamId);
+    requireThat(url.origin === "https://api.vercel.com" && !url.username && !url.password && !url.hash, "invalid_api_path");
     let response;
     try { response = await fetcher(url, { method, redirect: "error", signal: AbortSignal.timeout(20000),
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }); }
     catch { throw new ConnectionError("vercel_outcome_unknown", 503); }
     if (!response.ok) { await response.body?.cancel(); throw new ConnectionError("vercel_request_denied", response.status >= 500 ? 503 : response.status); }
+    if (response.status === 204) return null;
     return boundedResponse(response);
   };
 }
@@ -71,18 +73,21 @@ export function envMetadata(raw) {
 }
 const editable = (row) => !row.shared && row.targets.length === 1 && row.targets[0] === "production" && row.updatedAt !== null;
 export function vercelStorage(api, fixed) {
-  let metadata = new Map();
+  const read = async () => {
+    const result = await api("GET", `/v10/projects/${encodeURIComponent(fixed.projectId)}/env?decrypt=false`);
+    requireThat(Array.isArray(result.envs) && !result.pagination?.next, "environment_inventory_incomplete", 503);
+    return result.envs.filter((raw) => providerVariable(raw.key)).map(envMetadata).filter((row) => row.targets.includes("production"));
+  };
   return {
     async list() {
-      const result = await api("GET", `/v10/projects/${encodeURIComponent(fixed.projectId)}/env?decrypt=false`);
-      requireThat(Array.isArray(result.envs) && !result.pagination?.next, "environment_inventory_incomplete", 503);
-      const rows = result.envs.filter((raw) => providerVariable(raw.key)).map(envMetadata).filter((row) => row.targets.includes("production"));
-      metadata = new Map(rows.map((row) => [row.variable, row]));
+      const rows = await read();
       const counts = new Map(); for (const row of rows) counts.set(row.variable, (counts.get(row.variable) ?? 0) + 1);
       return rows.map((row) => ({ variable: row.variable, version: `${row.id}:${row.updatedAt}`, state: "saved", editable: editable(row) && counts.get(row.variable) === 1 }));
     },
     async write(input, prior) {
-      const row = metadata.get(input.variable);
+      const rows = (await read()).filter((row) => row.variable === input.variable);
+      requireThat(rows.length <= 1, "use_vercel_settings", 409);
+      const row = rows[0];
       requireThat((row ? `${row.id}:${row.updatedAt}` : "absent") === input.version, "connection_changed", 409);
       requireThat(!row || editable(row), "use_vercel_settings", 409);
       const base = `/v9/projects/${encodeURIComponent(fixed.projectId)}/env/`;

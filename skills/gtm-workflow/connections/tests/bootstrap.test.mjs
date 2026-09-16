@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { openJournal } from "../src/journal.mjs";
 import { installGrant, installStagedGrant, cleanupBootstrap, verifyOwner } from "../setup/bootstrap.mjs";
 import { INTEGRATION_SCOPES } from "../src/vercel.mjs";
+import { saveStagedIdentity } from "../setup/registration.mjs";
 const fixed = { ownerId: "owner", teamId: "team", projectId: "workflow", adminProjectId: "admin", integrationId: "integration" };
 const redirect = "http://localhost:4000/install/nonce";
 async function fixture() {
@@ -18,7 +19,7 @@ async function fixture() {
       writes.push({ path, body });
       const old = method === "PATCH" ? envs.find((row) => path.endsWith(`/${row.id}`)) : null;
       const row = { ...body, id: old?.id ?? `env-${envs.length}`, key: old?.key ?? body.key, updatedAt: writes.length };
-      delete row.value;
+      if (row.type !== "plain") delete row.value;
       if (old) envs.splice(envs.indexOf(old), 1, row); else envs.push(row);
       if (failure && (failure === body.key || failure === old?.key)) { failure = null; throw Error("lost response"); }
       return row;
@@ -74,7 +75,7 @@ test("partial setup resumes unfinished fields; targets, expiry and existing valu
     assert.equal(f.writes.filter((write) => write.body.key === "CONNECTIONS_INTEGRATION_TOKEN").length, 1);
     await f.journal.set("bootstrap", { ...await f.journal.get("bootstrap"), adminProjectId: "substituted" });
     await assert.rejects(installStagedGrant(f), /installation_binding_changed/);
-    await f.journal.set("bootstrap", { ...await f.journal.get("bootstrap"), adminProjectId: "admin", expires: 0 });
+    await f.journal.set("bootstrap", { ...await f.journal.get("bootstrap"), adminProjectId: "admin", phase: "admin_write_attempted", expires: 0 });
     await assert.rejects(installStagedGrant(f), /installation_transaction_expired/);
     assert.deepEqual(await cleanupBootstrap(f), { status: "bootstrap_expired", installationId: "installation", revocationRequired: true });
     assert.equal(f.secrets.size, 0);
@@ -129,4 +130,32 @@ test("installation HTTP callback requires the exact host, nonce, initiated cooki
     assert.equal((await get(`${target.pathname}?code=synthetic-code`, { cookie })).status, 403);
     assert.equal(f.exchangeCount(), 1);
   } finally { await listener.close(); f.journal.close(); }
+});
+test("a configured installation can resume deployment after callback expiry without rewriting or deleting credentials", async () => {
+  const f = await fixture();
+  try {
+    await f.start();
+    await f.journal.set("bootstrap", { ...await f.journal.get("bootstrap"), expires: 0 });
+    await installStagedGrant(f);
+    assert.equal(f.writes.length, 3);
+    await assert.rejects(cleanupBootstrap(f), /bootstrap_cleanup_not_ready/);
+    assert.ok(f.secrets.has("INTEGRATION_TOKEN"));
+  } finally { f.journal.close(); }
+});
+test("an interrupted identity Secret write resumes from OS storage only after explicit reapply", async () => {
+  const f = await fixture();
+  try {
+    const bound = { ...fixed, clientId: "identity-client" };
+    await f.journal.set("registration", { clientId: bound.clientId, integrationId: fixed.integrationId, identitySettingsVerified: true });
+    f.secrets.set("IDENTITY_CLIENT_SECRET", "synthetic-identity-client-secret");
+    f.fail("CONNECTIONS_CLIENT_SECRET");
+    await assert.rejects(saveStagedIdentity({ ...f, fixed: bound }), /lost response/);
+    assert.equal(f.writes.length, 2);
+    await assert.rejects(saveStagedIdentity({ ...f, fixed: bound }), /setup_configuration_unresolved/);
+    assert.equal(f.writes.length, 2);
+    await saveStagedIdentity({ ...f, fixed: bound, reapply: true });
+    assert.equal(f.writes.length, 3);
+    await saveStagedIdentity({ ...f, fixed: bound }); assert.equal(f.writes.length, 3);
+    await assert.rejects(saveStagedIdentity({ ...f, fixed: { ...bound, clientId: "another-client" } }), /registration_binding_changed/);
+  } finally { f.journal.close(); }
 });

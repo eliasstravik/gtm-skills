@@ -1,6 +1,6 @@
 const bootstrap = new URLSearchParams(location.hash.slice(1)).get("bootstrap");
 history.replaceState(null, "", "/");
-let bearer, csrf;
+let bearer, csrf, resumeIdentity = false;
 const status = document.querySelector("#status"), form = document.querySelector("form");
 async function request(path, body) {
   const response = await fetch(path, { method: body ? "POST" : "GET", credentials: "omit", cache: "no-store", redirect: "error", headers: {
@@ -20,8 +20,11 @@ try {
   document.querySelector("#target").textContent = `Team: ${details.team}. Workflow project: ${details.project}.`;
   for (const scope of details.scopes) { const row = document.createElement("li"); row.textContent = scope; document.querySelector("#scopes").append(row); }
   const resume = ["exchange_started", "token_staged", "admin_write_attempted", "admin_configured"].includes(details.phase);
+  resumeIdentity = details.registrationSaved && details.phase === "callback_pending";
   document.querySelector("#setup").hidden = resume || details.phase === "complete";
-  document.querySelector("#resume").hidden = !resume;
+  form.hidden = resumeIdentity;
+  document.querySelector("#resume").hidden = !resume && !resumeIdentity;
+  if (resumeIdentity) document.querySelector("#resume-status").textContent = "Reuse the saved registrations. Update the integration callback to the exact address below before resuming consent.";
   status.textContent = details.phase === "complete" ? "Setup is already complete." : "Owner identity and fixed projects verified.";
 } catch (error) { status.textContent = error.message; }
 const clear = () => { for (const input of document.querySelectorAll('input[type="password"]')) input.value = ""; };
@@ -39,8 +42,9 @@ form.addEventListener("submit", async (event) => {
 document.querySelector("#resume-button").addEventListener("click", async (event) => {
   const button = event.currentTarget, message = document.querySelector("#resume-status"); button.disabled = true;
   try {
-    await request("/api/resume", { reapply: document.querySelector("#reapply").checked });
-    message.textContent = "Installation saved. Local setup is continuing automatically.";
+    const result = await request(resumeIdentity ? "/api/registration-resume" : "/api/resume", { reapply: document.querySelector("#reapply").checked });
+    message.textContent = resumeIdentity ? "Registration saved. Continue to consent below as the same owner." : "Installation saved. Local setup is continuing automatically.";
+    if (resumeIdentity) { const consent = document.querySelector("#consent"); consent.href = result.consent; consent.hidden = false; }
     document.querySelector("#reapply-option").hidden = true;
   } catch (error) {
     if (error.code === "setup_configuration_unresolved") {

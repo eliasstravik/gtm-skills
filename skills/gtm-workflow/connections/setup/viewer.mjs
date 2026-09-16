@@ -5,10 +5,10 @@ import { verifyOwner } from "./bootstrap.mjs";
 import { requireThat } from "../src/errors.mjs";
 
 /** Sharing has only two public routing settings and its isolated build mode. */
-export async function prepareSharing({ api, fixed, workflow, owner, repo, runtimeOrigin, journal }) {
+export async function prepareSharing({ api, fixed, workflow, owner, repo, runtimeOrigin, journal, name = `${workflow.name}-share` }) {
   await verifyOwner(api, fixed);
   const share = await ensureProject({ api, journal, teamId: fixed.teamId, definition: {
-    name: `${workflow.name}-share`, framework: "nitro", rootDirectory: "workflows", buildCommand: "npm run build:share",
+    name, framework: "nitro", rootDirectory: "workflows", buildCommand: "npm run build:share",
     gitRepository: { type: "github", repo: `${owner}/${repo}` }, ssoProtection: null,
   } });
   const allowed = new Set(["GTM_VIEWER_PRIVATE_ORIGIN", "GTM_VIEWER_PRIVATE_PROJECT_ID"]);

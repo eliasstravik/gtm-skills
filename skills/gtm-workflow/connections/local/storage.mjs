@@ -48,8 +48,8 @@ export function localStorage({ journal, store, environment }) {
 }
 export async function runtimeEnvironment({ journal, store, environment }) {
   const result = { ...environment }, meta = await journal.list();
-  const pending = (await journal.operations()).filter((op) => ["prepared", "write_attempted", "unresolved"].includes(op.phase));
-  requireThat(!pending.some((op) => !meta.some((row) => row.variable === op.variable && Number(row.updated_at) > Number(op.updated_at))), "resolve_connection_before_restart", 409);
+  const pending = (await journal.operations()).filter((op) => !op.superseded_by && ["prepared", "write_attempted", "unresolved"].includes(op.phase));
+  requireThat(pending.length === 0, "resolve_connection_before_restart", 409);
   for (const row of meta) {
     delete result[row.variable];
     if (row.state === "disconnected") continue;

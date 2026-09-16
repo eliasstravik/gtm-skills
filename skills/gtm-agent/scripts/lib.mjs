@@ -165,10 +165,13 @@ export function productionUrl(team, name) {
   return pick ? `https://${pick}` : null;
 }
 
-/** Start a production deployment from the linked git repository's main branch; returns the deployment id. */
+/** Redeploy the active source, or use the production branch for a first deployment. */
 export function deployFromGit(team, name) {
   const p = project(team, name);
   if (!p?.link?.repoId) fail(`${name} is not connected to a git repository`);
+  const activeCommit = p.targets?.production?.meta?.githubCommitSha;
+  if (p.targets?.production && !/^[a-f0-9]{40}$/.test(activeCommit ?? ""))
+    fail(`${name}'s active source could not be verified; inspect its production deployment before retrying setup`);
   const d = api(team, "POST", "/v13/deployments", {
     name,
     project: name,
@@ -177,6 +180,7 @@ export function deployFromGit(team, name) {
       type: p.link.type,
       repoId: p.link.repoId,
       ref: p.link.productionBranch || "main",
+      ...(activeCommit ? { sha: activeCommit } : {}),
     },
   });
   return d?.id ?? d?.uid ?? null;

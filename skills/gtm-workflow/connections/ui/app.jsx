@@ -16,6 +16,7 @@ const messages = {
   explicit_replacement_required: "The previous save is unresolved. Review its status and explicitly replace it.",
   invalid_provider_variable: "Use a provider-specific name ending in _API_KEY. System and public variables are excluded.",
   invalid_key: "Enter a nonempty key on one line.",
+  unlock_os_credential_store: "Unlock your OS credential store. Linux requires a running, unlocked Secret Service such as GNOME Keyring.",
 };
 const message = (code) => messages[code] ?? "Connections could not complete this request. Refresh or run Connections Doctor.";
 function EntryForm({ selection, inventory, close, updated }) {
@@ -96,9 +97,16 @@ function App() {
   async function logout() {
     try { await request("/api/logout", {}); } finally { clearSession(); setInventory(null); setSelection(null); setError(localMode ? "reopen_connections" : "sign_in_required"); }
   }
+  async function downloadVerification() {
+    try {
+      const receipt = await request("/api/verification"), url = URL.createObjectURL(new Blob([JSON.stringify(receipt)], { type: "application/json" }));
+      const link = document.createElement("a"); link.href = url; link.download = "connections-verification.json"; link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (failure) { setError(failure.message); }
+  }
   return <main className="workspace">
     <nav className="tabs root-navigation" aria-label="Workspace"><a href={inventory?.workflowsUrl ?? "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Workflows</a><a href="/" aria-current="page">Connections</a></nav>
-    <div className="title-row"><div><h1>Connections</h1><p className="muted">{localMode ? "Local" : "Production"}</p></div>
+    <div className="title-row"><div><h1>Connections</h1><p className="muted">{localMode ? "Local" : "Production"}{inventory?.workspaceName ? ` · ${inventory.workspaceName}` : ""}</p></div>
       {inventory ? <div className="connection-actions">{inventory.vercelUrl ? <a className="button" href={inventory.vercelUrl} rel="noreferrer">Open in Vercel</a> : null}
         {inventory.canWrite ? <button type="button" className="primary" onClick={(event) => select(event, { action: "add" })}>Add connection</button> : null}</div> : null}
     </div>
@@ -114,7 +122,8 @@ function App() {
         </React.Fragment>)}</div></details> : null}
       </div>)}</div>
       {!inventory.connections.length ? <p className="notice">No connections yet. Add a service key to make it available to workflows.</p> : null}
-      <div className="connection-footer"><button type="button" onClick={start}>Refresh</button><button type="button" onClick={logout}>Sign out</button>{inventory.deploymentUrl ? <a href={inventory.deploymentUrl}>Open deployment settings</a> : null}</div>
+      <div className="connection-footer"><button type="button" onClick={start}>Refresh</button><button type="button" onClick={logout}>Sign out</button>{inventory.productionUrl ? <a href={inventory.productionUrl}>Open Production</a> : null}{inventory.deploymentUrl ? <a href={inventory.deploymentUrl}>Open deployment settings</a> : null}</div>
+      {!localMode && inventory.canVerify ? <details><summary>Setup verification</summary><p className="muted">Download proof of this sign-in and the live connection to your workflow project. It contains project metadata and no credentials.</p><button type="button" onClick={downloadVerification}>Download verification</button></details> : null}
       {selection ? <EntryForm key={`${selection.action}-${selection.field?.variable ?? "new"}`} selection={selection} inventory={inventory} close={closeEntry} updated={refresh} /> : null}
     </> : null}
   </main>;

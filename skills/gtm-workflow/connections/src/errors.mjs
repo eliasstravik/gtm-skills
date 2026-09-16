@@ -5,7 +5,9 @@ export const requireThat = (condition, code, status = 400) => {
   if (!condition) throw new ConnectionError(code, status);
 };
 export const safeError = (error) => error instanceof ConnectionError
-  ? { error: error.code, status: error.status }
+  ? { error: error.code, status: error.status, ...(error.code === "unlock_os_credential_store" ? {
+    instruction: "Unlock your OS credential store. On Linux, start and unlock a Secret Service provider such as GNOME Keyring in your desktop session, then rerun setup.",
+  } : {}) }
   : { error: "connections_unavailable", status: 503 };
 export async function readJson(request, limit = 16384) {
   requireThat(request.headers.get("content-type")?.split(";")[0] === "application/json", "json_required", 415);

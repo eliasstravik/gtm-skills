@@ -5,6 +5,8 @@ import { fixedOrigin } from "./validation.mjs";
 import { createHandler } from "./http.mjs";
 import { oidcAuth } from "./oidc.mjs";
 import { vercelTransport, hostedAuthority, vercelStorage, activeReader } from "./vercel.mjs";
+import { verificationReceipt } from "./verification.mjs";
+import { requireThat } from "./errors.mjs";
 let handler;
 export async function hostedHandler(environment = process.env) {
   if (handler) return handler;
@@ -20,9 +22,17 @@ export async function hostedHandler(environment = process.env) {
   const runtimeOrigin = fixedOrigin(e.CONNECTIONS_RUNTIME_ORIGIN);
   const auth = oidcAuth({ origin, clientId: e.CONNECTIONS_CLIENT_ID, clientSecret: e.CONNECTIONS_CLIENT_SECRET, sessionSecret: e.CONNECTIONS_SESSION_SECRET, journal, authority: hostedAuthority(api, fixed) });
   const settings = `https://vercel.com/${encodeURIComponent(e.CONNECTIONS_TEAM_SLUG)}/${encodeURIComponent(e.CONNECTIONS_PROJECT_NAME)}`;
-  const manager = createManager({ journal, storage: vercelStorage(api, fixed),
-    active: activeReader({ origin: runtimeOrigin, projectId: fixed.projectId, readSecret: e.GTM_CONNECTIONS_READ_SECRET, bypass: e.CONNECTIONS_RUNTIME_BYPASS, api }),
-    context: { mode: "production", workspace: fixed.projectId, workflowsUrl: `${runtimeOrigin}/viewer`, vercelUrl: `${settings}/settings/environment-variables`, deploymentUrl: `${settings}/deployments` } });
-  handler = createHandler({ mode: "production", origin, manager, auth, publicDirectory, installationId: fixed.installationId, projectId: fixed.projectId });
+  const active = activeReader({ origin: runtimeOrigin, projectId: fixed.projectId, readSecret: e.GTM_CONNECTIONS_READ_SECRET, bypass: e.CONNECTIONS_RUNTIME_BYPASS, api });
+  const manager = createManager({ journal, storage: vercelStorage(api, fixed), active,
+    context: { mode: "production", workspace: fixed.projectId, workspaceName: `${e.CONNECTIONS_TEAM_SLUG} / ${e.CONNECTIONS_PROJECT_NAME}`,
+      workflowsUrl: `${runtimeOrigin}/viewer`, vercelUrl: `${settings}/settings/environment-variables`, deploymentUrl: `${settings}/deployments` } });
+  const verification = async (principal) => {
+    const runtime = await active();
+    requireThat(e.VERCEL_DEPLOYMENT_ID && e.VERCEL_PROJECT_ID && e.CONNECTIONS_COMPONENT_DIGEST && runtime.commit, "verification_unavailable", 503);
+    return verificationReceipt({ origin, teamId: fixed.teamId, projectId: fixed.projectId, adminProjectId: e.VERCEL_PROJECT_ID,
+      installationId: fixed.installationId, actor: principal.actor, deploymentId: e.VERCEL_DEPLOYMENT_ID,
+      runtimeDeploymentId: runtime.deploymentId, runtimeCommit: runtime.commit, componentDigest: e.CONNECTIONS_COMPONENT_DIGEST }, e.CONNECTIONS_SESSION_SECRET);
+  };
+  handler = createHandler({ mode: "production", origin, manager, auth, publicDirectory, verification, installationId: fixed.installationId, projectId: fixed.projectId });
   return handler;
 }
