@@ -1,5 +1,20 @@
 /** Browser-safe display contract. Never imports workflow execution or database code. */
-export const CONTRACT_VERSION = 2;
+export const CONTRACT_VERSION = 3;
+export type RowPolicy = {
+  version: string;
+  column?: string;
+  equals?: string;
+  membership?: { column: "sources_json"; workflowId: string };
+  currentCompanies?: { peopleTable: string; workflowId: string };
+};
+export type DataRelation = {
+  from: string;
+  to: string;
+  through: string;
+  fromColumn: string;
+  toColumn: string;
+  reference?: "current-experiences-v1";
+};
 export type View = "logic" | "runs" | "data";
 export type BusinessGraph = {
   nodes: {
@@ -56,13 +71,8 @@ export type DataPolicy = {
     id: string;
     name: string;
     columns: string[];
-    row: { version: string; column?: string; equals?: string };
+    row: RowPolicy;
+    nested?: Record<string, string[]>;
   }[];
-  relations: {
-    from: string;
-    to: string;
-    through: string;
-    fromColumn: string;
-    toColumn: string;
-  }[];
+  relations: DataRelation[];
 };

@@ -54,6 +54,7 @@ export default defineHandler(async (event) => {
     "sort",
     "order",
     "columns",
+    "format",
     "children",
   ]) {
     const value = incoming.searchParams.get(key);
@@ -83,15 +84,15 @@ export default defineHandler(async (event) => {
     if (
       op === "export" &&
       response.ok &&
-      response.headers.get("content-type")?.includes("text/csv")
+      (response.headers.get("content-type")?.includes("text/csv") || response.headers.get("content-type")?.includes("application/json"))
     )
       return new Response(response.body, {
         status: response.status,
         headers: {
           ...headers,
-          "content-type": "text/csv; charset=utf-8",
+          "content-type": response.headers.get("content-type")!,
           "content-disposition":
-            'attachment; filename="workflow-current-data.csv"',
+            response.headers.get("content-disposition") ?? 'attachment; filename="workflow-current-data.csv"',
           "x-export-started-at":
             response.headers.get("x-export-started-at") ?? "",
           "x-export-consistency": "live-paginated-read",

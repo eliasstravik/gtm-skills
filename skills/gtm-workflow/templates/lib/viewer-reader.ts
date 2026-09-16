@@ -159,6 +159,14 @@ export async function readBusinessData(entry: Entry, url: URL, shared = false) {
     for (const table of config.tables) {
       const p = entry.sharePolicy!.tables.find((t) => t.name === table.name)!;
       (table as any).row = p.row;
+      table.columns = table.columns.filter((c) => p.columns.includes(c));
+      table.defaultColumns = table.defaultColumns?.filter((c) =>
+        p.columns.includes(c),
+      );
+      table.searchableColumns = table.searchableColumns?.filter((c) =>
+        p.columns.includes(c),
+      );
+      table.nested = p.nested;
     }
     (config as any).rowPolicies = Object.fromEntries(
       entry.sharePolicy!.tables.map((t) => [t.name, t.row]),

@@ -22,7 +22,7 @@ await client.execute(
 );
 const req = (op: string, token?: string, body?: unknown, extra = "") =>
   new Request(
-    `https://private.example/api/viewer?v=2&workflow=stable&op=${op}${extra}`,
+    `https://private.example/api/viewer?v=3&workflow=stable&op=${op}${extra}`,
     {
       method: body ? "POST" : "GET",
       headers: {
@@ -203,7 +203,7 @@ test("local workflows do not advertise sharing and reject enabling it", async ()
   const vercel = process.env.VERCEL;
   delete process.env.VERCEL;
   try {
-    const url = "http://localhost:3939/api/viewer?v=2&workflow=stable";
+    const url = "http://localhost:3939/api/viewer?v=3&workflow=stable";
     const meta = await (
       await viewerApi(
         new Request(url + "&op=meta", {
@@ -248,7 +248,7 @@ test("stale Data policy preserves Diagram and requires explicit current-policy s
   const token = new URLSearchParams(new URL(created.url).hash.slice(1)).get(
     "token",
   )!;
-  entry.sharePolicy.version = "2";
+  entry.sharePolicy.tables[0].row.version = "2";
   assert.equal((await viewerApi(req("meta", token), true)).status, 200);
   assert.equal((await viewerApi(req("workflow", token), true)).status, 200);
   assert.equal((await viewerApi(req("data", token), true)).status, 403);
@@ -280,4 +280,112 @@ test("stale Data policy preserves Diagram and requires explicit current-policy s
   ).json();
   assert.equal(saved.url, created.url);
   assert.equal((await viewerApi(req("data", token), true)).status, 200);
+});
+
+test("shared profile API scopes details, nested projections and both export formats", async () => {
+  const { people, companies, profileSchemaSql } = await import(
+    "../templates/lib/profiles/schema"
+  );
+  const { profileView } = await import("../templates/lib/profiles/view");
+  const { tables } = await import("./api-fixture");
+  await client.execute("DROP TABLE people");
+  await client.executeMultiple(profileSchemaSql());
+  Object.assign(tables, { people, companies });
+  Object.assign(entry, profileView("stable"));
+  for (const [key, workflow] of [
+    ["a", "stable"],
+    ["b", "foreign"],
+  ]) {
+    await client.execute({
+      sql: "INSERT INTO people(key,created_at,updated_at,full_name,sources_json,experiences_json,raw_responses_json) VALUES(?,?,?,?,?,?,?)",
+      args: [
+        key,
+        "2026-09-16",
+        "2026-09-16",
+        key === "a" ? "Ada, Example" : "FOREIGN PERSON",
+        JSON.stringify([{ workflow_id: workflow, network_owner: "PRIVATE" }]),
+        JSON.stringify([
+          {
+            title: "Founder",
+            company_key: "c",
+            company_name: "Shared Co",
+            current_status: "current",
+            original: { secret: "PRIVATE" },
+          },
+        ]),
+        JSON.stringify({ secret: "PRIVATE" }),
+      ],
+    });
+  }
+  await client.execute(
+    "INSERT INTO companies(key,created_at,updated_at,name) VALUES('c','2026-09-16','2026-09-16','Shared Co')",
+  );
+  const current = await (await viewerApi(req("grants"))).json();
+  const created = await viewerApi(
+    req("saveLink", undefined, {
+      views: ["data"],
+      policy: current.policy,
+      save: true,
+    }),
+    false,
+    true,
+  );
+  assert.equal(created.status, 200);
+  const { url } = await created.json(),
+    token = new URLSearchParams(new URL(url).hash.slice(1)).get("token")!;
+  for (const extra of [
+    "&table=people",
+    "&table=people&key=a",
+    "&table=people&relatedTable=companies&relatedKey=c",
+    "&table=companies",
+  ]) {
+    const response = await viewerApi(
+      req("data", token, undefined, extra),
+      true,
+    );
+    assert.equal(response.status, 200);
+    const body = await response.text();
+    assert.ok(!body.includes("PRIVATE"));
+    assert.ok(!body.includes("FOREIGN PERSON"));
+  }
+  assert.equal(
+    (
+      await (
+        await viewerApi(
+          req("data", token, undefined, "&table=people&key=b"),
+          true,
+        )
+      ).json()
+    ).total,
+    0,
+  );
+  for (const op of ["data", "export"])
+    for (const col of ["raw_responses_json", "sources_json", "provenance_json"])
+      assert.equal(
+        (
+          await viewerApi(
+            req(op, token, undefined, "&table=people&columns=" + col),
+            true,
+          )
+        ).status,
+        400,
+      );
+  const json = await viewerApi(
+    req("export", token, undefined, "&table=people&format=json"),
+    true,
+  );
+  assert.equal(json.status, 200);
+  assert.match(json.headers.get("content-type")!, /application\/json/);
+  const rows = await json.json();
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].experiences_json[0].title, "Founder");
+  assert.equal(rows[0].experiences_json[0].original, undefined);
+  const csv = await (
+    await viewerApi(req("export", token, undefined, "&table=people"), true)
+  ).text();
+  assert.ok(csv.includes('"Ada, Example"'));
+  assert.ok(csv.includes('""title""'));
+  assert.ok(!csv.includes("FOREIGN PERSON"));
+  entry.sharePolicy.version = "unsupported";
+  assert.equal((await viewerApi(req("data", token), true)).status, 403);
 });

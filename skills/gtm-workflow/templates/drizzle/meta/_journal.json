@@ -8,6 +8,13 @@
       "when": 1789371765975,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789536692180,
+      "tag": "0001_shared_profiles",
+      "breakpoints": true
     }
   ]
 }

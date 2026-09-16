@@ -2,7 +2,10 @@ import type { DataPage } from "./data-api";
 import { ViewerError } from "./viewer-grants";
 import { viewerHeaders } from "./viewer-access";
 export function csvCell(value: unknown) {
-  let text = String(value ?? "");
+  let text =
+    value !== null && typeof value === "object"
+      ? JSON.stringify(value)
+      : String(value ?? "");
   if (/^[\s]*[=+@-]|^[\t\r\n]/.test(text)) text = "'" + text;
   return `"${text.replaceAll('"', '""')}"`;
 }
@@ -13,6 +16,7 @@ export async function exportCsv(
   authorize: () => Promise<unknown>,
   signal: AbortSignal,
 ) {
+  const json = url.searchParams.get("format") === "json";
   const start = new Date().toISOString();
   const pageUrl = new URL(url);
   pageUrl.searchParams.set("page", "0");
@@ -51,6 +55,7 @@ export async function exportCsv(
           pageUrl.searchParams.set("page", String(index));
           page = await read(pageUrl);
         }
+        const firstPage = header;
         let text = header
           ? indices.map((i) => csvCell(page.fields[i].label)).join(",") + "\r\n"
           : "";
@@ -60,6 +65,17 @@ export async function exportCsv(
           .join("\r\n");
         if (page.rows.length) text += "\r\n";
         done = !page.next;
+        if (json) {
+          const rows = page.rows.map((row) =>
+            Object.fromEntries(
+              indices.map((i) => [page.fields[i].id, row[i].value]),
+            ),
+          );
+          text =
+            (firstPage ? "[" : rows.length ? "," : "") +
+            rows.map((row) => JSON.stringify(row)).join(",") +
+            (done ? "]" : "");
+        }
         index++;
         controller.enqueue(encoder.encode(text));
       } catch (error) {
@@ -73,8 +89,10 @@ export async function exportCsv(
   return new Response(body, {
     headers: {
       ...viewerHeaders,
-      "content-type": "text/csv; charset=utf-8",
-      "content-disposition": 'attachment; filename="workflow-current-data.csv"',
+      "content-type": json
+        ? "application/json; charset=utf-8"
+        : "text/csv; charset=utf-8",
+      "content-disposition": `attachment; filename="workflow-current-data.${json ? "json" : "csv"}"`,
       "x-export-started-at": start,
       "x-export-consistency": "live-paginated-read",
     },
