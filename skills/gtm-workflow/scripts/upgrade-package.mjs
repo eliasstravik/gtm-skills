@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 // Only recognized template commands are replaced. All other commands need a human-readable review.
 const stock = {
+  viewer: /^node scripts\/start-viewer\.mjs$/,
   dev: /^(?:node scripts\/build-viewer\.mjs && )?drizzle-kit migrate && (?:node scripts\/profile-migrate\.mjs && )?(?:node scripts\/viewer-migrate\.mjs && )?(?:WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS=900000 WORKFLOW_LOCAL_BODY_TIMEOUT_MS=900000 )?nitro dev --port 3939$/,
   build:
     /^(?:node scripts\/build-viewer\.mjs && )?drizzle-kit migrate && (?:node scripts\/profile-migrate\.mjs && )?(?:node scripts\/viewer-migrate\.mjs && )?nitro build$/,

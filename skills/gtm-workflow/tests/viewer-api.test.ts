@@ -389,3 +389,23 @@ test("shared profile API scopes details, nested projections and both export form
   entry.sharePolicy.version = "unsupported";
   assert.equal((await viewerApi(req("data", token), true)).status, 403);
 });
+test("private link discovery exposes only the fixed Connections origin and share mode omits it", async () => {
+  const { viewerLink } = await import("../templates/lib/viewer-link");
+  const request = new Request("https://private.example/api/link");
+  const previous = process.env.GTM_CONNECTIONS_ORIGIN;
+  try {
+    process.env.GTM_CONNECTIONS_ORIGIN = "https://connections.example";
+    assert.equal(viewerLink(request).connectionsUrl, "https://connections.example");
+    for (const value of ["http://connections.example", "https://connections.example/path", "https://user:pass@connections.example", "https://connections.example/#capability"]) {
+      process.env.GTM_CONNECTIONS_ORIGIN = value;
+      assert.equal(viewerLink(request).connectionsUrl, undefined);
+    }
+    process.env.GTM_CONNECTIONS_ORIGIN = "https://connections.example";
+    process.env.GTM_VIEWER_MODE = "share";
+    assert.equal(viewerLink(request).connectionsUrl, undefined);
+  } finally {
+    delete process.env.GTM_VIEWER_MODE;
+    if (previous === undefined) delete process.env.GTM_CONNECTIONS_ORIGIN;
+    else process.env.GTM_CONNECTIONS_ORIGIN = previous;
+  }
+});
