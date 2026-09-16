@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createClient } from "@libsql/client";
 import { lstat, open } from "node:fs/promises";
 import { requireThat } from "./errors.mjs";
+import { windowsState } from "../local/windows-state.mjs";
 
 /** Stores only metadata. Submitted values never enter a SQL argument. */
 export async function openJournal(options) {
@@ -9,14 +10,16 @@ export async function openJournal(options) {
     const path = options.url.slice(5);
     try {
       const stat = await lstat(path);
-      requireThat(stat.isFile() && !stat.isSymbolicLink() && !(stat.mode & 0o077) && (!process.getuid || stat.uid === process.getuid()), "unsafe_state_file", 403);
+      requireThat(stat.isFile() && !stat.isSymbolicLink() && (process.platform === "win32" || !(stat.mode & 0o077)) && (!process.getuid || stat.uid === process.getuid()), "unsafe_state_file", 403);
+      windowsState(path);
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
-      try { const file = await open(path, "wx", 0o600); await file.close(); }
+      try { const file = await open(path, "wx", 0o600); await file.close(); windowsState(path, "protect"); }
       catch (created) {
         if (created.code !== "EEXIST") throw created;
         const stat = await lstat(path);
-        requireThat(stat.isFile() && !stat.isSymbolicLink() && !(stat.mode & 0o077) && (!process.getuid || stat.uid === process.getuid()), "unsafe_state_file", 403);
+        requireThat(stat.isFile() && !stat.isSymbolicLink() && (process.platform === "win32" || !(stat.mode & 0o077)) && (!process.getuid || stat.uid === process.getuid()), "unsafe_state_file", 403);
+        windowsState(path);
       }
     }
   }
