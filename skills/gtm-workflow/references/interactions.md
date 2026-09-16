@@ -34,15 +34,9 @@ Created Score inbound accounts.
 
 **Human:** Run it.
 
-**Agent:** The workflow is new, so a test on one row costs about $0.01 and shows a result before the full list. The full run is 3 rows × about $0.01, about $0.03, under the $5 cap. Nothing is missing.
+**Agent:** Running 3 companies, about $0.03, under the $5 cap.
 
-1. Test one row now (Recommended)
-2. Run all 3 now
-3. Not now
-
-**Human:** 3
-
-**Agent:** Nothing has run. Say "run Score inbound accounts" when ready.
+Done: 3 companies scored; 0 failed; cost $0.03.
 
 **Files:**
 
@@ -73,7 +67,7 @@ Created Score inbound accounts.
 
 Runs happen on the hosted copy, which needs a Vercel project connected to the Acme repository once; after that every save deploys by itself. To connect it, a teammate with the GitHub and Vercel CLIs signed in says to their coding agent: "connect the workflow project for Acme". That creates the project and its database and wires this agent to it; nothing to paste anywhere.
 
-After setup, request a run to start with a one-row test.
+After setup, request a run.
 
 **Files:**
 
@@ -98,7 +92,7 @@ After setup, request a run to start with a one-row test.
 
 Created Enrich LinkedIn profiles; it asks in this channel before each paid lookup.
 
-Live. Request a run to start with a one-profile test.
+Live. Request a run.
 [Open GTM Workflows](https://gtm-acme.vercel.app/viewer?workflow=example-enrich-linkedin-profiles)
 
 **Files:**
@@ -187,7 +181,7 @@ Done: Priya Nair, Head of Revenue Operations at Quill HR, London; matched. The a
 
 **Human:** 1
 
-**Agent:** Updating now: the current Lean B2B SaaS criteria, plus a headcount column read from the page it already fetches. The next run of the full list offers a one-row test first.
+**Agent:** Updating now: the current Lean B2B SaaS criteria, plus a headcount column read from the page it already fetches.
 
 Updated Score inbound accounts.
 [Open GTM Workflows](http://127.0.0.1:3939/viewer?workflow=example-score-inbound-accounts)
@@ -204,21 +198,9 @@ Updated Score inbound accounts.
 
 **Human:** Run Score inbound accounts.
 
-**Agent:** This workflow changed since its last run. A one-row test costs about $0.01. The full run is 37 rows, 1 already scored today, so 36 × about $0.01, about $0.36, under the $5 cap. Nothing is missing.
+**Agent:** Running 36 companies, about $0.36, under the $5 cap; 1 already scored today will be skipped.
 
-1. Test one row first (Recommended)
-2. Run all 36 now
-3. Not now
-
-**Human:** 1
-
-**Agent:** Done: 1 company scored, Quill HR at 78, Good ("matches on all but headcount, 230 against a 200 ceiling"); 0 failed; 1 skipped (Brightpath, scored this morning); cost $0.01.
-
-**Human:** Run the rest.
-
-**Agent:** Running the remaining 35 rows, about $0.35.
-
-Done: 34 companies scored; 1 failed (Northfield's site couldn't be reached; it will be tried again on the next run); 2 skipped (Brightpath and Quill HR, scored today); cost $0.35.
+Done: 35 companies scored; 1 failed (Northfield’s site could not be reached); 1 skipped (Brightpath, scored this morning); cost $0.35.
 
 **Files:** none (runs write to the local database, not to the workspace)
 
@@ -249,13 +231,7 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
 **Human:** Run Score inbound accounts on the hosted copy.
 
-**Agent:** The last save is live. The full run is 3 rows × about $0.01, about $0.03, under the $5 cap; hosted results live in the hosted database, separate from this computer's.
-
-1. Run all 3 hosted now (Recommended)
-2. Test one row hosted first
-3. Not now
-
-**Human:** 1
+**Agent:** Running 3 companies, about $0.03, under the $5 cap. Results will be saved in the shared workspace.
 
 **Agent:** Done: 3 companies scored, Brightpath 90, Quill HR 78, Northfield 55; 0 failed; 0 skipped; cost $0.03.
 
@@ -277,21 +253,7 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
 **Human:** Upgrade the workflow runtime.
 
-**Agent:** The runtime is behind the installed skill: three shared files and two packages. Upgrading replaces shared code only; authored workflows, tables, data, schedules, and keys stay as they are.
-
-1. Upgrade now (Recommended)
-2. Show the changes first
-3. Not now
-
-**Human:** 1
-
-**Agent:** Replace the shared workflow runtime files and dependency lockfile? Authored workflows, tables, data, schedules, and keys stay unchanged.
-
-Options: Yes; No.
-
-**Human:** Yes.
-
-**Agent:** Upgrading now. Verified: the runtime starts and the diagram opens; it goes live with this save.
+**Agent:** Updating three shared files and two packages. Authored workflows, tables, data, schedules, and keys stay unchanged.
 
 Upgraded the runtime.
 
@@ -331,3 +293,11 @@ Deleted Score inbound accounts; it stays in history, request restoration.
 **Agent:** [Open GTM Workflows](verified-viewer-url)
 
 An explicit repeat request receives the same entry again. The URL opens the discussed workflow, or the list without workflow context. No workflow starts. In Slack, the normal final reply carries one primary URL button with this label.\n
+
+## List workflows
+
+**Human:** List available workflows.
+
+**Agent:** Available workflows: Score inbound accounts and Enrich LinkedIn profiles.
+
+Read the workspace and workflow registry directly, including paths under `$HOME/.gtm`. No confirmation question or button appears.
