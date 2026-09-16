@@ -75,4 +75,4 @@ Data supports bounded server-side search, filter, sort and stable tie-break orde
 
 ## Connections navigation
 
-Private Workflows and Connections are root destinations on separate trusted origins. Use the shared [Connections setup](connections.md) to establish their binding. The share build has no Connections navigation, routes, source, configuration, or connection metadata. Opening either private page never starts workflow execution.
+Deployed private Workflows and Connections share the existing Workflows origin. Local Connections uses a separate trusted manager. Use the shared [Connections setup](connections.md) for either environment. The share build has no Connections navigation, routes, source, configuration, or connection metadata. Opening either private page never starts workflow execution.

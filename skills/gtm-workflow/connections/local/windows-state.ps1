@@ -1,5 +1,8 @@
 param([string]$Mode, [string]$StatePath)
 $ErrorActionPreference = 'Stop'
+# Node may inherit PowerShell 7's module search path. Load the matching Windows
+# PowerShell security module explicitly instead of autoloading an incompatible one.
+Import-Module "$PSHOME\Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1"
 $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
 $item = Get-Item -LiteralPath $StatePath -Force
 if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Reparse point refused' }

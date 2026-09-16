@@ -17,7 +17,7 @@ Show the intent menu only when the user's entire request is `/gtm-workflow` or `
 
 ## Scope
 
-This skill owns `<workspace>/workflows/`, a Vercel Workflow runtime on Nitro copied from `templates/` on first use: workflow files, `db/tables/`, migrations, `vercel.json`, `.env`, the local database, runs, diagram pages, and the deployed copy. Runs execute locally against `data/gtm.db` by default; they target the deployed copy when the user asks or the host states there are no local runs, and hosted results are read through the deployed copy's query route. The trusted Connections component lives outside `workflows/` and manages local or Production credentials on a separate origin. For setup, key discovery, connection changes and component upgrades, read [Connections](references/connections.md). The remaining workspace files outside `workflows/` belong to the other gtm skills.
+This skill owns `<workspace>/workflows/`, a Vercel Workflow runtime on Nitro copied from `templates/` on first use: workflow files, `db/tables/`, migrations, `vercel.json`, `.env`, the local database, runs, diagram pages, and the deployed copy. Runs execute locally against `data/gtm.db` by default; they target the deployed copy when the user asks or the host states there are no local runs, and hosted results are read through the deployed copy's query route. Local Connections uses a trusted component outside `workflows/`; deployed Connections runs inside the existing private Workflows project. For setup, key discovery, connection changes and component upgrades, read [Connections](references/connections.md). The remaining workspace files outside `workflows/` belong to the other gtm skills.
 
 ## Inputs
 

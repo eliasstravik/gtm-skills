@@ -7,7 +7,7 @@
 //
 // Exit 0: done. Exit 2: a human step is needed (the message says which); run again afterwards. Exit 1: failed.
 // Human steps: native account login, Slack installation, provider terms, and the
-// owner-controlled Connections registrations and sign-in verification.
+// project-scoped Connections token setup and native Vercel browser verification.
 import { connectorPatch, connectorUrl } from "./slack-config.mjs";
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
