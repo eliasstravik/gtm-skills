@@ -77,11 +77,6 @@ export async function changeConnection(api: Api, projectId: string, input: any) 
 export async function changeAndApplyConnection(api: Api, projectId: string, input: any, origin: string) {
   applicationId(input?.id);
   if (input.action === "apply") return { application: await applyConnections(api, projectId, input.id, origin) };
-  const keyChange = input.action !== "replace" || input.value !== undefined;
-  if (keyChange) {
-    const deployment = await connectionDeployment(api, projectId, origin);
-    insist(deployment.application.state !== "applying", "application_in_progress", 409);
-  }
   const result = await changeConnection(api, projectId, input);
   const application = result.requiresDeployment ? await applyConnections(api, projectId, input.id, origin) : undefined;
   return { ...result, ...(application ? { application } : {}) };

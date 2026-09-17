@@ -33,14 +33,9 @@
 
 .application-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 
-.update-control[aria-busy="true"] { opacity: 1; cursor: progress; }
-.update-complete { fill: light-dark(#15803d, #4ade80); }
 .connection-spinner { animation: connection-spin 900ms linear infinite; }
 .connection-submit { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .connection-submit[aria-busy="true"] { padding-left: 8px; padding-right: 12px; }
 .connection-submit .connection-icon { fill: var(--bg); }
-.connection-announcement { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 @keyframes connection-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .connection-spinner { animation: none; } }
-
-.connection-loading { display: flex; justify-content: center; padding: 32px; }
