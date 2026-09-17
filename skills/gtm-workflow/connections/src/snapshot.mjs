@@ -11,8 +11,8 @@ export function runtimeSnapshot(raw) {
     Array.isArray(raw.connections) && raw.connections.length <= 500, "invalid_runtime_metadata", 503);
   const ids = new Set();
   const connections = raw.connections.map((row) => {
-    requireThat(row && typeof row.id === "string" && /^[a-z][a-z0-9-]{0,63}$/.test(row.id) && !ids.has(row.id) &&
-      text(row.name, 100) && typeof row.configured === "boolean" && typeof row.platformIdentity === "boolean" &&
+    requireThat(row && typeof row.id === "string" && /^[A-Za-z_][A-Za-z0-9_-]{0,255}$/.test(row.id) && !ids.has(row.id) &&
+      text(row.name, 500) && typeof row.configured === "boolean" && typeof row.platformIdentity === "boolean" &&
       typeof row.usageComplete === "boolean" && Array.isArray(row.fields) && row.fields.length <= 100 &&
       Array.isArray(row.usage) && row.usage.length <= 1000, "invalid_runtime_metadata", 503);
     ids.add(row.id);

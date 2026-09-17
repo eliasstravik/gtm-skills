@@ -76,3 +76,26 @@ test("unknown write outcomes are redacted and never automatically retried", asyn
   await assert.rejects(api("POST", "/v10/projects/prj_test/env", { value: "synthetic" }), /save_outcome_requires_review/);
   assert.equal(calls, 1);
 });
+test("custom names persist in Notes; editing a name never reads or replaces the secret", async () => {
+  const writes: any[] = [];
+  const api = async (method: string, _path: string, body?: any) => {
+    if (method === "GET") return { envs: [{ ...raw, key: "HUBSPOT_PROD_KEY", type: "sensitive", comment: "HubSpot" }] };
+    writes.push(structuredClone(body)); return {};
+  };
+  await changeConnection(api, config.projectId, { variable: "HUBSPOT_PROD_KEY", action: "replace", label: "HubSpot (Production)", version: "env_test:1" });
+  assert.deepEqual(writes, [{ target: ["production"], comment: "HubSpot (Production)" }]);
+  const rows = await connectionMetadata(async () => ({ envs: [{ ...raw, key: "customCredential", type: "sensitive", comment: "HubSpot (Sandbox)" }] }), config.projectId);
+  assert.equal(rows[0].variable, "customCredential"); assert.equal(rows[0].comment, "HubSpot (Sandbox)");
+  assert.ok(!JSON.stringify(rows).includes(raw.value));
+});
+test("adding custom keys stores the name as a Note and keeps system controls reserved", async () => {
+  let saved: any;
+  const api = async (method: string, _path: string, body?: any) => {
+    if (method === "GET") return { envs: [] };
+    saved = structuredClone(body); return {};
+  };
+  await changeConnection(api, config.projectId, { variable: "hubspotSandbox", action: "add", label: "HubSpot (Sandbox)", version: "absent", value: "synthetic-only" });
+  assert.equal(saved.key, "hubspotSandbox"); assert.equal(saved.comment, "HubSpot (Sandbox)"); assert.equal(saved.visibility, "secret");
+  for (const variable of ["PATH", "NODE_OPTIONS", "HOME", "VERCEL_TOKEN", "GTM_RUN_SECRET", "__bad-name"])
+    await assert.rejects(changeConnection(api, config.projectId, { variable, action: "add", label: "Example", version: "absent", value: "synthetic" }), /invalid_provider_variable/);
+});

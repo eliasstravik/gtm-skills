@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { openJournal } from "../src/journal.mjs";
-import { localStorage, runtimeEnvironment } from "../local/storage.mjs";
+import { localStorage, runtimeEnvironment, inspectionEnvironment } from "../local/storage.mjs";
 import { createManager } from "../src/manager.mjs";
 const sentinel = "synthetic-sentinel-never-return-8943";
 async function fixture() {
@@ -22,7 +22,7 @@ test("empty-workflow CRUD, managed precedence, tombstones and generation activat
     await f.manager.change({ id: randomUUID(), variable: "BLITZ_API_KEY", action: "replace", value: sentinel, version: "external" }, "owner");
     let env = await runtimeEnvironment(f); assert.equal(env.BLITZ_API_KEY, sentinel); assert.equal(env.GTM_CONNECTIONS_GENERATION, "1");
     rows = (await f.manager.inventory()).connections; assert.equal(rows[0].status, "Saved locally, runner not started");
-    f.setActive({ generation: "1", connections: [{ id: "blitz", configured: true, usage: [] }] });
+    f.setActive({ generation: "1", connections: [{ id: "blitz", configured: true, usage: [], fields: [{ variable: "BLITZ_API_KEY" }] }] });
     assert.equal((await f.manager.inventory()).connections[0].status, "Runner restarted after save");
     await f.manager.change({ id: randomUUID(), variable: "BLITZ_API_KEY", action: "disconnect", version: "1" }, "owner");
     env = await runtimeEnvironment(f); assert.equal(env.BLITZ_API_KEY, undefined); assert.equal(f.values.has("BLITZ_API_KEY"), false);
@@ -97,4 +97,21 @@ test("a stale worker cannot finalize saved metadata or release a replacement wor
     await assert.rejects(runtimeEnvironment(f), /resolve_connection_before_restart/);
     await f.journal.release(nextLease);
   } finally { Date.now = now; f.journal.close(); }
+});
+test("custom variable names and service labels survive a name-only edit and restart", async () => {
+  const f = await fixture();
+  try {
+    await f.manager.change({ id: randomUUID(), variable: "hubspotProd", label: "HubSpot (Production)", action: "add", value: sentinel, version: "absent" }, "owner");
+    let row = (await f.manager.inventory()).connections.find((row) => row.id === "hubspotProd");
+    assert.equal(row.name, "HubSpot (Production)");
+    await f.manager.change({ id: randomUUID(), variable: "hubspotProd", label: "HubSpot (Sandbox)", action: "replace", version: row.fields[0].version }, "owner");
+    assert.equal(f.values.get("hubspotProd"), sentinel);
+    row = (await f.manager.inventory()).connections.find((row) => row.id === "hubspotProd");
+    assert.equal(row.name, "HubSpot (Sandbox)");
+    const env = await runtimeEnvironment(f);
+    assert.equal(env.hubspotProd, sentinel);
+    assert.equal(inspectionEnvironment(env, ["hubspotProd"]).hubspotProd, undefined);
+    assert.equal(JSON.parse(env.GTM_CONNECTIONS_LABELS).hubspotProd, "HubSpot (Sandbox)");
+    assert.ok(!JSON.stringify(await f.manager.inventory()).includes(sentinel));
+  } finally { f.journal.close(); }
 });

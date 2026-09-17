@@ -51,7 +51,7 @@ Every save: one sentence on what will change, pull first when `origin/main` exis
 On a host that states there are no local runs: the scaffold deletes `env.example` instead of renaming it, because the values live in the host's environment; every run targets the deployed copy after the push and after Deploy's readiness check; Upgrade verifies through the deployed diagram page after that check instead of restarting a server. Two rules hold on such a host whatever else the agent does:
 
 - Links: a dev server or a local build may be started as a check, but nothing it serves is ever posted. The only links a reply may carry are the verified viewerUrl the deployed copy's link route returned after the readiness wait; `localhost` never appears in a reply.
-- Keys: read `GET /api/connections` through the protected workflow transport for presence and declared usage, including unused services. Direct missing-key entry to the verified `connectionsUrl` from the private link route. Never collect keys in chat. Saved changes become active after a deliberate deployment; presence does not prove validity.
+- Keys: read `GET /api/connections` through the protected workflow transport for presence and declared usage, including unused services. Use the saved Note as the service name and the exact variable for code, following [Connections naming](references/connections.md#inventory-and-changes). Direct missing-key entry to the verified `connectionsUrl` from the private link route. Never collect keys in chat. Saved changes become active after a deliberate deployment; presence does not prove validity.
 
 ### Conventions the code follows
 

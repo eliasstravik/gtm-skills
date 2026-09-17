@@ -12,7 +12,7 @@ export async function launch(workspace, mode = "dev") {
   const state = await workspaceState(workspace), config = await privateJson(state.configPath), cwd = join(state.workspace, "workflows");
   const journal = await openJournal({ url: `file:${state.database}` });
   const store = nativeStore(state.id), environment = await settings(state.workspace);
-  const clean = { ...inspectionEnvironment(environment), GTM_ENV_MANAGED: "1", WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS: "false", GTM_CONNECTIONS_ORIGIN: config.managerOrigin ?? "", GTM_CONNECTIONS_WORKSPACE: state.id };
+  const clean = { ...inspectionEnvironment(environment, (await journal.list()).map((row) => row.variable)), GTM_ENV_MANAGED: "1", WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS: "false", GTM_CONNECTIONS_ORIGIN: config.managerOrigin ?? "", GTM_CONNECTIONS_WORKSPACE: state.id };
   process.chdir(cwd);
   const run = (args) => {
     const result = spawnSync(process.execPath, args, { cwd, env: clean, encoding: "utf8", stdio: "pipe", maxBuffer: 8 * 1024 * 1024 });

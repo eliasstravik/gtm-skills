@@ -211,7 +211,7 @@ function validateConnections(value) {
   if (!Array.isArray(value) || value.length > 100) throw Error("Invalid declared connections");
   return value.map((item) => {
     if (!item || typeof item !== "object" || Object.keys(item).some((key) => !["connection", "provider"].includes(key)) ||
-      typeof item.connection !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(item.connection) ||
+      typeof item.connection !== "string" || !/^[A-Za-z_][A-Za-z0-9_-]{0,255}$/.test(item.connection) ||
       (item.provider !== undefined && (typeof item.provider !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9 ._-]{0,63}$/.test(item.provider))))
       throw Error("Invalid declared connections");
     return { connection: item.connection, ...(item.provider === undefined ? {} : { provider: item.provider }) };

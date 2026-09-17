@@ -41,7 +41,7 @@ export function localStorage({ journal, store, environment }) {
     },
     async write(input) {
       if (input.action === "disconnect") await store.remove(input.variable);
-      else await store.set(input.variable, input.value);
+      else if (input.value !== undefined) await store.set(input.variable, input.value);
       return null;
     },
   };
@@ -57,6 +57,7 @@ export async function runtimeEnvironment({ journal, store, environment }) {
     requireThat(typeof value === "string" && Boolean(value.trim()), "saved_credential_missing", 503);
     result[row.variable] = value;
   }
+  result.GTM_CONNECTIONS_LABELS = JSON.stringify(Object.fromEntries(meta.filter((row) => row.state !== "disconnected").map((row) => [row.variable, row.label || row.variable])));
   result.GTM_CONNECTIONS_GENERATION = String(Math.max(0, ...meta.map((row) => Number(row.generation))));
   return result;
 }

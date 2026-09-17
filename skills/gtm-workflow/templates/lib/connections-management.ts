@@ -1,8 +1,8 @@
-import { connectionInventory, services, providerVariable, type ConnectionWorkflow } from "./connections-contract";
+import { connectionInventory, providerVariable, connectionLabel, credentialVariable, type ConnectionWorkflow } from "./connections-contract";
 import { connectionConfiguration, connectionHeaders, privateConnectionBrowser, ConnectionsError, insist } from "./connections-access";
 
 type Configuration = ReturnType<typeof connectionConfiguration>;
-type Metadata = { id: string; variable: string; version: string; editable: boolean; comment: string };
+export type Metadata = { id: string; variable: string; version: string; editable: boolean; comment: string };
 type Api = (method: string, path: string, body?: unknown) => Promise<any>;
 
 async function readJson(response: Response | Request, limit: number) {
@@ -39,7 +39,7 @@ export function connectionsVercel(config: Configuration, fetcher = fetch): Api {
 export async function connectionMetadata(api: Api, projectId: string): Promise<Metadata[]> {
   const result = await api("GET", `/v10/projects/${encodeURIComponent(projectId)}/env?decrypt=false`);
   insist(Array.isArray(result.envs) && !result.pagination?.next, "environment_inventory_incomplete", 503);
-  const rows: Metadata[] = result.envs.filter((row: any) => providerVariable(row.key) && Array.isArray(row.target) && row.target.includes("production"))
+  const rows: Metadata[] = result.envs.filter((row: any) => providerVariable(row.key) && (credentialVariable(row.key) || ["sensitive", "encrypted", "secret"].includes(row.type) || row.visibility === "secret") && Array.isArray(row.target) && row.target.includes("production"))
     .map((row: any) => {
       insist(typeof row.id === "string", "invalid_environment_metadata", 503);
       return { id: row.id, variable: row.key, version: `${row.id}:${row.updatedAt ?? "unknown"}`,
@@ -52,17 +52,19 @@ export async function connectionMetadata(api: Api, projectId: string): Promise<M
 export async function changeConnection(api: Api, projectId: string, input: any) {
   insist(input && typeof input === "object" && providerVariable(input.variable), "invalid_provider_variable", 400);
   insist(["add", "replace", "disconnect"].includes(input.action) && typeof input.version === "string", "invalid_change", 400);
-  if (input.action !== "disconnect") insist(typeof input.value === "string" && input.value.trim().length > 0 && input.value.length <= 8192 && !/[\r\n\0]/.test(input.value), "invalid_key", 400);
+  if (input.label !== undefined) insist(connectionLabel(input.label), "invalid_label", 400);
+  if (input.action === "add" || input.value !== undefined) insist(typeof input.value === "string" && input.value.trim().length > 0 && input.value.length <= 8192 && !/[\r\n\0]/.test(input.value), "invalid_key", 400);
   const rows = (await connectionMetadata(api, projectId)).filter((row) => row.variable === input.variable);
   insist(rows.length <= 1, "use_vercel_settings", 409);
   const row = rows[0];
   insist((row?.version ?? "absent") === input.version && (input.action !== "add" || !row), "connection_changed", 409);
   insist(!row || row.editable, "use_vercel_settings", 409);
+  insist(input.action !== "replace" || row, "connection_changed", 409);
   const base = `/v9/projects/${encodeURIComponent(projectId)}/env/`;
   if (input.action === "disconnect") {
     if (row) await api("DELETE", base + encodeURIComponent(row.id));
   } else {
-    const body = { value: input.value, type: "sensitive", visibility: "secret", target: ["production"], ...(row ? { comment: row.comment } : {}) };
+    const body: Record<string, any> = { ...(input.value === undefined ? {} : { value: input.value, type: "sensitive", visibility: "secret" }), target: ["production"], comment: input.label?.trim() ?? row?.comment ?? input.variable };
     try {
       await (row ? api("PATCH", base + encodeURIComponent(row.id), body) : api("POST", `/v10/projects/${encodeURIComponent(projectId)}/env`, { ...body, key: input.variable }));
     } finally { body.value = undefined; input.value = undefined; }
@@ -85,17 +87,24 @@ export async function connectionsManagement(req: Request, workflows: ConnectionW
       return Response.json(result, { headers: connectionHeaders });
     }
     const rows = await connectionMetadata(api, config.projectId);
-    return Response.json({ mode: "production", canWrite: true, services,
-      workflowsUrl: `${config.origin}/viewer`, vercelUrl: `https://vercel.com/${encodeURIComponent(config.teamId)}/${encodeURIComponent(config.projectId)}/settings/environment-variables`,
-      deploymentUrl: `https://vercel.com/${encodeURIComponent(config.teamId)}/${encodeURIComponent(config.projectId)}/deployments`,
-      connections: connectionInventory(rows.map((row) => row.variable), workflows, Boolean(process.env.VERCEL_OIDC_TOKEN)).map((entry) => ({
+    return Response.json({ mode: "production", canWrite: true,
+      workflowsUrl: `${config.origin}/viewer`, vercelUrl: environmentSettingsUrl(),
+      connections: connectionInventory(rows.map((row) => row.variable), [], false, Object.fromEntries(rows.map((row) => [row.variable, row.comment]))).map((entry) => ({
         ...entry, status: entry.fields.length ? "Saved in Vercel · deploy to apply changes" : "No saved key",
         fields: entry.fields.map((field) => { const row = rows.find((row) => row.variable === field.variable)!;
-          return { variable: row.variable, version: row.version, editable: row.editable, state: "saved" }; }),
+          return { variable: row.variable, label: row.comment, version: row.version, editable: row.editable, state: "saved" }; }),
       })),
     }, { headers: connectionHeaders });
   } catch (error) {
     return Response.json({ error: error instanceof ConnectionsError ? error.code : "connections_unavailable" },
       { status: error instanceof ConnectionsError ? error.status : 503, headers: connectionHeaders });
   }
+}
+
+export function environmentSettingsUrl(env = process.env) {
+  try {
+    const url = new URL(env.GTM_CONNECTIONS_VERCEL_URL ?? "");
+    return url.origin === "https://vercel.com" && !url.username && !url.password &&
+      /^\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\/settings\/environment-variables$/.test(url.pathname) && !url.search && !url.hash ? url.href : undefined;
+  } catch { return undefined; }
 }
