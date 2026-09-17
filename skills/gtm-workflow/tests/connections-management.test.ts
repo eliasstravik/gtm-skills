@@ -99,3 +99,9 @@ test("adding custom keys stores the name as a Note and keeps system controls res
   for (const variable of ["PATH", "NODE_OPTIONS", "HOME", "VERCEL_TOKEN", "GTM_RUN_SECRET", "__bad-name"])
     await assert.rejects(changeConnection(api, config.projectId, { variable, action: "add", label: "Example", version: "absent", value: "synthetic" }), /invalid_provider_variable/);
 });
+
+test("name-only changes need no deployment", async () => {
+  const result = await changeConnection(async (method) => method === "GET" ? { envs: [raw] } : {}, config.projectId,
+    { variable: raw.key, action: "replace", label: "Apollo", version: "env_test:1" });
+  assert.equal(result.requiresDeployment, false);
+});

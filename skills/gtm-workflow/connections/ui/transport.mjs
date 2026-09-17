@@ -12,7 +12,7 @@ export async function request(path, body) {
     headers: { ...(bearer ? { authorization: `Bearer ${bearer}` } : {}), ...(csrf ? { "x-gtm-csrf": csrf } : {}), ...(body === undefined ? {} : { "content-type": "application/json" }) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   const result = await response.json();
-  if (!response.ok) { if (response.status === 401 || response.status === 403) clearSession(); throw Error(result.error ?? "connections_unavailable"); }
+  if (!response.ok) { if (response.status === 401 || response.status === 403) clearSession(); const error = Error(result.error ?? "connections_unavailable"); error.status = response.status; throw error; }
   return result;
 }
 export async function initialize() {

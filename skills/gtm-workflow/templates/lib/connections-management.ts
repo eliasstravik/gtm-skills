@@ -1,6 +1,8 @@
 import { connectionInventory, providerVariable, connectionLabel, credentialVariable, type ConnectionWorkflow } from "./connections-contract";
 import { connectionConfiguration, connectionHeaders, privateConnectionBrowser, ConnectionsError, insist } from "./connections-access";
 
+import { applyConnections, applicationId, connectionDeployment } from "./connections-apply";
+
 type Configuration = ReturnType<typeof connectionConfiguration>;
 export type Metadata = { id: string; variable: string; version: string; editable: boolean; comment: string };
 type Api = (method: string, path: string, body?: unknown) => Promise<any>;
@@ -60,6 +62,7 @@ export async function changeConnection(api: Api, projectId: string, input: any) 
   insist((row?.version ?? "absent") === input.version && (input.action !== "add" || !row), "connection_changed", 409);
   insist(!row || row.editable, "use_vercel_settings", 409);
   insist(input.action !== "replace" || row, "connection_changed", 409);
+  const requiresDeployment = input.action === "add" || input.value !== undefined || (input.action === "disconnect" && Boolean(row));
   const base = `/v9/projects/${encodeURIComponent(projectId)}/env/`;
   if (input.action === "disconnect") {
     if (row) await api("DELETE", base + encodeURIComponent(row.id));
@@ -69,7 +72,19 @@ export async function changeConnection(api: Api, projectId: string, input: any) 
       await (row ? api("PATCH", base + encodeURIComponent(row.id), body) : api("POST", `/v10/projects/${encodeURIComponent(projectId)}/env`, { ...body, key: input.variable }));
     } finally { body.value = undefined; input.value = undefined; }
   }
-  return { saved: true, requiresDeployment: true };
+  return { saved: true, requiresDeployment };
+}
+export async function changeAndApplyConnection(api: Api, projectId: string, input: any) {
+  applicationId(input?.id);
+  if (input.action === "apply") return { application: await applyConnections(api, projectId, input.id) };
+  const keyChange = input.action !== "replace" || input.value !== undefined;
+  if (keyChange) {
+    const deployment = await connectionDeployment(api, projectId);
+    insist(deployment.application.state !== "applying", "application_in_progress", 409);
+  }
+  const result = await changeConnection(api, projectId, input);
+  const application = result.requiresDeployment ? await applyConnections(api, projectId, input.id) : undefined;
+  return { ...result, ...(application ? { application } : {}) };
 }
 export async function connectionsManagement(req: Request, workflows: ConnectionWorkflow[], operation = "inventory") {
   try {
@@ -83,14 +98,15 @@ export async function connectionsManagement(req: Request, workflows: ConnectionW
     const api = connectionsVercel(config);
     if (req.method === "POST") {
       const input = await readJson(req, 16384);
-      const result = await changeConnection(api, config.projectId, input);
+      const result = await changeAndApplyConnection(api, config.projectId, input);
       return Response.json(result, { headers: connectionHeaders });
     }
     const rows = await connectionMetadata(api, config.projectId);
-    return Response.json({ mode: "production", canWrite: true,
+    const application = await connectionDeployment(api, config.projectId).then((result) => result.application).catch(() => ({ state: "unknown" }));
+    return Response.json({ mode: "production", canWrite: true, application,
       workflowsUrl: `${config.origin}/viewer`, vercelUrl: environmentSettingsUrl(),
       connections: connectionInventory(rows.map((row) => row.variable), [], false, Object.fromEntries(rows.map((row) => [row.variable, row.comment]))).map((entry) => ({
-        ...entry, status: entry.fields.length ? "Saved in Vercel · deploy to apply changes" : "No saved key",
+        ...entry, status: entry.fields.length ? "Saved" : "No saved key",
         fields: entry.fields.map((field) => { const row = rows.find((row) => row.variable === field.variable)!;
           return { variable: row.variable, label: row.comment, version: row.version, editable: row.editable, state: "saved" }; }),
       })),
