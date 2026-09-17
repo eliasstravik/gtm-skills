@@ -168,14 +168,14 @@ function App() {
         {application.state === "failed" ? <button type="button" disabled={retrying} onClick={retryApply}>{retrying ? "Retrying…" : "Retry"}</button> : null}
       </div> : null}
       {!inventory.canWrite ? <p className="notice">Read-only access. A project owner or member can change Production connections.</p> : null}
-      <div className="connection-list">{inventory.connections.filter((row) => row.fields.some((field) => field.state !== "disconnected")).map((row) => <div className="connection-row" key={row.id}>
+      <div className="connection-list">{inventory.connections.filter((row) => row.platformIdentity || row.fields.some((field) => field.state !== "disconnected")).map((row) => <div className="connection-row" key={row.id}>
         <div className="connection-name"><h2>{row.name}</h2><p className="muted connection-variable">{row.fields.map((field) => field.variable).join(", ")}</p>
           {row.status && row.status !== "Saved" ? <p className="muted connection-status">{row.status}</p> : null}</div>
         {inventory.canWrite && row.fields.length ? <details className="connection-menu"><summary className="icon-button" aria-label={`Actions for ${row.name}`} title="Connection actions"><EllipsisHorizontalIcon aria-hidden="true" className="connection-icon" /></summary><div>{row.fields.map((field) => <React.Fragment key={field.variable}>
           {field.editable ? <><button type="button" onClick={(event) => select(event, { action: "replace", row, field })}>Edit</button><button type="button" className="danger-text" onClick={(event) => select(event, { action: "disconnect", row, field })}>Delete</button></> : inventory.vercelUrl ? <a href={inventory.vercelUrl} target="_blank" rel="noopener noreferrer">Open in Vercel</a> : <span className="muted">Read only</span>}
         </React.Fragment>)}</div></details> : null}
       </div>)}</div>
-      {!inventory.connections.some((row) => row.fields.some((field) => field.state !== "disconnected")) ? <p className="notice">No connections yet. Add an API key to get started.</p> : null}
+      {!inventory.connections.some((row) => row.platformIdentity || row.fields.some((field) => field.state !== "disconnected")) ? <p className="notice">No connections yet. Add an API key to get started.</p> : null}
       {!integratedMode ? <div className="connection-footer"><button type="button" onClick={logout}>Sign out</button>{inventory.productionUrl ? <a href={inventory.productionUrl} target="_blank" rel="noopener noreferrer">Open Production</a> : null}</div> : null}
       {selection ? <EntryForm key={`${selection.action}-${selection.field?.variable ?? "new"}`} selection={selection} inventory={inventory} close={closeEntry} updated={updated} beginApply={beginApply} failedApply={failedApply} /> : null}
     </> : null}

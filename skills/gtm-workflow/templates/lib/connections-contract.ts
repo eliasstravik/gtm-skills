@@ -46,6 +46,9 @@ export function connectionInventory(names: string[], workflows: ConnectionWorkfl
     return { id: variable, name: (typeof labels[variable] === "string" ? labels[variable].trim() : "") || variable, fields: [{ variable, present: true }], configured: true,
       platformIdentity: false, usage, usageComplete: workflows.every((workflow) => workflow.connections !== undefined) };
   });
-  if (platformIdentity) rows.push({ id: "ai-gateway", name: "Vercel platform identity", fields: [], configured: true, platformIdentity: true, usage: [], usageComplete: true });
+  if (platformIdentity) rows.push({ id: "ai-gateway", name: "AI Gateway", fields: [], configured: true, platformIdentity: true,
+    usage: workflows.flatMap((workflow) => (workflow.connections ?? []).filter((use) => ["ai-gateway", "AI_GATEWAY_API_KEY"].includes(use.connection)).map((use) => ({
+      workflowId: workflow.id, title: workflow.title, ...(use.provider ? { provider: use.provider } : {}),
+    }))), usageComplete: workflows.every((workflow) => workflow.connections !== undefined) });
   return rows;
 }

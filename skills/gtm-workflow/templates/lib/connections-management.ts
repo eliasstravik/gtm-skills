@@ -2,6 +2,7 @@ import { connectionInventory, providerVariable, connectionLabel, credentialVaria
 import { connectionConfiguration, connectionHeaders, privateConnectionBrowser, ConnectionsError, insist } from "./connections-access";
 
 import { applyConnections, applicationId, connectionDeployment } from "./connections-apply";
+import { gatewayPlatformIdentity } from "./connections-platform";
 
 type Configuration = ReturnType<typeof connectionConfiguration>;
 export type Metadata = { id: string; variable: string; version: string; editable: boolean; comment: string };
@@ -100,8 +101,8 @@ export async function connectionsManagement(req: Request, workflows: ConnectionW
     const application = await connectionDeployment(api, config.projectId, config.origin).then((result) => result.application).catch(() => ({ state: "unknown" }));
     return Response.json({ mode: "production", canWrite: true, application,
       workflowsUrl: `${config.origin}/viewer`, vercelUrl: environmentSettingsUrl(),
-      connections: connectionInventory(rows.map((row) => row.variable), [], false, Object.fromEntries(rows.map((row) => [row.variable, row.comment]))).map((entry) => ({
-        ...entry, status: entry.fields.length ? "Saved" : "No saved key",
+      connections: connectionInventory(rows.map((row) => row.variable), workflows, gatewayPlatformIdentity(), Object.fromEntries(rows.map((row) => [row.variable, row.comment]))).map((entry) => ({
+        ...entry, status: entry.platformIdentity ? "Provided by Vercel" : "Saved",
         fields: entry.fields.map((field) => { const row = rows.find((row) => row.variable === field.variable)!;
           return { variable: row.variable, label: row.comment, version: row.version, editable: row.editable, state: "saved" }; }),
       })),

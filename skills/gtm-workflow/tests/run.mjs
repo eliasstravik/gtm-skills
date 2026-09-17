@@ -25,6 +25,7 @@ try {
     "reliability",
     "cli-mcp",
     "connections-management",
+    "connections-platform",
     "connections-apply",
   ]) {
     const outfile = join(dir, `${name}.test.mjs`);

@@ -3,6 +3,7 @@ import { CONNECTIONS_VERSION, configuredNames, connectionInventory, runtimeLabel
 import { connectionConfiguration } from "./connections-access";
 import { connectionMetadata, connectionsVercel } from "./connections-management";
 import { bearerOk } from "./sign";
+import { gatewayPlatformIdentity } from "./connections-platform";
 const headers = { "cache-control": "private, no-store", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff" };
 export async function connectionsApi(req: Request, workflows: ConnectionWorkflow[]) {
   const dedicated = process.env.GTM_CONNECTIONS_READ_SECRET;
@@ -27,6 +28,6 @@ export async function connectionsApi(req: Request, workflows: ConnectionWorkflow
     commit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     generation: hosted ? null : process.env.GTM_CONNECTIONS_GENERATION ?? null,
     processGeneration: hosted ? null : process.env.GTM_CONNECTIONS_PROCESS_GENERATION ?? null,
-    connections: connectionInventory(names, workflows, Boolean(hosted && process.env.VERCEL_OIDC_TOKEN), labels),
+    connections: connectionInventory(names, workflows, gatewayPlatformIdentity(), labels),
   }, { headers });
 }
