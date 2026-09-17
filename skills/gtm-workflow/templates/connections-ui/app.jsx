@@ -17,6 +17,9 @@ const messages = {
   installation_denied: "The project's integration needs attention. Run Connections Doctor.",
   connection_changed: "This connection changed. Close this form and refresh before trying again.",
   save_outcome_requires_review: "The save outcome is uncertain. Refresh and review its status before entering a replacement.",
+  application_in_progress: "An update is already running. Wait for it to finish, then save your change.",
+  vercel_unavailable: "Update status is temporarily unavailable. Refresh to try again.",
+  application_unavailable: "Updates are temporarily unavailable. Refresh and try again.",
   operation_in_progress: "Another change is in progress. Refresh when it finishes.",
   explicit_replacement_required: "The previous save is unresolved. Review its status and explicitly replace it.",
   invalid_provider_variable: "Use letters, numbers and underscores, starting with a letter or underscore. System variables are reserved.",
@@ -26,7 +29,7 @@ const messages = {
   unlock_os_credential_store: "Unlock your OS credential store. Linux requires a running, unlocked Secret Service such as GNOME Keyring.",
 };
 const message = (code) => messages[code] ?? "Connections could not complete this request. Refresh or run Connections Doctor.";
-function EntryForm({ selection, inventory, close, updated }) {
+function EntryForm({ selection, inventory, close, updated, beginApply, failedApply }) {
   const dialog = useRef(null), form = useRef(null), password = useRef(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const deleting = selection.action === "disconnect", editing = Boolean(selection.field);
@@ -51,8 +54,10 @@ function EntryForm({ selection, inventory, close, updated }) {
       ...(deleting ? {} : { label: String(data.get("label")).trim(), ...(value ? { value } : {}) }),
       ...(data.get("supersede") ? { supersede: true } : {}),
     };
-    try { await request("/api/connections", body); form.current?.reset(); await updated(); close(); }
-    catch (failure) { setError(message(failure.message)); }
+    const applies = inventory.mode === "production" && (deleting || !editing || Boolean(value));
+    if (applies) beginApply(body.id);
+    try { const result = await request("/api/connections", body); form.current?.reset(); await updated(result, applies ? body.id : null); close(); }
+    catch (failure) { if (applies) failedApply(body.id, failure); setError(message(failure.message)); }
     finally { body.value = undefined; setBusy(false); }
   }
   return <dialog ref={dialog} aria-labelledby="entry-title" className="connection-dialog" onCancel={(event) => { event.preventDefault(); cancel(); }}>
@@ -60,7 +65,7 @@ function EntryForm({ selection, inventory, close, updated }) {
       <h2 id="entry-title">{deleting ? `Delete ${selection.row.name}?` : editing ? "Edit connection" : "Add connection"}</h2>
       {deleting ? <>
         <p>Delete <code>{selection.field.variable}</code> from {inventory.mode === "local" ? "local Connections" : "Vercel Production"}? The provider's key will not be revoked.</p>
-        <p>{inventory.mode === "local" ? "Restart the local runner to apply this change." : "Running deployments keep their current key until the next deployment."}</p>
+        <p>{inventory.mode === "local" ? "Restart the local runner to apply this change." : "The change applies automatically. Work already in progress may still use the previous key."}</p>
         {selection.field.externalCopy || selection.field.state === "external" ? <p>A copy remains in the shell or .env file. Local runner launches will ignore it after deletion.</p> : null}
       </> : <div className="connection-fields">
         <label htmlFor="connection-label">Name</label><input id="connection-label" name="label" placeholder="Apollo" defaultValue={selection.field?.label ?? ""} maxLength={256} required autoFocus />
@@ -68,7 +73,7 @@ function EntryForm({ selection, inventory, close, updated }) {
         <label htmlFor="variable">Key</label><input id="variable" name="variable" placeholder="APOLLO_API_KEY" defaultValue={selection.field?.variable ?? ""} readOnly={editing} pattern="[A-Za-z_][A-Za-z0-9_]*" maxLength={256} required aria-describedby="variable-hint" />
         <p id="variable-hint" className="muted">{editing ? "The variable name used by workflow code." : "SERVICE_API_KEY is recommended. Other variable names work too."}</p>
         <label htmlFor="new-key">{editing ? "New API key value" : "API key value"}</label><input ref={password} id="new-key" name="key" type="password" placeholder={editing && !needsKey ? "Leave blank to keep the current key" : "YOUR_API_KEY"} autoComplete="new-password" maxLength={8192} required={needsKey} />
-        <p className="muted">Saved values stay hidden. {inventory.mode === "local" ? "Restart the local runner to apply key changes." : "Key changes apply on the next deployment."}</p>
+        <p className="muted">Saved values stay hidden. {inventory.mode === "local" ? "Restart the local runner to apply key changes." : "Key changes apply automatically and may take a few minutes."}</p>
         {["unresolved", "write_attempted"].includes(selection.row?.change?.phase) ? <label><input name="supersede" type="checkbox" required />Replace the unresolved save with this new entry</label> : null}
       </div>}
       {error ? <p role="alert" className="error">{error}</p> : null}
@@ -77,9 +82,56 @@ function EntryForm({ selection, inventory, close, updated }) {
     </form>
   </dialog>;
 }
+const applicationStorage = "gtm-connections-application";
+function readPending() {
+  try { const value = JSON.parse(localStorage.getItem(applicationStorage)); return typeof value?.id === "string" ? { id: value.id, state: "pending" } : null; } catch { return null; }
+}
 function App() {
   const [inventory, setInventory] = useState(null), [error, setError] = useState(""), [selection, setSelection] = useState(null), [loading, setLoading] = useState(true);
   const trigger = useRef(null);
+  const [pendingApply, setPendingApply] = useState(readPending), [retrying, setRetrying] = useState(false);
+  function rememberApply(value) {
+    setPendingApply(value);
+    try { if (value) localStorage.setItem(applicationStorage, JSON.stringify({ id: value.id })); else localStorage.removeItem(applicationStorage); } catch { /* Status still works when browser storage is disabled. */ }
+  }
+  function beginApply(id) { rememberApply({ id, state: "saving" }); }
+  function failedApply(id, failure) {
+    if (failure.status && failure.status < 500) rememberApply(null);
+    else rememberApply({ id, state: "pending" });
+  }
+  const application = pendingApply?.state === "saving" ? { state: "applying" } :
+    inventory?.application?.state === "applying" ? inventory.application :
+    pendingApply && inventory?.application?.id !== pendingApply.id ? { state: "failed" } : inventory?.application;
+  const applying = application?.state === "applying";
+  async function updated(result, id) {
+    if (id) rememberApply({ id, state: "pending" });
+    try { await refresh(); } catch { setError("vercel_unavailable"); }
+    if (result.application) setInventory((current) => current ? { ...current, application: result.application } : current);
+  }
+  async function retryApply() {
+    setRetrying(true); setError("");
+    const id = pendingApply?.id ?? application?.id ?? crypto.randomUUID();
+    beginApply(id);
+    try { const result = await request("/api/connections", { action: "apply", id }); await updated(result, id); }
+    catch (failure) { rememberApply({ id, state: "pending" }); setError(failure.message); }
+    finally { setRetrying(false); }
+  }
+  useEffect(() => {
+    if (pendingApply && inventory?.application?.id === pendingApply.id && inventory.application.state === "applied") rememberApply(null);
+  }, [inventory?.application?.id, inventory?.application?.state]);
+  useEffect(() => {
+    if (!integratedMode || pendingApply?.state === "saving" || (!applying && !pendingApply)) return;
+    // Reads only. Closing the tab does not stop Vercel's update.
+    let stopped = false, timer, inactivePolls = 0;
+    const poll = async () => {
+      try { const next = await request("/api/connections"); if (!stopped) { setInventory(next); setError(""); }
+        if (next.application?.state !== "applying" && ++inactivePolls >= 6) return; }
+      catch { if (!stopped) setError("vercel_unavailable"); if (++inactivePolls >= 6) return; }
+      if (!stopped) timer = setTimeout(poll, 5000);
+    };
+    timer = setTimeout(poll, 5000);
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [applying, pendingApply?.id, pendingApply?.state]);
   function select(event, value) {
     const menu = event.currentTarget.closest("details");
     trigger.current = menu?.querySelector("summary") ?? event.currentTarget;
@@ -107,22 +159,26 @@ function App() {
     <nav className="tabs root-navigation" aria-label="Workspace"><a href={inventory?.workflowsUrl ?? "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Workflows</a><a href={integratedMode ? "/connections" : "/"} aria-current="page">Connections</a></nav>
     <div className="title-row"><div><h1>Connections</h1><p className="muted">{localMode ? "Local" : "Production"}{inventory?.workspaceName ? ` · ${inventory.workspaceName}` : ""}</p></div>
       {inventory ? <div className="connection-actions"><button type="button" className="icon-button" aria-label="Refresh connections" title="Refresh connections" disabled={loading} onClick={start}><ArrowPathIcon aria-hidden="true" className="connection-icon" /></button>{inventory.vercelUrl ? <a className="button" href={inventory.vercelUrl} target="_blank" rel="noopener noreferrer">Open in Vercel</a> : null}
-        {inventory.canWrite ? <button type="button" className="primary" onClick={(event) => select(event, { action: "add" })}>Add connection</button> : null}</div> : null}
+        {inventory.canWrite ? <button type="button" disabled={applying || retrying} className="primary" onClick={(event) => select(event, { action: "add" })}>Add connection</button> : null}</div> : null}
     </div>
     {loading ? <p className="notice" role="status">Loading connections…</p> : null}
     {error ? <div className="notice" role="alert"><p>{message(error)}</p></div> : null}
     {inventory ? <>
+      {inventory.mode === "production" && application && application.state !== "idle" ? <div className="notice application-notice" role={application.state === "failed" ? "alert" : "status"}>
+        <span>{application.state === "applying" ? "Applying changes… You can leave this page." : application.state === "applied" ? "Changes applied." : application.state === "unknown" ? "Unable to check whether changes have applied. Refresh to try again." : "Couldn’t apply changes. Review your saved connections, then retry."}</span>
+        {application.state === "failed" ? <button type="button" disabled={retrying} onClick={retryApply}>{retrying ? "Retrying…" : "Retry"}</button> : null}
+      </div> : null}
       {!inventory.canWrite ? <p className="notice">Read-only access. A project owner or member can change Production connections.</p> : null}
       <div className="connection-list">{inventory.connections.filter((row) => row.fields.some((field) => field.state !== "disconnected")).map((row) => <div className="connection-row" key={row.id}>
         <div className="connection-name"><h2>{row.name}</h2><p className="muted connection-variable">{row.fields.map((field) => field.variable).join(", ")}</p></div>
         <p className="muted connection-status">{row.status}</p>
         {inventory.canWrite && row.fields.length ? <details className="connection-menu"><summary className="icon-button" aria-label={`Actions for ${row.name}`} title="Connection actions"><EllipsisHorizontalIcon aria-hidden="true" className="connection-icon" /></summary><div>{row.fields.map((field) => <React.Fragment key={field.variable}>
-          {field.editable ? <><button type="button" onClick={(event) => select(event, { action: "replace", row, field })}>Edit</button><button type="button" className="danger-text" onClick={(event) => select(event, { action: "disconnect", row, field })}>Delete</button></> : inventory.vercelUrl ? <a href={inventory.vercelUrl} target="_blank" rel="noopener noreferrer">Open in Vercel</a> : <span className="muted">Read only</span>}
+          {field.editable ? <><button type="button" disabled={applying || retrying} onClick={(event) => select(event, { action: "replace", row, field })}>Edit</button><button type="button" disabled={applying || retrying} className="danger-text" onClick={(event) => select(event, { action: "disconnect", row, field })}>Delete</button></> : inventory.vercelUrl ? <a href={inventory.vercelUrl} target="_blank" rel="noopener noreferrer">Open in Vercel</a> : <span className="muted">Read only</span>}
         </React.Fragment>)}</div></details> : null}
       </div>)}</div>
       {!inventory.connections.some((row) => row.fields.some((field) => field.state !== "disconnected")) ? <p className="notice">No connections yet. Add an API key to get started.</p> : null}
       {!integratedMode ? <div className="connection-footer"><button type="button" onClick={logout}>Sign out</button>{inventory.productionUrl ? <a href={inventory.productionUrl} target="_blank" rel="noopener noreferrer">Open Production</a> : null}</div> : null}
-      {selection ? <EntryForm key={`${selection.action}-${selection.field?.variable ?? "new"}`} selection={selection} inventory={inventory} close={closeEntry} updated={refresh} /> : null}
+      {selection ? <EntryForm key={`${selection.action}-${selection.field?.variable ?? "new"}`} selection={selection} inventory={inventory} close={closeEntry} updated={updated} beginApply={beginApply} failedApply={failedApply} /> : null}
     </> : null}
   </main>;
 }

@@ -24,6 +24,7 @@ try {
     "reliability",
     "cli-mcp",
     "connections-management",
+    "connections-apply",
   ]) {
     const outfile = join(dir, `${name}.test.mjs`);
     await build({

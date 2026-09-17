@@ -30,3 +30,5 @@
   .connection-fields input { font-size: 16px; }
   .connection-footer a { margin-left: 0; }
 }
+
+.application-notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
