@@ -63,16 +63,12 @@ function EntryForm({ selection, inventory, close, updated, beginApply, failedApp
     <form ref={form} onSubmit={submit} autoComplete="off">
       <h2 id="entry-title">{deleting ? `Delete ${selection.row.name}?` : editing ? "Edit connection" : "Add connection"}</h2>
       {deleting ? <>
-        <p>Delete <code>{selection.field.variable}</code> from {inventory.mode === "local" ? "local Connections" : "Vercel Production"}? The provider's key will not be revoked.</p>
-        <p>{inventory.mode === "local" ? "Restart the local runner to apply this change." : "The change applies automatically. Work already in progress may still use the previous key."}</p>
-        {selection.field.externalCopy || selection.field.state === "external" ? <p>A copy remains in the shell or .env file. Local runner launches will ignore it after deletion.</p> : null}
+        <p>Workflows using this connection may stop working.</p>
+        <p>Your account with this service won’t be affected.</p>
       </> : <div className="connection-fields">
         <label htmlFor="connection-label">Name</label><input id="connection-label" name="label" placeholder="Apollo" defaultValue={selection.field?.label ?? ""} maxLength={256} required autoFocus />
-        <p className="muted">{inventory.mode === "production" ? "Saved in the secret's Note in Vercel." : "A name for this connection."}</p>
-        <label htmlFor="variable">Key</label><input id="variable" name="variable" placeholder="APOLLO_API_KEY" defaultValue={selection.field?.variable ?? ""} readOnly={editing} pattern="[A-Za-z_][A-Za-z0-9_]*" maxLength={256} required aria-describedby="variable-hint" />
-        <p id="variable-hint" className="muted">{editing ? "The variable name used by workflow code." : "SERVICE_API_KEY is recommended. Other variable names work too."}</p>
-        <label htmlFor="new-key">{editing ? "New API key value" : "API key value"}</label><input ref={password} id="new-key" name="key" type="password" placeholder={editing && !needsKey ? "Leave blank to keep the current key" : "YOUR_API_KEY"} autoComplete="new-password" maxLength={8192} required={needsKey} />
-        <p className="muted">Saved values stay hidden. {inventory.mode === "local" ? "Restart the local runner to apply key changes." : "Key changes apply automatically and may take a few minutes."}</p>
+        <label htmlFor="variable">{editing ? "Key (read-only)" : "Key"}</label><input id="variable" name="variable" placeholder="APOLLO_API_KEY" defaultValue={selection.field?.variable ?? ""} disabled={editing} pattern="[A-Za-z_][A-Za-z0-9_]*" maxLength={256} required />
+        <label htmlFor="new-key">{editing ? "New API key value" : "API key value"}</label><input ref={password} id="new-key" name="key" type="password" placeholder={editing && !needsKey ? "Leave blank to keep the current key" : "your_apollo_api_key"} autoComplete="new-password" maxLength={8192} required={needsKey} />
         {["unresolved", "write_attempted"].includes(selection.row?.change?.phase) ? <label><input name="supersede" type="checkbox" required />Replace the unresolved save with this new entry</label> : null}
       </div>}
       {error ? <p role="alert" className="error">{error}</p> : null}
@@ -169,8 +165,8 @@ function App() {
       </div> : null}
       {!inventory.canWrite ? <p className="notice">Read-only access. A project owner or member can change Production connections.</p> : null}
       <div className="connection-list">{inventory.connections.filter((row) => row.fields.some((field) => field.state !== "disconnected")).map((row) => <div className="connection-row" key={row.id}>
-        <div className="connection-name"><h2>{row.name}</h2><p className="muted connection-variable">{row.fields.map((field) => field.variable).join(", ")}</p></div>
-        <p className="muted connection-status">{row.status}</p>
+        <div className="connection-name"><h2>{row.name}</h2><p className="muted connection-variable">{row.fields.map((field) => field.variable).join(", ")}</p>
+          {row.status && row.status !== "Saved" ? <p className="muted connection-status">{row.status}</p> : null}</div>
         {inventory.canWrite && row.fields.length ? <details className="connection-menu"><summary className="icon-button" aria-label={`Actions for ${row.name}`} title="Connection actions"><EllipsisHorizontalIcon aria-hidden="true" className="connection-icon" /></summary><div>{row.fields.map((field) => <React.Fragment key={field.variable}>
           {field.editable ? <><button type="button" onClick={(event) => select(event, { action: "replace", row, field })}>Edit</button><button type="button" className="danger-text" onClick={(event) => select(event, { action: "disconnect", row, field })}>Delete</button></> : inventory.vercelUrl ? <a href={inventory.vercelUrl} target="_blank" rel="noopener noreferrer">Open in Vercel</a> : <span className="muted">Read only</span>}
         </React.Fragment>)}</div></details> : null}
