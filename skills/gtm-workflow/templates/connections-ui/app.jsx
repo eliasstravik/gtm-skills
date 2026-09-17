@@ -164,8 +164,8 @@ function App() {
     {loading ? <p className="notice" role="status">Loading connections…</p> : null}
     {error ? <div className="notice" role="alert"><p>{message(error)}</p></div> : null}
     {inventory ? <>
-      {inventory.mode === "production" && application && application.state !== "idle" ? <div className="notice application-notice" role={application.state === "failed" ? "alert" : "status"}>
-        <span>{application.state === "applying" ? "Applying changes… You can leave this page." : application.state === "applied" ? "Changes applied." : application.state === "unknown" ? "Unable to check whether changes have applied. Refresh to try again." : "Couldn’t apply changes. Review your saved connections, then retry."}</span>
+      {inventory.mode === "production" && application && ["applying", "failed", "unknown"].includes(application.state) ? <div className="notice application-notice" role={application.state === "failed" ? "alert" : "status"}>
+        <span>{application.state === "applying" ? "Applying changes… You can leave this page." : application.state === "unknown" ? "Unable to check whether changes have applied. Refresh to try again." : "Couldn’t apply changes. Review your saved connections, then retry."}</span>
         {application.state === "failed" ? <button type="button" disabled={retrying} onClick={retryApply}>{retrying ? "Retrying…" : "Retry"}</button> : null}
       </div> : null}
       {!inventory.canWrite ? <p className="notice">Read-only access. A project owner or member can change Production connections.</p> : null}
