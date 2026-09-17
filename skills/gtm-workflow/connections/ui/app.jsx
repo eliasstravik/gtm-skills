@@ -122,10 +122,11 @@ function App() {
   useEffect(() => {
     if (!integratedMode || pendingApply?.state === "saving" || (!applying && !pendingApply)) return;
     // Reads only. Closing the tab does not stop Vercel's update.
-    let stopped = false, timer;
+    let stopped = false, timer, inactivePolls = 0;
     const poll = async () => {
-      try { const next = await request("/api/connections"); if (!stopped) { setInventory(next); setError(""); } }
-      catch { if (!stopped) setError("vercel_unavailable"); }
+      try { const next = await request("/api/connections"); if (!stopped) { setInventory(next); setError(""); }
+        if (next.application?.state !== "applying" && ++inactivePolls >= 6) return; }
+      catch { if (!stopped) setError("vercel_unavailable"); if (++inactivePolls >= 6) return; }
       if (!stopped) timer = setTimeout(poll, 5000);
     };
     timer = setTimeout(poll, 5000);
