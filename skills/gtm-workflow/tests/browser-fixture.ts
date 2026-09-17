@@ -170,6 +170,16 @@ if (process.env.GTM_VIEWER_FIXTURE_LINKS === "1") {
       "UPDATE people SET website = 'javascript:alert(1)' WHERE key = 'p00002';",
   );
 }
+if (process.env.GTM_VIEWER_FIXTURE_WORKSPACE === "1") {
+  await client.execute("CREATE TABLE imported_contacts (email TEXT, name TEXT)");
+  await client.execute("INSERT INTO imported_contacts VALUES ('ada@example.com', 'Ada Import'), ('lin@example.com', 'Lin Import')");
+  Object.assign(process.env, {
+    GTM_CONNECTIONS_ORIGIN: "https://private.example",
+    GTM_CONNECTIONS_ENABLED: "1",
+    GTM_VIEWER_VERCEL_RUNS_URL: "https://vercel.com/acme/workflows/workflows/runs?environment=production",
+    GTM_VIEWER_DATABASE_URL: "https://app.turso.tech/acme/databases/results",
+  });
+}
 for (const port of process.env.GTM_VIEWER_FIXTURE_LOCAL === "1"
   ? [3944]
   : [3942, 3943])

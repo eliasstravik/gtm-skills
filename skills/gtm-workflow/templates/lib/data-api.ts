@@ -54,12 +54,14 @@ function cellValue(
   field: string,
   nested?: Record<string, string[]>,
 ) {
+  if (value instanceof ArrayBuffer || ArrayBuffer.isView(value))
+    return Buffer.from(value instanceof ArrayBuffer ? new Uint8Array(value) : new Uint8Array(value.buffer, value.byteOffset, value.byteLength)).toString("hex");
   if (typeof value !== "string" || !field.endsWith("_json")) return value;
   let parsed: unknown;
   try {
     parsed = JSON.parse(value);
   } catch {
-    return null;
+    return nested?.[field] ? null : value;
   }
   const allowed = nested?.[field];
   if (!allowed) return parsed;
@@ -163,6 +165,7 @@ export async function readData(
   registry: Registry,
   client: Pick<Client, "execute">,
   url: URL,
+  identity?: { columns: string[] },
 ): Promise<DataPage> {
   const physical = (name: string) => {
     if (!has(registry, name)) throw new DataInputError("Unknown data table");
@@ -180,7 +183,7 @@ export async function readData(
     if (!found)
       throw new DataInputError("Table is not available in this workflow");
     physical(name);
-    column(name, "key");
+    if (!identity) column(name, "key");
     column(name, found.labelColumn);
     found.columns.forEach((c) => column(name, c));
     return found;
@@ -191,6 +194,12 @@ export async function readData(
   const selected = view(
     url.searchParams.get("table") ?? config.tables[0]?.name ?? "",
   );
+  const keyColumns = identity?.columns ?? ["key"];
+  keyColumns.forEach((c) => column(selected.name, c));
+  const recordKey = (row: Record<string, unknown>) => identity
+    ? JSON.stringify(keyColumns.map((c) => row[c] instanceof ArrayBuffer
+      ? { blob: Buffer.from(row[c] as ArrayBuffer).toString("hex") } : row[c]))
+    : String(row.key);
   const pageText = url.searchParams.get("page") ?? "0";
   if (!/^\d{1,6}$/.test(pageText)) throw new DataInputError("Invalid page");
   const page = Number(pageText);
@@ -235,8 +244,21 @@ export async function readData(
   if (restriction) conditions.push(restriction.slice(5));
   const key = url.searchParams.get("key");
   if (key !== null) {
-    conditions.push(`v.${column(selected.name, "key")} = ?`);
-    args.push(key);
+    let values: unknown = [key];
+    if (identity) {
+      try { values = JSON.parse(key); }
+      catch { throw new DataInputError("Invalid record key"); }
+    }
+    if (identity && Array.isArray(values)) values = values.map((v) =>
+      v && typeof v === "object" && typeof v.blob === "string" && /^(?:[a-f0-9]{2})*$/.test(v.blob)
+        ? Buffer.from(v.blob, "hex") : v);
+    if (!Array.isArray(values) || values.length !== keyColumns.length ||
+      values.some((v) => v !== null && !Buffer.isBuffer(v) && !["string", "number"].includes(typeof v)))
+      throw new DataInputError("Invalid record key");
+    keyColumns.forEach((c, i) => {
+      conditions.push(`v.${column(selected.name, c)} IS ?`);
+      args.push((values as InValue[])[i]);
+    });
   }
   const allowedColumn = (property: string) => {
     if (!selected.columns.includes(property))
@@ -308,7 +330,7 @@ export async function readData(
   const visible =
     requested ??
     (key !== null
-      ? selected.columns.filter((c) => c !== "raw_responses_json")
+      ? selected.columns.filter((c) => identity || c !== "raw_responses_json")
       : (selected.defaultColumns ?? selected.columns));
   if (
     !visible.length ||
@@ -316,12 +338,12 @@ export async function readData(
     visible.some((c) => !selected.columns.includes(c))
   )
     throw new DataInputError("Unavailable requested field");
-  const props = [...new Set(["key", ...visible])];
+  const props = [...new Set([...keyColumns, ...visible])];
   const fields = props
     .map((c) => `v.${column(selected.name, c)} AS ${quote(c)}`)
     .join(", ");
   const result = await client.execute({
-    sql: `SELECT ${fields} FROM ${physical(selected.name)} v${conditions.length ? ` WHERE ${conditions.join(" AND ")}` : ""} ORDER BY ${sortField} ${order.toUpperCase()}, v.${column(selected.name, "key")} LIMIT ? OFFSET ?`,
+    sql: `SELECT ${fields} FROM ${physical(selected.name)} v${conditions.length ? ` WHERE ${conditions.join(" AND ")}` : ""} ORDER BY ${sortField} ${order.toUpperCase()}, ${keyColumns.map((c) => `v.${column(selected.name, c)}`).join(", ")} LIMIT ? OFFSET ?`,
     args: [...args, PAGE_SIZE + 1, page * PAGE_SIZE],
   });
   const total = await client.execute({
@@ -357,7 +379,7 @@ export async function readData(
     });
   return {
     total: Number(total.rows[0].total),
-    keys: records.map((row) => String(row.key)),
+    keys: records.map(recordKey),
     fields: visible.map((id) => ({
       id,
       label:
@@ -390,7 +412,7 @@ export async function readData(
         (c): Cell => ({
           value: cellValue(row[c], c, selected.nested),
           ...(c === selected.labelColumn
-            ? { href: href({ table: selected.name, key: String(row.key) }) }
+            ? { href: href({ table: selected.name, key: recordKey(row) }) }
             : {}),
         }),
       ),

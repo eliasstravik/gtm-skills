@@ -64,7 +64,7 @@ function Workflow() {
           ) : view === "data" ? (
             <Data destinations={meta.destinations} />
           ) : view === "runs" ? (
-            <Runs />
+            <Runs destinations={meta.destinations} />
           ) : (
             <Suspense
               fallback={

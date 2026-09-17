@@ -46,6 +46,7 @@ export function useRead(op: string, enabled = true) {
   useLocation();
   const p = query();
   for (const name of ["node", "step", "expanded"]) p.delete(name);
+  if (op === "list") for (const key of [...p.keys()]) p.delete(key);
   // Data columns are projected by the API, so Apply must trigger a new read.
   if (op !== "data") p.delete("columns");
   if (op !== "events") p.delete("eventCursor");

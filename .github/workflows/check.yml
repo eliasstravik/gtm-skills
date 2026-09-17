@@ -59,7 +59,7 @@ jobs:
       - run: agent-browser install --with-deps
       - name: Verify column Apply updates without reload or polling
         run: |
-          GTM_VIEWER_FIXTURE_COLUMNS=1 node skills/gtm-workflow/tests/serve.mjs skills/gtm-workflow/templates &
+          GTM_VIEWER_FIXTURE_COLUMNS=1 GTM_VIEWER_FIXTURE_WORKSPACE=1 node skills/gtm-workflow/tests/serve.mjs skills/gtm-workflow/templates &
           fixture_pid=$!
           trap 'kill "$fixture_pid"' EXIT
           for attempt in $(seq 1 50); do
@@ -67,6 +67,7 @@ jobs:
             sleep 0.1
           done
           node skills/gtm-workflow/tests/columns-browser-check.mjs /tmp/gtm-columns
+          node skills/gtm-workflow/tests/workspace-browser-check.mjs
       - run: node node_modules/typescript/bin/tsc --noEmit
         working-directory: skills/gtm-workflow/templates
       - run: npm run build:share

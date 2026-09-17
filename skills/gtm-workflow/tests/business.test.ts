@@ -84,17 +84,23 @@ test("destinations use the deployed revision and reject credential-bearing or wr
       "A".repeat(26) +
       "?environment=production",
   );
+  assert.deepEqual(destinations().runs, {
+    url: "https://vercel.com/acme/workflows/workflows/runs?environment=production",
+    label: "Open in Vercel",
+  });
   process.env.GTM_VIEWER_DATABASE_URL = "https://token@app.turso.tech/acme";
   assert.equal(destinations(entry).database, undefined);
   process.env.GTM_VIEWER_VERCEL_RUNS_URL =
     "https://evil.example/acme/workflows/workflows/runs";
   assert.equal(runDestination("wrun_" + "A".repeat(26)), undefined);
+  assert.equal(destinations().runs, undefined);
   delete process.env.VERCEL_GIT_COMMIT_SHA;
   assert.equal(destinations(entry).source, undefined);
   delete process.env.VERCEL;
   process.env.GTM_VIEWER_INSPECTOR_URL = "http://localhost:4200";
   assert.equal(runDestination("wrun_" + "A".repeat(26)), undefined);
   process.env.GTM_VIEWER_INSPECTOR_STORE = "local";
+  assert.deepEqual(destinations().runs, { url: "http://localhost:4200/", label: "Open in Workflow" });
   assert.ok(
     runDestination("wrun_" + "A".repeat(26))?.url.startsWith(
       "http://localhost:4200/run/",

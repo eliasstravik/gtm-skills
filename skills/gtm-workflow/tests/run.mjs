@@ -17,6 +17,7 @@ try {
     "profiles",
     "business",
     "linked-data",
+    "workspace-data",
     "viewer-grants",
     "inspection",
     "viewer-api",

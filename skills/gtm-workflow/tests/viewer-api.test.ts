@@ -20,6 +20,31 @@ await client.execute(
 await client.execute(
   "INSERT INTO people VALUES ('a', 'Ada Example', 'PRIVATE')",
 );
+test("workspace data and export are private, independent of workflow registration", async () => {
+  await client.execute("CREATE TABLE unregistered (id INTEGER, name TEXT)");
+  await client.execute("INSERT INTO unregistered VALUES (1, 'Independent')");
+  const request = (op: string, extra = "", host = "private.example") => new Request(
+    `https://${host}/api/viewer?v=3&op=${op}&table=unregistered${extra}`,
+    { headers: { host, "x-gtm-viewer-project": "fixture" } },
+  );
+  const result = await viewerApi(request("data"));
+  assert.equal(result.status, 200);
+  const data = await result.json();
+  assert.equal(data.total, 1);
+  assert.ok(data.tabs.some((t: any) => t.label === "unregistered"));
+  assert.ok((await (await viewerApi(request("export"))).text()).includes("Independent"));
+  for (const op of ["data", "export"]) {
+    assert.equal((await viewerApi(request(op), true)).status, 403);
+    assert.equal((await viewerApi(request(op, "&preview=data"))).status, 403);
+    assert.equal((await viewerApi(request(op, "&workflow=stable"))).status, 400);
+  }
+  const hosted = process.env.VERCEL;
+  delete process.env.VERCEL;
+  try {
+    assert.equal((await viewerApi(request("data"))).status, 403);
+    assert.equal((await viewerApi(request("data", "", "localhost"))).status, 200);
+  } finally { process.env.VERCEL = hosted; }
+});
 const req = (op: string, token?: string, body?: unknown, extra = "") =>
   new Request(
     `https://private.example/api/viewer?v=3&workflow=stable&op=${op}${extra}`,

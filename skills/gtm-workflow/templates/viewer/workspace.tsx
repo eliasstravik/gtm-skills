@@ -1,9 +1,11 @@
 import React from "react";
 import { href, navigate, query } from "./navigation";
 import { Search, State, useRead } from "./common";
+import Data from "./data";
 export default function Workspace() {
   const state = useRead("list"),
     search = query().get("q") ?? "";
+  const dataView = query().get("view") === "data";
   const entries = (state.data?.workflows ?? [])
     .filter((w: any) =>
       `${w.title} ${w.description ?? ""}`
@@ -15,13 +17,16 @@ export default function Workspace() {
         a.title.localeCompare(b.title) || a.id.localeCompare(b.id),
     );
   return (
-    <main className="workspace">
-      {state.data?.connectionsUrl && (
+    <main className={dataView ? "workflow" : "workspace"}>
         <nav className="tabs root-navigation" aria-label="Workspace">
-          <a href="/viewer" aria-current="page">Workflows</a>
-          <a href={state.data.connectionsUrl}>Connections</a>
+          <a href="/viewer" aria-current={!dataView ? "page" : undefined}>Workflows</a>
+          <a href="/viewer?view=data" aria-current={dataView ? "page" : undefined}>Data</a>
+          {state.data?.connectionsUrl && <a href={state.data.connectionsUrl}>Connections</a>}
         </nav>
-      )}
+      {dataView ? <>
+        <div className="title-row"><h1>Data</h1></div>
+        <Data destinations={state.data?.destinations} />
+      </> : <>
       <div className="title-row">
         <h1>Workflows</h1>
         <Search
@@ -59,6 +64,7 @@ export default function Workspace() {
           )}
         </div>
       )}
+      </>}
     </main>
   );
 }

@@ -2,7 +2,7 @@
 
 ## Open without execution
 
-`npm run viewer` serves an existing local database on loopback. Opening Workflows starts no workflows, providers, migrations, schedules or inspectors. Workflows is a name-and-purpose list; a selected workflow has Diagram, Runs and Data. Runs lists metadata only. Detailed debugging and database administration use verified native destinations.
+`npm run viewer` serves an existing local database on loopback. Opening Workflows starts no workflows, providers, migrations, schedules or inspectors. Workspace navigation is Workflows, Data, Connections. Workflows is a name-and-purpose list; a selected workflow has Diagram, Runs and Data. Runs lists metadata only. Detailed debugging and database administration use verified native destinations.
 
 ## Author the business diagram
 
@@ -36,6 +36,12 @@ Use only branches and outputs that exist in the authored code. Read the workflow
 
 Run `node scripts/build-viewer.mjs` before reporting Create, Update or Upgrade complete. It validates the graph and sources without importing execution code. Missing metadata fails the build. Review business truth against code separately; validation cannot prove it. Shared projections include business labels, edges and explanations only. The viewer never falls back to compiler graphs. Existing compiler metadata may still support execution tooling but does not control the diagram.
 
+## Workspace data
+
+The private workspace Data tab discovers all application tables in the connected local SQLite or deployed Turso database, including tables absent from the workflow and Drizzle registries. It uses the same table chooser, search, filters, sorting, columns, cell details and CSV/JSON exports as workflow Data. Tables need no standard `key` column. Discovery and browsing are read-only. Workflow Data and public links retain their authored table, column and row restrictions. Workspace Data has no public sharing scope.
+
+`GET /api/link` returns its verified `dataUrl`. Use this destination when asked to browse workspace-wide data.
+
 ## Native destinations
 
 The owner deployment supplies these optional verified settings:
@@ -45,7 +51,7 @@ The owner deployment supplies these optional verified settings:
 - `GTM_VIEWER_DATABASE_URL`: verified database page on app.turso.tech.
 - Local only: `GTM_VIEWER_INSPECTOR_URL` and `GTM_VIEWER_INSPECTOR_STORE=local`, only after confirming that inspector uses this runtime's local store. `GTM_VIEWER_DRIZZLE_URL` names the actual Drizzle instance.
 
-Missing destinations omit the action. Local source falls back to Copy file path. Hosted/shared responses omit local paths; shared responses omit all owner destinations. Browsing never starts native tools.
+Runs includes a general Open in Vercel button, or Open in Workflow for a verified local inspector, even when the run list is empty. Each run also keeps its direct details link. Workspace and workflow Data both show the configured database action. Missing destinations omit the action. Local source falls back to Copy file path. Hosted/shared responses omit local paths; shared responses omit all owner destinations. Browsing never starts native tools.
 
 ## Private access and sharing
 

@@ -29,6 +29,7 @@ import { bearerOk } from "./sign";
 import { DataInputError, type DataPage } from "./data-api";
 import { exportCsv } from "./viewer-csv";
 import { connectionsOrigin } from "./viewer-link";
+import { readWorkspaceData } from "./workspace-data";
 const reply = (
   data: unknown,
   status = 200,
@@ -117,7 +118,24 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         environment: deploymentScope().environment,
         workspace: process.env.GTM_VIEWER_LABEL ?? "GTM workspace",
         connectionsUrl: connectionsOrigin(),
+        destinations: destinations(),
       });
+    }
+    if (!url.searchParams.has("workflow") && ["data", "export"].includes(operation)) {
+      if (recipient)
+        throw new ViewerError(403, "view_denied", "Workspace data requires private access.");
+      const read = async (page: URL) => {
+        const client = rawClient();
+        try { return await readWorkspaceData(client, page); }
+        finally { client.close(); }
+      };
+      if (operation === "data") return reply(await read(url));
+      return await exportCsv(url, async (page) => {
+        const result = await read(page);
+        if ("unavailable" in result)
+          throw new ViewerError(404, "data_unavailable", result.unavailable);
+        return result;
+      }, async () => privateAccess(req), req.signal);
     }
     const entry = entryFor(url.searchParams.get("workflow") ?? "");
     let grant;

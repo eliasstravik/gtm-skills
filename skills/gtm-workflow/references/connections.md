@@ -1,6 +1,6 @@
 # Connections and standalone setup
 
-Connections belongs to the workflow workspace. Production runs at `/connections` inside the existing private workflow project. Local mode uses the trusted OS-keychain manager installed under `~/.gtm/components/`. The root navigation is Workflows / Connections. Public sharing contains neither the Connections page nor its management API.
+Connections belongs to the workflow workspace. Production runs at `/connections` inside the existing private workflow project. Local mode uses the trusted OS-keychain manager installed under `~/.gtm/components/`. The root navigation is Workflows / Data / Connections. Public sharing contains neither the Connections page nor its management API.
 
 ## Local setup and discovery
 

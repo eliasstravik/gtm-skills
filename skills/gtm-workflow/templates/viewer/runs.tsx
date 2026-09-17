@@ -31,7 +31,7 @@ function Duration({ run }: any) {
     </>
   );
 }
-export default function Runs() {
+export default function Runs({ destinations }: any) {
   const state = useRead("runs"),
     d = state.data,
     p = query(),
@@ -72,6 +72,12 @@ export default function Runs() {
           <option value="month">Past month</option>
         </select>
         <button onClick={state.retry}>Refresh</button>
+        {!recipient && destinations?.runs && (
+          <a className="button" href={destinations.runs.url}
+            target="_blank" rel="noopener noreferrer">
+            {destinations.runs.label} ↗
+          </a>
+        )}
       </div>
       <State state={state} />
       {d && (

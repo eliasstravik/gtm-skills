@@ -19,13 +19,13 @@ function safeUrl(value: string | undefined, hosts?: string[], local = false) {
   }
 }
 /** Only explicit operator destinations and platform-provided revision metadata. Never fetch URLs. */
-export function destinations(entry: Display) {
+export function destinations(entry?: Display) {
   const hosted = Boolean(process.env.VERCEL);
   const repository = process.env.GTM_VIEWER_REPOSITORY;
   const commit =
     process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GTM_VIEWER_COMMIT;
   const root = process.env.GTM_VIEWER_REPOSITORY_ROOT ?? "workflows";
-  const source = entry.source && `workflows/${entry.source}.ts`;
+  const source = entry?.source && `workflows/${entry.source}.ts`;
   let sourceUrl: string | undefined;
   if (
     hosted &&
@@ -41,6 +41,7 @@ export function destinations(entry: Display) {
     ? safeUrl(process.env.GTM_VIEWER_DATABASE_URL, ["app.turso.tech"])
     : safeUrl(process.env.GTM_VIEWER_DRIZZLE_URL, undefined, true);
   return {
+    runs: runsDestination(),
     source: sourceUrl
       ? { url: sourceUrl, label: "View source" }
       : !hosted && source
@@ -54,8 +55,7 @@ export function destinations(entry: Display) {
       : undefined,
   };
 }
-export function runDestination(id: string) {
-  if (!/^wrun_[A-Za-z0-9]{26}$/.test(id)) return undefined;
+export function runsDestination() {
   if (!process.env.VERCEL) {
     // Operator confirms the inspector uses the same local store. Do not point local runs at production.
     if (process.env.GTM_VIEWER_INSPECTOR_STORE !== "local") return undefined;
@@ -66,7 +66,7 @@ export function runDestination(id: string) {
     );
     return origin
       ? {
-          url: new URL(`/run/${segment(id)}`, origin).href,
+          url: origin.href,
           label: "Open in Workflow",
         }
       : undefined;
@@ -75,6 +75,15 @@ export function runDestination(id: string) {
   const base = safeUrl(process.env.GTM_VIEWER_VERCEL_RUNS_URL, ["vercel.com"]);
   if (!base || !/^\/[^/]+\/[^/]+\/workflows\/runs\/?$/.test(base.pathname))
     return undefined;
-  base.pathname = `${base.pathname.replace(/\/$/, "")}/${segment(id)}`;
   return { url: base.href, label: "Open in Vercel" };
+}
+export function runDestination(id: string) {
+  if (!/^wrun_[A-Za-z0-9]{26}$/.test(id)) return undefined;
+  const destination = runsDestination();
+  if (!destination) return undefined;
+  const url = new URL(destination.url);
+  url.pathname = process.env.VERCEL
+    ? `${url.pathname.replace(/\/$/, "")}/${segment(id)}`
+    : `/run/${segment(id)}`;
+  return { ...destination, url: url.href };
 }
