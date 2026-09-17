@@ -12,7 +12,7 @@ test("private Connections configures only an existing project, without resource 
     assert.equal(path, "/v10/projects/prj_test/env");
     return { id: `env_${body.key}`, visibility: body.visibility };
   };
-  const result = await configurePrivateProject({ api, project, store });
+  const result = await configurePrivateProject({ api, teamSlug: "test-team", project, store });
   assert.equal(result.mode, "private-project");
   assert.equal(calls.filter((call) => call.path === "/v3/user/tokens").length, 1);
   const tokenWrite = calls.find((call) => call.body?.key === "GTM_CONNECTIONS_VERCEL_TOKEN");
@@ -22,8 +22,8 @@ test("private Connections configures only an existing project, without resource 
 });
 test("setup refuses unprotected projects and deployment-wide share links", async () => {
   const api = async () => { throw Error("must not mutate"); };
-  await assert.rejects(configurePrivateProject({ api, project: { ...project, ssoProtection: null } }), /protect_all_deployments_first/);
-  await assert.rejects(configurePrivateProject({ api, project: { ...project, protectionBypass: { synthetic: { scope: "shareable-link" } } } }), /remove_deployment_share_links_first/);
+  await assert.rejects(configurePrivateProject({ api, teamSlug: "test-team", project: { ...project, ssoProtection: null } }), /protect_all_deployments_first/);
+  await assert.rejects(configurePrivateProject({ api, teamSlug: "test-team", project: { ...project, protectionBypass: { synthetic: { scope: "shareable-link" } } } }), /remove_deployment_share_links_first/);
 });
 test("setup preserves an existing production Secret instead of replacing it", async () => {
   const api = async (method, path, body) => {
@@ -31,5 +31,5 @@ test("setup preserves an existing production Secret instead of replacing it", as
     if (method === "GET") return { envs: [{ id: "env_existing", key: "GTM_CONNECTIONS_VERCEL_TOKEN", target: ["production"], type: "sensitive", visibility: "secret" }] };
     assert.notEqual(body?.key, "GTM_CONNECTIONS_VERCEL_TOKEN"); return { id: "env_config", visibility: "config" };
   };
-  await configurePrivateProject({ api, project });
+  await configurePrivateProject({ api, teamSlug: "test-team", project });
 });

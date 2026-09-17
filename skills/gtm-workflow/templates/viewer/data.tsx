@@ -313,7 +313,7 @@ export default function Data({ destinations }: any) {
                 <a
                   className="button"
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   href={destinations.database.url}
                 >
                   {destinations.database.label} ↗

@@ -1,4 +1,4 @@
-import { connectionInventory, services } from "../dist/catalog.mjs";
+import { connectionInventory } from "../dist/catalog.mjs";
 import { mutation } from "./validation.mjs";
 import { requireThat, ConnectionError } from "./errors.mjs";
 
@@ -9,10 +9,10 @@ export function createManager({ journal, storage, active, context }) {
       saved.push({ variable: operation.variable, version: "absent", state: operation.phase === "saved" && operation.action === "disconnect" ? "disconnected" : context.mode === "production" ? "absent" : "unknown", editable: true });
     for (const field of saved) field.label ??= metadata.find((entry) => entry.variable === field.variable)?.label;
     const names = saved.map((row) => row.variable);
-    const rows = connectionInventory(names, [], snapshot?.connections?.some((row) => row.platformIdentity) ?? false);
+    const rows = connectionInventory(names, [], false);
     for (const entry of snapshot?.connections ?? []) if (!rows.some((row) => row.id === entry.id)) rows.push({ ...entry, fields: [] });
     for (const row of rows) {
-      const live = snapshot?.connections?.find((entry) => entry.id === row.id);
+      const live = snapshot?.connections?.find((entry) => (entry.fields ?? []).some((field) => row.fields.some((own) => own.variable === field.variable)));
       row.active = snapshot ? Boolean(live?.configured) : null;
       row.usage = live?.usage ?? []; row.usageComplete = live?.usageComplete ?? false;
       row.fields = saved.filter((entry) => row.fields.some((field) => field.variable === entry.variable)).map((entry) => ({
@@ -21,7 +21,7 @@ export function createManager({ journal, storage, active, context }) {
       }));
       row.configured = row.platformIdentity || row.fields.some((field) => ["saved", "external"].includes(field.state))
         ? true : row.fields.some((field) => ["unknown", "unresolved"].includes(field.state)) ? null : false;
-      if (!services.some((service) => service.id === row.id)) row.name = row.fields.find((field) => field.label)?.label ?? row.name;
+      row.name = row.fields.find((field) => field.label)?.label ?? row.name;
       const last = operations.find((op) => row.fields.some((field) => field.variable === op.variable));
       row.change = last ? { phase: last.phase, action: last.action, at: last.updated_at } : null;
       row.status = !snapshot ? "Active state unknown" : row.active ? "Configured" : "Not active";
@@ -37,7 +37,7 @@ export function createManager({ journal, storage, active, context }) {
         if (context.mode === "production" && !unchanged) row.status = "Saved state changed; active version unknown";
       }
     }
-    return { version: 1, ...context, services, connections: rows, active: snapshot ? {
+    return { version: 1, ...context, connections: rows, active: snapshot ? {
       deploymentId: snapshot.deploymentId, generation: snapshot.generation, processGeneration: snapshot.processGeneration, commit: snapshot.commit,
     } : null };
   }
@@ -56,6 +56,8 @@ export function createManager({ journal, storage, active, context }) {
       requireThat((saved?.version ?? "absent") === input.version, "connection_changed", 409);
       requireThat(!saved || saved.editable, "use_vercel_settings", 409);
       requireThat(input.action !== "add" || !saved || saved.state === "disconnected", "already_configured", 409);
+      requireThat(input.action !== "replace" || (saved && saved.state !== "disconnected"), "connection_changed", 409);
+      requireThat(input.action !== "replace" || input.value !== undefined || (saved?.state === "saved" && !prior), "replacement_key_required", 400);
       const snapshot = await active().catch(() => null);
       await journal.prepare(input, actor, snapshot?.deploymentId);
       await journal.fence(lease);

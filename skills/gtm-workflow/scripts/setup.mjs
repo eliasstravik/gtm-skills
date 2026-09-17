@@ -41,11 +41,12 @@ export async function setupLocal(workspace, { upgrade = false } = {}) {
   requireThat(!prior || prior.workspace === state.workspace, "workspace_binding_changed", 409);
   const store = nativeStore(state.id);
   for (const name of ["GTM_RUN_SECRET", "GTM_CONNECTIONS_READ_SECRET"]) if (!store.loadForRuntime(name)) store.set(name, randomBytes(32).toString("base64url"));
-  const journal = await openJournal({ url: `file:${state.database}` }); journal.close();
+  const journal = await openJournal({ url: `file:${state.database}` });
+  const managedNames = (await journal.list()).map((row) => row.variable); journal.close();
   await writePrivateJson(state.configPath, { ...prior, workspace: state.workspace, workspaceId: state.id, component, scaffold,
     workflowsUrl: prior?.workflowsUrl ?? "http://127.0.0.1:3939/viewer" });
   if (!existsSync(join(runtime, "node_modules"))) run("npm", ["ci", "--ignore-scripts", "--no-audit", "--no-fund"], runtime);
-  const env = { ...inspectionEnvironment(process.env), GTM_ENV_MANAGED: "1", WORKFLOW_TARGET_WORLD: "local", WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS: "false" };
+  const env = { ...inspectionEnvironment(process.env, managedNames), GTM_ENV_MANAGED: "1", WORKFLOW_TARGET_WORLD: "local", WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS: "false" };
   // Database preparation is explicit. No execution server, queue or schedules start here.
   for (const args of [["scripts/build-viewer.mjs"], ["node_modules/drizzle-kit/bin.cjs", "migrate"], ["scripts/profile-migrate.mjs"], ["scripts/viewer-migrate.mjs"]]) run(process.execPath, args, runtime, env);
   return { status: "local_ready", workspace: state.workspace, component: component.version,

@@ -21,7 +21,7 @@ test("inventory reports presence and declared gateway usage without credential m
   const names = configuredNames({ MONID_API_KEY: sentinel, BLITZ_API_KEY: "  ", CUSTOM_API_KEY: "x", GTM_ADMIN_API_KEY: "secret", NEXT_PUBLIC_BAD_API_KEY: "x", TURSO_AUTH_TOKEN: "x" });
   assert.deepEqual(names, ["CUSTOM_API_KEY", "MONID_API_KEY"]);
   const rows = connectionInventory(names, [{ id: "wf", title: "Enrichment", connections: [{ connection: "monid", provider: "Apollo" }] }], true);
-  assert.equal(rows.find((row) => row.id === "monid").usage[0].provider, "Apollo");
+  assert.equal(rows.find((row) => row.id === "MONID_API_KEY").usage[0].provider, "Apollo");
   assert.equal(rows.some((row) => row.id === "apollo"), false);
   assert.equal(rows.find((row) => row.id === "ai-gateway").platformIdentity, true);
   assert.equal(JSON.stringify(rows).includes(sentinel), false);

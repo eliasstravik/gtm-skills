@@ -117,7 +117,7 @@ export default function Logic({ workflow, destinations }: any) {
             className="button"
             href={destinations.source.url}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
             View source ↗
           </a>

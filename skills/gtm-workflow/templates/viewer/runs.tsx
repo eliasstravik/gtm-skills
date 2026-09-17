@@ -112,7 +112,7 @@ export default function Runs() {
                           <a
                             href={r.destination.url}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                           >
                             {r.destination.label} ↗
                           </a>
