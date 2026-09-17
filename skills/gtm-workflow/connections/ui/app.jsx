@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ArrowPathIcon, EllipsisHorizontalIcon } from "@heroicons/react/16/solid";
+import { ArrowPathIcon, CheckIcon, EllipsisHorizontalIcon } from "@heroicons/react/16/solid";
 import { initialize, request, clearSession, localMode, integratedMode } from "./transport.mjs";
 import "@fontsource-variable/geist/index.css";
 import "../shared/style.css";
@@ -78,13 +78,34 @@ function EntryForm({ selection, inventory, close, updated, beginApply, failedApp
       </div>}
       {error ? <p role="alert" className="error">{error}</p> : null}
       <div className="dialog-actions"><button type="button" disabled={busy} onClick={cancel}>Cancel</button>
-        <button className={deleting ? "primary danger" : "primary"} type="submit" disabled={busy}>{busy ? "Saving…" : deleting ? "Delete connection" : "Save connection"}</button></div>
+        <button className={`connection-submit primary${deleting ? " danger" : ""}`} type="submit" disabled={busy} aria-busy={busy}>{busy ? <ArrowPathIcon aria-hidden="true" className="connection-icon connection-spinner" /> : null}{busy ? "Saving…" : deleting ? "Delete connection" : "Save connection"}</button></div>
     </form>
   </dialog>;
 }
 const applicationStorage = "gtm-connections-application";
 function readPending() {
   try { const value = JSON.parse(localStorage.getItem(applicationStorage)); return typeof value?.id === "string" ? { id: value.id, state: "pending" } : null; } catch { return null; }
+}
+function UpdateControl({ loading, applying, state, refresh }) {
+  const wasApplying = useRef(false);
+  const [completed, setCompleted] = useState(false);
+  useEffect(() => {
+    if (applying) { wasApplying.current = true; setCompleted(false); return; }
+    if (wasApplying.current && state === "applied") {
+      wasApplying.current = false; setCompleted(true);
+      const timer = setTimeout(() => setCompleted(false), 1800);
+      return () => clearTimeout(timer);
+    }
+    wasApplying.current = false; setCompleted(false);
+  }, [applying, state]);
+  const busy = loading || applying;
+  const label = busy ? applying ? "Updating connections" : "Refreshing connections" : completed ? "Connections updated" : "Refresh connections";
+  return <>
+    <button type="button" className="icon-button update-control" aria-label={label} title={label} aria-busy={busy} disabled={busy} onClick={refresh}>
+      {completed && !busy ? <CheckIcon aria-hidden="true" className="connection-icon update-complete" /> : <ArrowPathIcon aria-hidden="true" className={`connection-icon${busy ? " connection-spinner" : ""}`} />}
+    </button>
+    <span className="connection-announcement" role="status">{busy || completed ? label : ""}</span>
+  </>;
 }
 function App() {
   const [inventory, setInventory] = useState(null), [error, setError] = useState(""), [selection, setSelection] = useState(null), [loading, setLoading] = useState(true);
@@ -158,14 +179,14 @@ function App() {
   return <main className="workspace">
     <nav className="tabs root-navigation" aria-label="Workspace"><a href={inventory?.workflowsUrl ?? "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Workflows</a><a href={integratedMode ? "/connections" : "/"} aria-current="page">Connections</a></nav>
     <div className="title-row"><div><h1>Connections</h1><p className="muted">{localMode ? "Local" : "Production"}{inventory?.workspaceName ? ` · ${inventory.workspaceName}` : ""}</p></div>
-      {inventory ? <div className="connection-actions"><button type="button" className="icon-button" aria-label="Refresh connections" title="Refresh connections" disabled={loading} onClick={start}><ArrowPathIcon aria-hidden="true" className="connection-icon" /></button>{inventory.vercelUrl ? <a className="button" href={inventory.vercelUrl} target="_blank" rel="noopener noreferrer">Open in Vercel</a> : null}
+      {inventory ? <div className="connection-actions"><UpdateControl loading={loading} applying={applying} state={application?.state} refresh={start} />{inventory.vercelUrl ? <a className="button" href={inventory.vercelUrl} target="_blank" rel="noopener noreferrer">Open in Vercel</a> : null}
         {inventory.canWrite ? <button type="button" disabled={applying || retrying} className="primary" onClick={(event) => select(event, { action: "add" })}>Add connection</button> : null}</div> : null}
     </div>
-    {loading ? <p className="notice" role="status">Loading connections…</p> : null}
+    {loading && !inventory ? <div className="connection-loading" role="status" aria-label="Loading connections"><ArrowPathIcon aria-hidden="true" className="connection-icon connection-spinner" /><span className="connection-announcement">Loading connections</span></div> : null}
     {error ? <div className="notice" role="alert"><p>{message(error)}</p></div> : null}
     {inventory ? <>
-      {inventory.mode === "production" && application && application.state !== "idle" ? <div className="notice application-notice" role={application.state === "failed" ? "alert" : "status"}>
-        <span>{application.state === "applying" ? "Applying changes… You can leave this page." : application.state === "applied" ? "Changes applied." : application.state === "unknown" ? "Unable to check whether changes have applied. Refresh to try again." : "Couldn’t apply changes. Review your saved connections, then retry."}</span>
+      {inventory.mode === "production" && application && ["failed", "unknown"].includes(application.state) ? <div className="notice application-notice" role={application.state === "failed" ? "alert" : "status"}>
+        <span>{application.state === "unknown" ? "Unable to check whether changes have applied. Refresh to try again." : "Couldn’t apply changes. Review your saved connections, then retry."}</span>
         {application.state === "failed" ? <button type="button" disabled={retrying} onClick={retryApply}>{retrying ? "Retrying…" : "Retry"}</button> : null}
       </div> : null}
       {!inventory.canWrite ? <p className="notice">Read-only access. A project owner or member can change Production connections.</p> : null}
