@@ -44,7 +44,6 @@ function EntryForm({ selection, inventory, close, updated, beginApply, failedApp
     event.preventDefault(); setError(""); setBusy(true);
     const data = new FormData(form.current), variable = selection.field?.variable ?? String(data.get("variable")).trim();
     const existing = inventory.connections.flatMap((row) => row.fields).find((field) => field.variable === variable);
-    if (password.current) password.current.value = "";
     if (selection.action === "add" && existing && existing.state !== "disconnected") {
       setError("This key already exists. Close this form and choose Edit."); setBusy(false); return;
     }
@@ -64,16 +63,15 @@ function EntryForm({ selection, inventory, close, updated, beginApply, failedApp
       <h2 id="entry-title">{deleting ? `Delete ${selection.row.name}?` : editing ? "Edit connection" : "Add connection"}</h2>
       {deleting ? <>
         <p>Workflows using this connection may stop working.</p>
-        <p>Your account with this service won’t be affected.</p>
       </> : <div className="connection-fields">
         <label htmlFor="connection-label">Name</label><input id="connection-label" name="label" placeholder="Apollo" defaultValue={selection.field?.label ?? ""} maxLength={256} required autoFocus />
-        <label htmlFor="variable">{editing ? "Key (read-only)" : "Key"}</label><input id="variable" name="variable" placeholder="APOLLO_API_KEY" defaultValue={selection.field?.variable ?? ""} disabled={editing} pattern="[A-Za-z_][A-Za-z0-9_]*" maxLength={256} required />
+        <label htmlFor="variable">Key</label><input id="variable" name="variable" placeholder="APOLLO_API_KEY" defaultValue={selection.field?.variable ?? ""} disabled={editing} pattern="[A-Za-z_][A-Za-z0-9_]*" maxLength={256} required />
         <label htmlFor="new-key">{editing ? "New API key value" : "API key value"}</label><input ref={password} id="new-key" name="key" type="password" placeholder={editing && !needsKey ? "Leave blank to keep the current key" : "your_apollo_api_key"} autoComplete="new-password" maxLength={8192} required={needsKey} />
         {["unresolved", "write_attempted"].includes(selection.row?.change?.phase) ? <label><input name="supersede" type="checkbox" required />Replace the unresolved save with this new entry</label> : null}
       </div>}
       {error ? <p role="alert" className="error">{error}</p> : null}
       <div className="dialog-actions"><button type="button" disabled={busy} onClick={cancel}>Cancel</button>
-        <button className={`connection-submit primary${deleting ? " danger" : ""}`} type="submit" disabled={busy} aria-busy={busy}>{busy ? <ArrowPathIcon aria-hidden="true" className="connection-icon connection-spinner" /> : null}{busy ? "Saving…" : deleting ? "Delete connection" : "Save connection"}</button></div>
+        <button className={`connection-submit primary${deleting ? " danger" : ""}`} type="submit" disabled={busy} aria-busy={busy}>{busy ? <ArrowPathIcon aria-hidden="true" className="connection-icon connection-spinner" /> : null}{busy ? deleting ? "Deleting…" : "Saving…" : deleting ? "Delete connection" : "Save connection"}</button></div>
     </form>
   </dialog>;
 }
@@ -144,8 +142,14 @@ function App() {
     start();
     const restore = (event) => { if (event.persisted) { setSelection(null); start(); } };
     const hide = () => setSelection(null);
+    const dismissMenus = (event) => {
+      for (const menu of document.querySelectorAll(".connection-menu[open]")) {
+        if (!menu.contains(event.target)) menu.open = false;
+      }
+    };
+    document.addEventListener("click", dismissMenus);
     window.addEventListener("pageshow", restore); window.addEventListener("pagehide", hide);
-    return () => { window.removeEventListener("pageshow", restore); window.removeEventListener("pagehide", hide); };
+    return () => { document.removeEventListener("click", dismissMenus); window.removeEventListener("pageshow", restore); window.removeEventListener("pagehide", hide); };
   }, []);
   async function logout() {
     try { await request("/api/logout", {}); } finally { clearSession(); setInventory(null); setSelection(null); setError(localMode ? "reopen_connections" : "sign_in_required"); }
