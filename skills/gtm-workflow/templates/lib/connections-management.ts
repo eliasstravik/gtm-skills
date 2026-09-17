@@ -74,16 +74,16 @@ export async function changeConnection(api: Api, projectId: string, input: any) 
   }
   return { saved: true, requiresDeployment };
 }
-export async function changeAndApplyConnection(api: Api, projectId: string, input: any) {
+export async function changeAndApplyConnection(api: Api, projectId: string, input: any, origin: string) {
   applicationId(input?.id);
-  if (input.action === "apply") return { application: await applyConnections(api, projectId, input.id) };
+  if (input.action === "apply") return { application: await applyConnections(api, projectId, input.id, origin) };
   const keyChange = input.action !== "replace" || input.value !== undefined;
   if (keyChange) {
-    const deployment = await connectionDeployment(api, projectId);
+    const deployment = await connectionDeployment(api, projectId, origin);
     insist(deployment.application.state !== "applying", "application_in_progress", 409);
   }
   const result = await changeConnection(api, projectId, input);
-  const application = result.requiresDeployment ? await applyConnections(api, projectId, input.id) : undefined;
+  const application = result.requiresDeployment ? await applyConnections(api, projectId, input.id, origin) : undefined;
   return { ...result, ...(application ? { application } : {}) };
 }
 export async function connectionsManagement(req: Request, workflows: ConnectionWorkflow[], operation = "inventory") {
@@ -98,11 +98,11 @@ export async function connectionsManagement(req: Request, workflows: ConnectionW
     const api = connectionsVercel(config);
     if (req.method === "POST") {
       const input = await readJson(req, 16384);
-      const result = await changeAndApplyConnection(api, config.projectId, input);
+      const result = await changeAndApplyConnection(api, config.projectId, input, config.origin);
       return Response.json(result, { headers: connectionHeaders });
     }
     const rows = await connectionMetadata(api, config.projectId);
-    const application = await connectionDeployment(api, config.projectId).then((result) => result.application).catch(() => ({ state: "unknown" }));
+    const application = await connectionDeployment(api, config.projectId, config.origin).then((result) => result.application).catch(() => ({ state: "unknown" }));
     return Response.json({ mode: "production", canWrite: true, application,
       workflowsUrl: `${config.origin}/viewer`, vercelUrl: environmentSettingsUrl(),
       connections: connectionInventory(rows.map((row) => row.variable), [], false, Object.fromEntries(rows.map((row) => [row.variable, row.comment]))).map((entry) => ({
