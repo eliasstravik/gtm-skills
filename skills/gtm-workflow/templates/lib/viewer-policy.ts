@@ -1,4 +1,5 @@
 import { getTableColumns, getTableName } from "drizzle-orm";
+import { dataSharingIssue } from "./viewer-policy-validation.mjs";
 import { ViewerError } from "./viewer-grants";
 import type { DataPolicy } from "./viewer-contract";
 import type { WorkflowData } from "./data-api";
@@ -6,75 +7,8 @@ export function effectivePolicy(
   entry: { data: WorkflowData | null; sharePolicy: DataPolicy | null },
   tables: Record<string, any>,
 ): DataPolicy | undefined {
-  if (!entry.data || !entry.sharePolicy) return;
+  if (!entry.data || !entry.sharePolicy || dataSharingIssue(entry)) return;
   const policy = entry.sharePolicy;
-  if (!["1", "2"].includes(policy.version)) return;
-  const all = new Set([
-    ...entry.data.tables.map((t) => t.name),
-    ...(entry.data.relations ?? []).map((r) => r.through),
-  ]);
-  if (
-    policy.tables.length !== all.size ||
-    new Set(policy.tables.map((t) => t.name)).size !== all.size ||
-    policy.tables.some((t) => !all.has(t.name) || !t.row?.version)
-  )
-    return;
-  for (const view of entry.data.tables) {
-    const allowed = policy.tables.find((t) => t.name === view.name)!.columns;
-    if (
-      [
-        ...(view.defaultColumns ?? view.columns),
-        "key",
-        view.labelColumn ?? "key",
-      ].some((c) => !allowed.includes(c)) ||
-      allowed.some((c) => !view.columns.includes(c) && c !== "key")
-    )
-      return;
-    if (policy.version === "2") {
-      const shared = policy.tables.find((t) => t.name === view.name)!;
-      if (
-        JSON.stringify(shared.row) !==
-        JSON.stringify(entry.data.rowPolicies?.[view.name])
-      )
-        return;
-      if (
-        allowed.some((c) =>
-          [
-            "raw_responses_json",
-            "sources_json",
-            "provenance_json",
-            "identifiers_json",
-            "section_status_json",
-          ].includes(c),
-        )
-      )
-        return;
-      if (
-        allowed.some((c) => c.endsWith("_json") && !shared.nested?.[c]?.length)
-      )
-        return;
-    }
-  }
-  for (const relation of entry.data.relations ?? []) {
-    const edge = policy.tables.find((t) => t.name === relation.through)!;
-    if (
-      ![relation.fromColumn, relation.toColumn].every((c) =>
-        edge.columns.includes(c),
-      )
-    )
-      return;
-    if (
-      relation.reference &&
-      (policy.version !== "2" ||
-        relation.reference !== "current-experiences-v1")
-    )
-      return;
-  }
-  if (
-    JSON.stringify(policy.relations) !==
-    JSON.stringify(entry.data.relations ?? [])
-  )
-    return;
   // Physical table/column mapping is part of authorization, as well as the authored registry.
   const physical = policy.tables.map((t) => {
     const table = (tables as Record<string, any>)[t.name];

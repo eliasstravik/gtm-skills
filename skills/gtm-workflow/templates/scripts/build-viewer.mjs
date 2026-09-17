@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { registrySource } from "./viewer-registry.mjs";
 import { validateBusinessGraph } from "./business-graph.mjs";
+import { validateDataSharing } from "../lib/viewer-policy-validation.mjs";
 const out = "node_modules/.gtm-viewer";
 await mkdir(out, { recursive: true });
 // Compilation only. No server, migration, schedule registration or authored module evaluation.
@@ -56,6 +57,7 @@ const stepIds = new Set(
 );
 const registry = registrySource().map((entry) => {
   validateBusinessGraph(entry.businessGraph);
+  validateDataSharing(entry);
   const compiled =
     manifest.workflows[`workflows/${entry.source}.ts`]?.[entry.exportName];
   if (!compiled) throw Error(`No compiled workflow identity for ${entry.slug}`);

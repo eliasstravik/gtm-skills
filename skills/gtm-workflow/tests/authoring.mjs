@@ -21,6 +21,7 @@ function run(script, success = true) {
     encoding: "utf8",
   });
   assert.equal(result.status === 0, success, result.stdout + result.stderr);
+  return result.stdout + result.stderr;
 }
 try {
   for (const name of [
@@ -99,6 +100,29 @@ try {
   run("scripts/build-viewer.mjs");
   assert.equal((await registry())[0].id, id);
   assert.equal((await registry())[0].businessGraph.edges.length, 2);
+  // A real Data tab must not compile into a disabled sharing checkbox.
+  const data = {
+    tables: [{ name: "results", label: "Results", columns: ["key", "name"], labelColumn: "name" }],
+    relations: [],
+  };
+  const policy = {
+    version: "1",
+    tables: [{ id: "results-v1", name: "results", columns: ["key", "name"], row: { version: "all-v1" } }],
+    relations: [],
+  };
+  await writeFile(join(dir, "workflows/proof.data.ts"),
+    `export const data = ${JSON.stringify(data)}; export const sharePolicy = ${JSON.stringify(policy)};`);
+  const source = (includePolicy) => `import { proof } from './proof'; import { data, sharePolicy } from './proof.data'; export const workflows = { proof: { run: proof, data: data, viewer: { id: ${JSON.stringify(id)}, businessGraph: ${JSON.stringify(graph)}${includePolicy ? ", sharePolicy: sharePolicy" : ""} } } };`;
+  await writeFile(join(dir, "workflows/index.ts"), source(false));
+  assert.match(run("scripts/build-viewer.mjs", false), /proof: Add viewer.sharePolicy/);
+  await writeFile(join(dir, "workflows/index.ts"), source(true));
+  run("scripts/build-viewer.mjs");
+  assert.deepEqual((await registry())[0].sharePolicy, policy);
+  assert.equal((await registry())[0].id, id);
+  data.tables[0].columns.push("email");
+  await writeFile(join(dir, "workflows/proof.data.ts"),
+    `export const data = ${JSON.stringify(data)}; export const sharePolicy = ${JSON.stringify(policy)};`);
+  assert.match(run("scripts/build-viewer.mjs", false), /proof: Data policy columns do not match results/);
   const path = join(dir, "workflows/index.ts");
   await writeFile(
     path,
@@ -106,7 +130,7 @@ try {
   );
   run("scripts/build-viewer.mjs", false);
   console.log(
-    "Create and Update preserve identity, compile the new business branch, and reject missing metadata. No workflow executed.",
+    "Create and Update preserve identity, compile the new business branch, and reject missing or mismatched Data sharing metadata. No workflow executed.",
   );
 } finally {
   await rm(dir, { recursive: true, force: true });

@@ -143,7 +143,7 @@ export default function Sharing({ meta }: any) {
                       />
                       {name(v)}
                       {v === "data" && !policy && (
-                        <small className="muted">Unavailable</small>
+                        <small className="muted">Data sharing isn't configured</small>
                       )}
                     </label>
                   ))}
