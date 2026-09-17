@@ -30,8 +30,8 @@ export async function applyConnections(api: Api, projectId: string, id: string, 
   try {
     const deployment = await connectionDeployment(api, projectId, origin);
     const active = deployment.application;
-    if (active.state === "applying") return active;
-    if (active.id === id && active.state === "applied") return active;
+    // A retry reuses its build. A later saved key needs a fresh environment snapshot.
+    if (active.id === id && ["applying", "applied"].includes(active.state)) return active;
     const result = await api("POST", "/v13/deployments?forceNew=1", {
       name: deployment.projectName, project: projectId, deploymentId: deployment.source,
       target: "production", withLatestCommit: false, meta: { gtmConnectionsChange: id },

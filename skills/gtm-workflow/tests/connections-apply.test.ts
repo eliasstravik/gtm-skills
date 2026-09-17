@@ -51,11 +51,18 @@ test("a saved key survives update failure; Retry does not submit the key again",
   await changeAndApplyConnection(api, projectId, { action: "apply", id }, origin);
   assert.equal(writes.length, 1); assert.match(writes[0].path, /deployments/);
 });
-test("pending updates block further key writes and retries reuse them", async () => {
+test("a retry reuses its pending build; a later key change starts a fresh build", async () => {
   const { api, writes } = fixture({ latest: { uid: "dpl_new", state: "BUILDING", meta: { gtmConnectionsChange: id } } });
-  await assert.rejects(changeAndApplyConnection(api, projectId, change(), origin), /application_in_progress/);
   assert.deepEqual(await applyConnections(api, projectId, id, origin), { id, state: "applying" });
   assert.equal(writes.length, 0);
+  const nextId = "5675a4b6-6dc0-452f-a365-78cb87233cd5";
+  const result = await changeAndApplyConnection(api, projectId, { ...change(), id: nextId }, origin);
+  assert.equal(result.saved, true);
+  assert.deepEqual(result.application, { id: nextId, state: "applying" });
+  assert.equal(writes.length, 2);
+  assert.match(writes[0].path, /\/env\//);
+  assert.equal(writes[1].body.meta.gtmConnectionsChange, nextId);
+  assert.equal(writes[1].body.deploymentId, serving.id);
 });
 test("only serving READY means applied, not merely a successful build", async () => {
   for (const [uid, state, expected] of [[serving.id, "READY", "applied"], ["other", "READY", "failed"], ["other", "ERROR", "failed"], ["other", "CANCELED", "failed"], ["other", "QUEUED", "applying"]]) {
