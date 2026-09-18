@@ -52,6 +52,10 @@ export async function page() { "use step"; const client = rawClient(); try { ret
   result = check();
   assert.ok(!result.ok && /probe\/broken[\s\S]*no such table/.test(result.output), result.output);
 
+  await workflow(`export const unplanned = defineQuery({ name: "probe/unplanned", sql: "INSERT INTO profile_memberships (entity, workflow_id, entity_key) VALUES ('people', ?, ?) ON CONFLICT DO UPDATE SET workflow_id = (SELECT excluded.workflow_id FROM people LIMIT 1)", example: ["w", "k"] });`);
+  result = check();
+  assert.ok(!result.ok && /could not plan/.test(result.output), result.output);
+
   await workflow(`export async function inline() { "use step"; const client = rawClient(); return client.execute("SELECT 1"); }`);
   result = check();
   assert.ok(!result.ok && /workflows\/probe\.ts[\s\S]*defineQuery/.test(result.output), result.output);

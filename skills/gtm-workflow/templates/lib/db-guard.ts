@@ -8,10 +8,13 @@ import type { Client, InStatement, InArgs, ResultSet, Transaction, TransactionMo
 export const guardSchemaSql = `
 CREATE TABLE IF NOT EXISTS gtm_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS usage_budget (scope TEXT PRIMARY KEY, used INTEGER NOT NULL DEFAULT 0, cap INTEGER, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS settings_log (at TEXT NOT NULL, key TEXT NOT NULL, old_value TEXT NOT NULL, new_value TEXT NOT NULL, credential TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS settings_log_at ON settings_log (at);
 CREATE TABLE IF NOT EXISTS guard_log (
  kind TEXT NOT NULL, scope TEXT NOT NULL, shape TEXT NOT NULL, tables TEXT NOT NULL, would_charge INTEGER NOT NULL,
  hits INTEGER NOT NULL, first_at TEXT NOT NULL, last_at TEXT NOT NULL, PRIMARY KEY (kind, scope, shape)
-);`;
+);
+CREATE INDEX IF NOT EXISTS guard_log_last_at ON guard_log (last_at);`;
 
 /** Defaults for every owner-editable setting; a row in gtm_settings overrides one. */
 export const settingDefaults = {
@@ -33,6 +36,13 @@ export type GuardContext = { mode: GuardMode; scope: string };
 export type GuardOptions = GuardContext & {
   /** Resolved per statement; a workflow run overrides the static mode and scope. */
   resolve?: () => Promise<Partial<GuardContext> | undefined>;
+  /**
+   * Where statements are planned. The local file client never finishes an EXPLAIN statement, so a connection that
+   * plans and then reads keeps a read lock and blocks every other connection's write. A local file therefore plans
+   * on a connection of its own that reads no data (lib/db.ts). Unset plans on the client itself, which is right for
+   * Turso and for an in-memory database.
+   */
+  planner?: Pick<Client, "execute">;
   /** Shared by every client of one database in a process, so plans are made once and small charges are written together. */
   state?: GuardState;
 };
@@ -49,11 +59,14 @@ export type GuardedClient = Client & {
   setRunBudget(rows: number, scope?: string): Promise<number>;
 };
 
+/** `fatal` tells the workflow engine not to retry the step: the same statement would be refused again. */
 export class ScanRefusedError extends Error {
   override name = "ScanRefusedError";
+  fatal = true;
 }
 export class BudgetExceededError extends Error {
   override name = "BudgetExceededError";
+  fatal = true;
 }
 
 type Executor = Pick<Client, "execute">;
@@ -103,41 +116,88 @@ function outline(sql: string) {
   return { words, marks };
 }
 
+type Range = [number, number];
+type Target = { sql: string; args: InArgs | undefined };
+
+/** Parenthesised SELECTs inside a region of the statement, outermost only; strings are skipped. */
+function subselects(sql: string, [from, to]: Range): Range[] {
+  const found: Range[] = [];
+  const skipString = (i: number) => {
+    const quote = sql[i];
+    for (i++; i < to && (sql[i] !== quote || sql[i + 1] === quote); i++) if (sql[i] === quote) i++;
+    return i;
+  };
+  for (let i = from; i < to; i++) {
+    if (sql[i] === "'" || sql[i] === '"' || sql[i] === "`") i = skipString(i);
+    else if (sql[i] === "(" && /^\s*(SELECT|WITH)\b/i.test(sql.slice(i + 1, i + 40))) {
+      let depth = 1;
+      let j = i + 1;
+      for (; j < to && depth; j++) {
+        if (sql[j] === "'" || sql[j] === '"' || sql[j] === "`") j = skipString(j);
+        else if (sql[j] === "(") depth++;
+        else if (sql[j] === ")") depth--;
+      }
+      found.push([i + 1, j - 1]);
+      i = j - 1;
+    }
+  }
+  return found;
+}
+
 /**
- * What to plan for a statement. Reads plan as they are. A write plans as the read it implies, because the local
+ * What to plan for a statement. Reads plan as they are. A write plans as the reads it implies, because the local
  * client cannot finish EXPLAIN of a write inside a transaction: UPDATE and DELETE as a SELECT with their WHERE,
- * INSERT ... SELECT as its SELECT. `scanAll` names a table an UPDATE or DELETE without WHERE rewrites whole.
+ * INSERT ... SELECT as its SELECT, each with a leading WITH kept, and every subquery in the parts left out (VALUES,
+ * SET, ON CONFLICT) on its own. `scanAll` names a table an UPDATE or DELETE without WHERE rewrites whole.
  */
-export function planTarget(sql: string, args: InArgs | undefined): { sql?: string; args?: InArgs; scanAll?: string } {
+export function planTarget(sql: string, args: InArgs | undefined): { targets: Target[]; scanAll?: string } {
   const { words, marks } = outline(sql);
-  const kind = words[0]?.word;
-  const slice = (from: number, to: number, text: string) => ({
-    sql: text,
-    args: Array.isArray(args) ? args.slice(marks.filter((m) => m < from).length, marks.filter((m) => m < to).length) : args,
-  });
   const next = (names: string[], after: number) => words.find((w) => w.at > after && names.includes(w.word));
-  if (kind === "SELECT" || kind === "VALUES") return { sql, args };
-  if (kind === "WITH") return next(["INSERT", "UPDATE", "DELETE", "REPLACE"], 0) ? {} : { sql, args };
-  if (kind === "INSERT" || kind === "REPLACE") {
-    const select = next(["SELECT"], 0);
-    if (!select) return {};
-    const conflict = words.find((w, i) => w.at > select.at && w.word === "ON" && words[i + 1]?.word === "CONFLICT");
-    const end = Math.min(conflict?.at ?? sql.length, next(["RETURNING"], select.at)?.at ?? sql.length);
-    return slice(select.at, end, sql.slice(select.at, end));
-  }
-  if (kind === "UPDATE" || kind === "DELETE") {
-    const anchor = kind === "UPDATE" ? next(["SET"], 0) : next(["FROM"], 0);
-    if (!anchor) return {};
+  const pick = (text: string, ranges: Range[]): Target => ({
+    sql: text,
+    args: Array.isArray(args)
+      ? args.filter((_, i) => ranges.some(([from, to]) => marks[i] >= from && marks[i] < to))
+      : args && Object.fromEntries(Object.entries(args).filter(([name]) => new RegExp(`[:@$]${name.replace(/^[:@$]/, "")}\\b`).test(text))),
+  });
+  const first = words[0];
+  if (!first) return { targets: [] };
+  const write = first.word === "WITH" ? next(["INSERT", "UPDATE", "DELETE", "REPLACE"], 0) : first;
+  if (first.word === "SELECT" || first.word === "VALUES" || (first.word === "WITH" && !write)) return { targets: [{ sql, args }] };
+  if (!write) return { targets: [] };
+  const prefix: Range = [0, write === first ? 0 : write.at];
+  const lead = sql.slice(...prefix);
+  const targets: Target[] = [];
+  const dropped: Range[] = [];
+  let scanAll: string | undefined;
+  if (write.word === "INSERT" || write.word === "REPLACE") {
+    const select = next(["SELECT"], write.at);
+    const conflict = words.find((w, i) => w.at > (select ?? write).at && w.word === "ON" && words[i + 1]?.word === "CONFLICT");
+    const end = Math.min(conflict?.at ?? sql.length, next(["RETURNING"], (select ?? write).at)?.at ?? sql.length);
+    if (select) targets.push(pick(lead + sql.slice(select.at, end), [prefix, [select.at, end]]));
+    dropped.push([write.at, select?.at ?? end], [end, sql.length]);
+  } else if (write.word === "UPDATE" || write.word === "DELETE") {
+    const anchor = write.word === "UPDATE" ? next(["SET"], write.at) : next(["FROM"], write.at);
+    if (!anchor) return { targets: [] };
     const where = next(["WHERE"], anchor.at);
-    const rest = next(["RETURNING", "ORDER", "LIMIT"], anchor.at)?.at ?? sql.length;
-    const table = (kind === "UPDATE" ? sql.slice(words[0].at + 6, anchor.at).replace(/^\s*OR\s+\w+/i, "") : sql.slice(anchor.at + 4, where?.at ?? rest)).trim();
-    if (!where) return { scanAll: table.replace(/"/g, "").split(/\s+/)[0] };
-    const from = kind === "UPDATE" ? words.find((w) => w.at > anchor.at && w.at < where.at && w.word === "FROM") : undefined;
-    const end = next(["RETURNING", "ORDER", "LIMIT"], where.at)?.at ?? sql.length;
-    const sources = from ? `, ${sql.slice(from.at + 4, where.at)}` : "";
-    return slice(from?.at ?? where.at, end, `SELECT 1 FROM ${table}${sources} ${sql.slice(where.at, end)}`);
+    const rest = next(["RETURNING", "ORDER", "LIMIT"], (where ?? anchor).at)?.at ?? sql.length;
+    const table = (write.word === "UPDATE" ? sql.slice(write.at + 6, anchor.at).replace(/^\s*OR\s+\w+/i, "") : sql.slice(anchor.at + 4, where?.at ?? rest)).trim();
+    const from = write.word === "UPDATE" ? words.find((w) => w.at > anchor.at && w.at < (where?.at ?? rest) && w.word === "FROM") : undefined;
+    const setRegion: Range = [anchor.at, from?.at ?? where?.at ?? rest];
+    if (!where) {
+      scanAll = table.replace(/"/g, "").split(/\s+/)[0];
+      if (write.word === "UPDATE") dropped.push(setRegion);
+    } else {
+      // SET subqueries join the synthetic SELECT, so one that refers to the updated row still resolves.
+      const inSet = write.word === "UPDATE" ? subselects(sql, setRegion) : [];
+      const sources = from ? `, ${sql.slice(from.at + 4, where.at)}` : "";
+      const columns = inSet.map((r) => `, (${sql.slice(...r)})`).join("");
+      targets.push(pick(`${lead}SELECT 1${columns} FROM ${table}${sources} ${sql.slice(where.at, rest)}`, [prefix, ...inSet, [from?.at ?? where.at, rest]]));
+    }
+    dropped.push([rest, sql.length]);
   }
-  return {};
+  for (const region of dropped)
+    for (const sub of subselects(sql, region)) targets.push(pick(lead + sql.slice(...sub), [prefix, sub]));
+  return { targets, scanAll };
 }
 
 /** A full scan is any SCAN of something that is not a virtual table, a constant row or a subquery of this plan. */
@@ -155,7 +215,8 @@ export function readPlan(details: string[], sql: string): Plan {
     if (/VIRTUAL TABLE/.test(scan[2])) json = true;
     else if (!/CONSTANT ROW/.test(d) && !scan[1].startsWith("(") && !derived.has(scan[1])) scans.push(scan[1]);
   }
-  return { scans, json, offset: /\bOFFSET\b/i.test(bare(sql)) };
+  const text = bare(sql);
+  return { scans, json, offset: /\bOFFSET\b/i.test(text) || /\bLIMIT\s+[^,()\s]+\s*,/i.test(text) };
 }
 
 const capSetting = (scope: string): SettingKey | null =>
@@ -189,6 +250,7 @@ export function createGuardState() {
     tableNames: undefined as string[] | undefined,
     pendingStatements: 0,
     flushedAt: Date.now(),
+    flushing: undefined as Promise<void> | undefined,
   };
 }
 
@@ -235,8 +297,9 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
   }
   const capOf = (scope: string, s: Settings) => {
     const key = capSetting(scope);
-    const own = usage.get(scope)?.cap;
-    return own ?? (key ? Number(s[key]) : Infinity);
+    const cap = usage.get(scope)?.cap ?? (key ? Number(s[key]) : Infinity);
+    // The ceiling holds whatever was saved: a run's own cap, or a rows_per_run written above it.
+    return scope.startsWith("run:") ? Math.min(cap, Number(s.rows_per_run_ceiling)) : cap;
   };
 
   async function planOf(via: Executor, sql: string, args: InArgs | undefined): Promise<Plan> {
@@ -244,11 +307,9 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
     const known = plans.get(shape);
     if (known) return known;
     const target = planTarget(sql, args);
-    const details = target.sql
-      ? (await via.execute({ sql: `EXPLAIN QUERY PLAN ${target.sql}`, args: target.args ?? [] })).rows.map((r) => String(r.detail))
-      : target.scanAll
-        ? [`SCAN ${target.scanAll}`]
-        : [];
+    const details = target.scanAll ? [`SCAN ${target.scanAll}`] : [];
+    for (const t of target.targets)
+      details.push(...(await (options.planner ?? via).execute({ sql: `EXPLAIN QUERY PLAN ${t.sql}`, args: t.args ?? [] })).rows.map((r) => String(r.detail)));
     const plan = readPlan(details, sql);
     plans.set(shape, plan);
     return plan;
@@ -256,14 +317,20 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
 
   /** The plan prints an alias when the query has one; map it back to the table to size it and name it. */
   async function tablesOf(via: Executor, sql: string, names: string[]) {
-    state.tableNames ??= (await via.execute("SELECT name FROM sqlite_master WHERE type = 'table'")).rows.map((r) => String(r.name));
-    const real = new Set(state.tableNames);
-    const aliases = new Map<string, string>();
-    for (const m of bare(sql.replace(/"/g, "")).matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?|,\s*(\w+)\s+(?:AS\s+)?(\w+)/gi)) {
-      const [table, alias] = m[1] ? [m[1], m[2]] : [m[3], m[4]];
-      if (real.has(table)) aliases.set(alias ?? table, table).set(table, table);
-    }
-    return names.map((name) => ({ name, table: aliases.get(name) ?? (real.has(name) ? name : null) }));
+    const listTables = async () => (await via.execute("SELECT name FROM sqlite_master WHERE type = 'table'")).rows.map((r) => String(r.name));
+    const resolve = (known: string[]) => {
+      const real = new Set(known);
+      const aliases = new Map<string, string>();
+      for (const m of bare(sql.replace(/"/g, "")).matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?|,\s*(\w+)\s+(?:AS\s+)?(\w+)/gi)) {
+        const [table, alias] = m[1] ? [m[1], m[2]] : [m[3], m[4]];
+        if (real.has(table)) aliases.set(alias ?? table, table).set(table, table);
+      }
+      return names.map((name) => ({ name, table: aliases.get(name) ?? (real.has(name) ? name : null) }));
+    };
+    let resolved = resolve((state.tableNames ??= await listTables()));
+    // A table created since the list was read: read the list once more before calling a name unknown.
+    if (resolved.some((r) => !r.table)) resolved = resolve((state.tableNames = await listTables()));
+    return resolved;
   }
   async function sizeOf(via: Executor, table: string | null): Promise<number> {
     const known = table && sizes.get(table);
@@ -287,23 +354,25 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
     warnings.set(id, { kind, scope, shape, tables, charge, hits: (prior?.hits ?? 0) + 1 });
   }
 
-  async function check(via: Executor, sql: string, args: InArgs | undefined) {
-    if (SKIP.test(sql)) return undefined;
+  /**
+   * What a spent budget stops. The costly things: an agent question, a scan by someone browsing, and further reads
+   * of a run over its own budget. Never writes, never indexed reads by the runtime itself, and never a run already
+   * in flight when the workspace's day is spent (new runs are stopped where they start, in lib/spend.ts). So a
+   * spent budget cannot lock the owner out of the settings that raise it.
+   */
+  function stoppedBy(exhausted: string, context: GuardContext, scanning: boolean, write: boolean) {
+    if (context.scope.startsWith("agent")) return true;
+    if (context.scope.startsWith("browse:")) return scanning;
+    if (context.scope.startsWith("run:")) return exhausted === context.scope && !write;
+    return false;
+  }
+
+  /** Everything that can refuse a statement. Returns the violations instead of throwing, so the caller decides. */
+  async function assess(via: Executor, sql: string, args: InArgs | undefined) {
     const s = await loadSettings(via);
-    const context = { mode: options.mode, scope: options.scope, ...(await options.resolve?.()) };
-    const enforce = s.guard_mode !== "warn";
+    const context: GuardContext = { mode: options.mode, scope: options.scope, ...(await options.resolve?.()) };
     const day = `day:${today()}`;
-    await loadUsage(via, [context.scope, day]);
-    for (const scope of [context.scope, day]) {
-      const u = usage.get(scope)!;
-      const cap = capOf(scope, s);
-      if (u.used + u.pending < cap) continue;
-      const setting = scope === context.scope && u.cap != null ? "maxRowsRead" : capSetting(scope);
-      const message = `Row-read budget spent for ${scope}: ${u.used + u.pending} of ${cap} estimated rows. The workspace owner can raise "${setting}" in gtm_settings (PUT /api/settings), and a run can pass maxRowsRead up to rows_per_run_ceiling. See references/cost.md.`;
-      if (enforce) throw new BudgetExceededError(message);
-      if (!seen.has(`budget:${scope}`)) warn("budget", scope, `over ${cap}`, "", u.used + u.pending, true);
-      seen.add(`budget:${scope}`);
-    }
+    const violations: { kind: string; shape: string; tables: string; charge: number; error: Error; once?: boolean }[] = [];
     const plan = await planOf(via, sql, args);
     let scanned = 0;
     let tables = "";
@@ -313,32 +382,66 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
       for (const r of resolved) scanned += (await sizeOf(via, r.table)) * (plan.json ? JSON_FACTOR : 1);
       if (context.mode === "strict") {
         const named = resolved.map((r) => (r.table && r.table !== r.name ? `${r.table} (as ${r.name})` : (r.table ?? r.name))).join(", ");
-        const message = `Query scans ${named}. In a workflow or runtime code every query must be an index search, because Turso bills every row scanned. Use nextBatch, companiesOf or progressCounts from lib/profiles/population.ts, filter through profile_memberships or person_companies, or add an index in a migration. See references/cost.md. SQL: ${shapeOf(sql).slice(0, 300)}`;
-        if (enforce) throw new ScanRefusedError(message);
-        warn("scan", context.scope, shapeOf(sql), tables, scanned + 1);
-      } else if (scanned > Number(s.rows_per_statement)) {
-        const message = `This statement would scan about ${scanned} rows of ${tables}, above rows_per_statement (${s.rows_per_statement}). Filter through an indexed column, profile_memberships or person_companies, or ask the workspace owner to raise rows_per_statement in gtm_settings. See references/cost.md.`;
-        if (enforce) throw new BudgetExceededError(message);
-        warn("statement", context.scope, shapeOf(sql), tables, scanned);
-      }
+        violations.push({ kind: "scan", shape: shapeOf(sql), tables, charge: scanned + 1, error: new ScanRefusedError(`Query scans ${named}. In a workflow or runtime code every query must be an index search, because Turso bills every row scanned. Use nextBatch, companiesOf or progressCounts from lib/profiles/population.ts, filter through profile_memberships or person_companies, or add an index in a migration. See references/cost.md. SQL: ${shapeOf(sql).slice(0, 300)}`) });
+      } else if (scanned > Number(s.rows_per_statement))
+        violations.push({ kind: "statement", shape: shapeOf(sql), tables, charge: scanned, error: new BudgetExceededError(`This statement would scan about ${scanned} rows of ${tables}, above rows_per_statement (${s.rows_per_statement}). Filter through an indexed column, profile_memberships or person_companies, or ask the workspace owner to raise rows_per_statement in gtm_settings. See references/cost.md.`) });
     }
-    if (plan.offset && context.mode === "strict") {
-      const message = `OFFSET paging re-reads every skipped row on each page. Page by key instead (WHERE key > ? ORDER BY key LIMIT ?), or use nextBatch from lib/profiles/population.ts. SQL: ${shapeOf(sql).slice(0, 300)}`;
-      if (enforce) throw new ScanRefusedError(message);
-      warn("offset", context.scope, shapeOf(sql), tables, 0);
+    if (plan.offset && context.mode === "strict")
+      violations.push({ kind: "offset", shape: shapeOf(sql), tables, charge: 0, error: new ScanRefusedError(`OFFSET paging re-reads every skipped row on each page (LIMIT offset, count is the same). Page by key instead (WHERE key > ? ORDER BY key LIMIT ?), or use nextBatch from lib/profiles/population.ts. SQL: ${shapeOf(sql).slice(0, 300)}`) });
+    await loadUsage(via, [context.scope, day]);
+    const write = /^\s*(?:WITH\b[\s\S]*?\)\s*)?(INSERT|UPDATE|DELETE|REPLACE)\b/i.test(sql);
+    for (const scope of [context.scope, day]) {
+      const u = usage.get(scope)!;
+      const cap = capOf(scope, s);
+      if (u.used + u.pending < cap || !stoppedBy(scope, context, plan.scans.length > 0, write)) continue;
+      const setting = scope === context.scope && u.cap != null ? "maxRowsRead" : capSetting(scope);
+      violations.push({ kind: "budget", shape: `over ${cap}`, tables: "", charge: u.used + u.pending, once: true, error: new BudgetExceededError(`Row-read budget spent for ${scope}: ${u.used + u.pending} of ${cap} estimated rows. The workspace owner can raise "${setting}" in gtm_settings (PUT /api/settings), and a run can pass maxRowsRead up to rows_per_run_ceiling. See references/cost.md.`) });
     }
-    return { scanned, scopes: [context.scope, day] };
+    return { context, enforce: s.guard_mode !== "warn", violations, scanned, scopes: [context.scope, day] };
+  }
+
+  /**
+   * An error inside the guard itself (the planner, a settings read, a mis-rewritten write) never breaks the
+   * statement, in warn or enforce mode: it is recorded as `internal` in guard_log and the statement runs unchecked.
+   * The build's query check is the enforcing gate; the guard must not become an outage of its own.
+   */
+  async function check(via: Executor, sql: string, args: InArgs | undefined) {
+    if (SKIP.test(sql)) return undefined;
+    let assessed: Awaited<ReturnType<typeof assess>>;
+    try {
+      assessed = await assess(via, sql, args);
+    } catch (error) {
+      warn("internal", options.scope, `${error instanceof Error ? error.message : String(error)} :: ${shapeOf(sql)}`.slice(0, 500), "", 0);
+      state.pendingStatements++;
+      return undefined;
+    }
+    for (const v of assessed.violations) {
+      if (assessed.enforce) throw v.error;
+      warn(v.kind, assessed.context.scope, v.shape, v.tables, v.charge, v.once);
+    }
+    return { scanned: assessed.scanned, scopes: assessed.scopes };
   }
 
   function charge(checked: Awaited<ReturnType<typeof check>>, result: ResultSet) {
     if (!checked) return;
     // Never zero: an empty lookup still costs a round trip, and a loop of them must still run into its budget.
     lastCharge = Math.max(1, checked.scanned + result.rows.length);
-    for (const scope of checked.scopes) usage.get(scope)!.pending += lastCharge;
+    for (const scope of checked.scopes) {
+      // Another client's flush may have pruned the scope while this statement ran.
+      const u = usage.get(scope) ?? { used: 0, pending: 0, cap: null };
+      u.pending += lastCharge;
+      usage.set(scope, u);
+    }
     state.pendingStatements++;
   }
 
-  async function flush() {
+  /** One flush at a time per database: two connections writing at once collide on a local file. */
+  function flush(): Promise<void> {
+    const run = (state.flushing ?? Promise.resolve()).catch(() => undefined).then(writePending);
+    state.flushing = run;
+    return run;
+  }
+  async function writePending() {
     if (openTransactions) return;
     const now = new Date().toISOString();
     for (const [scope, u] of usage) {

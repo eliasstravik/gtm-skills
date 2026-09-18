@@ -42,6 +42,7 @@ try {
     stdin: {
       contents: `import "./workflows/index";
 export { definedQueries } from "./lib/query";
+export { flushGuard } from "./lib/db";
 export { ledgerSchemaSql } from "./lib/profiles/ledger";
 export { migrateProfileLookups } from "./lib/profiles/migrate";
 export { resolveIdentity, applyEvidence } from "./lib/profiles/store";`,
@@ -56,7 +57,7 @@ export { resolveIdentity, applyEvidence } from "./lib/profiles/store";`,
     alias: { "#viewer-registry": "./node_modules/.gtm-viewer/registry.json" },
     logLevel: "silent",
   });
-  const { definedQueries, ledgerSchemaSql, migrateProfileLookups, resolveIdentity, applyEvidence } = await import(`file://${outfile}?${Date.now()}`);
+  const { definedQueries, flushGuard, ledgerSchemaSql, migrateProfileLookups, resolveIdentity, applyEvidence } = await import(`file://${outfile}?${Date.now()}`);
 
   // The real schema: Drizzle migrations, then the operational and lookup tables, as the build applies them.
   const client = createClient({ url });
@@ -91,6 +92,14 @@ export { resolveIdentity, applyEvidence } from "./lib/profiles/store";`,
       failures.push(`${query.name}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+  // At run time a statement the guard cannot plan still runs, so the guard is never an outage. Here it fails the
+  // build: an unplanned query is an unchecked query.
+  await flushGuard();
+  const reader = createClient({ url });
+  const unplanned = await reader.execute("SELECT shape FROM guard_log WHERE kind = 'internal'");
+  reader.close();
+  for (const row of unplanned.rows)
+    failures.push(`The guard could not plan a statement, so it cannot be checked: ${row.shape}. Simplify it, or split the subquery into its own defineQuery.`);
   if (failures.length) {
     console.error(`Query check failed (${failures.length}):\n\n${failures.map((f) => `- ${f}`).join("\n\n")}\n`);
     process.exitCode = 1;

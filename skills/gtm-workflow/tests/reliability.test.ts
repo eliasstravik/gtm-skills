@@ -350,7 +350,7 @@ test("row failures persist actual fetch cause and workflow ID without copying re
       estimateUsd: 0,
       freshForMs: 0,
       read: async () => [],
-      budgets: { begin: async () => undefined, record: async () => undefined },
+      budgets: { begin: async () => undefined, reserve: async () => true, settle: async () => undefined },
       save: async (_table, row) => {
         saved.push(row);
       },

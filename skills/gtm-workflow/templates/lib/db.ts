@@ -28,6 +28,10 @@ async function runContext(): Promise<Partial<GuardContext> | undefined> {
 /** One per process: every client reads the same database, so plans and pending charges are shared. */
 const guardState = createGuardState();
 
+/** A local file plans on its own connection (see GuardOptions.planner); Turso plans on the client itself. */
+let planner: ReturnType<typeof createClient> | undefined;
+const plannerFor = (c: { url: string }) => (c.url.startsWith("file:") ? (planner ??= createClient(c)) : undefined);
+
 /** Who a route-side client reads for. Only an entry point a person or the hosted agent drives may ask for this. */
 export type ClientUse = { interactive: "agent" | "browse"; conversation?: string | null };
 
@@ -47,13 +51,24 @@ export function rawClient(use?: ClientUse): GuardedClient {
       : conversation
         ? `agent:${conversation}`
         : `agent-day:${day}`;
-  return guard(createClient(credentials()), { mode: use ? "interactive" : "strict", scope, resolve: runContext, state: guardState });
+  const to = credentials();
+  return guard(createClient(to), { mode: use ? "interactive" : "strict", scope, resolve: runContext, state: guardState, planner: plannerFor(to) });
 }
 
 let instance: ReturnType<typeof drizzle<typeof tables>> | undefined;
 /** Local: file:./data/gtm.db. Vercel: Turso. Call only inside "use step" functions. */
 export function db() {
   return (instance ??= drizzle(rawClient(), { schema: tables }));
+}
+
+/** Write the charges and guard_log rows this process still holds; the build's query check reads them back. */
+export async function flushGuard(): Promise<void> {
+  const client = rawClient();
+  try {
+    await client.flush();
+  } finally {
+    client.close();
+  }
 }
 
 /** Give this run its own row-read budget, clamped to rows_per_run_ceiling. Returns the cap applied. */

@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Client, Transaction } from "@libsql/client";
 import { transaction, sanitize } from "./store";
 import { guardSchemaSql } from "../db-guard";
-import { chargeSpendMicro, spendFits } from "../spend";
+import { assertRunMayStart, chargeSpendMicro, spendFits } from "../spend";
 
 /** Includes the guard's tables: the day's paid-call cap is read from gtm_settings and kept in usage_budget. */
 export const ledgerSchemaSql = `${guardSchemaSql}
@@ -110,6 +110,8 @@ export async function beginRun(
       });
     } else {
       if (options.resume) throw new Error("Unknown saved run");
+      // A new run does not start once the day's paid-call cap or row-read budget is used up; a resume may finish.
+      await assertRunMayStart(tx);
       await tx.execute({
         sql: "INSERT INTO profile_runs (id,workflow_id,owner,lease_until,state,budget_micro,input_json,omitted,created_at) VALUES (?,?,?,?,'running',?,?,?,?)",
         args: [
@@ -192,7 +194,7 @@ export async function reserve(
     )
       return { status: "budget_deferred" as const };
     // The run's own budget bounds one run; spend_usd_per_day bounds the workspace across runs.
-    if (!(await spendFits(tx, amount)).fits)
+    if (!(await spendFits(tx, amount + Number(run.reserved_micro))).fits)
       return { status: "budget_deferred" as const };
     const id = randomUUID();
     await tx.execute({
