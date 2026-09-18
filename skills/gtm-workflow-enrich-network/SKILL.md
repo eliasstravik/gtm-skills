@@ -28,7 +28,7 @@ The user supplies or chooses the source and enrichment access. The agent inspect
 3. Inspect the chosen services' current documentation, accepted identifiers, current-employment fields, company identifiers, prices, pagination, and authentication. Discover endpoints at build time and use plain provider-call steps at run time when the sequence is known. An aggregator uses its own documented API and credentials. A connected tool in the conversational agent does not establish that the workflow project has the required credentials.
 4. State the resolved behavior in one sentence: source, people and company enrichment, all confirmed current roles, shared People and Companies, and the run caps. Ask only for missing choices that change the result, one question at a time. Do not ask for an ICP or persona for enrichment alone. Use `gtm-workflow` for creation and its usual run decisions.
 5. Build the [recipe](references/recipe.md): durable input, enriched people, deduplicated company enrichment, employment history on each person, and both browsing directions using `gtm-workflow`'s [linked data viewer](../gtm-workflow/references/linked-data.md). Keep every returned role. Only confirmed current roles drive company enrichment.
-6. Before a paid run, check the entire source → people → companies cost and credentials through `gtm-workflow`. A one-person test includes that person's selected current employers, within one shared budget. Validate with [the acceptance cases](references/acceptance.md), then report separate people/company outcomes and total spend.
+6. Before a paid run, check the entire source → people → companies cost and credentials through `gtm-workflow`. Apply its [cost-aware design](../gtm-workflow/references/cost.md). Resolve identities with `lib/profiles/store.ts`, never custom JSON matching. Load the people and company population once per run, paging by key. Include rows read in the estimate. A one-person test includes that person's selected current employers, within one shared budget. Validate with [the acceptance cases](references/acceptance.md), then report separate people/company outcomes and total spend.
 
 ## Outputs
 
@@ -49,6 +49,7 @@ A saved workflow using the workspace-wide People and Companies tables, a diagram
 - Every returned role survives. Distinct confirmed current companies share one work list and budget; there is no role cap.
 - One company shared by multiple people has one identity and one paid lookup per freshness period, including across chunks and overlapping runs.
 - A failed company lookup can resume without re-enriching the person; failed refreshes preserve the last successful profile and relationships.
+- The [cost review](../gtm-workflow/references/cost.md#review-check) passed: no per-person or per-company query scans People or Companies.
 - Both browsing directions, source restartability, cost bounds, and the acceptance cases are verified before claiming the workflow works.
 
 ## References
