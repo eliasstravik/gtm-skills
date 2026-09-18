@@ -33,10 +33,14 @@ export type GuardContext = { mode: GuardMode; scope: string };
 export type GuardOptions = GuardContext & {
   /** Resolved per statement; a workflow run overrides the static mode and scope. */
   resolve?: () => Promise<Partial<GuardContext> | undefined>;
+  /** Shared by every client of one database in a process, so plans are made once and small charges are written together. */
+  state?: GuardState;
 };
 export type GuardedClient = Client & {
-  /** Write pending charges and warnings now; call before closing a short-lived client. */
+  /** Write pending charges and warnings now; a route calls it before it answers. */
   flush(): Promise<void>;
+  /** Write them only once enough has gathered; what a short-lived client does when it closes. */
+  settle(): Promise<void>;
   /** Estimated rows the last statement was charged. */
   lastCharge(): number;
   /** Rows used and the cap for a scope, as last seen. */
@@ -167,21 +171,35 @@ const capSetting = (scope: string): SettingKey | null =>
             ? "rows_per_day_workspace"
             : null;
 
+export type GuardState = ReturnType<typeof createGuardState>;
+/**
+ * What clients of one database share in a process: plans, table sizes, settings, and charges not yet written. A
+ * step opens a client, runs a few statements and closes it; without this each would plan again and write its own
+ * budget rows. At most one flush threshold of charges is lost when a server instance is frozen.
+ */
+export function createGuardState() {
+  return {
+    plans: new Map<string, Plan>(),
+    sizes: new Map<string, { rows: number; at: number }>(),
+    usage: new Map<string, Usage>(),
+    warnings: new Map<string, Warning>(),
+    seen: new Set<string>(),
+    settings: undefined as Settings | undefined,
+    settingsAt: 0,
+    tableNames: undefined as string[] | undefined,
+    pendingStatements: 0,
+    flushedAt: Date.now(),
+  };
+}
+
 export function guard(inner: Client, options: GuardOptions): GuardedClient {
-  const plans = new Map<string, Plan>();
-  const sizes = new Map<string, { rows: number; at: number }>();
-  const usage = new Map<string, Usage>();
-  const warnings = new Map<string, Warning>();
-  let settings: Settings | undefined;
-  let settingsAt = 0;
-  let tableNames: string[] | undefined;
+  const state = options.state ?? createGuardState();
+  const { plans, sizes, usage, warnings, seen } = state;
   let openTransactions = 0;
-  let pendingStatements = 0;
-  let flushedAt = Date.now();
   let lastCharge = 0;
 
   async function loadSettings(via: Executor): Promise<Settings> {
-    if (settings && Date.now() - settingsAt < SETTINGS_TTL_MS) return settings;
+    if (state.settings && Date.now() - state.settingsAt < SETTINGS_TTL_MS) return state.settings;
     let rows: ResultSet["rows"];
     try {
       rows = (await via.execute("SELECT key, value FROM gtm_settings")).rows;
@@ -191,10 +209,11 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
       for (const statement of guardSchemaSql.split(";").filter((s) => s.trim())) await via.execute(statement).catch(() => undefined);
       rows = [];
     }
-    settings = { ...settingDefaults };
+    const settings: Settings = { ...settingDefaults };
     for (const row of rows)
       if (Object.hasOwn(settingDefaults, String(row.key))) settings[String(row.key) as SettingKey] = String(row.value);
-    settingsAt = Date.now();
+    state.settings = settings;
+    state.settingsAt = Date.now();
     return settings;
   }
 
@@ -237,8 +256,8 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
 
   /** The plan prints an alias when the query has one; map it back to the table to size it and name it. */
   async function tablesOf(via: Executor, sql: string, names: string[]) {
-    tableNames ??= (await via.execute("SELECT name FROM sqlite_master WHERE type = 'table'")).rows.map((r) => String(r.name));
-    const real = new Set(tableNames);
+    state.tableNames ??= (await via.execute("SELECT name FROM sqlite_master WHERE type = 'table'")).rows.map((r) => String(r.name));
+    const real = new Set(state.tableNames);
     const aliases = new Map<string, string>();
     for (const m of bare(sql.replace(/"/g, "")).matchAll(/\b(?:FROM|JOIN|UPDATE|INTO)\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?|,\s*(\w+)\s+(?:AS\s+)?(\w+)/gi)) {
       const [table, alias] = m[1] ? [m[1], m[2]] : [m[3], m[4]];
@@ -267,7 +286,6 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
     if (prior && once) return;
     warnings.set(id, { kind, scope, shape, tables, charge, hits: (prior?.hits ?? 0) + 1 });
   }
-  const seen = new Set<string>();
 
   async function check(via: Executor, sql: string, args: InArgs | undefined) {
     if (SKIP.test(sql)) return undefined;
@@ -317,7 +335,7 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
     // Never zero: an empty lookup still costs a round trip, and a loop of them must still run into its budget.
     lastCharge = Math.max(1, checked.scanned + result.rows.length);
     for (const scope of checked.scopes) usage.get(scope)!.pending += lastCharge;
-    pendingStatements++;
+    state.pendingStatements++;
   }
 
   async function flush() {
@@ -327,10 +345,15 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
       if (!u.pending) continue;
       const pending = u.pending;
       u.pending = 0;
-      const saved = await inner.execute({
-        sql: "INSERT INTO usage_budget (scope, used, cap, updated_at) VALUES (?,?,NULL,?) ON CONFLICT(scope) DO UPDATE SET used = used + excluded.used, updated_at = excluded.updated_at RETURNING used, cap",
-        args: [scope, pending, now],
-      });
+      const saved = await inner
+        .execute({
+          sql: "INSERT INTO usage_budget (scope, used, cap, updated_at) VALUES (?,?,NULL,?) ON CONFLICT(scope) DO UPDATE SET used = used + excluded.used, updated_at = excluded.updated_at RETURNING used, cap",
+          args: [scope, pending, now],
+        })
+        .catch((error) => {
+          u.pending += pending;
+          throw error;
+        });
       u.used = Number(saved.rows[0].used);
       u.cap = saved.rows[0].cap == null ? null : Number(saved.rows[0].cap);
     }
@@ -340,12 +363,14 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
         args: [w.kind, w.scope, w.shape.slice(0, 2000), w.tables, w.charge, w.hits, now, now],
       });
     warnings.clear();
-    pendingStatements = 0;
-    flushedAt = Date.now();
+    // Finished runs and past days: nothing pending, so they can be read again if they return.
+    if (usage.size > 500) for (const [scope, u] of usage) if (!u.pending) usage.delete(scope);
+    state.pendingStatements = 0;
+    state.flushedAt = Date.now();
   }
   async function maybeFlush() {
     const rows = [...usage.values()].reduce((n, u) => Math.max(n, u.pending), 0);
-    if (rows >= FLUSH_ROWS || pendingStatements >= FLUSH_STATEMENTS || (pendingStatements && Date.now() - flushedAt > FLUSH_MS))
+    if (rows >= FLUSH_ROWS || state.pendingStatements >= FLUSH_STATEMENTS || (state.pendingStatements && Date.now() - state.flushedAt > FLUSH_MS))
       await flush().catch(() => undefined);
   }
 
@@ -425,11 +450,10 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
     },
     /** Short-lived clients are closed without awaiting; pending charges are written first. */
     close() {
-      void flush()
-        .catch(() => undefined)
-        .finally(() => inner.close());
+      void maybeFlush().finally(() => inner.close());
     },
     flush,
+    settle: maybeFlush,
     lastCharge: () => lastCharge,
     async budget(scope?: string) {
       const s = await loadSettings(inner);

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createClient, type Client } from "@libsql/client";
 import {
   guard,
+  createGuardState,
   guardSchemaSql,
   ScanRefusedError,
   BudgetExceededError,
@@ -200,4 +201,31 @@ test("the guard's own bookkeeping never counts as a scan and plans are cached pe
   await db.execute({ sql: "SELECT key FROM people WHERE key IN (?,?)", args: ["p001", "p002"] });
   await db.execute({ sql: "SELECT key FROM people WHERE key IN (?,?,?)", args: ["p001", "p002", "p003"] });
   assert.equal(explains, 1);
+});
+
+test("clients that share state plan a statement once and write small charges together, not per client", async () => {
+  const inner = await database();
+  const state = createGuardState();
+  let explains = 0;
+  let budgetWrites = 0;
+  const execute = inner.execute.bind(inner);
+  inner.execute = ((statement: never) => {
+    const sql = typeof statement === "string" ? statement : (statement as { sql: string }).sql;
+    if (/^EXPLAIN/.test(sql)) explains++;
+    if (/^INSERT INTO usage_budget/.test(sql)) budgetWrites++;
+    return execute(statement);
+  }) as typeof inner.execute;
+  for (let i = 0; i < 10; i++) {
+    const db = guard(inner, { mode: "strict", scope: "run:shared", state });
+    await db.execute({ sql: "SELECT key FROM people WHERE key = ?", args: [`p00${i}`] });
+    // A short-lived client closes without awaiting; the test must not close the shared in-memory database.
+    await db.settle();
+  }
+  assert.equal(explains, 1);
+  assert.equal(budgetWrites, 0);
+  const last = guard(inner, { mode: "strict", scope: "run:shared", state });
+  assert.deepEqual(await last.budget(), { scope: "run:shared", used: 10, cap: 200000 });
+  await last.flush();
+  assert.equal(budgetWrites, 2);
+  assert.equal((await inner.execute("SELECT used FROM usage_budget WHERE scope = 'run:shared'")).rows[0].used, 10);
 });

@@ -2,7 +2,7 @@ import { createClient } from "@libsql/client";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { tables } from "../db/tables";
-import { guard, type GuardContext, type GuardedClient } from "./db-guard";
+import { createGuardState, guard, type GuardContext, type GuardedClient } from "./db-guard";
 
 export type TableName = keyof typeof tables;
 
@@ -25,6 +25,9 @@ async function runContext(): Promise<Partial<GuardContext> | undefined> {
   }
 }
 
+/** One per process: every client reads the same database, so plans and pending charges are shared. */
+const guardState = createGuardState();
+
 /** Who a route-side client reads for. Only an entry point a person or the hosted agent drives may ask for this. */
 export type ClientUse = { interactive: "agent" | "browse"; conversation?: string | null };
 
@@ -44,7 +47,7 @@ export function rawClient(use?: ClientUse): GuardedClient {
       : conversation
         ? `agent:${conversation}`
         : `agent-day:${day}`;
-  return guard(createClient(credentials()), { mode: use ? "interactive" : "strict", scope, resolve: runContext });
+  return guard(createClient(credentials()), { mode: use ? "interactive" : "strict", scope, resolve: runContext, state: guardState });
 }
 
 let instance: ReturnType<typeof drizzle<typeof tables>> | undefined;

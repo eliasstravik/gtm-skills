@@ -299,6 +299,8 @@ async function recordSpend(usd: number): Promise<void> {
   const client = rawClient();
   try {
     await chargeSpend(client, usd);
+    // The end of the run: write whatever row-read charges this process still holds.
+    await client.flush();
   } finally {
     client.close();
   }
