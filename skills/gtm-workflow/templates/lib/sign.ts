@@ -24,6 +24,16 @@ export function verifyLink(slug: string, token: string | null): boolean {
   return Boolean(exp && sig) && exp > Date.now() && same(sig, mac(slug, exp));
 }
 
+/**
+ * The workspace owner, on top of the bearer: header x-gtm-owner-secret equal to GTM_OWNER_SECRET. The hosted agent
+ * holds the bearer but never this secret, so it cannot switch off the controls that limit it. Unset means no request
+ * is the owner, and owner-only settings change through SQL alone.
+ */
+export function ownerOk(req: Request): boolean {
+  const secret = process.env.GTM_OWNER_SECRET;
+  return Boolean(secret) && same(req.headers.get("x-gtm-owner-secret") ?? "", secret as string);
+}
+
 /** Bearer GTM_RUN_SECRET; the cron GET also accepts CRON_SECRET, which Vercel Cron sends. */
 export function bearerOk(req: Request, allowCron = false): boolean {
   const given = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";

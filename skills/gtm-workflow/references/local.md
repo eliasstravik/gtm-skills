@@ -25,7 +25,8 @@ Keep ordinary settings such as `GTM_MODEL`, `GTM_REASONING`, `GTM_AGENT_BACKEND`
 ## Data
 
 - Local runs always use `file:./data/gtm.db`. Read it with `npm run db:studio` or a one-off `@libsql/client` query from `workflows/`.
-- Hosted data: `POST GTM_WORKFLOW_URL/api/query` with the bearer and `{ "sql": "select … limit 50", "args": [] }` returns `{ columns, rows, truncated }`; one read-only statement, 1,000 rows at most. Local and hosted data never merge.
+- Hosted data: `POST GTM_WORKFLOW_URL/api/query` with the bearer and `{ "sql": "select … limit 50", "args": [] }` returns `{ columns, rows, truncated }`; one read-only statement, 1,000 rows at most, charged to a row-read budget (`usage` in the response; [cost-aware design](cost.md)). Local and hosted data never merge.
+- Before a push, `npm run check:queries` runs the build's query check: every registered workflow query against a seeded database, failing on a table scan.
 - Runs live only in the engine; `npx workflow inspect runs` lists them.
 
 ## Schedules

@@ -158,7 +158,13 @@ const startup=await settings();const result=await runRows({rows:[{key:'fixture'}
     const rows = await client.execute(
       "SELECT error FROM example_scores WHERE key='fixture'",
     );
+    // Inside a real run the guard charges that run's own row-read budget.
+    const charged = await client.execute({
+      sql: "SELECT used FROM usage_budget WHERE scope = ?",
+      args: ["run:" + id],
+    });
     client.close();
+    assert.ok(Number(charged.rows[0]?.used) > 0, "the run must be charged for the rows it read");
     console.log(rows.rows);
     const diagnostic = JSON.parse(String(rows.rows[0].error));
     assert.equal(diagnostic.layer, "mcp_transport");

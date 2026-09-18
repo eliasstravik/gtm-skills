@@ -53,6 +53,7 @@ jobs:
       - run: node skills/gtm-workflow/tests/reliability-e2e.mjs skills/gtm-workflow/templates
       - run: node skills/gtm-workflow/tests/authoring.mjs skills/gtm-workflow/templates
       - run: node skills/gtm-workflow/tests/empty-workspace.mjs skills/gtm-workflow/templates
+      - run: node skills/gtm-workflow/tests/query-check.mjs skills/gtm-workflow/templates
       - run: npm run build
         working-directory: skills/gtm-workflow/templates
       - run: npm install --global agent-browser@0.34.0

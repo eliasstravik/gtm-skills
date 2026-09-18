@@ -1,6 +1,6 @@
 {
   "name": "gtm-workflows",
-  "version": "0.1.57",
+  "version": "0.1.58",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,7 +8,8 @@
   },
   "scripts": {
     "dev": "node scripts/local-launch.mjs dev",
-    "build": "node scripts/build-viewer.mjs && drizzle-kit migrate && node scripts/profile-migrate.mjs && node scripts/viewer-migrate.mjs && nitro build",
+    "build": "node scripts/build-viewer.mjs && drizzle-kit migrate && node scripts/profile-migrate.mjs && node scripts/viewer-migrate.mjs && node scripts/check-queries.mjs && nitro build",
+    "check:queries": "node scripts/check-queries.mjs",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
     "viewer": "node scripts/local-launch.mjs viewer",

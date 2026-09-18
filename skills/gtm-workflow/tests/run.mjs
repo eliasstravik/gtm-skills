@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Run from any checkout with an installed workflow runtime: node tests/run.mjs /path/to/workflows
+// Run from any checkout with an installed workflow runtime: node tests/run.mjs /path/to/workflows [name,name]
 import { mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -13,7 +13,11 @@ const { build } = require("esbuild");
 const dir = await mkdtemp(join(tmpdir(), "gtm-data-tests-"));
 try {
   await symlink(join(runtime, "node_modules"), join(dir, "node_modules"));
+  const only = process.argv[3]?.split(",");
   for (const name of [
+    "db-guard",
+    "population",
+    "budget",
     "profiles",
     "business",
     "linked-data",
@@ -27,7 +31,7 @@ try {
     "connections-management",
     "connections-platform",
     "connections-apply",
-  ]) {
+  ].filter((n) => !only || only.includes(n))) {
     const outfile = join(dir, `${name}.test.mjs`);
     await build({
       entryPoints: [

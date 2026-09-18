@@ -3,7 +3,8 @@ import { cache as cacheTable } from "../db/tables/cache";
 import { defineHook, getWorkflowMetadata, setAttributes } from "workflow";
 import { resumeHook, start } from "workflow/api";
 import { z } from "zod";
-import { db, table, upsert, type TableName } from "./db";
+import { db, rawClient, table, upsert, type TableName } from "./db";
+import { assertRunMayStart, reserveSpend, settleSpend } from "./spend";
 import { canNotify, notify, type SlackTarget } from "./notify";
 import { rowFailure } from "./failure";
 
@@ -14,7 +15,7 @@ export type RunResult = {
   failed: number;
   skipped: number;
   spentUsd: number;
-  stopReason: "complete" | "maxRows" | "maxSpendUsd";
+  stopReason: "complete" | "maxRows" | "maxSpendUsd" | "daySpendCap";
 };
 
 /** Keys whose row is fresh: updated_at within freshForMs and error null. */
@@ -62,6 +63,8 @@ export type RowsInput = {
   rows?: Row[];
   maxRows?: number;
   maxSpendUsd?: number;
+  /** A deliberately large run raises its own row-read budget: estimated rows, clamped to rows_per_run_ceiling (references/cost.md). */
+  maxRowsRead?: number;
   notify?: { channelId: string };
   parent?: string;
 };
@@ -89,9 +92,12 @@ export type RunRowsOptions = {
   step: (row: Row) => Promise<StepResult>;
   read?: typeof readFresh;
   save?: typeof saveRow;
+  budgets?: { begin: typeof beginBudgets; reserve: typeof reserveDaySpend; settle: typeof settleDaySpend };
   /** Counts attempted rows after freshness skipping. */
   maxRows: number;
   maxSpendUsd: number;
+  /** This run's row-read budget; defaults to `fanOut.input.maxRowsRead`, else rows_per_run in gtm_settings. */
+  maxRowsRead?: number;
   estimateUsd: number;
   concurrency?: number;
   freshForMs: number;
@@ -114,13 +120,15 @@ const childHook = defineHook({
     failed: z.number(),
     skipped: z.number(),
     spentUsd: z.number(),
-    stopReason: z.enum(["complete", "maxRows", "maxSpendUsd"]),
+    stopReason: z.enum(["complete", "maxRows", "maxSpendUsd", "daySpendCap"]),
   }),
 });
 
 /** Workflow-scope loop, never a step: skips fresh keys, checks both caps before each batch, runs step(row) per row, persists through save. */
 export async function runRows(o: RunRowsOptions): Promise<RunResult> {
   await tagRun(o);
+  const budgets = o.budgets ?? { begin: beginBudgets, reserve: reserveDaySpend, settle: settleDaySpend };
+  await budgets.begin(o.maxRowsRead ?? o.fanOut?.input.maxRowsRead ?? null);
   const read = o.read ?? readFresh;
   const save = o.save ?? saveRow;
   const concurrency = o.concurrency ?? 1;
@@ -150,6 +158,10 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
     return summed;
   }
 
+  // Spend is taken out of the day's cap before it is paid, a few rows ahead, so parallel runs cannot each see room.
+  let reservedUsd = 0;
+  let outstandingUsd = 0;
+  try {
   for (let i = 0; i < pending.length;) {
     const attempted = result.done + result.failed;
     if (attempted >= o.maxRows) {
@@ -163,6 +175,17 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
     if (result.spentUsd + batch.length * o.estimateUsd > o.maxSpendUsd) {
       result.stopReason = "maxSpendUsd";
       break;
+    }
+    if (o.estimateUsd > 0 && result.spentUsd + batch.length * o.estimateUsd > reservedUsd) {
+      const ahead = round(Math.min(Math.max(RESERVE_ROWS, batch.length), pending.length - i) * o.estimateUsd);
+      // What the run holds unpaid after this reservation; a run that dies gives exactly this back.
+      const holding = round(reservedUsd + ahead - result.spentUsd);
+      if (!(await budgets.reserve(ahead, holding))) {
+        result.stopReason = "daySpendCap";
+        break;
+      }
+      reservedUsd = round(reservedUsd + ahead);
+      outstandingUsd = holding;
     }
     i += batch.length;
     const outcomes = await Promise.allSettled(
@@ -203,6 +226,10 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
       }
     }
   }
+  } finally {
+    // Also when the run throws midway: what it paid still counts against the day, and the rest is given back.
+    await budgets.settle({ reservedUsd, spentUsd: round(result.spentUsd), outstandingUsd });
+  }
   if (o.notify?.every === "chunk" && lines.length > 0)
     await post(o.notify.target, clip(lines));
   if (o.notify?.every === "run" && !isChild)
@@ -233,7 +260,7 @@ async function postSummary(n: RowsNotify, r: RunResult): Promise<void> {
   const stopped =
     r.stopReason === "complete"
       ? ""
-      : `; stopped at the ${r.stopReason === "maxRows" ? "row" : "spend"} cap`;
+      : `; stopped at the ${r.stopReason === "maxRows" ? "row" : r.stopReason === "daySpendCap" ? "workspace's daily spend" : "spend"} cap`;
   await post(
     n.target,
     `${workflowSlug()}: ${r.done} done, ${r.failed} failed, ${r.skipped} fresh${stopped}; $${r.spentUsd.toFixed(2)}.`,
@@ -271,6 +298,46 @@ async function tagRun(o: RunRowsOptions): Promise<void> {
   });
 }
 
+/** How many rows' estimates a run reserves from the day's paid-call cap at a time. */
+const RESERVE_ROWS = 25;
+
+/** A run's own row-read budget when it asked for one, and a stop before anything is paid when the day is used up. */
+async function beginBudgets(maxRowsRead: number | null): Promise<void> {
+  "use step";
+  const client = rawClient();
+  try {
+    if (maxRowsRead != null) await client.setRunBudget(maxRowsRead);
+    await assertRunMayStart(client);
+  } finally {
+    client.close();
+  }
+}
+beginBudgets.maxRetries = 0;
+
+/** False when spend_usd_per_day has no room for it; the run stops with stopReason "daySpendCap". */
+async function reserveDaySpend(usd: number, outstandingUsd: number): Promise<boolean> {
+  "use step";
+  const client = rawClient();
+  try {
+    return (await reserveSpend(client, usd, { runId: getWorkflowMetadata().workflowRunId, outstandingUsd })).ok;
+  } finally {
+    client.close();
+  }
+}
+reserveDaySpend.maxRetries = 0;
+
+/** Leaves the day's total holding what the run paid, and writes the row-read charges this process still holds. */
+async function settleDaySpend(run: { reservedUsd: number; spentUsd: number; outstandingUsd: number }): Promise<void> {
+  "use step";
+  const client = rawClient();
+  try {
+    await settleSpend(client, { runId: getWorkflowMetadata().workflowRunId, ...run });
+    await client.flush();
+  } finally {
+    client.close();
+  }
+}
+
 /** Workflow scope: the parent's share of a fanned-out run. Rows beyond the caps are not started at all. */
 async function fanOut(o: RunRowsOptions, pending: Row[]): Promise<RunResult> {
   const {
@@ -279,6 +346,7 @@ async function fanOut(o: RunRowsOptions, pending: Row[]): Promise<RunResult> {
     chunkSize,
     concurrency = 4,
   } = o.fanOut as NonNullable<RunRowsOptions["fanOut"]>;
+  const readBudget = o.maxRowsRead ?? input.maxRowsRead;
   const affordable = Math.floor(o.maxSpendUsd / o.estimateUsd);
   const selected = pending.slice(0, Math.min(o.maxRows, affordable));
   const chunks: Row[][] = [];
@@ -313,6 +381,7 @@ async function fanOut(o: RunRowsOptions, pending: Row[]): Promise<RunResult> {
           rows: chunk,
           maxRows: chunk.length,
           maxSpendUsd: round(chunk.length * o.estimateUsd),
+          ...(readBudget ? { maxRowsRead: Math.ceil((readBudget * chunk.length) / selected.length) } : {}),
           parent: `${workflowRunId}:chunk:${wave + j}`,
         }),
       ),

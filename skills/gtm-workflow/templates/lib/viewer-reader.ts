@@ -20,7 +20,7 @@ export const entryFor = (id: string) => {
 };
 export const currentPolicy = (entry: Entry) => effectivePolicy(entry, tables);
 export async function authorizeShare(entry: Entry, token: string, view?: View) {
-  const client = rawClient();
+  const client = rawClient({ interactive: "browse" });
   try {
     return await grants(client, {
       ...deploymentScope(),
@@ -172,7 +172,7 @@ export async function readBusinessData(entry: Entry, url: URL, shared = false) {
       entry.sharePolicy!.tables.map((t) => [t.name, t.row]),
     );
   }
-  const client = rawClient();
+  const client = rawClient({ interactive: "browse" });
   try {
     return await readData(config, tables, client, url);
   } finally {
