@@ -424,5 +424,27 @@ export function profileSchemaSql() {
           .join("\n")
       );
     })
-    .join("\n");
+    .join("\n") + profileLookupSql;
 }
+/**
+ * Indexed lookups for shared profiles. Turso bills every row a query scans, so
+ * identity aliases live in an indexed side table instead of being searched with
+ * json_each over identifiers_json. Additive and safe to run on every build.
+ */
+export const profileLookupSql = `
+CREATE TABLE IF NOT EXISTS profile_identifiers (
+ entity TEXT NOT NULL, namespace TEXT NOT NULL, value TEXT NOT NULL, entity_key TEXT NOT NULL,
+ PRIMARY KEY (entity, namespace, value, entity_key)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS profile_identifiers_entity_key ON profile_identifiers (entity, entity_key);
+CREATE INDEX IF NOT EXISTS companies_domain_name ON companies (domain, name);`;
+/** One pass over each profile table; repairs aliases written by an older runtime. */
+export const profileLookupBackfillSql = (["people", "companies"] as const)
+  .map(
+    (entity) => `
+INSERT OR IGNORE INTO profile_identifiers (entity, namespace, value, entity_key)
+SELECT '${entity}', json_extract(a.value, '$.namespace'), json_extract(a.value, '$.value'), p.key
+FROM "${entity}" p, json_each(COALESCE(p.identifiers_json, '[]')) a
+WHERE json_extract(a.value, '$.namespace') IS NOT NULL AND json_extract(a.value, '$.value') IS NOT NULL;`,
+  )
+  .join("");

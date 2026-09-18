@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Client } from "@libsql/client";
 import {
+  BATCH,
   applyEvidence,
   canonicalUrl,
   currentCompanies,
@@ -42,6 +43,34 @@ export type NetworkPerson = {
 };
 const text = (v: unknown) =>
   typeof v === "string" && v.trim() ? v.trim() : undefined;
+const inputKey = (s: Source) =>
+  JSON.stringify([s.workflow_id, s.source_id, s.source_row_id]);
+/** Saved person keys for many inputs in a few primary-key reads, not one query per row. */
+async function savedPersonKeys(client: Client, people: NetworkPerson[]) {
+  const groups = new Map<string, Source[]>();
+  for (const { source } of people) {
+    const group = JSON.stringify([source.workflow_id, source.source_id]);
+    groups.set(group, [...(groups.get(group) ?? []), source]);
+  }
+  const found = new Map<string, string>();
+  for (const sources of groups.values()) {
+    const rowIds = [...new Set(sources.map((s) => s.source_row_id))];
+    for (let i = 0; i < rowIds.length; i += BATCH) {
+      const chunk = rowIds.slice(i, i + BATCH);
+      const rows = await client.execute({
+        sql: `SELECT workflow_id, source_id, row_id, person_key FROM profile_inputs WHERE workflow_id = ? AND source_id = ? AND row_id IN (${chunk.map(() => "?").join(",")})`,
+        args: [sources[0].workflow_id, sources[0].source_id, ...chunk],
+      });
+      for (const row of rows.rows)
+        if (row.person_key)
+          found.set(
+            JSON.stringify([row.workflow_id, row.source_id, row.row_id]),
+            String(row.person_key),
+          );
+    }
+  }
+  return found;
+}
 export function normalizeInput(
   rows: Record<string, unknown>[],
   workflowId: string,
@@ -134,6 +163,10 @@ export async function prepareNetwork(
       people: [] as NetworkPerson[],
     };
   people = begin.input;
+  const saved = await savedPersonKeys(
+    client,
+    people.map((p) => ({ ...p, source: { ...p.source, workflow_id: workflowId } })),
+  );
   for (const person of people) {
     if (person.url) {
       const resolved = await resolveIdentity(
@@ -145,18 +178,10 @@ export async function prepareNetwork(
       if (resolved.status === "resolved")
         person.personKey = resolved.profile.key;
     }
-    const previous = (
-      await client.execute({
-        sql: "SELECT person_key FROM profile_inputs WHERE workflow_id = ? AND source_id = ? AND row_id = ?",
-        args: [
-          workflowId,
-          person.source.source_id,
-          person.source.source_row_id,
-        ],
-      })
-    ).rows[0];
-    if (!person.personKey && previous?.person_key)
-      person.personKey = String(previous.person_key);
+    const input = inputKey({ ...person.source, workflow_id: workflowId });
+    const previous = saved.get(input);
+    if (!person.personKey && previous) person.personKey = previous;
+    if (person.personKey) saved.set(input, person.personKey);
     await client.execute({
       sql: "INSERT INTO profile_inputs(workflow_id,source_id,row_id,input_json,person_key,first_observed_at,last_observed_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(workflow_id,source_id,row_id) DO UPDATE SET input_json=excluded.input_json,person_key=COALESCE(excluded.person_key,profile_inputs.person_key),last_observed_at=excluded.last_observed_at",
       args: [
@@ -189,20 +214,11 @@ export async function collectCompanies(
       args: [lease.id],
     })
   ).rows[0];
-  const keys: string[] = [];
-  for (const person of people) {
-    const row = (
-      await client.execute({
-        sql: "SELECT person_key FROM profile_inputs WHERE workflow_id = ? AND source_id = ? AND row_id = ?",
-        args: [
-          person.source.workflow_id,
-          person.source.source_id,
-          person.source.source_row_id,
-        ],
-      })
-    ).rows[0];
-    if (row?.person_key) keys.push(String(row.person_key));
-  }
+  const saved = await savedPersonKeys(client, people);
+  const keys = people.flatMap((person) => {
+    const key = saved.get(inputKey(person.source));
+    return key ? [key] : [];
+  });
   const current = await currentCompanies(client, keys);
   const selected = run?.companies_json
     ? (JSON.parse(String(run.companies_json)) as string[])

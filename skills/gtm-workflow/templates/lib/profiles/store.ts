@@ -68,6 +68,8 @@ export type Evidence = {
 export type Profile = Record<string, any> & { key: string };
 type Sql = Pick<Client, "execute">;
 const q = (name: string) => `"${name}"`;
+/** Bound parameters per IN list; stays well under SQLite's variable limit. */
+export const BATCH = 200;
 export function canonicalUrl(value: string, entity: Entity): string | null {
   try {
     const url = new URL(value.startsWith("http") ? value : `https://${value}`);
@@ -107,10 +109,33 @@ export async function getProfile(
   });
   if (result.rows[0]) return decode(entity, result.rows[0]);
   const alias = await db.execute({
-    sql: `SELECT * FROM ${q(entity)} WHERE EXISTS (SELECT 1 FROM json_each(COALESCE(identifiers_json, '[]')) a WHERE json_extract(a.value, '$.namespace') = 'internal_key' AND json_extract(a.value, '$.value') = ?)`,
-    args: [key],
+    sql: `SELECT * FROM ${q(entity)} WHERE key IN (SELECT entity_key FROM profile_identifiers WHERE entity = ? AND namespace = 'internal_key' AND value = ?)`,
+    args: [entity, key],
   });
-  return alias.rows.length === 1 ? decode(entity, alias.rows[0]) : undefined;
+  const found = alias.rows
+    .map((row) => decode(entity, row))
+    .filter((p) => hasAlias(p, "internal_key", key));
+  return found.length === 1 ? found[0] : undefined;
+}
+const hasAlias = (profile: Profile, namespace: string, value: string) =>
+  (profile.identifiers_json ?? []).some(
+    (a: any) => a.namespace === namespace && a.value === value,
+  );
+/** Keeps the indexed alias table in step with identifiers_json; aliases only accumulate. */
+async function writeAliases(db: Sql, entity: Entity, profile: Profile) {
+  const aliases = (profile.identifiers_json ?? []).filter(
+    (a: any) => a?.namespace != null && a?.value != null,
+  );
+  if (!aliases.length) return;
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO profile_identifiers (entity, namespace, value, entity_key) VALUES ${aliases.map(() => "(?,?,?,?)").join(",")}`,
+    args: aliases.flatMap((a: any) => [
+      entity,
+      String(a.namespace),
+      String(a.value),
+      profile.key,
+    ]),
+  });
 }
 async function write(db: Sql, entity: Entity, profile: Profile) {
   validateFields(entity, profile);
@@ -132,6 +157,7 @@ async function write(db: Sql, entity: Entity, profile: Profile) {
       .join(",")}`,
     args,
   });
+  await writeAliases(db, entity, profile);
 }
 export async function transaction<T>(
   client: Client,
@@ -193,15 +219,35 @@ async function resolve(
   if (!Object.keys(identity).length && !domainEvidence)
     return { status: "unresolved" };
   const entries = Object.entries(identity);
+  // Each branch is an index search; a single OR across them would scan the table.
   const found = await tx.execute({
-    sql: `SELECT * FROM ${q(entity)} WHERE 0 ${entries.map(([field]) => `OR (${q(field)} = ? OR EXISTS (SELECT 1 FROM json_each(COALESCE(identifiers_json, '[]')) a WHERE json_extract(a.value, '$.namespace') = ? AND json_extract(a.value, '$.value') = ?))`).join(" ")}${domainEvidence ? " OR (domain = ? AND name = ?)" : ""}${targetKey ? " OR key = ?" : ""}`,
+    sql: `SELECT * FROM ${q(entity)} WHERE key IN (${[
+      ...entries.map(
+        ([field]) =>
+          `SELECT key FROM ${q(entity)} WHERE ${q(field)} = ? UNION SELECT entity_key FROM profile_identifiers WHERE entity = ? AND namespace = ? AND value = ?`,
+      ),
+      ...(domainEvidence
+        ? [`SELECT key FROM ${q(entity)} WHERE domain = ? AND name = ?`]
+        : []),
+      ...(targetKey ? ["SELECT ?"] : []),
+    ].join(" UNION ")})`,
     args: [
-      ...entries.flatMap(([field, value]) => [value, field, value]),
+      ...entries.flatMap(([field, value]) => [value, entity, field, value]),
       ...(domainEvidence ? [supplied.domain!, supplied.name!] : []),
       ...(targetKey ? [targetKey] : []),
     ],
   });
-  const profiles = found.rows.map((row) => decode(entity, row));
+  // The alias table is an index; identifiers_json stays the source of truth.
+  const profiles = found.rows
+    .map((row) => decode(entity, row))
+    .filter(
+      (p) =>
+        p.key === targetKey ||
+        entries.some(
+          ([field, value]) => p[field] === value || hasAlias(p, field, value),
+        ) ||
+        (domainEvidence && p.domain === supplied.domain && p.name === supplied.name),
+    );
   const strong = identityFields[entity].filter((f) => f !== "linkedin_url");
   // Domain/name evidence cannot bridge incompatible platform URLs. A refresh
   // of a known target or an exact strong identifier can establish a changed slug.
@@ -276,6 +322,8 @@ async function resolve(
         profile.provenance_json[field] = duplicate.provenance_json[field];
     }
     if (entity === "companies") {
+      // Scans people once per merged duplicate; merges are rare. An indexed
+      // person-company relation would also serve the Data relation counts.
       const affected = await tx.execute({
         sql: "SELECT * FROM people WHERE primary_company_key = ? OR EXISTS (SELECT 1 FROM json_each(COALESCE(experiences_json, '[]')) e WHERE json_extract(e.value, '$.company_key') = ?)",
         args: [duplicate.key, duplicate.key],
@@ -307,6 +355,11 @@ async function resolve(
     await tx.execute({
       sql: `DELETE FROM ${q(entity)} WHERE key = ?`,
       args: [duplicate.key],
+    });
+    // The surviving profile inherits these aliases when it is written below.
+    await tx.execute({
+      sql: "DELETE FROM profile_identifiers WHERE entity = ? AND entity_key = ?",
+      args: [entity, duplicate.key],
     });
   }
   const aliases = new Map<string, unknown>(
@@ -620,8 +673,19 @@ export async function currentCompanies(client: Sql, personKeys: string[]) {
   const companies = new Set<string>();
   let roles = 0,
     unresolved = 0;
+  const byKey = new Map<string, Profile>();
+  const unique = [...new Set(personKeys)];
+  for (let i = 0; i < unique.length; i += BATCH) {
+    const chunk = unique.slice(i, i + BATCH);
+    const rows = await client.execute({
+      sql: `SELECT key, experiences_json FROM people WHERE key IN (${chunk.map(() => "?").join(",")})`,
+      args: chunk,
+    });
+    for (const row of rows.rows) byKey.set(String(row.key), decode("people", row));
+  }
   for (const key of personKeys) {
-    const person = await getProfile(client, "people", key);
+    // A key missing from the batch may be an alias of a merged profile.
+    const person = byKey.get(key) ?? (await getProfile(client, "people", key));
     for (const role of (person?.experiences_json ?? []) as Experience[])
       if (role.current_status === "current") {
         roles++;
