@@ -774,3 +774,94 @@ test("a shared domain and name cannot reconcile different company URLs", async (
   assert.equal(unchanged?.linkedin_company_id, null);
   db.close();
 });
+/** Records every statement the runtime sends, including inside transactions. */
+function recording(client: Awaited<ReturnType<typeof database>>) {
+  const statements: (string | { sql: string; args?: any })[] = [];
+  const wrap = <T extends object>(target: T): T =>
+    new Proxy(target, {
+      get(t: any, name) {
+        if (name === "execute")
+          return (s: any) => (statements.push(s), t.execute(s));
+        if (name === "transaction")
+          return async (mode: any) => wrap(await t.transaction(mode));
+        const value = t[name];
+        return typeof value === "function" ? value.bind(t) : value;
+      },
+    });
+  return { db: wrap(client), statements };
+}
+test("identity, alias, attempt and membership lookups never scan whole profile tables", async () => {
+  const raw = await database();
+  const { db, statements } = recording(raw);
+  const person = await resolveIdentity(db, "people", {
+    linkedin_url: "linkedin.com/in/plan",
+  });
+  if (person.status !== "resolved") throw new Error("fixture");
+  await applyEvidence(
+    db,
+    "people",
+    person.profile.key,
+    evidence({
+      linkedin_numeric_id: "1",
+      experiences_json: [
+        {
+          experience_key: "e1",
+          company_key: null,
+          company_name: "Plan Co",
+          company_linkedin_url: "https://linkedin.com/company/plan",
+          company_domain: "plan.example",
+          title: "Founder",
+          start_date: null,
+          end_date: null,
+          current_status: "current",
+          current_status_evidence: null,
+        },
+      ],
+    }),
+  );
+  // Two records of one company, joined by a later lookup, leave an internal_key alias.
+  const byId = await resolveIdentity(db, "companies", { linkedin_company_id: "42" });
+  const byUrl = await resolveIdentity(db, "companies", {
+    linkedin_url: "linkedin.com/company/answer",
+  });
+  if (byId.status !== "resolved" || byUrl.status !== "resolved")
+    throw new Error("fixture");
+  const merged = await resolveIdentity(db, "companies", {
+    linkedin_company_id: "42",
+    linkedin_url: "linkedin.com/company/answer",
+  });
+  assert.equal(merged.status, "resolved");
+  const survivor = merged.status === "resolved" ? merged.profile.key : "";
+  const gone = survivor === byId.profile.key ? byUrl.profile.key : byId.profile.key;
+  assert.equal((await getProfile(db, "companies", gone))?.key, survivor);
+  await resolveIdentity(db, "companies", { domain: "plan.example", name: "Plan Co" });
+  await currentCompanies(db, [person.profile.key, "missing"]);
+  const run = await prepareNetwork(db, "workflow-plan", "owner", {
+    rows: [{ profile_url: "https://linkedin.com/in/plan" }],
+  });
+  await collectCompanies(db, run.lease, run.people);
+  await reserve(db, run.lease, person.profile.key, "lookup", 0.01);
+  await reserve(db, run.lease, person.profile.key, "lookup", 0.01);
+  // Rare company merges still expand experiences_json; see the note at that query in store.ts.
+  const checked = statements
+    .map((s) => (typeof s === "string" ? { sql: s, args: [] } : s))
+    .filter(
+      (s) =>
+        /^\s*SELECT/i.test(s.sql) &&
+        /\b(companies|people|profile_attempts)\b/.test(s.sql) &&
+        !/experiences_json/.test(s.sql),
+    );
+  assert.ok(checked.some((s) => s.sql.includes("profile_identifiers")));
+  assert.ok(checked.some((s) => s.sql.includes("profile_attempts")));
+  for (const s of checked) {
+    const plan = await raw.execute({
+      sql: `EXPLAIN QUERY PLAN ${s.sql}`,
+      args: s.args ?? [],
+    });
+    const scans = plan.rows
+      .map((row) => String(row.detail))
+      .filter((d) => /^SCAN (companies|people|profile_attempts)\b/.test(d));
+    assert.deepEqual(scans, [], s.sql);
+  }
+  raw.close();
+});
