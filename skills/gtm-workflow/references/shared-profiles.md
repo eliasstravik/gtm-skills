@@ -10,7 +10,7 @@ Use `resolveIdentity`, `applyEvidence`, `getProfile`, `isFresh`, `recentMiss` an
 
 Internal keys are generated and stable. Platform namespaces and identifier string precision survive normalization. A URL can establish a provisional person. A company domain plus a matching name can establish provisional lookup evidence; conflicting platform evidence remains ambiguous. A domain alone or a name alone never reconciles conflicting companies. Imported email is source input, not a global person identity.
 
-Turso bills every row a query scans ([cost-aware design](cost.md)). Every lookup must be an index search, never `json_each` over a profile column in a per-record query. `identifiers_json` stays the record of aliases. `profile_identifiers` indexes them: `store.ts` writes it with each profile, and `profile-migrate.mjs` repairs it on every build. `tests/profiles.test.ts` fails when a lookup plan scans `people`, `companies` or `profile_attempts`.
+Turso bills every row a query scans ([cost-aware design](cost.md)). Every lookup must be an index search, never `json_each` over a profile column in a per-record query. The JSON columns stay the full record. Three side tables index what is looked up: `profile_identifiers` (aliases from `identifiers_json`), `profile_memberships` (workflow membership from `sources_json`) and `person_companies` (employment from `experiences_json`). Database triggers rebuild a profile's side rows whenever one of those columns changes, so they stay exact for every writer, including merges, hand-written SQL and an older runtime during a rollout. `profile-migrate.mjs` creates them and backfills each once per database (`schema_backfills`). The profile tests run on the enforcing guard, so any full scan in this code fails them.
 
 `sources_json` uses the viewer's permanent workflow UUID, source/import ID and source-row ID. Membership accumulates across imports; renaming a workflow does not change it. Provider provenance and network membership are separate.
 
@@ -32,7 +32,7 @@ The default limits are 200 distinct people, $20 and 30-day freshness. They are c
 
 Generate static Data metadata with `node scripts/profile-view.mjs <workflow-uuid> workflows/<slug>.data.ts`. Import its literal `data` and `sharePolicy` into the workflow registry and viewer metadata. This retains the static registry reader while sharing the contract definition.
 
-The bounded membership predicate reads `sources_json[].workflow_id`. The bounded relation reads `experiences_json[].company_key` only for confirmed current roles. Company population derives from member people. Lists, counts, search, details, navigation and exports use the same predicate, including reverse links from shared companies.
+The bounded membership predicate reads `profile_memberships`, which mirrors `sources_json[].workflow_id`. The bounded relation reads `person_companies` for confirmed current roles, which mirrors `experiences_json[].company_key`. Company population derives from member people. Lists, counts, search, details, navigation and exports use the same predicate, including reverse links from shared companies.
 
 Owners can select all canonical fields and deliberately include raw evidence. Shared policy version 2 restricts columns and scalar leaves of structured sections; source metadata, raw responses and internal provenance stay private. Contract version 3 rejects older clients. Changed policy fingerprints pause existing Data grants until the owner explicitly approves the new policy.
 

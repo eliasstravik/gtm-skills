@@ -314,7 +314,8 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
 
   function charge(checked: Awaited<ReturnType<typeof check>>, result: ResultSet) {
     if (!checked) return;
-    lastCharge = checked.scanned + result.rows.length;
+    // Never zero: an empty lookup still costs a round trip, and a loop of them must still run into its budget.
+    lastCharge = Math.max(1, checked.scanned + result.rows.length);
     for (const scope of checked.scopes) usage.get(scope)!.pending += lastCharge;
     pendingStatements++;
   }

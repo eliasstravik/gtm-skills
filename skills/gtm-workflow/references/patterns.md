@@ -231,14 +231,16 @@ upsertContact.maxRetries = 0;
 
 `saveRow` overwrites the row, so a workflow that must notice change reads its own previous columns in a step before it computes the new ones, and keeps the difference as a column of its own. `freshForMs` decides when to look again; it never detects change. Diagram: a free step, `Read last headcount<br/><small>table headcounts · free</small>`, before the paid one.
 
+A workflow file's own SQL goes through `defineQuery`, so the build can check that it never scans a table ([cost-aware design](cost.md)).
+
 ```ts
-import { eq } from "drizzle-orm";
-import { db } from "../lib/db";
-import { headcounts } from "../db/tables/headcounts";
+import { defineQuery } from "../lib/query";
+
+const lastHeadcount = defineQuery<{ headcount: number }>({ name: "headcounts/previous", sql: "SELECT headcount FROM headcounts WHERE key = ?", example: ["example.com"] });
 
 async function previous(key: string) {
   "use step";
-  const [row] = await db().select().from(headcounts).where(eq(headcounts.key, key));
+  const [row] = await lastHeadcount([key]);
   return row ?? null;
 }
 
@@ -257,16 +259,17 @@ return {
 
 A workflow whose rows are another workflow's results reads that table in a step and turns rows into keys; it never nests `runRows`. Per-row fan-out (five people for every company) is the second workflow's job: its table is keyed by the person, with the company as a column, one row each. Diagram: the first node of the second workflow is a free step naming the source table.
 
+The source table needs an index on the column it is filtered by (`index("example_scores_score").on(t.score)` in its table file, then `npm run db:generate`); without one the query scans the table and the build's query check refuses it.
+
 ```ts
-import { gte } from "drizzle-orm";
-import { db } from "../lib/db";
-import { exampleScores } from "../db/tables/example-scores";
+import { defineQuery } from "../lib/query";
+
+const scoredAbove = defineQuery<{ key: string; score: number }>({ name: "find-people/scored-above", sql: "SELECT key, score FROM example_scores WHERE score >= ? ORDER BY score, key LIMIT 5000", example: [70] });
 
 /** Companies that scored 70 or more, as rows for this workflow. */
 async function companiesToResearch(): Promise<Row[]> {
   "use step";
-  const rows = await db().select().from(exampleScores).where(gte(exampleScores.score, 70));
-  return rows.map((r) => ({ key: r.key, score: r.score }));
+  return scoredAbove([70]);
 }
 
 export async function findPeople(input: RowsInput) {

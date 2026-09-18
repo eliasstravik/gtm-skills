@@ -7,6 +7,8 @@ import { guard, type GuardContext, type GuardedClient } from "./db-guard";
 export type TableName = keyof typeof tables;
 
 function credentials() {
+  // scripts/check-queries.mjs points every client at its seeded database while it runs the workflow queries.
+  if (process.env.GTM_CHECK_DATABASE) return { url: process.env.GTM_CHECK_DATABASE };
   if (!process.env.VERCEL) return { url: "file:./data/gtm.db" };
   const { TURSO_DATABASE_URL: url, TURSO_AUTH_TOKEN: authToken } = process.env;
   if (!url) throw new Error("Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN on the Vercel project");

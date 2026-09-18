@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { cache } from "../db/tables/cache";
 import { db, upsert } from "./db";
 import type { Intake } from "./intake";
@@ -25,7 +25,8 @@ export async function admit<E>(slug: string, intake: Intake<E>, rawBody: string,
     return { row: null, reply: { status: 400, body: { error: "Body is not JSON" } } };
   }
   const id = `${slug}:${intake.eventId(event)}`;
-  const [seen] = await db().select().from(cache).where(eq(cache.hash, id));
+  // Both primary-key columns, so this is an index search; by hash alone every webhook would scan the whole cache table.
+  const [seen] = await db().select().from(cache).where(and(eq(cache.name, "intake"), eq(cache.hash, id)));
   if (seen && seen.expires_at > new Date().toISOString()) return { row: null, reply: { status: 200, body: { duplicate: true } } };
   const row = intake.toRow(event);
   if (!row) return { row: null, reply: { status: 200, body: { ignored: true } } };

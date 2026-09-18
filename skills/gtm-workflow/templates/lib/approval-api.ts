@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { cache } from "../db/tables/cache";
 import { approvalHook, APPROVAL_RETENTION_MS, type Approval } from "./approval";
 import { db, upsert } from "./db";
@@ -16,7 +16,8 @@ export async function listApprovals(runId: string): Promise<Approval[]> {
 
 /** Decides one request and resumes the waiting tool. */
 export async function decideApproval(runId: string, token: string, approved: boolean, reason: string | null): Promise<Approval> {
-  const [row] = await db().select().from(cache).where(eq(cache.hash, token));
+  // Both primary-key columns, so this is an index search; by hash alone it would scan the whole cache table.
+  const [row] = await db().select().from(cache).where(and(eq(cache.name, "approval"), eq(cache.hash, token)));
   const record = row ? (JSON.parse(row.value) as Approval) : null;
   if (!record || record.runId !== runId) throw new Error(`No approval ${token} on run ${runId}`);
   if (record.decidedAt) throw new Error(`Approval ${token} was already decided`);
