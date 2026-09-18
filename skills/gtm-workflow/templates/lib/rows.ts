@@ -160,6 +160,7 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
 
   // Spend is taken out of the day's cap before it is paid, a few rows ahead, so parallel runs cannot each see room.
   let reservedUsd = 0;
+  let outstandingUsd = 0;
   try {
   for (let i = 0; i < pending.length;) {
     const attempted = result.done + result.failed;
@@ -177,11 +178,14 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
     }
     if (o.estimateUsd > 0 && result.spentUsd + batch.length * o.estimateUsd > reservedUsd) {
       const ahead = round(Math.min(Math.max(RESERVE_ROWS, batch.length), pending.length - i) * o.estimateUsd);
-      if (!(await budgets.reserve(ahead))) {
+      // What the run holds unpaid after this reservation; a run that dies gives exactly this back.
+      const holding = round(reservedUsd + ahead - result.spentUsd);
+      if (!(await budgets.reserve(ahead, holding))) {
         result.stopReason = "daySpendCap";
         break;
       }
       reservedUsd = round(reservedUsd + ahead);
+      outstandingUsd = holding;
     }
     i += batch.length;
     const outcomes = await Promise.allSettled(
@@ -224,7 +228,7 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
   }
   } finally {
     // Also when the run throws midway: what it paid still counts against the day, and the rest is given back.
-    await budgets.settle(round(result.spentUsd - reservedUsd));
+    await budgets.settle({ reservedUsd, spentUsd: round(result.spentUsd), outstandingUsd });
   }
   if (o.notify?.every === "chunk" && lines.length > 0)
     await post(o.notify.target, clip(lines));
@@ -311,23 +315,23 @@ async function beginBudgets(maxRowsRead: number | null): Promise<void> {
 beginBudgets.maxRetries = 0;
 
 /** False when spend_usd_per_day has no room for it; the run stops with stopReason "daySpendCap". */
-async function reserveDaySpend(usd: number): Promise<boolean> {
+async function reserveDaySpend(usd: number, outstandingUsd: number): Promise<boolean> {
   "use step";
   const client = rawClient();
   try {
-    return (await reserveSpend(client, usd)).ok;
+    return (await reserveSpend(client, usd, { runId: getWorkflowMetadata().workflowRunId, outstandingUsd })).ok;
   } finally {
     client.close();
   }
 }
 reserveDaySpend.maxRetries = 0;
 
-/** The difference between what the run reserved and what it paid, and the row-read charges this process still holds. */
-async function settleDaySpend(usd: number): Promise<void> {
+/** Leaves the day's total holding what the run paid, and writes the row-read charges this process still holds. */
+async function settleDaySpend(run: { reservedUsd: number; spentUsd: number; outstandingUsd: number }): Promise<void> {
   "use step";
   const client = rawClient();
   try {
-    await settleSpend(client, usd);
+    await settleSpend(client, { runId: getWorkflowMetadata().workflowRunId, ...run });
     await client.flush();
   } finally {
     client.close();

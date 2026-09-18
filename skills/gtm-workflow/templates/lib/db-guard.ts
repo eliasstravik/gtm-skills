@@ -144,6 +144,15 @@ function subselects(sql: string, [from, to]: Range): Range[] {
   return found;
 }
 
+/** The statement's write keyword, also behind a leading WITH; undefined for a read. Strings cannot fool it. */
+const writeWord = (words: Token[]) =>
+  words[0]?.word === "WITH"
+    ? words.find((w) => ["INSERT", "UPDATE", "DELETE", "REPLACE"].includes(w.word))
+    : ["INSERT", "UPDATE", "DELETE", "REPLACE"].includes(words[0]?.word ?? "")
+      ? words[0]
+      : undefined;
+export const isWrite = (sql: string) => writeWord(outline(sql).words) !== undefined;
+
 /**
  * What to plan for a statement. Reads plan as they are. A write plans as the reads it implies, because the local
  * client cannot finish EXPLAIN of a write inside a transaction: UPDATE and DELETE as a SELECT with their WHERE,
@@ -161,7 +170,7 @@ export function planTarget(sql: string, args: InArgs | undefined): { targets: Ta
   });
   const first = words[0];
   if (!first) return { targets: [] };
-  const write = first.word === "WITH" ? next(["INSERT", "UPDATE", "DELETE", "REPLACE"], 0) : first;
+  const write = writeWord(words);
   if (first.word === "SELECT" || first.word === "VALUES" || (first.word === "WITH" && !write)) return { targets: [{ sql, args }] };
   if (!write) return { targets: [] };
   const prefix: Range = [0, write === first ? 0 : write.at];
@@ -389,7 +398,7 @@ export function guard(inner: Client, options: GuardOptions): GuardedClient {
     if (plan.offset && context.mode === "strict")
       violations.push({ kind: "offset", shape: shapeOf(sql), tables, charge: 0, error: new ScanRefusedError(`OFFSET paging re-reads every skipped row on each page (LIMIT offset, count is the same). Page by key instead (WHERE key > ? ORDER BY key LIMIT ?), or use nextBatch from lib/profiles/population.ts. SQL: ${shapeOf(sql).slice(0, 300)}`) });
     await loadUsage(via, [context.scope, day]);
-    const write = /^\s*(?:WITH\b[\s\S]*?\)\s*)?(INSERT|UPDATE|DELETE|REPLACE)\b/i.test(sql);
+    const write = isWrite(sql);
     for (const scope of [context.scope, day]) {
       const u = usage.get(scope)!;
       const cap = capOf(scope, s);

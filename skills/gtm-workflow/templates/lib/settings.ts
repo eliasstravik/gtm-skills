@@ -20,14 +20,14 @@ export const settingDescriptions: Record<SettingKey, string> = {
 };
 const keys = Object.keys(settingDefaults) as SettingKey[];
 
-/** The most the shared bearer may raise a budget to; above it, and for the settings not listed, only the owner. */
-const bearerCeilings: Partial<Record<SettingKey, number>> = {
-  rows_per_conversation: 500_000,
-  rows_per_day_agent: 500_000,
-  rows_per_statement: 200_000,
-  rows_per_day_browsing: 5_000_000,
-  rows_per_day_workspace: 10_000_000,
-};
+/**
+ * What the shared bearer may raise, since the hosted agent holds it: an ordinary row budget to at most this many
+ * times its default. rows_per_run has rows_per_run_ceiling as its limit instead. Everything else is the owner's
+ * alone to raise: rows_per_day_workspace (the workspace's backstop), rows_per_run_ceiling and spend_usd_per_day.
+ */
+export const BEARER_RAISE_FACTOR = 2;
+export const BEARER_RAISABLE: SettingKey[] = ["rows_per_conversation", "rows_per_day_agent", "rows_per_statement", "rows_per_day_browsing"];
+const bearerCeiling = (key: SettingKey) => (BEARER_RAISABLE.includes(key) ? Number(settingDefaults[key]) * BEARER_RAISE_FACTOR : 0);
 /** Who is changing a setting: the shared GTM_RUN_SECRET bearer (the hosted agent holds it), or GTM_OWNER_SECRET. */
 export type Credential = "bearer" | "owner";
 
@@ -45,7 +45,7 @@ export async function listSettings(db: Sql) {
     effective: key === "rows_per_run" ? String(Math.min(Number(value(key)), Number(value("rows_per_run_ceiling")))) : value(key),
     default: settingDefaults[key],
     isDefault: !values.has(key),
-    ownerOnlyAbove: key === "rows_per_run" ? "rows_per_run_ceiling" : key in bearerCeilings ? String(bearerCeilings[key]) : key === "guard_mode" ? "warn" : "any raise",
+    ownerOnlyAbove: key === "rows_per_run" ? "rows_per_run_ceiling" : BEARER_RAISABLE.includes(key) ? String(bearerCeiling(key)) : key === "guard_mode" ? "warn" : "any raise",
     description: settingDescriptions[key],
   }));
 }
@@ -57,7 +57,7 @@ export async function readSetting(db: Sql, key: SettingKey) {
 
 /**
  * Set one setting; null restores its default. The shared bearer may lower anything and raise an ordinary budget up
- * to its ceiling. What would switch the control off needs the owner: guard_mode warn, any raise of
+ * to BEARER_RAISE_FACTOR times its default. What would switch the control off needs the owner: guard_mode warn, any raise of
  * rows_per_run_ceiling or spend_usd_per_day, and a budget above its ceiling. rows_per_run never passes
  * rows_per_run_ceiling for anyone; raise the ceiling first. Every change is recorded in settings_log.
  */
@@ -77,7 +77,7 @@ export async function writeSetting(db: Sql, key: SettingKey, value: string | num
     const raised = Number(text) > Number(old);
     if (key === "rows_per_run" && Number(text) > Number(await readSetting(db, "rows_per_run_ceiling")))
       throw new Error("rows_per_run cannot pass rows_per_run_ceiling; the owner raises the ceiling first");
-    const ceiling = key === "rows_per_run" ? Infinity : (bearerCeilings[key] ?? 0);
+    const ceiling = key === "rows_per_run" ? Infinity : bearerCeiling(key);
     if (raised && credential !== "owner" && Number(text) > ceiling) throw new Error(needsOwner);
   }
   const now = new Date().toISOString();

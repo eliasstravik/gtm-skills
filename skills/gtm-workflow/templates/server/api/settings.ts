@@ -10,9 +10,10 @@ import { bearerOk, ownerOk } from "../../lib/sign";
  * a spent budget never stops, so a spent budget cannot lock the owner out of raising it.
  * GET: every setting with its value, default and meaning, today's usage per budget, the latest guard_log rows (what
  * the guard refused, or in warn mode would have refused) and the latest changes.
- * PUT { key, value }: set one setting; value null restores the default. The bearer may lower anything and raise an
- * ordinary budget up to its ceiling. Setting guard_mode to warn, raising rows_per_run_ceiling or spend_usd_per_day,
- * and raising a budget past its ceiling also need header x-gtm-owner-secret (GTM_OWNER_SECRET), which the hosted
+ * PUT { key, value }: set one setting; value null restores the default. The bearer may lower anything, raise
+ * rows_per_run up to rows_per_run_ceiling, and raise the other row budgets except rows_per_day_workspace to at most
+ * twice their default. Setting guard_mode to warn, raising rows_per_day_workspace, rows_per_run_ceiling or
+ * spend_usd_per_day, and passing a limit also need header x-gtm-owner-secret (GTM_OWNER_SECRET), which the hosted
  * agent never holds. Every change is recorded in settings_log. Change one only when the owner asks for it.
  */
 export default defineHandler(async (event) => {

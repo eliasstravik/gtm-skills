@@ -256,10 +256,14 @@ test("a run over its own budget is refused further reads but can still write its
   const { db } = await open({ scope: "run:over" }, inner);
   await db.execute("SELECT key FROM people WHERE key > '' ORDER BY key LIMIT 10");
   await db.execute({ sql: "UPDATE people SET full_name = 'failed row' WHERE key = ?", args: ["p001"] });
+  // A write behind a WITH whose body has parentheses of its own is still a write.
+  await db.execute({ sql: "WITH x AS (SELECT key FROM people WHERE key IN (?, ?)) INSERT INTO members (workflow_id, person_key) SELECT 'w', key FROM x", args: ["p001", "p002"] });
   await assert.rejects(
     db.execute({ sql: "SELECT key FROM people WHERE key = ?", args: ["p001"] }),
     (error: unknown) => error instanceof BudgetExceededError && (error as { fatal?: boolean }).fatal === true,
   );
+  // Text inside a string cannot make a read look like a write.
+  await assert.rejects(db.execute("WITH x AS (SELECT key FROM people WHERE key = 'a) INSERT b') SELECT key FROM x"), BudgetExceededError);
 });
 
 test("an internal guard error never breaks the statement; it is recorded and the statement runs", async () => {

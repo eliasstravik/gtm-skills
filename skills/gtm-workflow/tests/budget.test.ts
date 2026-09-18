@@ -71,7 +71,7 @@ test("parallel runs cannot all pass the day's cap: each reserves its spend befor
   assert.equal(grants.filter((g) => g.ok).length, 2);
   assert.match(grants.find((g) => !g.ok)!.message, /spend_usd_per_day/);
   // A run settles what it did not spend, and a failed run's spend still counts.
-  await settleSpend(db, -3);
+  await settleSpend(db, { runId: "none", reservedUsd: 3, spentUsd: 0, outstandingUsd: 0 });
   assert.equal(Number((await inner.execute("SELECT used FROM usage_budget WHERE scope LIKE 'spend:%'")).rows[0].used), 5_000_000);
   assert.equal((await reserveSpend(db, 4)).ok, true);
   assert.equal((await reserveSpend(db, 4)).ok, false);
@@ -106,7 +106,11 @@ test("the shared bearer may lower anything and raise ordinary budgets to their c
   // Lowering, and raising an ordinary budget within its ceiling: the hosted agent may do this on request.
   await writeSetting(db, "spend_usd_per_day", "40");
   await writeSetting(db, "rows_per_run", "500000");
-  await writeSetting(db, "rows_per_conversation", "300000");
+  await writeSetting(db, "rows_per_conversation", "200000");
+  await assert.rejects(writeSetting(db, "rows_per_conversation", "200001"), /owner secret/);
+  await assert.rejects(writeSetting(db, "rows_per_day_workspace", "5000001"), /owner secret/);
+  await writeSetting(db, "rows_per_day_workspace", "4000000");
+  await assert.rejects(writeSetting(db, "rows_per_day_workspace", "4500000"), /owner secret/);
   await writeSetting(db, "guard_mode", "enforce");
   // What would switch the control off needs the owner secret.
   await assert.rejects(writeSetting(db, "guard_mode", "warn"), /owner secret/);
@@ -126,10 +130,11 @@ test("the shared bearer may lower anything and raise ordinary budgets to their c
     [
       ["spend_usd_per_day", "100", "40", "bearer"],
       ["rows_per_run", "200000", "500000", "bearer"],
-      ["rows_per_conversation", "100000", "300000", "bearer"],
+      ["rows_per_conversation", "100000", "200000", "bearer"],
+      ["rows_per_day_workspace", "5000000", "4000000", "bearer"],
       ["guard_mode", "enforce", "enforce", "bearer"],
       ["rows_per_run_ceiling", "2000000", "300000", "bearer"],
-      ["rows_per_day_workspace", "5000000", "20000000", "owner"],
+      ["rows_per_day_workspace", "4000000", "20000000", "owner"],
       ["guard_mode", "enforce", "warn", "owner"],
     ],
   );
@@ -159,4 +164,34 @@ test("a spent workspace day cannot lock the owner out: the settings report and a
   assert.equal((await settingsReport(system)).changes.length, 1);
   const next = guard(inner, { mode: "interactive", scope: "agent:unlocked" });
   assert.equal((await next.execute("SELECT 1 AS one FROM people WHERE key = 'a'")).rows.length, 0);
+});
+
+const spentToday = async (inner: { execute: (sql: string) => Promise<{ rows: Record<string, unknown>[] }> }) =>
+  Number((await inner.execute("SELECT used FROM usage_budget WHERE scope LIKE 'spend:%'")).rows[0]?.used ?? 0) / 1e6;
+
+test("a run that never reserved still has its spend counted, even as the day's first", async () => {
+  const { db, inner } = await database();
+  await settleSpend(db, { runId: "free-estimate", reservedUsd: 0, spentUsd: 3, outstandingUsd: 0 });
+  assert.equal(await spentToday(inner), 3);
+});
+
+test("a crashed run's reservation is reclaimed at the next run start, keeping what it had already paid", async () => {
+  const { db, inner } = await database();
+  // The run reserved 5 twice and had paid 6 when it reserved the second time: 4 is still unspent when it dies.
+  assert.equal((await reserveSpend(db, 5, { runId: "crashed", outstandingUsd: 5 })).ok, true);
+  assert.equal((await reserveSpend(db, 5, { runId: "crashed", outstandingUsd: 4 })).ok, true);
+  assert.equal((await reserveSpend(db, 2, { runId: "alive", outstandingUsd: 2 })).ok, true);
+  assert.equal(await spentToday(inner), 12);
+  await inner.execute("UPDATE usage_budget SET updated_at = '2000-01-01T00:00:00.000Z' WHERE scope LIKE 'reserve:%:crashed'");
+  await assertRunMayStart(db);
+  assert.equal(await spentToday(inner), 8);
+  assert.equal((await inner.execute("SELECT COUNT(*) AS n FROM usage_budget WHERE scope LIKE 'reserve:%'")).rows[0].n, 1);
+  // A run whose reservation was swept while it was only slow still ends with exactly what it paid.
+  await inner.execute("UPDATE usage_budget SET updated_at = '2000-01-01T00:00:00.000Z' WHERE scope LIKE 'reserve:%:alive'");
+  await assertRunMayStart(db);
+  assert.equal(await spentToday(inner), 6);
+  await settleSpend(db, { runId: "alive", reservedUsd: 2, spentUsd: 1.5, outstandingUsd: 2 });
+  assert.equal(await spentToday(inner), 7.5);
+  await settleSpend(db, { runId: "normal", reservedUsd: 0, spentUsd: 0, outstandingUsd: 0 });
+  assert.equal((await inner.execute("SELECT COUNT(*) AS n FROM usage_budget WHERE scope LIKE 'reserve:%'")).rows[0].n, 0);
 });

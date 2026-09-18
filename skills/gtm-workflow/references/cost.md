@@ -49,7 +49,8 @@ All in the `gtm_settings` table. No code change and no deploy; a running server 
 | Read settings, usage and logs | yes | |
 | Lower any limit; set `guard_mode` to `enforce` | yes | |
 | Raise `rows_per_run`, up to `rows_per_run_ceiling` | yes | the ceiling holds for the owner too; raise the ceiling first |
-| Raise `rows_per_conversation` or `rows_per_day_agent` to at most 500000, `rows_per_statement` to 200000, `rows_per_day_browsing` to 5000000, `rows_per_day_workspace` to 10000000 | yes | above those |
+| Raise `rows_per_conversation`, `rows_per_day_agent`, `rows_per_statement` or `rows_per_day_browsing` to at most 2 times its default (200000, 200000, 100000, 2000000) | yes | above that |
+| Raise `rows_per_day_workspace`, the workspace's backstop, at all | no (403) | yes |
 | Raise `rows_per_run_ceiling` or `spend_usd_per_day`; set `guard_mode` to `warn` | no (403) | yes |
 
 The owner secret is a Vercel variable on the workflow project, `GTM_OWNER_SECRET`, that the owner sets once (`vercel env add GTM_OWNER_SECRET production`, then one deploy so the runtime reads it). It is never given to the hosted agent's sandbox. The owner sends it as a header next to the bearer:
@@ -60,14 +61,16 @@ curl -X PUT "$GTM_WORKFLOW_URL/api/settings" -H "authorization: Bearer $GTM_RUN_
   -d '{"key":"spend_usd_per_day","value":250}'
 ```
 
-Without the variable, owner-only changes are made with SQL on the database (`turso db shell <db>`), which always works: `INSERT INTO gtm_settings (key, value, updated_at) VALUES ('spend_usd_per_day', '250', datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value`. `rows_per_run` is capped at `rows_per_run_ceiling` when it is read, so a value written above the ceiling has no effect.
+The limits are the named constants `BEARER_RAISE_FACTOR` and `BEARER_RAISABLE` in `lib/settings.ts`.
+
+With `GTM_OWNER_SECRET` unset, every owner-only `PUT` answers 403, `guard_mode = warn` included. So a first rollout in warn mode uses SQL, or the Vercel variable `GTM_GUARD_MODE=warn`, which applies while no `guard_mode` row exists. Owner-only changes are then made with SQL on the database (`turso db shell <db>`), which always works: `INSERT INTO gtm_settings (key, value, updated_at) VALUES ('spend_usd_per_day', '250', datetime('now')) ON CONFLICT(key) DO UPDATE SET value = excluded.value`. `rows_per_run` is capped at `rows_per_run_ceiling` when it is read, so a value written above the ceiling has no effect.
 
 **What a spent budget stops, and the way out.** It stops the costly things: agent questions, scans by someone browsing, further reads of a run over its own budget, and new runs once the workspace's day or the day's paid-call cap is used up. It never stops writes, the runtime's own indexed reads, or a run already in flight when the workspace's day runs out, and `/api/settings` always answers. So the owner can always get back in: raise `rows_per_day_workspace` (or the budget named in the error) through `PUT /api/settings`, or with SQL, or wait for the next day (UTC). A refused statement is never retried by the engine.
 
-**When the guard itself fails.** If the guard cannot plan a statement or read its own tables, the statement runs unchecked and the failure is recorded as `internal` in `guard_log`, in both modes. The guard must never be the outage. The build's query check is stricter: there, a statement the guard cannot plan fails the build.
+**When the guard itself fails.** If the guard cannot plan a statement or read its own tables, the statement runs unchecked and the failure is recorded as `internal` in `guard_log`, in both modes. The guard must never be the outage. The build's query check is stricter: there, a statement the guard cannot plan fails the build. When reading `guard_log` after a run, read the `internal` rows as well as the would-be refusals: an `internal` row is a statement that ran unchecked.
 
 - **A deliberately large run** raises its own budget for that run only: start it with `maxRowsRead` in the input, for example `POST /api/run/<slug>` with `{ "maxRowsRead": 1000000 }`. It is clamped to `rows_per_run_ceiling`. A workflow passes it on with `maxRowsRead: input.maxRowsRead` in `runRows`; fan-out children get their share. Other workflows call `setRunReadBudget(rows)` from `lib/db.ts` in their first step.
-- Per-run paid caps are unchanged (`maxSpendUsd`, the profile run budget). `spend_usd_per_day` holds while money is spent, not only at the start: a row workflow takes its spend out of the day's cap a few rows ahead, in one conditional statement, so parallel runs cannot each see room. When there is no room it stops with `stopReason: "daySpendCap"`, and it settles what it did not spend when it ends, also when it fails midway. Paid profile lookups are deferred (`budget_deferred`). A new run does not start once the cap is used up.
+- Per-run paid caps are unchanged (`maxSpendUsd`, the profile run budget). `spend_usd_per_day` holds while money is spent, not only at the start: a row workflow takes its spend out of the day's cap a few rows ahead, in one conditional statement, so parallel runs cannot each see room. When there is no room it stops with `stopReason: "daySpendCap"`, and it settles what it did not spend when it ends, also when it fails midway. Each run's unpaid reservation is recorded (`reserve:<day>:<run>` in `usage_budget`); a run that is killed without settling has it given back at the next run start once it has been untouched for six hours, keeping what that run had already paid. Paid profile lookups are deferred (`budget_deferred`). A new run does not start once the cap is used up.
 
 ### Reading a population cheaply
 
