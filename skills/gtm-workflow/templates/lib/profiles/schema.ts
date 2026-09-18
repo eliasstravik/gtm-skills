@@ -427,24 +427,86 @@ export function profileSchemaSql() {
     .join("\n") + profileLookupSql;
 }
 /**
- * Indexed lookups for shared profiles. Turso bills every row a query scans, so
- * identity aliases live in an indexed side table instead of being searched with
- * json_each over identifiers_json. Additive and safe to run on every build.
+ * Indexed lookups for shared profiles. Turso bills every row a query scans, so whatever is filtered, joined or
+ * counted by lives in an indexed side table instead of being searched with json_each over a JSON column. The JSON
+ * columns stay the full record. Additive and safe to run on every build.
  */
-export const profileLookupSql = `
+const lookupTablesSql = `
 CREATE TABLE IF NOT EXISTS profile_identifiers (
  entity TEXT NOT NULL, namespace TEXT NOT NULL, value TEXT NOT NULL, entity_key TEXT NOT NULL,
  PRIMARY KEY (entity, namespace, value, entity_key)
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS profile_identifiers_entity_key ON profile_identifiers (entity, entity_key);
-CREATE INDEX IF NOT EXISTS companies_domain_name ON companies (domain, name);`;
-/** One pass over each profile table; repairs aliases written by an older runtime. */
-export const profileLookupBackfillSql = (["people", "companies"] as const)
+CREATE INDEX IF NOT EXISTS companies_domain_name ON companies (domain, name);
+CREATE TABLE IF NOT EXISTS profile_memberships (
+ entity TEXT NOT NULL, workflow_id TEXT NOT NULL, entity_key TEXT NOT NULL,
+ PRIMARY KEY (workflow_id, entity, entity_key)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS profile_memberships_entity_key ON profile_memberships (entity, entity_key);
+CREATE TABLE IF NOT EXISTS person_companies (
+ person_key TEXT NOT NULL, company_key TEXT NOT NULL, is_current INTEGER NOT NULL,
+ PRIMARY KEY (person_key, company_key)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS person_companies_company ON person_companies (company_key, is_current, person_key);
+CREATE INDEX IF NOT EXISTS people_primary_company ON people (primary_company_key);
+CREATE TABLE IF NOT EXISTS schema_backfills (name TEXT PRIMARY KEY, done_at TEXT NOT NULL);`;
+
+const list = (column: string) => `json_each(CASE WHEN json_valid(${column}) THEN ${column} ELSE '[]' END)`;
+/**
+ * Each side table is a pure function of one JSON column; `row` is NEW in a trigger and a table alias in a backfill.
+ * DISTINCT and GROUP BY keep duplicates out: inside a trigger SQLite applies the firing statement's conflict
+ * policy, so OR IGNORE alone does not protect an upsert.
+ */
+const derive = {
+  sources_json: (entity: Entity, row: string) => `
+INSERT OR IGNORE INTO profile_memberships (entity, workflow_id, entity_key)
+SELECT DISTINCT '${entity}', json_extract(m.value, '$.workflow_id'), ${row}.key FROM ${row === "NEW" ? "" : `"${entity}" ${row}, `}${list(`${row}.sources_json`)} m
+WHERE json_extract(m.value, '$.workflow_id') IS NOT NULL;`,
+  identifiers_json: (entity: Entity, row: string) => `
+INSERT OR IGNORE INTO profile_identifiers (entity, namespace, value, entity_key)
+SELECT DISTINCT '${entity}', json_extract(a.value, '$.namespace'), json_extract(a.value, '$.value'), ${row}.key FROM ${row === "NEW" ? "" : `"${entity}" ${row}, `}${list(`${row}.identifiers_json`)} a
+WHERE json_extract(a.value, '$.namespace') IS NOT NULL AND json_extract(a.value, '$.value') IS NOT NULL;`,
+  experiences_json: (entity: Entity, row: string) => `
+INSERT OR REPLACE INTO person_companies (person_key, company_key, is_current)
+SELECT ${row}.key, json_extract(r.value, '$.company_key'), MAX(json_extract(r.value, '$.current_status') = 'current') FROM ${row === "NEW" ? "" : `"${entity}" ${row}, `}${list(`${row}.experiences_json`)} r
+WHERE json_extract(r.value, '$.company_key') IS NOT NULL GROUP BY ${row}.key, json_extract(r.value, '$.company_key');`,
+};
+const clear = {
+  sources_json: (entity: Entity) => `DELETE FROM profile_memberships WHERE entity = '${entity}' AND entity_key = OLD.key;`,
+  identifiers_json: (entity: Entity) => `DELETE FROM profile_identifiers WHERE entity = '${entity}' AND entity_key = OLD.key;`,
+  experiences_json: () => `DELETE FROM person_companies WHERE person_key = OLD.key;`,
+};
+const derivedColumns = (entity: Entity) =>
+  (["sources_json", "identifiers_json", "experiences_json"] as const).filter((c) => entity === "people" || c !== "experiences_json");
+/**
+ * The database keeps the side tables exact itself, so every writer is covered: the store, merges of duplicates,
+ * hand-written SQL, and an older runtime still writing during a rollout. WHEN skips columns an upsert did not change.
+ * Names are versioned; change a trigger by adding a new version and dropping the old one in the same migration.
+ */
+const lookupTriggersSql = (["people", "companies"] as const)
   .map(
     (entity) => `
-INSERT OR IGNORE INTO profile_identifiers (entity, namespace, value, entity_key)
-SELECT '${entity}', json_extract(a.value, '$.namespace'), json_extract(a.value, '$.value'), p.key
-FROM "${entity}" p, json_each(COALESCE(p.identifiers_json, '[]')) a
-WHERE json_extract(a.value, '$.namespace') IS NOT NULL AND json_extract(a.value, '$.value') IS NOT NULL;`,
+CREATE TRIGGER IF NOT EXISTS ${entity}_lookup_insert_v1 AFTER INSERT ON "${entity}" BEGIN${derivedColumns(entity).map((c) => derive[c](entity, "NEW")).join("")}
+END;
+CREATE TRIGGER IF NOT EXISTS ${entity}_lookup_delete_v1 AFTER DELETE ON "${entity}" BEGIN
+${derivedColumns(entity).map((c) => clear[c](entity)).join("\n")}
+END;${derivedColumns(entity)
+      .map(
+        (c) => `
+CREATE TRIGGER IF NOT EXISTS ${entity}_lookup_${c}_v1 AFTER UPDATE OF key, ${c} ON "${entity}"
+WHEN OLD.${c} IS NOT NEW.${c} OR OLD.key IS NOT NEW.key BEGIN
+${clear[c](entity)}${derive[c](entity, "NEW")}
+END;`,
+      )
+      .join("")}`,
   )
   .join("");
+export const profileLookupSql = lookupTablesSql + lookupTriggersSql;
+/** One pass over each profile table per side table, run once per database (lib/profiles/migrate.ts records it). */
+export const profileBackfills = (["sources_json", "identifiers_json", "experiences_json"] as const).map((column) => ({
+  name: { sources_json: "profile_memberships_v1", identifiers_json: "profile_identifiers_v1", experiences_json: "person_companies_v1" }[column],
+  sql: (["people", "companies"] as const)
+    .filter((entity) => derivedColumns(entity).includes(column))
+    .map((entity) => derive[column](entity, "p"))
+    .join(""),
+}));

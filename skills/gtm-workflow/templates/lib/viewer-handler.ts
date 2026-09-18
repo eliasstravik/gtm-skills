@@ -125,7 +125,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
       if (recipient)
         throw new ViewerError(403, "view_denied", "Workspace data requires private access.");
       const read = async (page: URL) => {
-        const client = rawClient();
+        const client = rawClient({ interactive: "browse" });
         try { return await readWorkspaceData(client, page); }
         finally { client.close(); }
       };
@@ -241,7 +241,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
           req.signal,
         );
       case "grants": {
-        const client = rawClient();
+        const client = rawClient({ interactive: "browse" });
         try {
           const row = await activeLink(client, {
             ...deploymentScope(),
@@ -283,7 +283,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
             "Open the hosted private viewer to share.",
           );
         const body = await boundedJson(req);
-        const client = rawClient();
+        const client = rawClient({ interactive: "browse" });
         try {
           const api = grants(client, {
             ...deploymentScope(),

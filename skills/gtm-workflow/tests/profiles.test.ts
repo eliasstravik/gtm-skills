@@ -44,12 +44,19 @@ import {
   collectCompanies,
 } from "../templates/lib/profiles/network";
 import { startLookup, pollLookup } from "../templates/lib/profiles/provider";
+import { guard, guardSchemaSql } from "../templates/lib/db-guard";
 
+/** Every test runs on the strict, enforcing guard: a full scan anywhere in the profile code fails the test. */
 async function database() {
   const c = createClient({ url: ":memory:" });
-  await c.executeMultiple(profileSchemaSql() + ledgerSchemaSql);
-  return c;
+  await c.executeMultiple(profileSchemaSql() + ledgerSchemaSql + guardSchemaSql);
+  const guarded = guard(c, { mode: "strict", scope: "run:test" });
+  unguarded.set(guarded, c);
+  return guarded;
 }
+/** The test's own whole-table assertions read the raw client; the code under test never does. */
+const unguarded = new WeakMap<object, ReturnType<typeof createClient>>();
+const raw = (db: object) => unguarded.get(db)!;
 const source = (workflow = "a") => ({
   workflow_id: workflow,
   source_id: "import",
@@ -148,7 +155,7 @@ test("membership is cumulative, provisional keys survive changed slugs, conflict
     "unresolved",
   );
   assert.equal(
-    (await db.execute("SELECT count(*) n FROM people")).rows[0].n,
+    (await raw(db).execute("SELECT count(*) n FROM people")).rows[0].n,
     1,
   );
   db.close();
@@ -405,6 +412,8 @@ test("shared companies never expose another workflow's population or metadata", 
     ),
     undefined,
   );
+  // Counts are index searches and pass the strict guard; a sorted, paged view is a person browsing.
+  const browse = guard(raw(db), { mode: "interactive", scope: "browse:test" });
   const counts = await readCounts(view.data, registry, db);
   assert.deepEqual(
     counts.map((c) => c.total),
@@ -413,14 +422,14 @@ test("shared companies never expose another workflow's population or metadata", 
   const companyPage = await readData(
     view.data,
     registry,
-    db,
+    browse,
     new URL("http://test/?table=companies"),
   );
   assert.equal(companyPage.rows[0].at(-1)?.value, "View 1");
   const back = await readData(
     view.data,
     registry,
-    db,
+    browse,
     new URL(
       `http://test/?table=people&relatedTable=companies&relatedKey=${companyPage.keys[0]}`,
     ),
@@ -432,21 +441,21 @@ test("shared companies never expose another workflow's population or metadata", 
       await readData(
         view.data,
         registry,
-        db,
+        browse,
         new URL("http://test/?table=people&q=b"),
       )
     ).total,
     0,
   );
   const foreign = (
-    await db.execute("SELECT key FROM people WHERE full_name = 'b'")
+    await raw(db).execute("SELECT key FROM people WHERE full_name = 'b'")
   ).rows[0].key;
   assert.equal(
     (
       await readData(
         view.data,
         registry,
-        db,
+        browse,
         new URL(`http://test/?table=people&key=${foreign}`),
       )
     ).total,
@@ -462,14 +471,14 @@ test("shared companies never expose another workflow's population or metadata", 
     readData(
       shared,
       registry,
-      db,
+      browse,
       new URL("http://test/?table=people&columns=raw_responses_json"),
     ),
   );
   const safe = await readData(
     shared,
     registry,
-    db,
+    browse,
     new URL("http://test/?table=people&columns=experiences_json"),
   );
   assert.equal((safe.rows[0][0].value as any[])[0].original, undefined);
@@ -718,17 +727,17 @@ test("email evidence and network imports share identities without accepting mode
     assert.ok(JSON.stringify(result).includes("Ada"));
     assert.equal(purchases, 1);
     assert.equal(
-      (await db.execute("SELECT count(*) n FROM people")).rows[0].n,
+      (await raw(db).execute("SELECT count(*) n FROM people")).rows[0].n,
       1,
     );
     assert.equal(
-      (await db.execute("SELECT count(*) n FROM companies")).rows[0].n,
+      (await raw(db).execute("SELECT count(*) n FROM companies")).rows[0].n,
       1,
     );
     assert.equal(
       JSON.parse(
         String(
-          (await db.execute("SELECT sources_json FROM people")).rows[0]
+          (await raw(db).execute("SELECT sources_json FROM people")).rows[0]
             .sources_json,
         ),
       ).length,
@@ -842,26 +851,12 @@ test("identity, alias, attempt and membership lookups never scan whole profile t
   await collectCompanies(db, run.lease, run.people);
   await reserve(db, run.lease, person.profile.key, "lookup", 0.01);
   await reserve(db, run.lease, person.profile.key, "lookup", 0.01);
-  // Rare company merges still expand experiences_json; see the note at that query in store.ts.
-  const checked = statements
-    .map((s) => (typeof s === "string" ? { sql: s, args: [] } : s))
-    .filter(
-      (s) =>
-        /^\s*SELECT/i.test(s.sql) &&
-        /\b(companies|people|profile_attempts)\b/.test(s.sql) &&
-        !/experiences_json/.test(s.sql),
-    );
-  assert.ok(checked.some((s) => s.sql.includes("profile_identifiers")));
-  assert.ok(checked.some((s) => s.sql.includes("profile_attempts")));
-  for (const s of checked) {
-    const plan = await raw.execute({
-      sql: `EXPLAIN QUERY PLAN ${s.sql}`,
-      args: s.args ?? [],
-    });
-    const scans = plan.rows
-      .map((row) => String(row.detail))
-      .filter((d) => /^SCAN (companies|people|profile_attempts)\b/.test(d));
-    assert.deepEqual(scans, [], s.sql);
-  }
+  // database() is the strict, enforcing guard: any full scan above, aliased or not, would have thrown. The company
+  // merge is included; it reads person_companies instead of expanding experiences_json.
+  const sql = statements.map((s) => (typeof s === "string" ? s : s.sql));
+  assert.ok(sql.some((s) => s.includes("profile_identifiers")));
+  assert.ok(sql.some((s) => s.includes("profile_attempts")));
+  assert.ok(sql.some((s) => s.includes("person_companies")));
+  assert.ok(!sql.some((s) => /json_each/.test(s)));
   raw.close();
 });

@@ -3,7 +3,8 @@ import { cache as cacheTable } from "../db/tables/cache";
 import { defineHook, getWorkflowMetadata, setAttributes } from "workflow";
 import { resumeHook, start } from "workflow/api";
 import { z } from "zod";
-import { db, table, upsert, type TableName } from "./db";
+import { db, rawClient, table, upsert, type TableName } from "./db";
+import { assertSpendAllowed, chargeSpend } from "./spend";
 import { canNotify, notify, type SlackTarget } from "./notify";
 import { rowFailure } from "./failure";
 
@@ -62,6 +63,8 @@ export type RowsInput = {
   rows?: Row[];
   maxRows?: number;
   maxSpendUsd?: number;
+  /** A deliberately large run raises its own row-read budget: estimated rows, clamped to rows_per_run_ceiling (references/cost.md). */
+  maxRowsRead?: number;
   notify?: { channelId: string };
   parent?: string;
 };
@@ -89,9 +92,12 @@ export type RunRowsOptions = {
   step: (row: Row) => Promise<StepResult>;
   read?: typeof readFresh;
   save?: typeof saveRow;
+  budgets?: { begin: typeof beginBudgets; record: typeof recordSpend };
   /** Counts attempted rows after freshness skipping. */
   maxRows: number;
   maxSpendUsd: number;
+  /** This run's row-read budget; defaults to `fanOut.input.maxRowsRead`, else rows_per_run in gtm_settings. */
+  maxRowsRead?: number;
   estimateUsd: number;
   concurrency?: number;
   freshForMs: number;
@@ -121,6 +127,8 @@ const childHook = defineHook({
 /** Workflow-scope loop, never a step: skips fresh keys, checks both caps before each batch, runs step(row) per row, persists through save. */
 export async function runRows(o: RunRowsOptions): Promise<RunResult> {
   await tagRun(o);
+  const budgets = o.budgets ?? { begin: beginBudgets, record: recordSpend };
+  await budgets.begin(o.maxRowsRead ?? o.fanOut?.input.maxRowsRead ?? null);
   const read = o.read ?? readFresh;
   const save = o.save ?? saveRow;
   const concurrency = o.concurrency ?? 1;
@@ -203,6 +211,7 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
       }
     }
   }
+  await budgets.record(result.spentUsd);
   if (o.notify?.every === "chunk" && lines.length > 0)
     await post(o.notify.target, clip(lines));
   if (o.notify?.every === "run" && !isChild)
@@ -271,6 +280,30 @@ async function tagRun(o: RunRowsOptions): Promise<void> {
   });
 }
 
+/** A run's own row-read budget when it asked for one, and a stop before any paid call when the day's spend is used up. */
+async function beginBudgets(maxRowsRead: number | null): Promise<void> {
+  "use step";
+  const client = rawClient();
+  try {
+    if (maxRowsRead != null) await client.setRunBudget(maxRowsRead);
+    await assertSpendAllowed(client);
+  } finally {
+    client.close();
+  }
+}
+beginBudgets.maxRetries = 0;
+
+/** Adds what this run paid to the day's total, which spend_usd_per_day caps across runs. */
+async function recordSpend(usd: number): Promise<void> {
+  "use step";
+  const client = rawClient();
+  try {
+    await chargeSpend(client, usd);
+  } finally {
+    client.close();
+  }
+}
+
 /** Workflow scope: the parent's share of a fanned-out run. Rows beyond the caps are not started at all. */
 async function fanOut(o: RunRowsOptions, pending: Row[]): Promise<RunResult> {
   const {
@@ -279,6 +312,7 @@ async function fanOut(o: RunRowsOptions, pending: Row[]): Promise<RunResult> {
     chunkSize,
     concurrency = 4,
   } = o.fanOut as NonNullable<RunRowsOptions["fanOut"]>;
+  const readBudget = o.maxRowsRead ?? input.maxRowsRead;
   const affordable = Math.floor(o.maxSpendUsd / o.estimateUsd);
   const selected = pending.slice(0, Math.min(o.maxRows, affordable));
   const chunks: Row[][] = [];
@@ -313,6 +347,7 @@ async function fanOut(o: RunRowsOptions, pending: Row[]): Promise<RunResult> {
           rows: chunk,
           maxRows: chunk.length,
           maxSpendUsd: round(chunk.length * o.estimateUsd),
+          ...(readBudget ? { maxRowsRead: Math.ceil((readBudget * chunk.length) / selected.length) } : {}),
           parent: `${workflowRunId}:chunk:${wave + j}`,
         }),
       ),

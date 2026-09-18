@@ -322,10 +322,9 @@ async function resolve(
         profile.provenance_json[field] = duplicate.provenance_json[field];
     }
     if (entity === "companies") {
-      // Scans people once per merged duplicate; merges are rare. An indexed
-      // person-company relation would also serve the Data relation counts.
+      // person_companies holds every role's company, so this is an index search, not a scan of people.
       const affected = await tx.execute({
-        sql: "SELECT * FROM people WHERE primary_company_key = ? OR EXISTS (SELECT 1 FROM json_each(COALESCE(experiences_json, '[]')) e WHERE json_extract(e.value, '$.company_key') = ?)",
+        sql: "SELECT * FROM people WHERE key IN (SELECT key FROM people WHERE primary_company_key = ? UNION SELECT person_key FROM person_companies WHERE company_key = ?)",
         args: [duplicate.key, duplicate.key],
       });
       for (const row of affected.rows) {

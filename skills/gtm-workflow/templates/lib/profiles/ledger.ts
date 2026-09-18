@@ -1,8 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Client, Transaction } from "@libsql/client";
 import { transaction, sanitize } from "./store";
+import { guardSchemaSql } from "../db-guard";
+import { chargeSpendMicro, spendFits } from "../spend";
 
-export const ledgerSchemaSql = `
+/** Includes the guard's tables: the day's paid-call cap is read from gtm_settings and kept in usage_budget. */
+export const ledgerSchemaSql = `${guardSchemaSql}
 CREATE TABLE IF NOT EXISTS profile_runs (
  id TEXT PRIMARY KEY, workflow_id TEXT NOT NULL, owner TEXT NOT NULL, lease_until INTEGER NOT NULL,
  state TEXT NOT NULL, budget_micro INTEGER NOT NULL, spent_micro INTEGER NOT NULL DEFAULT 0,
@@ -10,6 +13,7 @@ CREATE TABLE IF NOT EXISTS profile_runs (
  omitted INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS profile_single_flight ON profile_runs ((1)) WHERE state = 'running';
+CREATE INDEX IF NOT EXISTS profile_runs_state ON profile_runs (state);
 CREATE TABLE IF NOT EXISTS profile_work (
  run_id TEXT NOT NULL, phase TEXT NOT NULL, entity_key TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending',
  PRIMARY KEY (run_id, phase, entity_key)
@@ -187,6 +191,9 @@ export async function reserve(
       Number(run.budget_micro)
     )
       return { status: "budget_deferred" as const };
+    // The run's own budget bounds one run; spend_usd_per_day bounds the workspace across runs.
+    if (!(await spendFits(tx, amount)).fits)
+      return { status: "budget_deferred" as const };
     const id = randomUUID();
     await tx.execute({
       sql: "INSERT INTO profile_attempts (id,run_id,entity_key,operation,state,reserved_micro,created_at) VALUES (?,?,?,?,'reserved',?,?)",
@@ -265,6 +272,7 @@ export async function settle(
       sql: "UPDATE profile_runs SET spent_micro = spent_micro + ?, reserved_micro = reserved_micro - ? WHERE id = ?",
       args: [cost, attempt.reserved_micro, attempt.run_id],
     });
+    await chargeSpendMicro(tx, cost);
   });
 }
 export async function cancelRun(client: Client, runId: string) {

@@ -85,6 +85,14 @@ function cellValue(
     : project(parsed);
 }
 
+/** The side tables index the shared profile tables only; a policy over any other table is refused. */
+function profileEntity(registry: Registry, name: string) {
+  const physical = has(registry, name) ? getTableName(registry[name]) : "";
+  if (physical !== "people" && physical !== "companies")
+    throw new DataInputError("Shared-profile policies apply to people and companies only");
+  return physical;
+}
+
 function population(
   config: WorkflowData,
   registry: Registry,
@@ -116,7 +124,9 @@ function population(
     )
       throw new DataInputError("Unsupported membership policy");
     args.push(policy.membership.workflowId);
-    return ` AND EXISTS (SELECT 1 FROM json_each(COALESCE(${prefix}${column(name, "sources_json")},'[]')) member WHERE json_extract(member.value,'$.workflow_id') = ?)`;
+    column(name, "sources_json");
+    // profile_memberships mirrors sources_json[].workflow_id (kept exact by triggers), so this is an index search.
+    return ` AND ${prefix}${column(name, "key")} IN (SELECT member.entity_key FROM profile_memberships member WHERE member.workflow_id = ? AND member.entity = '${profileEntity(registry, name)}')`;
   }
   if (policy.currentCompanies) {
     if (policy.version !== "shared-profiles-v1")
@@ -125,7 +135,7 @@ function population(
     column(people, "sources_json");
     column(people, "experiences_json");
     args.push(policy.currentCompanies.workflowId);
-    return ` AND ${prefix}${column(name, "key")} IN (SELECT DISTINCT json_extract(role.value,'$.company_key') FROM ${quote(getTableName(registry[people]))} population_person, json_each(COALESCE(population_person.${column(people, "experiences_json")},'[]')) role WHERE json_extract(role.value,'$.current_status') = 'current' AND EXISTS (SELECT 1 FROM json_each(COALESCE(population_person.${column(people, "sources_json")},'[]')) member WHERE json_extract(member.value,'$.workflow_id') = ?))`;
+    return ` AND ${prefix}${column(name, "key")} IN (SELECT role.company_key FROM profile_memberships member JOIN person_companies role ON role.person_key = member.entity_key AND role.is_current = 1 WHERE member.workflow_id = ? AND member.entity = '${profileEntity(registry, people)}')`;
   }
   if (!policy.column) return "";
   if (policy.equals === undefined)
@@ -230,7 +240,8 @@ export async function readData(
       r.toColumn !== "experiences_json"
     )
       throw new DataInputError("Unsupported structured relationship");
-    return `(SELECT p.*, p.${column(r.through, "key")} AS __from, json_extract(role.value,'$.company_key') AS __to FROM ${physical(r.through)} p, json_each(COALESCE(p.${column(r.through, "experiences_json")},'[]')) role WHERE json_extract(role.value,'$.current_status') = 'current')`;
+    profileEntity(registry, r.through);
+    return `(SELECT p.*, role.person_key AS __from, role.company_key AS __to FROM person_companies role JOIN ${physical(r.through)} p ON p.${column(r.through, "key")} = role.person_key WHERE role.is_current = 1)`;
   };
   relations.forEach((r) => {
     other(r);
