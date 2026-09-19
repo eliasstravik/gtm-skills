@@ -2,8 +2,7 @@ import { createClient } from "@libsql/client";
 import { build } from "esbuild";
 await build({
   stdin: {
-    contents:
-      'export { ledgerSchemaSql } from "./lib/profiles/ledger"; export { profileLookupSql, profileLookupBackfillSql } from "./lib/profiles/schema";',
+    contents: 'export { ledgerSchemaSql } from "./lib/profiles/ledger";',
     resolveDir: process.cwd(),
   },
   outfile: "node_modules/.gtm-profiles/migrate.mjs",
@@ -12,7 +11,7 @@ await build({
   format: "esm",
   packages: "external",
 });
-const { ledgerSchemaSql, profileLookupSql, profileLookupBackfillSql } = await import(
+const { ledgerSchemaSql } = await import(
   "../node_modules/.gtm-profiles/migrate.mjs"
 );
 const hosted = Boolean(process.env.VERCEL);
@@ -24,12 +23,6 @@ const client = createClient({
 });
 try {
   await client.executeMultiple(ledgerSchemaSql);
-  // Shared profile tables come from the Drizzle migrations; skip lookups if a workspace predates them.
-  const tables = await client.execute(
-    "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name IN ('people','companies')",
-  );
-  if (Number(tables.rows[0].n) === 2)
-    await client.executeMultiple(profileLookupSql + profileLookupBackfillSql);
   console.log("Profile operational storage ready.");
 } finally {
   client.close();
