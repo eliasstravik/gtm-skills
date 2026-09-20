@@ -10,14 +10,23 @@ import {
 } from "node:fs/promises";
 import { join, resolve, dirname } from "node:path";
 import { tmpdir } from "node:os";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:net";
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
+import { startTestPostgres } from "./postgres.mjs";
 const source = resolve(process.argv[2] ?? "skills/gtm-workflow/templates");
 const target = await mkdtemp(join(tmpdir(), "gtm-reliability-"));
+// Its own database on its own Postgres, reached as the app's plain role; the template folder's data/ is never touched.
+const postgres = await startTestPostgres(source);
+const pg = (await import(pathToFileURL(createRequire(join(source, "package.json")).resolve("pg")))).default;
+const admin = new pg.Client({ host: "127.0.0.1", port: postgres.port, user: "postgres", password: "postgres", database: "postgres" });
+await admin.connect();
+await admin.query("CREATE DATABASE reliability OWNER gtm");
+await admin.end();
+const databaseUrl = `postgres://gtm:gtm@127.0.0.1:${postgres.port}/reliability?sslmode=disable`;
 let child;
 try {
   for (const name of await readdir(source))
@@ -40,10 +49,11 @@ try {
         join(source, "node_modules", name),
         join(target, "node_modules", name),
       );
-  function prepare(args) {
+  function prepare(args, env = process.env) {
     const r = spawnSync(process.execPath, args, {
       cwd: target,
       encoding: "utf8",
+      env,
     });
     if (r.status !== 0) throw new Error(r.stdout + r.stderr);
   }
@@ -66,8 +76,8 @@ try {
   assert.equal(upgraded.scripts.dev, "nitro dev --port 4400");
   assert.equal(upgraded.scripts.custom, "echo keep");
   prepare(["scripts/build-viewer.mjs"]);
-  prepare(["node_modules/drizzle-kit/bin.cjs", "migrate"]);
-  prepare(["scripts/viewer-migrate.mjs"]);
+  // An explicit target, as for any database the launcher did not start.
+  prepare(["scripts/migrate.mjs"], { ...process.env, GTM_DATABASE: "external", DATABASE_URL: databaseUrl, DATABASE_URL_UNPOOLED: databaseUrl });
   await writeFile(
     join(target, "workflows/reliability-fixture.ts"),
     `
@@ -97,6 +107,8 @@ const startup=await settings();const result=await runRows({rows:[{key:'fixture'}
   const env = {
     ...process.env,
     GTM_RUN_SECRET: "local-fixture-secret",
+    DATABASE_URL: databaseUrl,
+    DATABASE_URL_UNPOOLED: databaseUrl,
     PATH: join(source, "node_modules/.bin") + ":" + process.env.PATH,
   };
   delete env.WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS;
@@ -151,14 +163,11 @@ const startup=await settings();const result=await runRows({rows:[{key:'fixture'}
     assert.equal(run.output.failed, 1);
     assert.equal(run.output.startup.headers, "900000");
     assert.equal(run.output.startup.body, "900000");
-    const { createClient } = createRequire(join(source, "package.json"))(
-      "@libsql/client",
-    );
-    const client = createClient({ url: "file:" + join(target, "data/gtm.db") });
-    const rows = await client.execute(
-      "SELECT error FROM example_scores WHERE key='fixture'",
-    );
-    client.close();
+    const client = new pg.Client({ connectionString: databaseUrl });
+    await client.connect();
+    const rows = await client.query("SELECT error, updated_at FROM example_scores WHERE key='fixture'");
+    await client.end();
+    assert.ok(rows.rows[0].updated_at instanceof Date);
     console.log(rows.rows);
     const diagnostic = JSON.parse(String(rows.rows[0].error));
     assert.equal(diagnostic.layer, "mcp_transport");
@@ -181,4 +190,5 @@ const startup=await settings();const result=await runRows({rows:[{key:'fixture'}
     if (child.exitCode === null) child.kill("SIGKILL");
   }
   await rm(target, { recursive: true, force: true });
+  await postgres.stop();
 }
