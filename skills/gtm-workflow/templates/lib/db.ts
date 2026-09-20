@@ -1,26 +1,45 @@
-import { createClient } from "@libsql/client";
-import { sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/libsql";
-import { tables } from "../db/tables";
+import { attachDatabasePool } from "@vercel/functions";
+import { sql, type ExtractTablesWithRelations } from "drizzle-orm";
+import { drizzle, type NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
+import type { PgDatabase } from "drizzle-orm/pg-core";
+import pg from "pg";
+import { tables } from "./tables";
 
 export type TableName = keyof typeof tables;
+/** What db() and a transaction both are. Internal helpers take one first, so code inside a transaction can only use that transaction. */
+export type Executor = PgDatabase<NodePgQueryResultHKT, typeof tables, ExtractTablesWithRelations<typeof tables>>;
 
-function credentials() {
-  if (!process.env.VERCEL) return { url: "file:./data/gtm.db" };
-  const { TURSO_DATABASE_URL: url, TURSO_AUTH_TOKEN: authToken } = process.env;
-  if (!url) throw new Error("Set TURSO_DATABASE_URL and TURSO_AUTH_TOKEN on the Vercel project");
-  return { url, authToken };
+const CONNECT_TIMEOUT_MS = 10_000; // covers Neon waking from zero
+const WRITE_LOCK_KEY = 7461;
+
+function missingUrl() {
+  return new Error(
+    process.env.VERCEL
+      ? "No DATABASE_URL: connect Neon to this project through the Vercel integration"
+      : "No DATABASE_URL: start `npm run dev` or `npm run viewer` first",
+  );
 }
+// node-postgres emits "error" for idle clients whose connection drops; an unhandled one kills the process. Never log the URL.
+const logDropped = (error: Error) => console.error(`Database connection dropped: ${error.message}`);
 
-/** The raw libsql client for route-side reads (the query route); workflows use db() inside steps. */
-export function rawClient() {
-  return createClient(credentials());
-}
-
+let pool: pg.Pool | undefined;
 let instance: ReturnType<typeof drizzle<typeof tables>> | undefined;
-/** Local: file:./data/gtm.db. Vercel: Turso. Call only inside "use step" functions. */
+/** One Postgres at DATABASE_URL, locally and deployed. Nothing connects at import time. Call only inside "use step" functions and route handlers. */
 export function db() {
-  return (instance ??= drizzle(createClient(credentials()), { schema: tables }));
+  if (instance) return instance;
+  if (!process.env.DATABASE_URL) throw missingUrl();
+  pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 5, connectionTimeoutMillis: CONNECT_TIMEOUT_MS });
+  pool.on("error", logDropped);
+  if (process.env.VERCEL) attachDatabasePool(pool);
+  return (instance = drizzle(pool, { schema: tables }));
+}
+
+/** Ends the pool so a process or test can exit; the next db() opens a new one. */
+export async function closeDb() {
+  const ending = pool;
+  pool = undefined;
+  instance = undefined;
+  await ending?.end();
 }
 
 export function table(name: TableName) {
@@ -36,4 +55,43 @@ export async function upsert(tableName: TableName, rows: Record<string, unknown>
   const columns = Object.keys(rows[0]).filter((c) => !conflictTarget.includes(c));
   const set = Object.fromEntries(columns.map((c) => [c, sql.raw(`excluded."${c}"`)]));
   await db().insert(t as never).values(rows as never).onConflictDoUpdate({ target: conflictTarget.map((c) => t[c]), set });
+}
+
+/**
+ * One writer at a time for the profile store and the ledger, as SQLite gave for free. Call first in a write
+ * transaction. Re-entrant within it, released at commit or rollback. A waiter fails after the limit instead of hanging.
+ */
+export async function writeLock(tx: Executor, limit = "30s") {
+  await tx.execute(sql`SELECT set_config('lock_timeout', ${limit}, true)`);
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(${WRITE_LOCK_KEY})`);
+}
+
+const parseTimestamptz = pg.types.getTypeParser(pg.types.builtins.TIMESTAMPTZ) as (value: string) => Date;
+/** The query builder returns Date for timestamptz; raw db.execute(sql`…`) returns text. Pass every raw time through this. */
+export function toDate(value: unknown): Date {
+  return value instanceof Date ? value : parseTimestamptz(String(value));
+}
+
+/**
+ * Runs one caller-written statement for /api/query and nothing else. Safety comes from Postgres, not from reading the text:
+ * a read-only transaction; the extended protocol, which refuses `select 1; commit; insert …`; a 5 second limit; and a
+ * throwaway session that is always ended, so a session lock taken by the statement cannot outlive it.
+ */
+export async function runReadOnly(text: string, args: unknown[]) {
+  const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
+  if (!url) throw missingUrl();
+  const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: CONNECT_TIMEOUT_MS });
+  client.on("error", logDropped);
+  await client.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SET TRANSACTION READ ONLY");
+    await client.query("SET LOCAL statement_timeout = '5s'");
+    await client.query("SET LOCAL search_path = public, gtm");
+    const result = await client.query({ text, values: args, queryMode: "extended" });
+    return { columns: result.fields.map((field) => field.name), rows: result.rows as Record<string, unknown>[] };
+  } finally {
+    await client.query("ROLLBACK").catch(() => {});
+    await client.end().catch(() => {});
+  }
 }

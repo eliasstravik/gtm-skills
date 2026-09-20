@@ -47,8 +47,8 @@ export async function setupLocal(workspace, { upgrade = false } = {}) {
     workflowsUrl: prior?.workflowsUrl ?? "http://127.0.0.1:3939/viewer" });
   if (!existsSync(join(runtime, "node_modules"))) run("npm", ["ci", "--ignore-scripts", "--no-audit", "--no-fund"], runtime);
   const env = { ...inspectionEnvironment(process.env, managedNames), GTM_ENV_MANAGED: "1", WORKFLOW_TARGET_WORLD: "local", WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS: "false" };
-  // Database preparation is explicit. No execution server, queue or schedules start here.
-  for (const args of [["scripts/build-viewer.mjs"], ["node_modules/drizzle-kit/bin.cjs", "migrate"], ["scripts/profile-migrate.mjs"], ["scripts/viewer-migrate.mjs"]]) run(process.execPath, args, runtime, env);
+  // No database, execution server, queue or schedules start here. The first `npm run dev` creates and migrates the local database.
+  run(process.execPath, ["scripts/build-viewer.mjs"], runtime, env);
   return { status: "local_ready", workspace: state.workspace, component: component.version,
     next: `node ${join(skill, "scripts/connections.mjs")} open --workspace ${JSON.stringify(state.workspace)} --target local` };
 }

@@ -10,7 +10,7 @@ import { setTimeout as delay } from "node:timers/promises";
 const source = resolve(process.argv[2] ?? "skills/gtm-workflow/templates");
 const target = await mkdtemp(join(tmpdir(), "gtm-empty-workspace-"));
 const env = { ...process.env, GTM_RUN_SECRET: "empty-workspace-test" };
-for (const key of ["VERCEL", "GTM_VIEWER_MODE", "TURSO_DATABASE_URL", "TURSO_AUTH_TOKEN", "NITRO_PRESET"])
+for (const key of ["VERCEL", "VERCEL_ENV", "GTM_VIEWER_MODE", "GTM_DATABASE", "DATABASE_URL", "DATABASE_URL_UNPOOLED", "NITRO_PRESET"])
   delete env[key];
 let child;
 function run(command, args, extraEnv = {}) {
@@ -20,8 +20,10 @@ function run(command, args, extraEnv = {}) {
   assert.equal(result.status, 0, result.stdout + result.stderr);
 }
 try {
-  for (const name of ["lib", "scripts", "viewer", "connections-ui", "server", "viewer-server", "share-server", "db", "drizzle", "skills", "package.json", "tsconfig.json", "nitro.config.ts", "drizzle.config.ts", "vercel.json"])
+  for (const name of ["lib", "scripts", "viewer", "connections-ui", "server", "viewer-server", "share-server", "db", "drizzle", "drizzle-runtime", "skills", "package.json", "tsconfig.json", "nitro.config.ts", "drizzle.config.ts", "drizzle-runtime.config.ts", "vercel.json"])
     await cp(join(source, name), join(target, name), { recursive: true });
+  // Setup renames this file to .gitignore. The local database lives in data/pg and must never be committed.
+  assert.ok((await readFile(join(source, "gitignore"), "utf8")).split(/\r?\n/).includes("data/"), "a scaffolded workspace must ignore data/");
   await mkdir(join(target, "node_modules"));
   for (const name of await readdir(join(source, "node_modules")))
     if (![".nitro", ".gtm-viewer", ".cache"].includes(name))

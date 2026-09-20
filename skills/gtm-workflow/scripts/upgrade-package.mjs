@@ -9,6 +9,7 @@ const stock = {
   dev: /^(?:node scripts\/build-viewer\.mjs && )?drizzle-kit migrate && (?:node scripts\/profile-migrate\.mjs && )?(?:node scripts\/viewer-migrate\.mjs && )?(?:WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS=900000 WORKFLOW_LOCAL_BODY_TIMEOUT_MS=900000 )?nitro dev --port 3939$/,
   build:
     /^(?:node scripts\/build-viewer\.mjs && )?drizzle-kit migrate && (?:node scripts\/profile-migrate\.mjs && )?(?:node scripts\/viewer-migrate\.mjs && )?nitro build$/,
+  "db:studio": /^drizzle-kit studio$/,
 };
 
 export function mergePackage(current, template) {

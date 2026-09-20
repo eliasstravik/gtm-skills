@@ -25,9 +25,11 @@ try {
   if (!component || !/^[0-9a-f]{64}$/.test(component.digest) || dirname(component.path) !== join(root, "components") || config.workspace !== workspace) throw Error();
   const { componentDigest } = await import(pathToFileURL(join(component.path, "local/install.mjs")));
   if (await componentDigest(component.path) !== component.digest) throw Error();
-  const { launch } = await import(pathToFileURL(join(component.path, "local/launch.mjs")));
+  const { launch, ensureLocalDatabase } = await import(pathToFileURL(join(component.path, "local/launch.mjs")));
+  // The template and the Connections component are released separately; an older component cannot start Postgres.
+  if (typeof ensureLocalDatabase !== "function") throw Object.assign(Error("Upgrade Connections: run shared setup with `--upgrade`"), { name: "LocalDatabaseError" });
   await launch(workspace, process.argv[2] === "viewer" ? "viewer" : "dev");
-} catch {
-  console.error("Local runtime unavailable. Run the installed gtm-workflow setup and Connections Doctor.");
+} catch (error) {
+  console.error(error?.name === "LocalDatabaseError" ? error.message : "Local runtime unavailable. Run the installed gtm-workflow setup and Connections Doctor.");
   process.exitCode = 1;
 }
