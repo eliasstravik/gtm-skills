@@ -11,9 +11,6 @@ const named = entry({ name: text, title: text, description: text, url: text });
 const dated = { start_date: text, end_date: text };
 const list = (schema: z.ZodTypeAny) => z.array(z.union([z.string(), schema]));
 export const sectionValidators: Record<string, z.ZodTypeAny> = {
-  identifiers_json: z.array(
-    entry({ namespace: z.string(), value: z.string(), observed_at: text }),
-  ),
   education_json: list(
     entry({
       school_name: text,

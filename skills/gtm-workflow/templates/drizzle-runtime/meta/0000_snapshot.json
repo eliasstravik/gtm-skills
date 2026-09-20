@@ -1,5 +1,5 @@
 {
-  "id": "fe2de5b0-0efc-4d30-8d4f-064b9374b0a0",
+  "id": "5859f5c3-21ef-40cf-95b2-121752426478",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1343,6 +1343,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "observed_at": {
+          "name": "observed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {

@@ -1,8 +1,8 @@
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { createClient } from "@libsql/client";
+import { db as appDatabase, closeDb } from "../templates/lib/db";
+import { testDatabase } from "./db";
 import {
-  profileSchemaSql,
   peopleFields,
   companiesFields,
   validateFields,
@@ -22,7 +22,6 @@ import {
   partialDate,
 } from "../templates/lib/profiles/normalize";
 import {
-  ledgerSchemaSql,
   beginRun,
   reserve,
   dispatch,
@@ -45,11 +44,12 @@ import {
 } from "../templates/lib/profiles/network";
 import { startLookup, pollLookup } from "../templates/lib/profiles/provider";
 
+// A fresh migrated database per test, reached through the real lib/db.ts as the app's plain role.
 async function database() {
-  const c = createClient({ url: ":memory:" });
-  await c.executeMultiple(profileSchemaSql() + ledgerSchemaSql);
-  return c;
+  await testDatabase();
+  return Object.assign(appDatabase(), { close() {} });
 }
+after(closeDb);
 const source = (workflow = "a") => ({
   workflow_id: workflow,
   source_id: "import",
@@ -72,15 +72,15 @@ const evidence = (
   sections,
 });
 test("all accepted fields have typed storage and validators", async () => {
-  assert.equal(Object.keys(peopleFields).length, 80);
-  assert.equal(Object.keys(companiesFields).length, 68);
+  assert.equal(Object.keys(peopleFields).length, 79);
+  assert.equal(Object.keys(companiesFields).length, 67);
   const db = await database();
   for (const [kind, fields] of [
     ["people", peopleFields],
     ["companies", companiesFields],
   ] as const) {
     assert.equal(
-      (await db.execute(`PRAGMA table_info(${kind})`)).rows.length,
+      (await db.execute(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'gtm' AND table_name = '${kind}'`)).rows.length,
       Object.keys(fields).length,
     );
     for (const [name, type] of Object.entries(fields))
@@ -88,6 +88,8 @@ test("all accepted fields have typed storage and validators", async () => {
         [name]:
           type === "TEXT"
             ? "value"
+            : type === "TIME"
+              ? new Date()
             : type === "BOOL"
               ? false
               : type === "JSON[]"
@@ -148,7 +150,7 @@ test("membership is cumulative, provisional keys survive changed slugs, conflict
     "unresolved",
   );
   assert.equal(
-    (await db.execute("SELECT count(*) n FROM people")).rows[0].n,
+    (await db.execute("SELECT count(*)::int n FROM gtm.people")).rows[0].n,
     1,
   );
   db.close();
@@ -220,7 +222,7 @@ test("partial, null, no-match and failed refreshes preserve accepted values; com
     outcome: "no_match",
     fetched_at: "2026-09-03T00:00:00Z",
   });
-  assert.equal(failure.enriched_at, "2026-09-02T00:00:00Z");
+  assert.equal(failure.enriched_at.toISOString(), "2026-09-02T00:00:00.000Z");
   assert.equal(failure.education_json.length, 1);
   assert.ok(
     recentMiss(
@@ -238,7 +240,7 @@ test("partial, null, no-match and failed refreshes preserve accepted values; com
     { linkedin_url: "linkedin.com/in/refresh" },
     source(),
   );
-  assert.equal(
+  assert.deepEqual(
     (await getProfile(db, "people", key))?.enriched_at,
     failure.enriched_at,
   );
@@ -439,7 +441,7 @@ test("shared companies never expose another workflow's population or metadata", 
     0,
   );
   const foreign = (
-    await db.execute("SELECT key FROM people WHERE full_name = 'b'")
+    await db.execute("SELECT key FROM gtm.people WHERE full_name = 'b'")
   ).rows[0].key;
   assert.equal(
     (
@@ -718,20 +720,15 @@ test("email evidence and network imports share identities without accepting mode
     assert.ok(JSON.stringify(result).includes("Ada"));
     assert.equal(purchases, 1);
     assert.equal(
-      (await db.execute("SELECT count(*) n FROM people")).rows[0].n,
+      (await db.execute("SELECT count(*)::int n FROM gtm.people")).rows[0].n,
       1,
     );
     assert.equal(
-      (await db.execute("SELECT count(*) n FROM companies")).rows[0].n,
+      (await db.execute("SELECT count(*)::int n FROM gtm.companies")).rows[0].n,
       1,
     );
     assert.equal(
-      JSON.parse(
-        String(
-          (await db.execute("SELECT sources_json FROM people")).rows[0]
-            .sources_json,
-        ),
-      ).length,
+      ((await db.execute("SELECT sources_json FROM gtm.people")).rows[0].sources_json as unknown[]).length,
       2,
     );
   } finally {

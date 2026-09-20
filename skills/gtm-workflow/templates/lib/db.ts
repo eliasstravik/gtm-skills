@@ -48,9 +48,19 @@ export function table(name: TableName) {
   return t;
 }
 
+/** Postgres refuses the NUL character in text and in jsonb strings; fetched pages and provider responses sometimes carry it. */
+export function stripNul<T>(value: T): T {
+  if (typeof value === "string") return value.replaceAll("\u0000", "") as T;
+  if (Array.isArray(value)) return value.map(stripNul) as T;
+  if (value && typeof value === "object" && !(value instanceof Date))
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [stripNul(key), stripNul(item)])) as T;
+  return value;
+}
+
 /** Insert or update by conflict target: ["key"] for result tables, ["name", "hash"] for cache. */
 export async function upsert(tableName: TableName, rows: Record<string, unknown>[], conflictTarget: string[]) {
   if (rows.length === 0) return;
+  rows = stripNul(rows);
   const t = table(tableName) as unknown as Record<string, never>;
   const columns = Object.keys(rows[0]).filter((c) => !conflictTarget.includes(c));
   const set = Object.fromEntries(columns.map((c) => [c, sql.raw(`excluded."${c}"`)]));
@@ -88,7 +98,8 @@ export async function runReadOnly(text: string, args: unknown[]) {
     await client.query("SET TRANSACTION READ ONLY");
     await client.query("SET LOCAL statement_timeout = '5s'");
     await client.query("SET LOCAL search_path = public, gtm");
-    const result = await client.query({ text, values: args, queryMode: "extended" });
+    // queryMode is node-postgres' own option (8.11+) and not yet in @types/pg. Without it a statement with no parameters goes by the simple protocol.
+    const result = await client.query({ text, values: args, queryMode: "extended" } as pg.QueryConfig);
     return { columns: result.fields.map((field) => field.name), rows: result.rows as Record<string, unknown>[] };
   } finally {
     await client.query("ROLLBACK").catch(() => {});

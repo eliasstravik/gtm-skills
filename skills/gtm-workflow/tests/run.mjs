@@ -17,7 +17,7 @@ const { build } = require("esbuild");
 const local = await import(pathToFileURL(join(runtime, "scripts/local-database.mjs")));
 
 // Suites converted to Postgres. It grows module by module until it is the full list again.
-const converted = ["migrate"];
+const converted = ["migrate", "profiles"];
 const scratchSuites = ["migrate", "query-route", "two-process"];
 
 /** The scratch branch is taken only when the operator names the host and both URLs point at it. */

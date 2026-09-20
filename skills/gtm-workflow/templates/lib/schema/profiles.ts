@@ -177,6 +177,7 @@ export const profileIdentifiers = gtm.table(
     namespace: text("namespace").notNull(),
     value: text("value").notNull(),
     key: text("key").notNull(),
+    observed_at: timestamp("observed_at", { withTimezone: true }),
   },
   (table) => [
     primaryKey({ columns: [table.entity, table.namespace, table.value] }),

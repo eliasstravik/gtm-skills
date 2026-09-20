@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
-import type { Client } from "@libsql/client";
+import { and, asc, eq, sql } from "drizzle-orm";
+import { stripNul, type Executor } from "../db";
+import { profileAttempts, profileInputs, profileRuns, profileWork } from "../schema/ledger";
 import {
   applyEvidence,
   canonicalUrl,
@@ -84,8 +86,10 @@ export function normalizeInput(
   }
   return [...found.values()];
 }
+const inputOf = (workflowId: string, person: NetworkPerson) =>
+  and(eq(profileInputs.workflow_id, workflowId), eq(profileInputs.source_id, person.source.source_id), eq(profileInputs.row_id, person.source.source_row_id));
 export async function prepareNetwork(
-  client: Client,
+  client: Executor,
   workflowId: string,
   owner: string,
   input: NetworkInput,
@@ -106,13 +110,14 @@ export async function prepareNetwork(
     throw new Error("Invalid freshness interval");
   let people = normalizeInput(input.rows ?? [], workflowId, input);
   if (!people.length && !input.resumeRunId) {
-    const saved = await client.execute({
-      sql: "SELECT input_json FROM profile_inputs WHERE workflow_id = ? ORDER BY first_observed_at, source_id, row_id",
-      args: [workflowId],
-    });
+    const saved = await client
+      .select({ input_json: profileInputs.input_json })
+      .from(profileInputs)
+      .where(eq(profileInputs.workflow_id, workflowId))
+      .orderBy(asc(profileInputs.first_observed_at), asc(profileInputs.source_id), asc(profileInputs.row_id));
     const distinct = new Map<string, NetworkPerson>();
-    for (const row of saved.rows) {
-      const person = JSON.parse(String(row.input_json)) as NetworkPerson;
+    for (const row of saved) {
+      const person = row.input_json as NetworkPerson;
       distinct.set(person.key, person);
     }
     people = [...distinct.values()];
@@ -145,30 +150,28 @@ export async function prepareNetwork(
       if (resolved.status === "resolved")
         person.personKey = resolved.profile.key;
     }
-    const previous = (
-      await client.execute({
-        sql: "SELECT person_key FROM profile_inputs WHERE workflow_id = ? AND source_id = ? AND row_id = ?",
-        args: [
-          workflowId,
-          person.source.source_id,
-          person.source.source_row_id,
-        ],
-      })
-    ).rows[0];
+    const [previous] = await client.select({ person_key: profileInputs.person_key }).from(profileInputs).where(inputOf(workflowId, person));
     if (!person.personKey && previous?.person_key)
-      person.personKey = String(previous.person_key);
-    await client.execute({
-      sql: "INSERT INTO profile_inputs(workflow_id,source_id,row_id,input_json,person_key,first_observed_at,last_observed_at) VALUES (?,?,?,?,?,?,?) ON CONFLICT(workflow_id,source_id,row_id) DO UPDATE SET input_json=excluded.input_json,person_key=COALESCE(excluded.person_key,profile_inputs.person_key),last_observed_at=excluded.last_observed_at",
-      args: [
-        workflowId,
-        person.source.source_id,
-        person.source.source_row_id,
-        JSON.stringify(person),
-        person.personKey ?? null,
-        person.source.first_observed_at,
-        person.source.last_observed_at,
-      ],
-    });
+      person.personKey = previous.person_key;
+    await client
+      .insert(profileInputs)
+      .values({
+        workflow_id: workflowId,
+        source_id: person.source.source_id,
+        row_id: person.source.source_row_id,
+        input_json: stripNul(person),
+        person_key: person.personKey ?? null,
+        first_observed_at: new Date(person.source.first_observed_at),
+        last_observed_at: new Date(person.source.last_observed_at),
+      })
+      .onConflictDoUpdate({
+        target: [profileInputs.workflow_id, profileInputs.source_id, profileInputs.row_id],
+        set: {
+          input_json: sql`excluded.input_json`,
+          person_key: sql`COALESCE(excluded.person_key, ${profileInputs.person_key})`,
+          last_observed_at: sql`excluded.last_observed_at`,
+        },
+      });
   }
   await saveWork(
     client,
@@ -179,39 +182,23 @@ export async function prepareNetwork(
   return { status: "running" as const, runId: lease.id, lease, people };
 }
 export async function collectCompanies(
-  client: Client,
+  client: Executor,
   lease: RunLease,
   people: NetworkPerson[],
 ) {
-  const run = (
-    await client.execute({
-      sql: "SELECT companies_json FROM profile_runs WHERE id = ?",
-      args: [lease.id],
-    })
-  ).rows[0];
+  const [run] = await client.select({ companies_json: profileRuns.companies_json }).from(profileRuns).where(eq(profileRuns.id, lease.id));
   const keys: string[] = [];
   for (const person of people) {
-    const row = (
-      await client.execute({
-        sql: "SELECT person_key FROM profile_inputs WHERE workflow_id = ? AND source_id = ? AND row_id = ?",
-        args: [
-          person.source.workflow_id,
-          person.source.source_id,
-          person.source.source_row_id,
-        ],
-      })
-    ).rows[0];
-    if (row?.person_key) keys.push(String(row.person_key));
+    const [row] = await client.select({ person_key: profileInputs.person_key }).from(profileInputs).where(inputOf(person.source.workflow_id, person));
+    if (row?.person_key) keys.push(row.person_key);
   }
   const current = await currentCompanies(client, keys);
-  const selected = run?.companies_json
-    ? (JSON.parse(String(run.companies_json)) as string[])
-    : current.keys;
+  const selected = (run?.companies_json as string[] | null) ?? current.keys;
   await saveWork(client, lease, "companies", selected);
   return { ...current, keys: selected };
 }
 export async function beginItem(
-  client: Client,
+  client: Executor,
   lease: RunLease,
   phase: "people" | "companies",
   item: NetworkPerson | string,
@@ -220,17 +207,13 @@ export async function beginItem(
 ): Promise<LookupResult | { state: "reused" | "unresolved" }> {
   const person = typeof item === "string" ? undefined : item;
   const key = typeof item === "string" ? item : item.key;
-  const done = (
-    await client.execute({
-      sql: "SELECT state FROM profile_work WHERE run_id=? AND phase=? AND entity_key=?",
-      args: [lease.id, phase, key],
-    })
-  ).rows[0];
+  const [done] = await client
+    .select({ state: profileWork.state })
+    .from(profileWork)
+    .where(and(eq(profileWork.run_id, lease.id), eq(profileWork.phase, phase), eq(profileWork.entity_key, key)));
   if (
     done &&
-    ["done", "reused", "no_match", "ambiguous", "failed"].includes(
-      String(done.state),
-    )
+    ["done", "reused", "no_match", "ambiguous", "failed"].includes(done.state)
   )
     return { state: "reused" };
   const profileKey =
@@ -283,7 +266,7 @@ export async function beginItem(
   return result;
 }
 export async function acceptItem(
-  client: Client,
+  client: Executor,
   lease: RunLease,
   phase: "people" | "companies",
   item: NetworkPerson | string,
@@ -292,15 +275,8 @@ export async function acceptItem(
   const person = typeof item === "string" ? undefined : item,
     key = typeof item === "string" ? item : item.key;
   // Use the original persisted observation time when a completed response replays.
-  const attempt = (
-    await client.execute({
-      sql: "SELECT created_at FROM profile_attempts WHERE id=?",
-      args: [result.attemptId],
-    })
-  ).rows[0];
-  const fetchedAt = attempt
-      ? String(attempt.created_at)
-      : new Date().toISOString(),
+  const [attempt] = await client.select({ created_at: profileAttempts.created_at }).from(profileAttempts).where(eq(profileAttempts.id, result.attemptId));
+  const fetchedAt = (attempt?.created_at ?? new Date()).toISOString(),
     cost = actualCost(result.run);
   let profileKey =
     person?.personKey ?? (phase === "companies" ? key : undefined);
@@ -341,15 +317,7 @@ export async function acceptItem(
     const profile = await applyEvidence(client, phase, profileKey, e);
     if (profile.enrichment_status === "ambiguous") outcome = "ambiguous";
     if (person)
-      await client.execute({
-        sql: "UPDATE profile_inputs SET person_key=? WHERE workflow_id=? AND source_id=? AND row_id=?",
-        args: [
-          profile.key,
-          person.source.workflow_id,
-          person.source.source_id,
-          person.source.source_row_id,
-        ],
-      });
+      await client.update(profileInputs).set({ person_key: profile.key }).where(inputOf(person.source.workflow_id, person));
   } else if (e.outcome === "success") outcome = "unresolved";
   if (cost === null) outcome = "uncertain";
   await markWork(client, lease, phase, key, outcome);

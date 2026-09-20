@@ -213,6 +213,7 @@ CREATE TABLE "gtm"."profile_identifiers" (
 	"namespace" text NOT NULL,
 	"value" text NOT NULL,
 	"key" text NOT NULL,
+	"observed_at" timestamp with time zone,
 	CONSTRAINT "profile_identifiers_entity_namespace_value_pk" PRIMARY KEY("entity","namespace","value")
 );
 --> statement-breakpoint

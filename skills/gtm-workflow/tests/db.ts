@@ -33,6 +33,8 @@ async function resetScratch(unpooled: string) {
 export async function testDatabase({ migrated = true } = {}) {
   const runtime = process.env.GTM_TEST_RUNTIME;
   if (!runtime) throw new Error("Run suites through tests/run.mjs: it starts the test Postgres");
+  // The app's pool follows DATABASE_URL, so end the one that points at the previous test's database.
+  await closeDb();
   let url: string, unpooled: string;
   if (process.env.GTM_TEST_SCRATCH === "1") {
     url = process.env.NEON_CHECK_URL!;

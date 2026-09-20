@@ -28,5 +28,5 @@ export async function recordApproval(a: Omit<Approval, "requestedAt" | "decidedA
   "use step";
   const now = new Date();
   const record: Approval = { ...a, requestedAt: now.toISOString(), decidedAt: null, approved: null, reason: null };
-  await upsert("cache", [{ name: "approval", hash: a.token, value: JSON.stringify(record), created_at: now.toISOString(), expires_at: new Date(now.getTime() + APPROVAL_RETENTION_MS).toISOString() }], ["name", "hash"]);
+  await upsert("cache", [{ name: "approval", hash: a.token, value: record, created_at: now, expires_at: new Date(now.getTime() + APPROVAL_RETENTION_MS) }], ["name", "hash"]);
 }

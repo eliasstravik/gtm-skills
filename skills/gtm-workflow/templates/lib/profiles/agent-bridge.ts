@@ -1,4 +1,6 @@
-import type { Client } from "@libsql/client";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
+import type { Executor } from "../db";
+import { profileAttempts, profileInputs } from "../schema/ledger";
 import { createHash } from "node:crypto";
 import { beginItem, acceptItem, type NetworkPerson } from "./network";
 import { pollLookup, startLookup } from "./provider";
@@ -8,7 +10,7 @@ import { getProfile } from "./store";
 export type ProfileAgentContext = { lease: RunLease; person: NetworkPerson };
 /** The research agent keeps choosing tools; canonical facts come only from recognized provider output. */
 export async function profileAgentCall(
-  client: Client,
+  client: Executor,
   context: ProfileAgentContext,
   name: string,
   args: Record<string, unknown>,
@@ -74,14 +76,12 @@ export async function profileAgentCall(
       return { runId: result.jobId, status: "RUNNING" };
     if (result.state === "reused") {
       const source = context.person.source;
-      const saved = (
-        await client.execute({
-          sql: "SELECT person_key FROM profile_inputs WHERE workflow_id=? AND source_id=? AND row_id=?",
-          args: [source.workflow_id, source.source_id, source.source_row_id],
-        })
-      ).rows[0];
+      const [saved] = await client
+        .select({ person_key: profileInputs.person_key })
+        .from(profileInputs)
+        .where(and(eq(profileInputs.workflow_id, source.workflow_id), eq(profileInputs.source_id, source.source_id), eq(profileInputs.row_id, source.source_row_id)));
       const profile = saved?.person_key
-        ? await getProfile(client, "people", String(saved.person_key))
+        ? await getProfile(client, "people", saved.person_key)
         : undefined;
       const evidence = (
         Object.values(profile?.raw_responses_json ?? {}) as any[]
@@ -107,19 +107,16 @@ export async function profileAgentCall(
     const id = args.runId;
     if (typeof id !== "string")
       return { isError: true, error: "A saved provider run ID is required." };
-    const attempt = (
-      await client.execute({
-        sql: "SELECT id, entity_key, operation FROM profile_attempts WHERE run_id=? AND job_id=? AND (entity_key IN (?,?) OR substr(entity_key,1,?)=?)",
-        args: [
-          context.lease.id,
-          id,
-          personKey,
-          inputKey,
-          requestPrefix.length,
-          requestPrefix,
-        ],
-      })
-    ).rows[0];
+    const [attempt] = await client
+      .select({ id: profileAttempts.id, entity_key: profileAttempts.entity_key, operation: profileAttempts.operation })
+      .from(profileAttempts)
+      .where(
+        and(
+          eq(profileAttempts.run_id, context.lease.id),
+          eq(profileAttempts.job_id, id),
+          or(inArray(profileAttempts.entity_key, [personKey, inputKey]), sql`starts_with(${profileAttempts.entity_key}, ${requestPrefix})`),
+        ),
+      );
     if (!attempt)
       return {
         isError: true,

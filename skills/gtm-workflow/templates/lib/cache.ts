@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
-import { and, eq } from "drizzle-orm";
-import { cache } from "../db/tables/cache";
+import { and, eq, gt, sql } from "drizzle-orm";
 import { db, upsert } from "./db";
+import { cache } from "./schema/cache";
 
 export type Priced<T> = { value: T; costUsd: number };
 
@@ -11,14 +11,11 @@ export type Priced<T> = { value: T; costUsd: number };
  */
 export async function cached<T>(name: string, input: unknown, ttlMs: number, fn: () => Promise<Priced<T>>): Promise<Priced<T>> {
   const hash = createHash("sha256").update(JSON.stringify(input)).digest("hex");
-  const now = new Date();
-  const [hit] = await db().select().from(cache).where(and(eq(cache.name, name), eq(cache.hash, hash)));
-  if (hit && hit.expires_at > now.toISOString()) return { value: JSON.parse(hit.value) as T, costUsd: 0 };
+  // Expiry is judged by the database's clock, the one clock every process shares.
+  const [hit] = await db().select({ value: cache.value }).from(cache).where(and(eq(cache.name, name), eq(cache.hash, hash), gt(cache.expires_at, sql`now()`)));
+  if (hit) return { value: hit.value as T, costUsd: 0 };
   const fresh = await fn();
-  await upsert(
-    "cache",
-    [{ name, hash, value: JSON.stringify(fresh.value), created_at: now.toISOString(), expires_at: new Date(now.getTime() + ttlMs).toISOString() }],
-    ["name", "hash"],
-  );
+  const now = new Date();
+  await upsert("cache", [{ name, hash, value: fresh.value, created_at: now, expires_at: new Date(now.getTime() + ttlMs) }], ["name", "hash"]);
   return fresh;
 }
