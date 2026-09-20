@@ -16,8 +16,6 @@ const require = createRequire(join(runtime, "package.json"));
 const { build } = require("esbuild");
 const local = await import(pathToFileURL(join(runtime, "scripts/local-database.mjs")));
 
-// Suites converted to Postgres. It grows module by module until it is the full list again.
-const converted = ["migrate", "profiles", "web-url", "cli-mcp", "connections-management", "connections-platform", "connections-apply", "workspace-data", "linked-data", "viewer-grants", "inspection", "business", "reliability"];
 const scratchSuites = ["migrate", "query-route", "two-process"];
 
 /** The scratch branch is taken only when the operator names the host and both URLs point at it. */
@@ -86,7 +84,7 @@ try {
     "connections-platform",
     "connections-apply",
   ];
-  for (const name of scratch ? scratchSuites : all.filter((suite) => converted.includes(suite))) {
+  for (const name of scratch ? scratchSuites : all) {
     const outfile = join(dir, `${name}.test.mjs`);
     await build({
       entryPoints: [
@@ -132,7 +130,7 @@ try {
                   build.onResolve(
                     {
                       filter:
-                        /^(#viewer-registry|workflow\/runtime|@workflow\/core\/serialization|\.\/db|\.\/runs-api|\.\.\/db\/tables)$/,
+                        /^(#viewer-registry|workflow\/runtime|@workflow\/core\/serialization|\.\/runs-api|\.\/tables)$/,
                     },
                     () => ({
                       path: join(

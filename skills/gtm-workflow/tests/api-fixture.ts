@@ -1,21 +1,13 @@
-import { createClient } from "@libsql/client";
-import { sqliteTable, text } from "drizzle-orm/sqlite-core";
-export const client = createClient({ url: ":memory:" });
-export const tables = {
-  people: sqliteTable("people", {
+import { pgTable, text } from "drizzle-orm/pg-core";
+// Stands in for lib/tables.ts. The physical name differs from the runtime's own gtm.people on purpose: the local
+// role's search path looks in schema gtm first.
+export const tables: Record<string, any> = {
+  people: pgTable("fixture_people", {
     key: text().primaryKey(),
     name: text(),
     secret: text(),
   }),
 };
-export const rawClient = () =>
-  new Proxy(client, {
-    get(target, key) {
-      if (key === "close") return () => {};
-      const value = target[key as keyof typeof target];
-      return typeof value === "function" ? value.bind(target) : value;
-    },
-  });
 export const listChildren = async () => [];
 export const entry = {
   id: "stable",
