@@ -1,18 +1,20 @@
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createClient } from "@libsql/client";
+import { closeDb, db } from "../templates/lib/db";
+import { testDatabase } from "./db";
+after(() => closeDb());
 import { configureLocalRuntime } from "../templates/lib/local-runtime";
 import { failureDetails, rowFailure } from "../templates/lib/failure";
 import { runAgentCli } from "../templates/lib/cli";
 import { callMcpTool } from "../templates/lib/mcp";
 import { runRows } from "../templates/lib/rows";
 import { startLookup, pollLookup } from "../templates/lib/profiles/provider";
-import { ledgerSchemaSql, beginRun } from "../templates/lib/profiles/ledger";
+import { beginRun } from "../templates/lib/profiles/ledger";
 import { mergePackage } from "../scripts/upgrade-package.mjs";
 
 async function listen(server: Server) {
@@ -264,8 +266,8 @@ test("CLI fixtures distinguish launch, exit, tool result, timeout, and malformed
 });
 
 test("provider transport evidence keeps reservations and request context, never sends a duplicate paid call", async () => {
-  const client = createClient({ url: ":memory:" });
-  await client.executeMultiple(ledgerSchemaSql);
+  await testDatabase();
+  const client = Object.assign(db(), { close() {} });
   const lease = { id: "wrun_fixture", owner: "fixture" };
   await beginRun(client, {
     ...lease,

@@ -1,10 +1,10 @@
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { createClient } from "@libsql/client";
+import { closeDb, db } from "../templates/lib/db";
+import { testDatabase } from "./db";
 import { randomBytes } from "node:crypto";
 import {
   grants,
-  migrateViewer,
   policyVersion,
 } from "../templates/lib/viewer-grants";
 import { saveLink } from "../templates/lib/viewer-sharing";
@@ -33,10 +33,11 @@ const policy: DataPolicy = {
   relations: [],
 };
 async function fixture() {
-  const client = createClient({ url: ":memory:" });
-  await migrateViewer(client);
+  await testDatabase();
+  const client = Object.assign(db(), { close() {} });
   return { client, api: grants(client, scope) };
 }
+after(closeDb);
 test("default Diagram link has no expiry and recovers the same encrypted secret", async () => {
   const { client, api } = await fixture();
   try {
@@ -44,7 +45,7 @@ test("default Diagram link has no expiry and recovers the same encrypted secret"
     assert.deepEqual(first.grant.views, ["logic"]);
     assert.equal(first.grant.expiresAt, null);
     assert.equal((await saveLink(client, scope, {})).token, first.token);
-    const rows = await client.execute("SELECT * FROM gtm_viewer_grants");
+    const rows = await client.execute("SELECT * FROM gtm.gtm_viewer_grants");
     assert.equal(rows.rows.length, 1);
     assert.ok(!JSON.stringify(rows.rows).includes(first.token));
     await api.authorize(first.token, "logic");
@@ -67,7 +68,7 @@ test("concurrent owners converge on one link and scope saves preserve its URL se
     assert.equal(next.token, a.token);
     assert.deepEqual(next.grant.views, ["runs"]);
     assert.equal(
-      (await client.execute("SELECT * FROM gtm_viewer_grants")).rows.length,
+      (await client.execute("SELECT * FROM gtm.gtm_viewer_grants")).rows.length,
       1,
     );
   } finally {
@@ -153,13 +154,13 @@ test("scope isolation, ciphertext tampering and lost keys fail closed without re
     });
     process.env.GTM_VIEWER_LINK_KEY = key;
     await client.execute(
-      "UPDATE gtm_viewer_grants SET token_ciphertext = '1.bad.bad.bad'",
+      "UPDATE gtm.gtm_viewer_grants SET token_ciphertext = '1.bad.bad.bad'",
     );
     await assert.rejects(() => saveLink(client, scope, {}), {
       code: "recovery_unavailable",
     });
     assert.equal(
-      (await client.execute("SELECT * FROM gtm_viewer_grants")).rows.length,
+      (await client.execute("SELECT * FROM gtm.gtm_viewer_grants")).rows.length,
       1,
     );
   } finally {
@@ -226,9 +227,9 @@ test("browser writes require matching Origin and CSRF cookie/header", () => {
 });
 
 import { effectivePolicy } from "../templates/lib/viewer-policy";
-import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { pgTable, text } from "drizzle-orm/pg-core";
 test("effective Data authorization rejects exposed columns outside the explicit policy and binds physical schema", () => {
-  const people = sqliteTable("people", {
+  const people = pgTable("people", {
     key: text("key"),
     name: text("full_name"),
     owner: text("owner"),
@@ -263,7 +264,7 @@ test("effective Data authorization rejects exposed columns outside the explicit 
     ),
     undefined,
   );
-  const changed = sqliteTable("people", {
+  const changed = pgTable("people", {
     key: text("key"),
     name: text("name"),
     owner: text("owner"),

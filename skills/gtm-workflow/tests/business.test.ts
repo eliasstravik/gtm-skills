@@ -1,18 +1,17 @@
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createClient } from "@libsql/client";
+import { closeDb, db } from "../templates/lib/db";
+import { testDatabase } from "./db";
 import { validateBusinessGraph } from "../templates/scripts/business-graph.mjs";
 import {
   destinations,
   runDestination,
 } from "../templates/lib/viewer-destinations";
-import {
-  migrateViewer,
-  revokeLegacyLinks,
-} from "../templates/lib/viewer-grants";
+import { revokeLegacyLinks } from "../templates/lib/viewer-grants";
+after(closeDb);
 test("business graphs require meaningful branches and valid source references", () => {
   const root = mkdtempSync(join(tmpdir(), "business-graph-"));
   mkdirSync(join(root, "workflows"));
@@ -72,7 +71,7 @@ test("destinations use the deployed revision and reject credential-bearing or wr
     VERCEL_GIT_COMMIT_SHA: "a".repeat(40),
     GTM_VIEWER_VERCEL_RUNS_URL:
       "https://vercel.com/acme/workflows/workflows/runs?environment=production",
-    GTM_VIEWER_DATABASE_URL: "https://app.turso.tech/acme/databases/results",
+    GTM_VIEWER_DATABASE_URL: "https://console.neon.tech/app/projects/acme",
   });
   assert.equal(
     destinations(entry).source?.url,
@@ -88,7 +87,7 @@ test("destinations use the deployed revision and reject credential-bearing or wr
     url: "https://vercel.com/acme/workflows/workflows/runs?environment=production",
     label: "Open in Vercel",
   });
-  process.env.GTM_VIEWER_DATABASE_URL = "https://token@app.turso.tech/acme";
+  process.env.GTM_VIEWER_DATABASE_URL = "https://token@console.neon.tech/acme";
   assert.equal(destinations(entry).database, undefined);
   process.env.GTM_VIEWER_VERCEL_RUNS_URL =
     "https://evil.example/acme/workflows/workflows/runs";
@@ -108,39 +107,28 @@ test("destinations use the deployed revision and reject credential-bearing or wr
   );
   assert.equal(destinations(entry).source?.path, "workflows/enrich-network.ts");
 });
-test("legacy migration revokes only the selected workflow and leaves business data intact", async () => {
-  const client = createClient({ url: ":memory:" });
-  try {
-    await client.execute(
-      "CREATE TABLE gtm_viewer_grants (id TEXT PRIMARY KEY, token_hash TEXT UNIQUE, workflow_id TEXT, workspace TEXT, environment TEXT, views TEXT, data_policy TEXT, created_at INTEGER, expires_at INTEGER, revoked_at INTEGER)",
-    );
-    await client.execute(
-      "INSERT INTO gtm_viewer_grants VALUES ('old','hash','a','workspace','production','[\"logic\"]',NULL,1,NULL,NULL),('other','hash2','b','workspace','production','[\"logic\"]',NULL,1,NULL,NULL)",
-    );
-    await client.execute("CREATE TABLE business (name TEXT)");
-    await client.execute("INSERT INTO business VALUES ('keep')");
-    await migrateViewer(client);
-    await migrateViewer(client);
-    const scope = {
-      workspace: "workspace",
-      environment: "production",
-      workflowId: "a",
-    };
-    assert.equal(await revokeLegacyLinks(client, scope), 1);
-    assert.equal(await revokeLegacyLinks(client, scope), 0);
-    assert.equal(
-      (
-        await client.execute(
-          "SELECT revoked_at FROM gtm_viewer_grants WHERE id='other'",
-        )
-      ).rows[0].revoked_at,
-      null,
-    );
-    assert.equal(
-      (await client.execute("SELECT name FROM business")).rows[0].name,
-      "keep",
-    );
-  } finally {
-    client.close();
-  }
+test("revoking legacy links touches only the selected workflow and leaves business data intact", async () => {
+  await testDatabase();
+  const client = db();
+  // Links from before recovery existed carry no ciphertext; an import can bring them along.
+  await client.execute(
+    "INSERT INTO gtm.gtm_viewer_grants (id, token_hash, workflow_id, workspace, environment, views, created_at) VALUES ('old','hash','a','workspace','production','[\"logic\"]',now()),('other','hash2','b','workspace','production','[\"logic\"]',now())",
+  );
+  await client.execute("CREATE TABLE business (name TEXT)");
+  await client.execute("INSERT INTO business VALUES ('keep')");
+  const scope = {
+    workspace: "workspace",
+    environment: "production",
+    workflowId: "a",
+  };
+  assert.equal(await revokeLegacyLinks(client, scope), 1);
+  assert.equal(await revokeLegacyLinks(client, scope), 0);
+  assert.equal(
+    (await client.execute("SELECT revoked_at FROM gtm.gtm_viewer_grants WHERE id='other'")).rows[0].revoked_at,
+    null,
+  );
+  assert.equal(
+    (await client.execute("SELECT name FROM business")).rows[0].name,
+    "keep",
+  );
 });

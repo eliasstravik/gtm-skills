@@ -1,12 +1,13 @@
-import { test } from "node:test";
+import { test, after } from "node:test";
+after(() => closeDb());
 import assert from "node:assert/strict";
-import { createClient } from "@libsql/client";
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { integer, pgTable, text } from "drizzle-orm/pg-core";
+import { closeDb, db } from "../templates/lib/db";
+import { testDatabase } from "./db";
 import { readData, type WorkflowData } from "../templates/lib/data-api";
 import { saveLink } from "../templates/lib/viewer-sharing";
 import {
   grants,
-  migrateViewer,
   policyVersion,
 } from "../templates/lib/viewer-grants";
 import { csvCell, exportCsv } from "../templates/lib/viewer-csv";
@@ -36,8 +37,8 @@ const policy: DataPolicy = {
   relations: [],
 };
 test("all seven nonempty scopes authorize metadata and only the selected views", async () => {
-  const client = createClient({ url: ":memory:" });
-  await migrateViewer(client);
+  await testDatabase();
+  const client = Object.assign(db(), { close() {} });
   try {
     const api = grants(client, scope);
     const all: View[] = ["logic", "runs", "data"];
@@ -66,8 +67,9 @@ test("all seven nonempty scopes authorize metadata and only the selected views",
   }
 });
 test("10,000 records export across pages with the authorized fields, filters and ordering", async () => {
-  const client = createClient({ url: ":memory:" });
-  const people = sqliteTable("people", {
+  await testDatabase({ migrated: false });
+  const client = Object.assign(db(), { close() {} });
+  const people = pgTable("people", {
     key: text().primaryKey(),
     name: text(),
     score: integer(),
@@ -90,7 +92,7 @@ test("10,000 records export across pages with the authorized fields, filters and
       "CREATE TABLE people (key TEXT PRIMARY KEY, name TEXT, score INTEGER, owner TEXT, secret TEXT)",
     );
     await client.execute(
-      "WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<10000) INSERT INTO people SELECT printf('%05d', x), 'Person ' || x, x, CASE WHEN x%2=0 THEN 'a' ELSE 'b' END, 'PRIVATE' FROM n",
+      "INSERT INTO people SELECT lpad(x::text, 5, '0'), 'Person ' || x, x, CASE WHEN x%2=0 THEN 'a' ELSE 'b' END, 'PRIVATE' FROM generate_series(1, 10000) x",
     );
     const url = new URL(
       "http://localhost/data?q=Person&sort=score&order=desc&columns=name,score",
