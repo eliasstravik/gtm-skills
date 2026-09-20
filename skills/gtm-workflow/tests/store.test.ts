@@ -2,7 +2,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
-import { closeDb, db, writeLock } from "../templates/lib/db";
+import { closeDb, db, writeLock, writeTransaction } from "../templates/lib/db";
 import { readData, type WorkflowData } from "../templates/lib/data-api";
 import { companies, people } from "../templates/lib/profiles/schema";
 import { applyEvidence, deleteProfile, getProfile, resolveIdentity, type Evidence } from "../templates/lib/profiles/store";
@@ -92,6 +92,22 @@ test("writers queue in this process, not in the pool: a slow lock holder fails n
   assert.equal(read, 1);
   assert.deepEqual(results.filter((result) => result.status === "rejected").map((result) => String((result as PromiseRejectedResult).reason?.cause?.message ?? (result as PromiseRejectedResult).reason)), []);
   assert.equal((await database.query("SELECT count(*)::int AS n FROM gtm.people")).rows[0].n, 12);
+});
+
+test("behind a lock that never frees, the head of the queue times out and the writers behind it fail at once", async () => {
+  const database = await testDatabase();
+  const pg = (await import("pg")).default;
+  const outside = new pg.Client({ connectionString: database.unpooled });
+  await outside.connect();
+  await outside.query("SELECT pg_advisory_lock(7461)");
+  try {
+    const started = Date.now();
+    const results = await Promise.allSettled(Array.from({ length: 6 }, () => writeTransaction(db(), async () => "wrote", "400ms")));
+    assert.deepEqual(results.map((result) => result.status), Array(6).fill("rejected"));
+    assert.ok(Date.now() - started < 1_500, "six writers must not each wait the limit in turn");
+  } finally { await outside.query("SELECT pg_advisory_unlock(7461)"); await outside.end(); }
+  // Once the lock is free, new writers go through again.
+  assert.equal(await writeTransaction(db(), async () => "wrote"), "wrote");
 });
 
 test("text the database cannot hold is cleaned on the way in", async () => {

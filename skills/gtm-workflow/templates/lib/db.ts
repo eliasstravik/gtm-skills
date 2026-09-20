@@ -77,21 +77,27 @@ export async function writeLock(tx: Executor, limit = "30s") {
 }
 
 let writers: Promise<unknown> = Promise.resolve();
-const WRITE_WAIT_MS = 30_000;
+let wedgedAt = 0;
 /**
  * A write transaction for the profile store, the ledger and sharing: queue, transaction, write lock. Writers of this
  * process wait here in memory, one at a time, not on pooled clients: five transactions blocked on the lock would hold
  * the whole pool, and the sixth would fail after the pool's 10 seconds with a connection error instead of the lock's.
  * The queue leaves the other clients free for reads. Inside a transaction it nests without queueing.
+ * Waiting in the queue has no time limit, because a long burst over a slow link is legitimate (a write is about eight
+ * round trips). But when the writer at the head times out on the lock, those queued behind it fail at once rather
+ * than each waiting the limit in turn.
  */
-export async function writeTransaction<T>(executor: Executor, fn: (tx: Executor) => Promise<T>): Promise<T> {
-  const locked = (tx: Executor) => writeLock(tx).then(() => fn(tx));
+export async function writeTransaction<T>(executor: Executor, fn: (tx: Executor) => Promise<T>, limit = "30s"): Promise<T> {
+  const locked = (tx: Executor) => writeLock(tx, limit).then(() => fn(tx));
   if ("rollback" in executor) return executor.transaction(locked);
   const asked = Date.now();
-  const turn = writers.then(() => {
-    // Behind a wedged writer everyone would otherwise wait the lock's limit one after another.
-    if (Date.now() - asked > WRITE_WAIT_MS) throw new Error("Waited 30 seconds for this process's write queue; a writer ahead is stuck");
-    return executor.transaction(locked);
+  const turn = writers.then(async () => {
+    if (asked < wedgedAt) throw new Error("The write lock is held elsewhere and a writer ahead of this one timed out waiting for it");
+    try { return await executor.transaction(locked); }
+    catch (error) {
+      if ((error as { cause?: { code?: string } }).cause?.code === "55P03") wedgedAt = Date.now();
+      throw error;
+    }
   });
   writers = turn.catch(() => {});
   return turn;
