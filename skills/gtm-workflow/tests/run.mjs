@@ -37,6 +37,8 @@ for (const name of Object.keys(env)) if (/^(?:DATABASE_URL|PG|POSTGRES_)/.test(n
 const templateScripts = {
   name: "template-scripts",
   setup(build) {
+    // The skill's own scripts too: they guard their command line by their own URL.
+    build.onResolve({ filter: /^\.\.\/scripts\/[a-z-]+\.mjs$/ }, (args) => ({ path: pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), args.path)).href, external: true }));
     build.onResolve({ filter: /templates\/scripts\/[a-z-]+\.mjs$/ }, (args) => ({ path: pathToFileURL(join(runtime, "scripts", args.path.split("/").pop())).href, external: true }));
   },
 };
@@ -62,6 +64,7 @@ try {
     "connections-management",
     "connections-platform",
     "connections-apply",
+    "import-from-turso",
   ];
   // --only <suite> (repeatable) runs a subset while working on one module.
   for (const name of (scratch ? scratchSuites : all).filter((suite) => !flags.only || flags.only.includes(suite))) {

@@ -13,7 +13,7 @@ const SKIPPED = [
   /^skills\/gtm-workflow\/connections\//, // the component's own journal and lock stay on SQLite
   /(^|\/)package-lock\.json$/, // drizzle-orm's optional peers
   /^skills\/gtm-workflow\/scripts\/import-from-turso\.mjs$/,
-  /^skills\/gtm-workflow\/tests\/import-from-turso\.test\.mjs$/,
+  /^skills\/gtm-workflow\/tests\/import-from-turso\.test\.ts$/,
 ];
 // file → the lines that may carry a word; `section` allows a whole Markdown section instead.
 const ALLOWED = {
