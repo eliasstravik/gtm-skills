@@ -63,7 +63,7 @@ test("package upgrade updates stock startup commands and preserves custom script
       viewer: "node scripts/start-viewer.mjs",
       custom: "keep",
     },
-    dependencies: { workflow: "old", customer: "keep" },
+    dependencies: { workflow: "old", customer: "keep", "@libsql/client": "0.18.0" },
     extra: { keep: true },
   };
   const result = mergePackage(old, template);
@@ -71,6 +71,17 @@ test("package upgrade updates stock startup commands and preserves custom script
   assert.equal(result.package.scripts.build, "new stock build");
   assert.equal(result.package.scripts.custom, "keep");
   assert.equal(result.package.dependencies.customer, "keep");
+  assert.equal("@libsql/client" in result.package.dependencies, false, "the removed database client goes");
+  assert.equal(old.dependencies["@libsql/client"], "0.18.0");
+  // The commands of a workspace from before Postgres are stock, so they are replaced, not sent for review.
+  const before = mergePackage({ ...old, scripts: {
+    dev: "node scripts/build-viewer.mjs && drizzle-kit migrate && node scripts/profile-migrate.mjs && node scripts/viewer-migrate.mjs && nitro dev --port 3939",
+    build: "node scripts/build-viewer.mjs && drizzle-kit migrate && node scripts/profile-migrate.mjs && node scripts/viewer-migrate.mjs && nitro build",
+    "db:studio": "drizzle-kit studio",
+  } }, { ...template, scripts: { ...template.scripts, "db:studio": "node scripts/studio.mjs" } });
+  assert.deepEqual(before.review, []);
+  assert.equal(before.package.scripts.build, "new stock build");
+  assert.equal(before.package.scripts["db:studio"], "node scripts/studio.mjs");
   assert.deepEqual(result.package.extra, { keep: true });
   assert.equal(old.dependencies.workflow, "old");
   const custom = mergePackage(
