@@ -5,10 +5,13 @@ import {
   randomBytes,
   randomUUID,
 } from "node:crypto";
-import type { Client } from "@libsql/client";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { writeLock, type Executor } from "./db";
+import { gtmViewerGrants } from "./schema/viewer-grants";
 import type { DataPolicy, View } from "./viewer-contract";
 import {
   decodeGrant,
+  inScope,
   hash,
   policyVersion,
   ViewerError,
@@ -110,53 +113,32 @@ export function recoverLink(row: Parameters<typeof decodeGrant>[0]) {
     decrypt(String(row.token_ciphertext), grant),
   ).href;
 }
-const where = "workspace = ? AND environment = ? AND workflow_id = ?";
-const args = (scope: Scope) => [
-  scope.workspace,
-  scope.environment,
-  scope.workflowId,
-];
 export async function activeLink(
-  client: Pick<Client, "execute">,
+  client: Executor,
   scope: Scope,
 ) {
-  const result = await client.execute({
-    sql: `SELECT * FROM gtm_viewer_grants WHERE ${where} AND revoked_at IS NULL AND token_ciphertext IS NOT NULL LIMIT 1`,
-    args: args(scope),
-  });
-  return result.rows[0];
+  const [row] = await client
+    .select()
+    .from(gtmViewerGrants)
+    .where(and(inScope(scope), isNull(gtmViewerGrants.revoked_at), isNotNull(gtmViewerGrants.token_ciphertext)))
+    .limit(1);
+  return row;
 }
 /** Serialize create/copy/save across owners. No browser state or plaintext token persistence. */
 export async function saveLink(
-  client: Client,
+  client: Executor,
   scope: Scope,
   options: { views?: unknown; policy?: unknown; save?: unknown },
   policy?: DataPolicy,
 ) {
-  // SQLite and remote replicas may briefly contend on the write lock. Retry only acquisition,
-  // before any mutation; uniqueness is enforced by the database, not a process-local lock.
-  let tx;
-  for (let attempt = 0; ; attempt++) {
-    try {
-      tx = await client.transaction("write");
-      break;
-    } catch (error) {
-      if (
-        attempt >= 5 ||
-        !["SQLITE_BUSY", "TRANSACTION_ACTIVE"].includes(
-          (error as { code?: string }).code ?? "",
-        )
-      )
-        throw error;
-      await new Promise((resolve) => setTimeout(resolve, 20 * 2 ** attempt));
-    }
-  }
-  try {
+  // One writer at a time, so two owners saving at once see each other's link; the unique index on the one active
+  // link per workflow is the backstop, not a process-local lock.
+  return client.transaction(async (tx) => {
+    await writeLock(tx);
     const current = await activeLink(tx, scope);
     if (current && options.save !== true) {
       const grant = decodeGrant(current);
       const token = decrypt(String(current.token_ciphertext), grant);
-      await tx.commit();
       return { grant, token };
     }
     const views = options.views === undefined ? ["logic"] : options.views;
@@ -203,36 +185,19 @@ export async function saveLink(
       ? decrypt(String(current.token_ciphertext), grant)
       : randomBytes(32).toString("base64url");
     if (current)
-      await tx.execute({
-        sql: `UPDATE gtm_viewer_grants SET views = ?, data_policy = ? WHERE id = ? AND ${where}`,
-        args: [
-          JSON.stringify(views),
-          grant.dataPolicy,
-          grant.id,
-          ...args(scope),
-        ],
-      });
+      await tx.update(gtmViewerGrants).set({ views, data_policy: grant.dataPolicy }).where(and(eq(gtmViewerGrants.id, grant.id), inScope(scope)));
     else
-      await tx.execute({
-        sql: `INSERT INTO gtm_viewer_grants (id, token_hash, workflow_id, workspace, environment, views, data_policy, created_at, expires_at, revoked_at, token_ciphertext) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?)`,
-        args: [
-          grant.id,
-          hash(token),
-          scope.workflowId,
-          scope.workspace,
-          scope.environment,
-          JSON.stringify(views),
-          grant.dataPolicy,
-          grant.createdAt,
-          encrypt(token, grant),
-        ],
+      await tx.insert(gtmViewerGrants).values({
+        id: grant.id,
+        token_hash: hash(token),
+        workflow_id: scope.workflowId,
+        workspace: scope.workspace,
+        environment: scope.environment,
+        views,
+        data_policy: grant.dataPolicy,
+        created_at: new Date(grant.createdAt),
+        token_ciphertext: encrypt(token, grant),
       });
-    await tx.commit();
     return { grant, token };
-  } catch (error) {
-    await tx.rollback();
-    throw error;
-  } finally {
-    tx.close();
-  }
+  });
 }

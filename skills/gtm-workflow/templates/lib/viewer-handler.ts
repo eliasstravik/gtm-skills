@@ -23,7 +23,7 @@ import {
 } from "./viewer-grants";
 import { activeLink, recoverLink, saveLink, shareUrl } from "./viewer-sharing";
 import { destinations } from "./viewer-destinations";
-import { rawClient } from "./db";
+import { db } from "./db";
 import { publicDisplay } from "./viewer-display";
 import { bearerOk } from "./sign";
 import { DataInputError, type DataPage } from "./data-api";
@@ -124,11 +124,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
     if (!url.searchParams.has("workflow") && ["data", "export"].includes(operation)) {
       if (recipient)
         throw new ViewerError(403, "view_denied", "Workspace data requires private access.");
-      const read = async (page: URL) => {
-        const client = rawClient();
-        try { return await readWorkspaceData(client, page); }
-        finally { client.close(); }
-      };
+      const read = (page: URL) => readWorkspaceData(db(), page);
       if (operation === "data") return reply(await read(url));
       return await exportCsv(url, async (page) => {
         const result = await read(page);
@@ -241,9 +237,8 @@ export async function viewerApi(req: Request, shared = false, service = false) {
           req.signal,
         );
       case "grants": {
-        const client = rawClient();
-        try {
-          const row = await activeLink(client, {
+        {
+          const row = await activeLink(db(), {
             ...deploymentScope(),
             workflowId: entry.id,
           });
@@ -267,8 +262,6 @@ export async function viewerApi(req: Request, shared = false, service = false) {
               ({ name, columns, row }) => ({ name, columns, row }),
             ),
           });
-        } finally {
-          client.close();
         }
       }
       case "saveLink":
@@ -283,8 +276,8 @@ export async function viewerApi(req: Request, shared = false, service = false) {
             "Open the hosted private viewer to share.",
           );
         const body = await boundedJson(req);
-        const client = rawClient();
-        try {
+        const client = db();
+        {
           const api = grants(client, {
             ...deploymentScope(),
             workflowId: entry.id,
@@ -302,8 +295,6 @@ export async function viewerApi(req: Request, shared = false, service = false) {
           );
           link.hash = new URLSearchParams({ token }).toString();
           return reply({ grant, url: link.href });
-        } finally {
-          client.close();
         }
       }
       default:
