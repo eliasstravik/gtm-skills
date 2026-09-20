@@ -1,4 +1,4 @@
-import type { Client } from "@libsql/client";
+import type { Executor } from "../db";
 import { failure, reportFailure, type FailureContext } from "../failure";
 import {
   reserve,
@@ -146,7 +146,7 @@ export type LookupResult =
   | { state: "uncertain" | "budget_deferred" | "unknown_price" };
 /** Returns promptly for async providers. Poll from a separate durable workflow step. */
 export async function startLookup(
-  client: Client,
+  client: Executor,
   lease: RunLease,
   entityKey: string,
   operation: ProviderOperation,
@@ -166,14 +166,14 @@ export async function startLookup(
     if (a.state === "settled" && a.response_json)
       return {
         state: "ready",
-        attemptId: String(a.id),
-        run: JSON.parse(String(a.response_json)),
+        attemptId: a.id,
+        run: a.response_json as never,
       };
     if (a.job_id)
       return {
         state: "pending",
-        attemptId: String(a.id),
-        jobId: String(a.job_id),
+        attemptId: a.id,
+        jobId: a.job_id,
       };
     // An interrupted reservation is conservative too: only the original dispatcher owns it.
     return { state: "uncertain" };
@@ -232,7 +232,7 @@ export async function startLookup(
   }
 }
 export async function pollLookup(
-  client: Client,
+  client: Executor,
   attemptId: string,
   jobId: string,
   key: string,

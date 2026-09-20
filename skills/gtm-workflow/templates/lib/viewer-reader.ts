@@ -1,6 +1,6 @@
 import { getWorld } from "workflow/runtime";
-import { rawClient } from "./db";
-import { tables } from "../db/tables";
+import { db } from "./db";
+import { tables } from "./tables";
 import { readData, type WorkflowData } from "./data-api";
 import { effectivePolicy } from "./viewer-policy";
 import { ViewerError, grants } from "./viewer-grants";
@@ -20,15 +20,10 @@ export const entryFor = (id: string) => {
 };
 export const currentPolicy = (entry: Entry) => effectivePolicy(entry, tables);
 export async function authorizeShare(entry: Entry, token: string, view?: View) {
-  const client = rawClient();
-  try {
-    return await grants(client, {
-      ...deploymentScope(),
-      workflowId: entry.id,
-    }).authorize(token, view, currentPolicy(entry));
-  } finally {
-    client.close();
-  }
+  return grants(db(), {
+    ...deploymentScope(),
+    workflowId: entry.id,
+  }).authorize(token, view, currentPolicy(entry));
 }
 const safeRun = (r: any) => ({
   id: r.runId,
@@ -172,10 +167,5 @@ export async function readBusinessData(entry: Entry, url: URL, shared = false) {
       entry.sharePolicy!.tables.map((t) => [t.name, t.row]),
     );
   }
-  const client = rawClient();
-  try {
-    return await readData(config, tables, client, url);
-  } finally {
-    client.close();
-  }
+  return readData(config, tables, db(), url);
 }

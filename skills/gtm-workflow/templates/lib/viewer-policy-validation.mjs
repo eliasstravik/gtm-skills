@@ -21,7 +21,7 @@ export function dataSharingIssue({ data, sharePolicy: policy }) {
     if (policy.version === "2") {
       if (JSON.stringify(shared.row) !== JSON.stringify(data.rowPolicies?.[view.name]))
         return `Data policy must preserve the private row policy for ${view.name}`;
-      if (shared.columns.some((c) => ["raw_responses_json", "sources_json", "provenance_json", "identifiers_json", "section_status_json"].includes(c)))
+      if (shared.columns.some((c) => ["raw_responses_json", "sources_json", "provenance_json", "section_status_json"].includes(c)))
         return `Data policy exposes private profile fields in ${view.name}`;
       if (shared.columns.some((c) => c.endsWith("_json") && !shared.nested?.[c]?.length))
         return `Data policy requires allowed nested fields for ${view.name}`;

@@ -8,7 +8,7 @@ Contents: [Deploy](#deploy) · [Deploy, asked from the hosted agent](#deploy-ask
 
 **Human:** Get gtm-agent running for Acme in Slack.
 
-**Agent:** Setting up GTM Agent for Acme on the selected Vercel team now: the agent, its Slack app, the workspace repository, and a workflow project with its database; about five minutes. Two manual steps remain: the Slack install page, and, if this team has not used Turso before, accepting its marketplace terms.
+**Agent:** Setting up GTM Agent for Acme on the selected Vercel team now: the agent, its Slack app, the workspace repository, and a workflow project with its database; about five minutes. Two manual steps remain: the Slack install page, and, adding the Neon database to the workflow project in Vercel (accepting Neon's marketplace terms if this team has not used it before).
 
 Open the Slack installation page: choose the Acme workspace and approve the app. The setup then synchronizes the selected permissions and events in Vercel and Slack and verifies the installed permissions.
 

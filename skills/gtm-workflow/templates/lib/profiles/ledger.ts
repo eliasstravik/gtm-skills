@@ -1,36 +1,19 @@
 import { randomUUID } from "node:crypto";
-import type { Client, Transaction } from "@libsql/client";
-import { transaction, sanitize } from "./store";
+import { and, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
+import { stripNul, type Executor } from "../db";
+import { profileAttempts, profileRuns, profileWork } from "../schema/ledger";
+import { sanitize, transaction } from "./store";
 
-export const ledgerSchemaSql = `
-CREATE TABLE IF NOT EXISTS profile_runs (
- id TEXT PRIMARY KEY, workflow_id TEXT NOT NULL, owner TEXT NOT NULL, lease_until INTEGER NOT NULL,
- state TEXT NOT NULL, budget_micro INTEGER NOT NULL, spent_micro INTEGER NOT NULL DEFAULT 0,
- reserved_micro INTEGER NOT NULL DEFAULT 0, input_json TEXT NOT NULL, companies_json TEXT,
- omitted INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS profile_single_flight ON profile_runs ((1)) WHERE state = 'running';
-CREATE TABLE IF NOT EXISTS profile_work (
- run_id TEXT NOT NULL, phase TEXT NOT NULL, entity_key TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending',
- PRIMARY KEY (run_id, phase, entity_key)
-);
-CREATE TABLE IF NOT EXISTS profile_attempts (
- id TEXT PRIMARY KEY, run_id TEXT NOT NULL, entity_key TEXT NOT NULL, operation TEXT NOT NULL,
- state TEXT NOT NULL, reserved_micro INTEGER NOT NULL, cost_micro INTEGER, job_id TEXT, response_json TEXT,
- created_at TEXT NOT NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS profile_unsettled ON profile_attempts (entity_key, operation) WHERE state IN ('reserved','dispatched','uncertain');
-CREATE TABLE IF NOT EXISTS profile_inputs (
- workflow_id TEXT NOT NULL, source_id TEXT NOT NULL, row_id TEXT NOT NULL, input_json TEXT NOT NULL,
- person_key TEXT, first_observed_at TEXT NOT NULL, last_observed_at TEXT NOT NULL,
- PRIMARY KEY (workflow_id, source_id, row_id)
-);`;
+// The tables are defined in lib/schema/ledger.ts. Every transaction here starts with the write lock (store.transaction),
+// so claim, reserve and settle never interleave; the two partial unique indexes stay as the backstop.
 const micros = (usd: number) => {
   if (!Number.isFinite(usd) || usd < 0 || usd > 100000)
     throw new Error("Invalid spending limit");
   return Math.ceil(usd * 1e6);
 };
 const LEASE_MS = 15 * 60 * 1000;
+const UNSETTLED = ["reserved", "dispatched", "uncertain"];
+const leaseEnd = () => new Date(Date.now() + LEASE_MS);
 export type RunLease = { id: string; owner: string };
 export type WorkState =
   | "pending"
@@ -42,29 +25,21 @@ export type WorkState =
   | "ambiguous"
   | "budget_deferred"
   | "uncertain";
-async function assertLease(tx: Transaction, lease: RunLease) {
-  const row = (
-    await tx.execute({
-      sql: "SELECT * FROM profile_runs WHERE id = ?",
-      args: [lease.id],
-    })
-  ).rows[0];
+async function assertLease(tx: Executor, lease: RunLease) {
+  const [row] = await tx.select().from(profileRuns).where(eq(profileRuns.id, lease.id));
   if (
     !row ||
     row.owner !== lease.owner ||
     row.state !== "running" ||
-    Number(row.lease_until) < Date.now()
+    row.lease_until.getTime() < Date.now()
   )
     throw new Error("Run is cancelled or another worker owns it");
-  await tx.execute({
-    sql: "UPDATE profile_runs SET lease_until = ? WHERE id = ?",
-    args: [Date.now() + LEASE_MS, lease.id],
-  });
+  await tx.update(profileRuns).set({ lease_until: leaseEnd() }).where(eq(profileRuns.id, lease.id));
   return row;
 }
 /** A stale run must be explicitly resumed; a fresh run never steals its lock. */
 export async function beginRun(
-  client: Client,
+  client: Executor,
   options: {
     id: string;
     owner: string;
@@ -76,22 +51,15 @@ export async function beginRun(
   },
 ) {
   return transaction(client, async (tx) => {
-    const active = (
-      await tx.execute("SELECT * FROM profile_runs WHERE state = 'running'")
-    ).rows[0];
+    const [active] = await tx.select().from(profileRuns).where(eq(profileRuns.state, "running"));
     if (
       active &&
       (active.id !== options.id ||
         (active.owner !== options.owner &&
-          Number(active.lease_until) >= Date.now()))
+          active.lease_until.getTime() >= Date.now()))
     )
-      return { status: "already_running" as const, runId: String(active.id) };
-    const existing = (
-      await tx.execute({
-        sql: "SELECT * FROM profile_runs WHERE id = ?",
-        args: [options.id],
-      })
-    ).rows[0];
+      return { status: "already_running" as const, runId: active.id };
+    const [existing] = await tx.select().from(profileRuns).where(eq(profileRuns.id, options.id));
     if (existing) {
       if (existing.workflow_id !== options.workflowId)
         throw new Error("Run belongs to another workflow");
@@ -99,57 +67,48 @@ export async function beginRun(
         throw new Error("Explicit resume required");
       if (existing.state === "complete")
         return { status: "complete" as const, runId: options.id };
-      await tx.execute({
-        sql: "UPDATE profile_runs SET owner = ?, state = 'running', lease_until = ? WHERE id = ?",
-        args: [options.owner, Date.now() + LEASE_MS, options.id],
-      });
+      await tx.update(profileRuns).set({ owner: options.owner, state: "running", lease_until: leaseEnd() }).where(eq(profileRuns.id, options.id));
     } else {
       if (options.resume) throw new Error("Unknown saved run");
-      await tx.execute({
-        sql: "INSERT INTO profile_runs (id,workflow_id,owner,lease_until,state,budget_micro,input_json,omitted,created_at) VALUES (?,?,?,?,'running',?,?,?,?)",
-        args: [
-          options.id,
-          options.workflowId,
-          options.owner,
-          Date.now() + LEASE_MS,
-          micros(options.budgetUsd),
-          JSON.stringify(options.input),
-          options.omitted,
-          new Date().toISOString(),
-        ],
+      await tx.insert(profileRuns).values({
+        id: options.id,
+        workflow_id: options.workflowId,
+        owner: options.owner,
+        lease_until: leaseEnd(),
+        state: "running",
+        budget_micro: micros(options.budgetUsd),
+        input_json: stripNul(options.input),
+        omitted: options.omitted,
+        created_at: new Date(),
       });
     }
     return {
       status: "running" as const,
       runId: options.id,
-      input: JSON.parse(
-        String(existing?.input_json ?? JSON.stringify(options.input)),
-      ) as any[],
+      input: (existing?.input_json ?? options.input) as any[],
     };
   });
 }
 export async function saveWork(
-  client: Client,
+  client: Executor,
   lease: RunLease,
   phase: "people" | "companies",
   keys: string[],
 ) {
   return transaction(client, async (tx) => {
     await assertLease(tx, lease);
-    for (const key of new Set(keys))
-      await tx.execute({
-        sql: "INSERT OR IGNORE INTO profile_work(run_id,phase,entity_key) VALUES (?,?,?)",
-        args: [lease.id, phase, key],
-      });
+    const unique = [...new Set(keys)];
+    if (unique.length)
+      await tx.insert(profileWork).values(unique.map((key) => ({ run_id: lease.id, phase, entity_key: key }))).onConflictDoNothing();
     if (phase === "companies")
-      await tx.execute({
-        sql: "UPDATE profile_runs SET companies_json = COALESCE(companies_json, ?) WHERE id = ?",
-        args: [JSON.stringify(keys), lease.id],
-      });
+      await tx
+        .update(profileRuns)
+        .set({ companies_json: sql`COALESCE(${profileRuns.companies_json}, ${JSON.stringify(keys)}::jsonb)` })
+        .where(eq(profileRuns.id, lease.id));
   });
 }
 export async function markWork(
-  client: Client,
+  client: Executor,
   lease: RunLease,
   phase: string,
   key: string,
@@ -157,14 +116,11 @@ export async function markWork(
 ) {
   return transaction(client, async (tx) => {
     await assertLease(tx, lease);
-    await tx.execute({
-      sql: "UPDATE profile_work SET state = ? WHERE run_id = ? AND phase = ? AND entity_key = ?",
-      args: [state, lease.id, phase, key],
-    });
+    await tx.update(profileWork).set({ state }).where(and(eq(profileWork.run_id, lease.id), eq(profileWork.phase, phase), eq(profileWork.entity_key, key)));
   });
 }
 export async function reserve(
-  client: Client,
+  client: Executor,
   lease: RunLease,
   entityKey: string,
   operation: string,
@@ -172,145 +128,96 @@ export async function reserve(
 ) {
   return transaction(client, async (tx) => {
     const run = await assertLease(tx, lease);
-    const existing = (
-      await tx.execute({
-        sql: "SELECT * FROM profile_attempts WHERE entity_key = ? AND operation = ? AND (run_id = ? OR state IN ('reserved','dispatched','uncertain')) ORDER BY created_at DESC LIMIT 1",
-        args: [entityKey, operation, lease.id],
-      })
-    ).rows[0];
+    const [existing] = await tx
+      .select()
+      .from(profileAttempts)
+      .where(and(eq(profileAttempts.entity_key, entityKey), eq(profileAttempts.operation, operation), or(eq(profileAttempts.run_id, lease.id), inArray(profileAttempts.state, UNSETTLED))))
+      .orderBy(desc(profileAttempts.created_at))
+      .limit(1);
     if (existing) return { status: "existing" as const, attempt: existing };
     if (maximumUsd === null) return { status: "unknown_price" as const };
     const amount = micros(maximumUsd);
-    if (
-      Number(run.spent_micro) + Number(run.reserved_micro) + amount >
-      Number(run.budget_micro)
-    )
+    if (run.spent_micro + run.reserved_micro + amount > run.budget_micro)
       return { status: "budget_deferred" as const };
     const id = randomUUID();
-    await tx.execute({
-      sql: "INSERT INTO profile_attempts (id,run_id,entity_key,operation,state,reserved_micro,created_at) VALUES (?,?,?,?,'reserved',?,?)",
-      args: [
-        id,
-        lease.id,
-        entityKey,
-        operation,
-        amount,
-        new Date().toISOString(),
-      ],
-    });
-    await tx.execute({
-      sql: "UPDATE profile_runs SET reserved_micro = reserved_micro + ? WHERE id = ?",
-      args: [amount, lease.id],
-    });
+    await tx.insert(profileAttempts).values({ id, run_id: lease.id, entity_key: entityKey, operation, state: "reserved", reserved_micro: amount, created_at: new Date() });
+    await tx.update(profileRuns).set({ reserved_micro: sql`${profileRuns.reserved_micro} + ${amount}` }).where(eq(profileRuns.id, lease.id));
     return { status: "reserved" as const, id };
   });
 }
 /** Write before network dispatch. A crash after this point never authorizes another POST. */
-export async function dispatch(client: Client, lease: RunLease, id: string) {
+export async function dispatch(client: Executor, lease: RunLease, id: string) {
   return transaction(client, async (tx) => {
     await assertLease(tx, lease);
-    const changed = await tx.execute({
-      sql: "UPDATE profile_attempts SET state = 'dispatched' WHERE id = ? AND run_id = ? AND state = 'reserved'",
-      args: [id, lease.id],
-    });
-    return changed.rowsAffected === 1;
+    const changed = await tx
+      .update(profileAttempts)
+      .set({ state: "dispatched" })
+      .where(and(eq(profileAttempts.id, id), eq(profileAttempts.run_id, lease.id), eq(profileAttempts.state, "reserved")))
+      .returning({ id: profileAttempts.id });
+    return changed.length === 1;
   });
 }
-export async function saveJob(client: Client, id: string, jobId: string) {
-  await client.execute({
-    sql: "UPDATE profile_attempts SET job_id = ? WHERE id = ? AND state IN ('dispatched','uncertain')",
-    args: [jobId, id],
-  });
+export async function saveJob(client: Executor, id: string, jobId: string) {
+  await client.update(profileAttempts).set({ job_id: jobId }).where(and(eq(profileAttempts.id, id), inArray(profileAttempts.state, ["dispatched", "uncertain"])));
 }
-export async function uncertain(client: Client, id: string) {
-  await client.execute({
-    sql: "UPDATE profile_attempts SET state = 'uncertain' WHERE id = ? AND state != 'settled'",
-    args: [id],
-  });
+export async function uncertain(client: Executor, id: string) {
+  await client.update(profileAttempts).set({ state: "uncertain" }).where(and(eq(profileAttempts.id, id), ne(profileAttempts.state, "settled")));
 }
 /** Response and accounting commit together; profile application can safely replay later. */
 export async function settle(
-  client: Client,
+  client: Executor,
   id: string,
   costUsd: number | null,
   response: unknown,
 ) {
   return transaction(client, async (tx) => {
-    const attempt = (
-      await tx.execute({
-        sql: "SELECT * FROM profile_attempts WHERE id = ?",
-        args: [id],
-      })
-    ).rows[0];
+    const [attempt] = await tx.select().from(profileAttempts).where(eq(profileAttempts.id, id));
     if (!attempt) throw new Error("Unknown attempt");
     if (attempt.state === "settled") return;
+    const saved = stripNul(sanitize(response));
     if (costUsd === null) {
-      await tx.execute({
-        sql: "UPDATE profile_attempts SET state = 'uncertain', response_json = ? WHERE id = ?",
-        args: [JSON.stringify(sanitize(response)), id],
-      });
+      await tx.update(profileAttempts).set({ state: "uncertain", response_json: saved }).where(eq(profileAttempts.id, id));
       return;
     }
     const cost = micros(costUsd);
-    if (cost > Number(attempt.reserved_micro))
+    if (cost > attempt.reserved_micro)
       throw new Error(
         "Provider charge exceeded verified maximum; stop and reconcile",
       );
-    await tx.execute({
-      sql: "UPDATE profile_attempts SET state = 'settled', cost_micro = ?, response_json = ? WHERE id = ?",
-      args: [cost, JSON.stringify(sanitize(response)), id],
-    });
-    await tx.execute({
-      sql: "UPDATE profile_runs SET spent_micro = spent_micro + ?, reserved_micro = reserved_micro - ? WHERE id = ?",
-      args: [cost, attempt.reserved_micro, attempt.run_id],
-    });
+    await tx.update(profileAttempts).set({ state: "settled", cost_micro: cost, response_json: saved }).where(eq(profileAttempts.id, id));
+    await tx
+      .update(profileRuns)
+      .set({ spent_micro: sql`${profileRuns.spent_micro} + ${cost}`, reserved_micro: sql`${profileRuns.reserved_micro} - ${attempt.reserved_micro}` })
+      .where(eq(profileRuns.id, attempt.run_id));
   });
 }
-export async function cancelRun(client: Client, runId: string) {
-  await client.execute({
-    sql: "UPDATE profile_runs SET state = 'cancelled' WHERE (id = ? OR owner = ?) AND state = 'running'",
-    args: [runId, runId],
-  });
+export async function cancelRun(client: Executor, runId: string) {
+  await client.update(profileRuns).set({ state: "cancelled" }).where(and(or(eq(profileRuns.id, runId), eq(profileRuns.owner, runId)), eq(profileRuns.state, "running")));
 }
-export async function runSummary(client: Client, runId: string) {
-  const run = (
-    await client.execute({
-      sql: "SELECT * FROM profile_runs WHERE id = ?",
-      args: [runId],
-    })
-  ).rows[0];
+export async function runSummary(client: Executor, runId: string) {
+  const [run] = await client.select().from(profileRuns).where(eq(profileRuns.id, runId));
   if (!run) throw new Error("Unknown run");
-  const work = (
-    await client.execute({
-      sql: "SELECT phase, state, COUNT(*) AS count FROM profile_work WHERE run_id = ? GROUP BY phase, state",
-      args: [runId],
-    })
-  ).rows;
+  const work = await client
+    .select({ phase: profileWork.phase, state: profileWork.state, count: sql<number>`count(*)::int` })
+    .from(profileWork)
+    .where(eq(profileWork.run_id, runId))
+    .groupBy(profileWork.phase, profileWork.state);
   return {
     runId,
-    state: String(run.state),
-    omitted: Number(run.omitted),
-    spentUsd: Number(run.spent_micro) / 1e6,
-    uncertainSpendUsd: Number(run.reserved_micro) / 1e6,
-    outcomes: work.map((row) => ({
-      phase: String(row.phase),
-      state: String(row.state),
-      count: Number(row.count),
-    })),
+    state: run.state,
+    omitted: run.omitted,
+    spentUsd: run.spent_micro / 1e6,
+    uncertainSpendUsd: run.reserved_micro / 1e6,
+    outcomes: work,
   };
 }
-export async function finishRun(client: Client, lease: RunLease) {
+export async function finishRun(client: Executor, lease: RunLease) {
   return transaction(client, async (tx) => {
-    await assertLease(tx, lease);
-    const pending = (
-      await tx.execute({
-        sql: "SELECT (SELECT COUNT(*) FROM profile_work WHERE run_id = ? AND state NOT IN ('done','reused')) + (SELECT reserved_micro FROM profile_runs WHERE id = ?) AS n",
-        args: [lease.id, lease.id],
-      })
-    ).rows[0];
-    await tx.execute({
-      sql: "UPDATE profile_runs SET state = ? WHERE id = ?",
-      args: [Number(pending.n) ? "partial" : "complete", lease.id],
-    });
+    const run = await assertLease(tx, lease);
+    const [open] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(profileWork)
+      .where(and(eq(profileWork.run_id, lease.id), sql`${profileWork.state} NOT IN ('done','reused')`));
+    await tx.update(profileRuns).set({ state: open.count || run.reserved_micro ? "partial" : "complete" }).where(eq(profileRuns.id, lease.id));
   });
 }

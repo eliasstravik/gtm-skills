@@ -1,6 +1,6 @@
 {
   "name": "gtm-workflows",
-  "version": "0.1.56",
+  "version": "0.1.57",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,9 +8,10 @@
   },
   "scripts": {
     "dev": "node scripts/local-launch.mjs dev",
-    "build": "node scripts/build-viewer.mjs && drizzle-kit migrate && node scripts/profile-migrate.mjs && node scripts/viewer-migrate.mjs && nitro build",
+    "build": "node scripts/build-viewer.mjs && node scripts/migrate.mjs && nitro build",
     "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio",
+    "db:generate:runtime": "drizzle-kit generate --config drizzle-runtime.config.ts",
+    "db:studio": "node scripts/studio.mjs",
     "viewer": "node scripts/local-launch.mjs viewer",
     "viewer:register": "node scripts/viewer-registry.mjs",
     "build:share": "node scripts/build-share.mjs && GTM_VIEWER_MODE=share nitro build"
@@ -24,13 +25,14 @@
     "@fontsource-variable/geist": "5.3.0",
     "@fontsource-variable/geist-mono": "5.3.0",
     "@heroicons/react": "2.2.0",
-    "@libsql/client": "0.18.0",
+    "@vercel/functions": "3.9.8",
     "@vercel/oidc": "3.8.7",
     "@xyflow/react": "12.11.6",
     "ai": "7.0.99",
     "croner": "10.0.1",
     "drizzle-orm": "0.45.2",
     "nitro": "3.0.260903-beta",
+    "pg": "8.23.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "workflow": "5.0.0-beta.51",
@@ -38,9 +40,11 @@
   },
   "devDependencies": {
     "@types/node": "22.20.2",
+    "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "drizzle-kit": "0.31.10",
+    "embedded-postgres": "18.4.0-beta.17",
     "esbuild": "0.28.1",
     "typescript": "6.0.3"
   }

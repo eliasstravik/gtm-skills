@@ -33,8 +33,8 @@
 | `GTM_AGENT_URL` | | yes | existing notification binding |
 | `GTM_WORKFLOW_BYPASS_SECRET`, `GTM_WORKFLOW_GATE_REQUIRED` | yes | | staged gate access; host-only injection |
 | `GTM_VIEWER_PROTECTED`, `GTM_VIEWER_SHARE_ORIGIN` | | yes | set only after native protection and companion verification |
-| `GTM_DATA_URL` | | optional | by hand, only to override the Turso page the runtime derives |
-| `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | | yes | existing workflow hosting |
+| `GTM_DATA_URL` | | optional | by hand, only to name the database's page |
+| `DATABASE_URL`, `DATABASE_URL_UNPOOLED` | never | yes | the Neon integration in Vercel, Production only; never by hand, and never on the share project |
 | `GTM_CONNECTIONS_VERCEL_TOKEN` | | yes | project-scoped token, saved as a Production Secret |
 | `GTM_CONNECTIONS_ENABLED`, `GTM_CONNECTIONS_ORIGIN`, `GTM_CONNECTIONS_TEAM_ID` | | yes | Connections setup |
 | Provider keys (`MONID_API_KEY`, …) | never | as needed | protected Production Connections form |

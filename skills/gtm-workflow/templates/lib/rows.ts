@@ -1,5 +1,5 @@
-import { and, eq, inArray } from "drizzle-orm";
-import { cache as cacheTable } from "../db/tables/cache";
+import { and, inArray, isNull, sql } from "drizzle-orm";
+import { cache as cacheTable } from "./schema/cache";
 import { defineHook, getWorkflowMetadata, setAttributes } from "workflow";
 import { resumeHook, start } from "workflow/api";
 import { z } from "zod";
@@ -30,18 +30,18 @@ export async function readFresh(
     updated_at: never;
     error: never;
   };
-  const since = new Date(Date.now() - freshForMs).toISOString();
+  // Filtered in SQL against the database's clock, so only fresh keys come back.
   const rows = (await db()
-    .select({ key: t.key, updated_at: t.updated_at, error: t.error })
+    .select({ key: t.key })
     .from(t as never)
-    .where(inArray(t.key, keys))) as unknown as {
-    key: string;
-    updated_at: string;
-    error: string | null;
-  }[];
-  return rows
-    .filter((r) => r.error == null && r.updated_at >= since)
-    .map((r) => r.key);
+    .where(
+      and(
+        inArray(t.key, keys),
+        isNull(t.error),
+        sql`${t.updated_at} >= now() - make_interval(secs => ${freshForMs / 1000})`,
+      ),
+    )) as unknown as { key: string }[];
+  return rows.map((r) => r.key);
 }
 
 /** Persist one row. Date.now() is called here, inside the step, so workflow scope stays replay-deterministic. */
@@ -52,7 +52,7 @@ export async function saveRow(
   "use step";
   await upsert(
     tableName,
-    [{ ...row, updated_at: new Date().toISOString() }],
+    [{ ...row, updated_at: new Date() }],
     ["key"],
   );
 }
@@ -356,29 +356,25 @@ async function recordChildren(
   runIds: string[],
 ): Promise<void> {
   "use step";
-  const [row] = await db()
-    .select()
-    .from(cacheTable)
-    .where(
-      and(eq(cacheTable.name, "children"), eq(cacheTable.hash, parentRunId)),
-    );
-  const known = row ? (JSON.parse(row.value) as string[]) : [];
   const now = new Date();
-  await upsert(
-    "cache",
-    [
-      {
-        name: "children",
-        hash: parentRunId,
-        value: JSON.stringify([...known, ...runIds]),
-        created_at: now.toISOString(),
-        expires_at: new Date(
-          now.getTime() + 30 * 24 * 60 * 60 * 1000,
-        ).toISOString(),
+  // One atomic append, so two steps recording at once cannot lose each other's ids. A retried step may append
+  // the same ids twice; listChildren removes duplicates when it reads.
+  await db()
+    .insert(cacheTable)
+    .values({
+      name: "children",
+      hash: parentRunId,
+      value: runIds,
+      created_at: now,
+      expires_at: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+    })
+    .onConflictDoUpdate({
+      target: [cacheTable.name, cacheTable.hash],
+      set: {
+        value: sql`${cacheTable.value} || excluded.value`,
+        expires_at: sql`excluded.expires_at`,
       },
-    ],
-    ["name", "hash"],
-  );
+    });
 }
 
 async function reportToParent(token: string, result: RunResult): Promise<void> {

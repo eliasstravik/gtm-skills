@@ -6,7 +6,7 @@ export const requireThat = (condition, code, status = 400) => {
 };
 export const safeError = (error) => error instanceof ConnectionError || error?.name === "ConnectionError" && /^[a-z][a-z0-9_]{1,100}$/.test(error.code) && Number.isInteger(error.status) && error.status >= 400 && error.status < 600
   ? { error: error.code, status: error.status, ...(error.code === "unlock_os_credential_store" ? {
-    instruction: "Unlock your OS credential store. On Linux, start and unlock a Secret Service provider such as GNOME Keyring in your desktop session, then rerun setup.",
+    instruction: "Unlock your OS credential store. On macOS over SSH the login keychain is locked: run `security unlock-keychain ~/Library/Keychains/login.keychain-db` in that session, then rerun setup. On Linux, start and unlock a Secret Service provider such as GNOME Keyring in your desktop session, then rerun setup.",
   } : {}) }
   : { error: "connections_unavailable", status: 503 };
 export async function readJson(request, limit = 16384) {

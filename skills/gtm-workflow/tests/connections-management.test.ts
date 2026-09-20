@@ -96,7 +96,7 @@ test("adding custom keys stores the name as a Note and keeps system controls res
   };
   await changeConnection(api, config.projectId, { variable: "hubspotSandbox", action: "add", label: "HubSpot (Sandbox)", version: "absent", value: "synthetic-only" });
   assert.equal(saved.key, "hubspotSandbox"); assert.equal(saved.comment, "HubSpot (Sandbox)"); assert.equal(saved.visibility, "secret");
-  for (const variable of ["PATH", "NODE_OPTIONS", "HOME", "VERCEL_TOKEN", "GTM_RUN_SECRET", "__bad-name"])
+  for (const variable of ["PATH", "NODE_OPTIONS", "HOME", "VERCEL_TOKEN", "GTM_RUN_SECRET", "DATABASE_URL", "PGHOST", "PGPASSWORD", "POSTGRES_URL", "__bad-name"])
     await assert.rejects(changeConnection(api, config.projectId, { variable, action: "add", label: "Example", version: "absent", value: "synthetic" }), /invalid_provider_variable/);
 });
 

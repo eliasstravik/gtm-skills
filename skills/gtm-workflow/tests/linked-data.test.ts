@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
-import { createClient } from "@libsql/client";
-import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import { pgTable, text } from "drizzle-orm/pg-core";
+import { closeDb, db } from "../templates/lib/db";
+import { testDatabase } from "./db";
 import {
   readData,
   renderData,
@@ -9,20 +11,20 @@ import {
 } from "../templates/lib/data-api";
 import { signLink, verifyLink } from "../templates/lib/sign";
 
-const people = sqliteTable("network_people", {
+const people = pgTable("network_people", {
   key: text("key").primaryKey(),
   name: text("full_name"),
 });
-const companies = sqliteTable("network_companies", {
+const companies = pgTable("network_companies", {
   key: text("key").primaryKey(),
   name: text("name"),
 });
-const employment = sqliteTable("network_employment", {
+const employment = pgTable("network_employment", {
   key: text("key").primaryKey(),
   person: text("person_key"),
   company: text("company_key"),
 });
-const privateTable = sqliteTable("private_table", {
+const privateTable = pgTable("private_table", {
   key: text("key").primaryKey(),
   secret: text("secret"),
 });
@@ -52,8 +54,9 @@ const config: WorkflowData = {
     },
   ],
 };
-const client = createClient({ url: ":memory:" });
-await client.executeMultiple(`
+await testDatabase({ migrated: false });
+const client = db();
+for (const statement of `
   CREATE TABLE network_people (key TEXT PRIMARY KEY, full_name TEXT);
   CREATE TABLE network_companies (key TEXT PRIMARY KEY, name TEXT);
   CREATE TABLE network_employment (key TEXT PRIMARY KEY, person_key TEXT, company_key TEXT);
@@ -61,9 +64,9 @@ await client.executeMultiple(`
   INSERT INTO network_people VALUES ('alice', 'Alice'), ('bob', 'Bob');
   INSERT INTO network_companies VALUES ('acme', 'Acme'), ('beta', 'Beta');
   INSERT INTO network_employment VALUES ('a1','alice','acme'), ('a2','alice','acme'), ('a3','alice','beta'), ('b1','bob','acme');
-  INSERT INTO private_table VALUES ('hidden', 'Never display this');
-`);
-after(() => client.close());
+  INSERT INTO private_table VALUES ('hidden', 'Never display this')
+`.split(";")) await client.execute(statement);
+after(closeDb);
 const url = (query = "") =>
   new URL(`http://localhost/gtm/network/data?t=test-token&${query}`);
 const read = (query = "") => readData(config, registry, client, url(query));
@@ -129,14 +132,8 @@ test("row and relationship keys cannot inject SQL", async () => {
 
 test("related records paginate without duplicate people from duplicate roles", async () => {
   for (let i = 0; i < 28; i++) {
-    await client.execute({
-      sql: "INSERT INTO network_people VALUES (?, ?)",
-      args: [`p${i.toString().padStart(2, "0")}`, `Person ${i}`],
-    });
-    await client.execute({
-      sql: "INSERT INTO network_employment VALUES (?, ?, 'acme')",
-      args: [`role${i}`, `p${i.toString().padStart(2, "0")}`],
-    });
+    await client.execute(sql`INSERT INTO network_people VALUES (${`p${i.toString().padStart(2, "0")}`}, ${`Person ${i}`})`);
+    await client.execute(sql`INSERT INTO network_employment VALUES (${`role${i}`}, ${`p${i.toString().padStart(2, "0")}`}, 'acme')`);
   }
   const first = await read(
     "table=people&relatedTable=companies&relatedKey=acme",
@@ -166,10 +163,7 @@ test("empty and unmatched records remain usable", async () => {
 });
 
 test("stored content and links are escaped in HTML", async () => {
-  await client.execute({
-    sql: "INSERT INTO network_people VALUES (?, ?)",
-    args: ["evil", '<script>alert("x")</script>'],
-  });
+  await client.execute(sql`INSERT INTO network_people VALUES (${"evil"}, ${'<script>alert("x")</script>'})`);
   const html = renderData(await read("key=evil"));
   assert.ok(!html.includes("<script>"));
   assert.ok(html.includes("&lt;script&gt;"));

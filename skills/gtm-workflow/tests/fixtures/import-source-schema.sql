@@ -1,3 +1,36 @@
+-- The schema a workspace had before Postgres, as text: the two Drizzle migrations of commit 271ff2b, the ledger and grants
+-- tables that build scripts created, and what PR #119 (commit 7163259) added to production before it was reverted.
+CREATE TABLE `cache` (
+	`name` text NOT NULL,
+	`hash` text NOT NULL,
+	`value` text NOT NULL,
+	`created_at` text NOT NULL,
+	`expires_at` text NOT NULL,
+	PRIMARY KEY(`name`, `hash`)
+);
+--> statement-breakpoint
+CREATE TABLE `example_research` (
+	`key` text PRIMARY KEY NOT NULL,
+	`updated_at` text NOT NULL,
+	`cost_usd` real DEFAULT 0 NOT NULL,
+	`error` text,
+	`summary` text,
+	`sells` text,
+	`headcount_band` text,
+	`evidence_json` text,
+	`tool_calls` integer,
+	`stop_reason` text
+);
+--> statement-breakpoint
+CREATE TABLE `example_scores` (
+	`key` text PRIMARY KEY NOT NULL,
+	`updated_at` text NOT NULL,
+	`cost_usd` real DEFAULT 0 NOT NULL,
+	`error` text,
+	`score` integer,
+	`reason` text
+);
+
 CREATE TABLE `companies` (
 	`key` text PRIMARY KEY NOT NULL,
 	`created_at` text NOT NULL,
@@ -158,3 +191,38 @@ CREATE UNIQUE INDEX `people_linkedin_url_unique` ON `people` (`linkedin_url`) WH
 CREATE UNIQUE INDEX `people_linkedin_profile_id_unique` ON `people` (`linkedin_profile_id`) WHERE "people"."linkedin_profile_id" IS NOT NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX `people_linkedin_numeric_id_unique` ON `people` (`linkedin_numeric_id`) WHERE "people"."linkedin_numeric_id" IS NOT NULL;--> statement-breakpoint
 CREATE UNIQUE INDEX `people_linkedin_urn_unique` ON `people` (`linkedin_urn`) WHERE "people"."linkedin_urn" IS NOT NULL;
+CREATE TABLE IF NOT EXISTS profile_runs (
+ id TEXT PRIMARY KEY, workflow_id TEXT NOT NULL, owner TEXT NOT NULL, lease_until INTEGER NOT NULL,
+ state TEXT NOT NULL, budget_micro INTEGER NOT NULL, spent_micro INTEGER NOT NULL DEFAULT 0,
+ reserved_micro INTEGER NOT NULL DEFAULT 0, input_json TEXT NOT NULL, companies_json TEXT,
+ omitted INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS profile_single_flight ON profile_runs ((1)) WHERE state = 'running';
+CREATE TABLE IF NOT EXISTS profile_work (
+ run_id TEXT NOT NULL, phase TEXT NOT NULL, entity_key TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending',
+ PRIMARY KEY (run_id, phase, entity_key)
+);
+CREATE TABLE IF NOT EXISTS profile_attempts (
+ id TEXT PRIMARY KEY, run_id TEXT NOT NULL, entity_key TEXT NOT NULL, operation TEXT NOT NULL,
+ state TEXT NOT NULL, reserved_micro INTEGER NOT NULL, cost_micro INTEGER, job_id TEXT, response_json TEXT,
+ created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS profile_unsettled ON profile_attempts (entity_key, operation) WHERE state IN ('reserved','dispatched','uncertain');
+CREATE TABLE IF NOT EXISTS profile_inputs (
+ workflow_id TEXT NOT NULL, source_id TEXT NOT NULL, row_id TEXT NOT NULL, input_json TEXT NOT NULL,
+ person_key TEXT, first_observed_at TEXT NOT NULL, last_observed_at TEXT NOT NULL,
+ PRIMARY KEY (workflow_id, source_id, row_id)
+);
+CREATE TABLE IF NOT EXISTS gtm_viewer_grants (
+    id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, workflow_id TEXT NOT NULL,
+    workspace TEXT NOT NULL, environment TEXT NOT NULL, views TEXT NOT NULL, data_policy TEXT,
+    created_at INTEGER NOT NULL, expires_at INTEGER, revoked_at INTEGER
+  );
+ALTER TABLE gtm_viewer_grants ADD COLUMN token_ciphertext TEXT;
+-- PR #119's drift:
+CREATE TABLE IF NOT EXISTS profile_identifiers (
+ entity TEXT NOT NULL, namespace TEXT NOT NULL, value TEXT NOT NULL, entity_key TEXT NOT NULL,
+ PRIMARY KEY (entity, namespace, value, entity_key)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS profile_identifiers_entity_key ON profile_identifiers (entity, entity_key);
+CREATE INDEX IF NOT EXISTS companies_domain_name ON companies (domain, name);

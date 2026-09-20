@@ -1,9 +1,10 @@
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { viewerApi } from "../templates/lib/viewer-handler";
-import { migrateViewer } from "../templates/lib/viewer-grants";
+import { closeDb, db } from "../templates/lib/db";
+import { testDatabase } from "./db";
 import { csrfCookie } from "../templates/lib/viewer-access";
-import { client, runId, entry, fixtureRuns, run } from "./api-fixture";
+import { runId, entry, fixtureRuns, run } from "./api-fixture";
 Object.assign(process.env, {
   VERCEL: "1",
   VERCEL_PROJECT_ID: "fixture",
@@ -13,12 +14,15 @@ Object.assign(process.env, {
   GTM_RUN_SECRET: "fixture-credential",
   GTM_VIEWER_LINK_KEY: "ab".repeat(32),
 });
-await migrateViewer(client);
+// The real lib/db.ts on a migrated test database; only the table registry and the workflow runtime are stand-ins.
+await testDatabase();
+const client = db();
+after(closeDb);
 await client.execute(
-  "CREATE TABLE people (key TEXT PRIMARY KEY, name TEXT, secret TEXT)",
+  "CREATE TABLE fixture_people (key TEXT PRIMARY KEY, name TEXT, secret TEXT)",
 );
 await client.execute(
-  "INSERT INTO people VALUES ('a', 'Ada Example', 'PRIVATE')",
+  "INSERT INTO fixture_people VALUES ('a', 'Ada Example', 'PRIVATE')",
 );
 test("workspace data and export are private, independent of workflow registration", async () => {
   await client.execute("CREATE TABLE unregistered (id INTEGER, name TEXT)");
@@ -155,14 +159,14 @@ test("opening sharing recovers the link without enabling it, and recovery failur
       true,
     )
   ).json();
-  const before = await client.execute("SELECT * FROM gtm_viewer_grants");
+  const before = await client.execute("SELECT * FROM gtm.gtm_viewer_grants");
   const recoveredResponse = await viewerApi(req("grants"));
   assert.match(recoveredResponse.headers.get("cache-control")!, /no-store/);
   const recovered = await recoveredResponse.json();
   assert.equal(recovered.url, created.url);
   assert.equal(recovered.grant.id, created.grant.id);
   assert.deepEqual(
-    (await client.execute("SELECT * FROM gtm_viewer_grants")).rows,
+    (await client.execute("SELECT * FROM gtm.gtm_viewer_grants")).rows,
     before.rows,
   );
   const key = process.env.GTM_VIEWER_LINK_KEY;
@@ -308,43 +312,36 @@ test("stale Data policy preserves Diagram and requires explicit current-policy s
 });
 
 test("shared profile API scopes details, nested projections and both export formats", async () => {
-  const { people, companies, profileSchemaSql } = await import(
+  const { people, companies } = await import(
     "../templates/lib/profiles/schema"
   );
   const { profileView } = await import("../templates/lib/profiles/view");
   const { tables } = await import("./api-fixture");
-  await client.execute("DROP TABLE people");
-  await client.executeMultiple(profileSchemaSql());
   Object.assign(tables, { people, companies });
   Object.assign(entry, profileView("stable"));
   for (const [key, workflow] of [
     ["a", "stable"],
     ["b", "foreign"],
   ]) {
-    await client.execute({
-      sql: "INSERT INTO people(key,created_at,updated_at,full_name,sources_json,experiences_json,raw_responses_json) VALUES(?,?,?,?,?,?,?)",
-      args: [
-        key,
-        "2026-09-16",
-        "2026-09-16",
-        key === "a" ? "Ada, Example" : "FOREIGN PERSON",
-        JSON.stringify([{ workflow_id: workflow, network_owner: "PRIVATE" }]),
-        JSON.stringify([
-          {
-            title: "Founder",
-            company_key: "c",
-            company_name: "Shared Co",
-            current_status: "current",
-            original: { secret: "PRIVATE" },
-          },
-        ]),
-        JSON.stringify({ secret: "PRIVATE" }),
+    await client.insert(people).values({
+      key,
+      created_at: new Date("2026-09-16"),
+      updated_at: new Date("2026-09-16"),
+      full_name: key === "a" ? "Ada, Example" : "FOREIGN PERSON",
+      sources_json: [{ workflow_id: workflow, network_owner: "PRIVATE" }],
+      experiences_json: [
+        {
+          title: "Founder",
+          company_key: "c",
+          company_name: "Shared Co",
+          current_status: "current",
+          original: { secret: "PRIVATE" },
+        },
       ],
+      raw_responses_json: { secret: "PRIVATE" },
     });
   }
-  await client.execute(
-    "INSERT INTO companies(key,created_at,updated_at,name) VALUES('c','2026-09-16','2026-09-16','Shared Co')",
-  );
+  await client.insert(companies).values({ key: "c", created_at: new Date("2026-09-16"), updated_at: new Date("2026-09-16"), name: "Shared Co" });
   const current = await (await viewerApi(req("grants"))).json();
   const created = await viewerApi(
     req("saveLink", undefined, {

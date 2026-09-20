@@ -20,6 +20,9 @@ jobs:
         working-directory: skills/gtm-workflow/connections/local
       - run: npm run build
         working-directory: skills/gtm-workflow/connections
+      # The launcher tests start the local Postgres from the template's embedded-postgres package.
+      - run: npm ci
+        working-directory: skills/gtm-workflow/templates
       - name: Prepare Linux Secret Service
         if: runner.os == 'Linux'
         run: |
@@ -47,6 +50,7 @@ jobs:
           node-version: 22
       - run: npm ci
         working-directory: skills/gtm-workflow/templates
+      - run: node skills/gtm-workflow/tests/no-old-database-words.mjs
       - run: node --test skills/gtm-agent/tests/*.test.mjs
       - run: node --test skills/gtm-workspace/tests/*.test.mjs
       - run: node skills/gtm-workflow/tests/run.mjs skills/gtm-workflow/templates

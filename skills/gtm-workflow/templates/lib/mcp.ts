@@ -83,22 +83,17 @@ export async function callMcpTool(
 ): Promise<unknown> {
   "use step";
   if (server.profileContext && ["monid_run", "monid_get_run"].includes(name)) {
-    const { rawClient } = await import("./db");
+    const { db } = await import("./db");
     const { profileAgentCall } = await import("./profiles/agent-bridge");
-    const client = rawClient();
-    try {
-      return bound(
-        await profileAgentCall(
-          client,
-          server.profileContext,
-          name,
-          args,
-          process.env[server.keyEnv ?? "MONID_API_KEY"] ?? "",
-        ),
-      );
-    } finally {
-      client.close();
-    }
+    return bound(
+      await profileAgentCall(
+        db(),
+        server.profileContext,
+        name,
+        args,
+        process.env[server.keyEnv ?? "MONID_API_KEY"] ?? "",
+      ),
+    );
   }
   const mcp = await connect(server);
   try {

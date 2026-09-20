@@ -1,18 +1,20 @@
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createClient } from "@libsql/client";
+import { closeDb, db } from "../templates/lib/db";
+import { testDatabase } from "./db";
+after(() => closeDb());
 import { configureLocalRuntime } from "../templates/lib/local-runtime";
 import { failureDetails, rowFailure } from "../templates/lib/failure";
 import { runAgentCli } from "../templates/lib/cli";
 import { callMcpTool } from "../templates/lib/mcp";
 import { runRows } from "../templates/lib/rows";
 import { startLookup, pollLookup } from "../templates/lib/profiles/provider";
-import { ledgerSchemaSql, beginRun } from "../templates/lib/profiles/ledger";
+import { beginRun } from "../templates/lib/profiles/ledger";
 import { mergePackage } from "../scripts/upgrade-package.mjs";
 
 async function listen(server: Server) {
@@ -61,7 +63,7 @@ test("package upgrade updates stock startup commands and preserves custom script
       viewer: "node scripts/start-viewer.mjs",
       custom: "keep",
     },
-    dependencies: { workflow: "old", customer: "keep" },
+    dependencies: { workflow: "old", customer: "keep", "@libsql/client": "0.18.0" },
     extra: { keep: true },
   };
   const result = mergePackage(old, template);
@@ -69,6 +71,17 @@ test("package upgrade updates stock startup commands and preserves custom script
   assert.equal(result.package.scripts.build, "new stock build");
   assert.equal(result.package.scripts.custom, "keep");
   assert.equal(result.package.dependencies.customer, "keep");
+  assert.equal("@libsql/client" in result.package.dependencies, false, "the removed database client goes");
+  assert.equal(old.dependencies["@libsql/client"], "0.18.0");
+  // The commands of a workspace from before Postgres are stock, so they are replaced, not sent for review.
+  const before = mergePackage({ ...old, scripts: {
+    dev: "node scripts/build-viewer.mjs && drizzle-kit migrate && node scripts/profile-migrate.mjs && node scripts/viewer-migrate.mjs && nitro dev --port 3939",
+    build: "node scripts/build-viewer.mjs && drizzle-kit migrate && node scripts/profile-migrate.mjs && node scripts/viewer-migrate.mjs && nitro build",
+    "db:studio": "drizzle-kit studio",
+  } }, { ...template, scripts: { ...template.scripts, "db:studio": "node scripts/studio.mjs" } });
+  assert.deepEqual(before.review, []);
+  assert.equal(before.package.scripts.build, "new stock build");
+  assert.equal(before.package.scripts["db:studio"], "node scripts/studio.mjs");
   assert.deepEqual(result.package.extra, { keep: true });
   assert.equal(old.dependencies.workflow, "old");
   const custom = mergePackage(
@@ -264,8 +277,8 @@ test("CLI fixtures distinguish launch, exit, tool result, timeout, and malformed
 });
 
 test("provider transport evidence keeps reservations and request context, never sends a duplicate paid call", async () => {
-  const client = createClient({ url: ":memory:" });
-  await client.executeMultiple(ledgerSchemaSql);
+  await testDatabase();
+  const client = Object.assign(db(), { close() {} });
   const lease = { id: "wrun_fixture", owner: "fixture" };
   await beginRun(client, {
     ...lease,

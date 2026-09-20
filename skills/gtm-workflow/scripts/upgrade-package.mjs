@@ -9,7 +9,12 @@ const stock = {
   dev: /^(?:node scripts\/build-viewer\.mjs && )?drizzle-kit migrate && (?:node scripts\/profile-migrate\.mjs && )?(?:node scripts\/viewer-migrate\.mjs && )?(?:WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS=900000 WORKFLOW_LOCAL_BODY_TIMEOUT_MS=900000 )?nitro dev --port 3939$/,
   build:
     /^(?:node scripts\/build-viewer\.mjs && )?drizzle-kit migrate && (?:node scripts\/profile-migrate\.mjs && )?(?:node scripts\/viewer-migrate\.mjs && )?nitro build$/,
+  "db:studio": /^drizzle-kit studio$/,
 };
+
+// Merging never drops a dependency, so the ones the runtime stopped using are named here.
+const removed = ["@libsql/client"];
+const without = (dependencies = {}) => Object.fromEntries(Object.entries(dependencies).filter(([name]) => !removed.includes(name)));
 
 export function mergePackage(current, template) {
   const scripts = { ...current.scripts };
@@ -24,9 +29,9 @@ export function mergePackage(current, template) {
       ...current,
       version: template.version,
       scripts,
-      dependencies: { ...current.dependencies, ...template.dependencies },
+      dependencies: { ...without(current.dependencies), ...template.dependencies },
       devDependencies: {
-        ...current.devDependencies,
+        ...without(current.devDependencies),
         ...template.devDependencies,
       },
     },

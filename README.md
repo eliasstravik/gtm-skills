@@ -27,7 +27,7 @@ The GTM workspace records what the organization knows about itself and its team.
 | **Gives every workflow a typed result table with a stable key, cost, and error per row** | ✅ | ❌ | ❌ | ❌ |
 | **States the cost before every run and offers a one-row test before a new workflow runs at scale** | ✅ | ❌ | ❌ | ❌ |
 | **Caps every run by rows and spend** | ✅ | ❌ | ❌ | ❌ |
-| **Runs the same workflow file locally on SQLite and hosted on Vercel with Turso** | ✅ | ❌ | ❌ | ❌ |
+| **Runs the same workflow file on Postgres locally and hosted on Vercel with Neon** | ✅ | ❌ | ❌ | ❌ |
 | **Reaches people in Slack for approvals while a hosted run is in progress** | ✅ | ❌ | ❌ | ❌ |
 
 Keep durable GTM knowledge and reusable automations in one repository, and let the agent you already use do the writing.
@@ -75,7 +75,7 @@ Each skill owns one part of the workspace and hands off to the others. Install `
 <table>
 <tr>
 <td align="center" valign="top" width="50%"><h3>Self-serve</h3><sub>For GTM builders and teams using coding agents</sub><br /><h2>Free</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Every GTM skill, installed with one command<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Git-backed GTM workspace<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP and persona lifecycles<br />&nbsp;&nbsp;&nbsp;✓&nbsp; In-conversation prospect qualification<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Local and Vercel workflows with schedules<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Plain-language proposals, caps, and history</div></td>
-<td align="center" valign="top" width="50%"><h3>Done-with-you</h3><sub>Hands-on setup and rollout for your GTM team</sub><br /><h2>Let's talk</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Everything in self-serve<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Full GTM Skills setup<br />&nbsp;&nbsp;&nbsp;✓&nbsp; GTM workspace repository configuration<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP, persona, and workflow design<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Vercel and Turso configuration for hosted workflows<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Team rollout, training, and best practices<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Ongoing maintenance and upgrades<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Dedicated Slack channel support</div></td>
+<td align="center" valign="top" width="50%"><h3>Done-with-you</h3><sub>Hands-on setup and rollout for your GTM team</sub><br /><h2>Let's talk</h2><div align="left">&nbsp;&nbsp;&nbsp;✓&nbsp; Everything in self-serve<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Full GTM Skills setup<br />&nbsp;&nbsp;&nbsp;✓&nbsp; GTM workspace repository configuration<br />&nbsp;&nbsp;&nbsp;✓&nbsp; ICP, persona, and workflow design<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Vercel and Neon configuration for hosted workflows<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Team rollout, training, and best practices<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Ongoing maintenance and upgrades<br />&nbsp;&nbsp;&nbsp;✓&nbsp; Dedicated Slack channel support</div></td>
 </tr>
 <tr>
 <td align="center"><a href="docs/getting-started.md"><img src="assets/buttons/install-gtm-skills.svg" alt="Install GTM Skills" /></a></td>
@@ -99,7 +99,7 @@ In `~/.gtm/<org-slug>/` on your computer, as Markdown with git as its memory. Wh
 
 ### What does a saved workflow need to run?
 
-Locally: Node and the SQLite file the scaffold creates. Hosted: a Vercel project connected to the workspace repository, a Turso database, and an AI Gateway key. Each workflow declares its row and spend caps, and every run states its cost before it starts.
+Locally: Node; the scaffold brings its own Postgres and starts it with the workflow runtime. Hosted: a Vercel project connected to the workspace repository, a Neon database added through Vercel, and an AI Gateway key. Each workflow declares its row and spend caps, and every run states its cost before it starts.
 
 ### Can a workflow ask a person before it acts?
 
@@ -107,7 +107,7 @@ Yes. An agent stage can name the tools a person must approve. On a hosted run th
 
 ### What does it cost?
 
-GTM Skills is free, open source, and MIT licensed. Your AI provider, Vercel, and Turso may charge for usage within the limits you choose.
+GTM Skills is free, open source, and MIT licensed. Your AI provider, Vercel, and Neon may charge for usage within the limits you choose.
 
 ## Install GTM Skills and build from shared truth
 

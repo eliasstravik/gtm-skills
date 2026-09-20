@@ -38,7 +38,7 @@ export function destinations(entry?: Display) {
   )
     sourceUrl = `https://github.com/${repository}/blob/${commit}/${[root, source].filter(Boolean).join("/").split("/").map(segment).join("/")}`;
   const database = hosted
-    ? safeUrl(process.env.GTM_VIEWER_DATABASE_URL, ["app.turso.tech"])
+    ? safeUrl(process.env.GTM_VIEWER_DATABASE_URL, ["console.neon.tech", "vercel.com"])
     : safeUrl(process.env.GTM_VIEWER_DRIZZLE_URL, undefined, true);
   return {
     runs: runsDestination(),
@@ -50,7 +50,7 @@ export function destinations(entry?: Display) {
     database: database
       ? {
           url: database.href,
-          label: hosted ? "Open in Turso" : "Open in Drizzle Studio",
+          label: hosted ? "Open database" : "Open in Drizzle Studio",
         }
       : undefined,
   };
