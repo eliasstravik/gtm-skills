@@ -25,7 +25,7 @@ One time, for a workspace from before the runtime moved to Postgres (it has `db/
 
 A column that holds epoch milliseconds and is used in arithmetic (a rate limiter's `next_allowed_at`) becomes `bigint("…", { mode: "number" })`, not a time. A read-then-write pacing transaction becomes one `INSERT … ON CONFLICT … DO UPDATE … RETURNING` statement.
 
-Local results in `data/gtm.db` are not moved automatically. To keep them, run the skill's `scripts/import-from-turso.mjs <data/gtm.db> --target-local <workflows folder>` right after that first `npm run dev` has migrated and before any workflow runs, because the import refuses a target that already holds rows. The hosted database is moved by the owner with the same script; it is not part of Upgrade.
+Local results in `data/gtm.db` are not moved automatically. To keep them, run the skill's `scripts/import-from-turso.mjs <data/gtm.db> --target-local <workflows folder>` right after that first `npm run dev` has migrated and before any workflow runs, because the import refuses a target that already holds rows. The hosted database is moved by the owner with the same script, run from the workspace's `workflows/` folder so it finds the installed `pg` package; it is not part of Upgrade.
 
 ## Diagnose the failing boundary
 
