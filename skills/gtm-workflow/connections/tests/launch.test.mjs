@@ -84,6 +84,19 @@ test("dev starts this workspace's Postgres as the plain role, migrates, ignores 
   }
 }));
 
+test("Ctrl+C under npm reaches the launcher twice, and a closed terminal sends SIGHUP: the server still stops", { ...options, skip: options.skip || (windows ? "no such signals on Windows" : false) }, () => sandbox(async (root, launch) => {
+  const ws = await fixture(root, "one");
+  for (const signals of [["SIGINT", "SIGINT"], ["SIGINT", "SIGTERM"], ["SIGHUP"]]) {
+    const launcher = launch(ws);
+    await launcher.ready;
+    // The terminal signals the whole foreground group and npm forwards the signal as well.
+    for (const signal of signals) { launcher.child.kill(signal); await new Promise((resolve) => setTimeout(resolve, 30)); }
+    await launcher.exited;
+    assert.equal(existsSync(join(ws.workflows, "data/pg/postmaster.pid")), false, `server still running after ${signals.join(" + ")}`);
+    assert.equal(existsSync(join(ws.workflows, "data/launcher.pid")), false, `launcher file left after ${signals.join(" + ")}`);
+  }
+}));
+
 test("a server left by a killed launcher is reused and then stopped; a second launcher is refused while one is alive", options, () => sandbox(async (root, launch) => {
   const ws = await fixture(root, "one");
   const first = launch(ws);

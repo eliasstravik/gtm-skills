@@ -51,8 +51,12 @@ export async function launch(workspace, mode = "dev", options = {}) {
   if (mode === "dev") await writePrivateJson(join(state.directory, "runtime.json"), { pid: process.pid, origin: `http://127.0.0.1:${port}`, workspace: state.id, generation, processGeneration: runtime.GTM_CONNECTIONS_PROCESS_GENERATION });
   journal.close();
   console.log(JSON.stringify({ status: mode === "dev" ? "runner_started" : "viewer_started", origin: `http://127.0.0.1:${port}`, ...(generation ? { generation } : {}) }));
-  const close = async () => { await server.close(); await database.stop(); };
-  for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, async () => { await close(); process.exit(0); });
+  let closing;
+  const close = () => (closing ??= (async () => { await Promise.resolve(server.close()).catch(() => {}); await database.stop(); })());
+  // `on`, not `once`: under `npm run dev` Ctrl+C arrives twice (from the terminal and forwarded by npm), and a second
+  // signal with no listener left would kill the process half way through stopping the database. SIGHUP is a closed terminal.
+  for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) process.on(signal, () => { close().then(() => process.exit(0), () => process.exit(1)); });
+  process.on("exit", () => database.stopNow?.());
   return { origin: `http://127.0.0.1:${port}`, close };
   }
 }

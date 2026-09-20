@@ -152,14 +152,24 @@ export async function ensureLocalDatabase(workflowsDir, { create = true } = {}) 
     await local.ensureAppRole(port, SUPERUSER);
     // Last look before anything is served: only the launcher named in the file may later stop the server.
     if (recordedPid(launcherFile) !== process.pid) throw new LocalDatabaseError(`Already running for this workspace (${launcherFile})`);
-    let stopped = false;
+    // The postmaster proven just now. The exit fallback below may stop this process id and no other.
+    const postmaster = local.recorded(workflowsDir)?.pid;
+    let stopping, done = false;
+    const release = () => { done = true; if (recordedPid(launcherFile) === process.pid) rmSync(launcherFile, { force: true }); };
     return {
       url: local.urlForPort(port),
-      async stop() {
-        if (stopped) return;
-        stopped = true;
-        if (await proven()) stopCluster(tools, directory);
-        if (recordedPid(launcherFile) === process.pid) rmSync(launcherFile, { force: true });
+      stop() {
+        return (stopping ??= (async () => {
+          if (done) return;
+          if (await proven()) stopCluster(tools, directory);
+          release();
+        })());
+      },
+      /** For the process's exit event, where nothing asynchronous runs: something ended the process before stop() finished. */
+      stopNow() {
+        if (done) return;
+        if (postmaster && local.recorded(workflowsDir)?.pid === postmaster) stopCluster(tools, directory);
+        release();
       },
     };
   } catch (error) { if (recordedPid(launcherFile) === process.pid) rmSync(launcherFile, { force: true }); throw error; }
