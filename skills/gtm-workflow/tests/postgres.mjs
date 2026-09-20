@@ -1,0 +1,32 @@
+// One Postgres per test run, from the template's embedded-postgres package, started the way the launcher starts it.
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { SUPERUSER, createCluster, postgresTools, startCluster, stopCluster } from "../connections/local/database.mjs";
+
+/**
+ * One Postgres for the whole run, in its own folder under a known parent. Several worktrees run tests at once, so
+ * clean only folders whose runner is dead, and stop a leftover server only after the folder check proved it.
+ */
+export async function startTestPostgres(runtime) {
+  const local = await import(pathToFileURL(join(runtime, "scripts/local-database.mjs")));
+  const parent = join(tmpdir(), "gtm-test-postgres"), tools = await postgresTools(runtime);
+  await mkdir(parent, { recursive: true });
+  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (error) { return error.code === "EPERM"; } };
+  for (const entry of await readdir(parent)) {
+    const old = join(parent, entry), runner = Number(await readFile(join(old, "runner.pid"), "utf8").catch(() => NaN));
+    if (Number.isInteger(runner) && alive(runner)) continue;
+    if (await local.provenPort(old, { ...SUPERUSER, database: "postgres" })) stopCluster(tools, local.dataDirectory(old));
+    await rm(old, { recursive: true, force: true }).catch(() => {});
+  }
+  const home = await mkdtemp(join(parent, "run-")), directory = local.dataDirectory(home);
+  await writeFile(join(home, "runner.pid"), String(process.pid));
+  await mkdir(dirname(directory), { recursive: true });
+  createCluster(tools, directory);
+  const port = await startCluster(tools, directory, join(home, "postgres.log"));
+  if (!port) throw new Error(`The test Postgres did not start; see ${join(home, "postgres.log")}`);
+  await local.ensureAppRole(port, SUPERUSER);
+  return { port, async stop() { stopCluster(tools, directory); await rm(home, { recursive: true, force: true }).catch(() => {}); } };
+}
+

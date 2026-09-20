@@ -1,20 +1,19 @@
 #!/usr/bin/env node
 // Run from any checkout with an installed workflow runtime: node tests/run.mjs /path/to/workflows
 // Neon check (by hand, never in CI): NEON_CHECK_URL and NEON_CHECK_URL_UNPOOLED set, plus --scratch-host <the unpooled host>.
-import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
-import { SUPERUSER, createCluster, postgresTools, startCluster, stopCluster } from "../connections/local/database.mjs";
+import { startTestPostgres } from "./postgres.mjs";
 
 const { values: flags, positionals } = parseArgs({ allowPositionals: true, options: { "scratch-host": { type: "string" }, only: { type: "string", multiple: true } } });
 const runtime = resolve(positionals[0] ?? "templates");
 const require = createRequire(join(runtime, "package.json"));
 const { build } = require("esbuild");
-const local = await import(pathToFileURL(join(runtime, "scripts/local-database.mjs")));
 
 const scratchSuites = ["migrate", "query-route", "two-process"];
 
@@ -30,32 +29,8 @@ function scratchMode() {
   return true;
 }
 
-/**
- * One Postgres for the whole run, in its own folder under a known parent. Several worktrees run tests at once, so
- * clean only folders whose runner is dead, and stop a leftover server only after the folder check proved it.
- */
-async function startPostgres() {
-  const parent = join(tmpdir(), "gtm-test-postgres"), tools = await postgresTools(runtime);
-  await mkdir(parent, { recursive: true });
-  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (error) { return error.code === "EPERM"; } };
-  for (const entry of await readdir(parent)) {
-    const old = join(parent, entry), runner = Number(await readFile(join(old, "runner.pid"), "utf8").catch(() => NaN));
-    if (Number.isInteger(runner) && alive(runner)) continue;
-    if (await local.provenPort(old, { ...SUPERUSER, database: "postgres" })) stopCluster(tools, local.dataDirectory(old));
-    await rm(old, { recursive: true, force: true }).catch(() => {});
-  }
-  const home = await mkdtemp(join(parent, "run-")), directory = local.dataDirectory(home);
-  await writeFile(join(home, "runner.pid"), String(process.pid));
-  await mkdir(dirname(directory), { recursive: true });
-  createCluster(tools, directory);
-  const port = await startCluster(tools, directory, join(home, "postgres.log"));
-  if (!port) throw new Error(`The test Postgres did not start; see ${join(home, "postgres.log")}`);
-  await local.ensureAppRole(port, SUPERUSER);
-  return { port, async stop() { stopCluster(tools, directory); await rm(home, { recursive: true, force: true }).catch(() => {}); } };
-}
-
 const scratch = scratchMode();
-const postgres = scratch ? null : await startPostgres();
+const postgres = scratch ? null : await startTestPostgres(runtime);
 const env = { ...process.env, GTM_TEST_RUNTIME: runtime, ...(scratch ? { GTM_TEST_SCRATCH: "1" } : { GTM_TEST_POSTGRES_PORT: String(postgres.port) }) };
 for (const name of Object.keys(env)) if (/^(?:DATABASE_URL|PG|POSTGRES_)/.test(name) || name === "GTM_DATABASE") delete env[name];
 // Template scripts stay outside the bundle: they find the template folder, and guard their command line, by their own URL.

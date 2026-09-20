@@ -20,7 +20,7 @@ try {
   command("wait", "--text", "1 matching records");
   assert.equal(evaluate('document.querySelectorAll("tbody tr").length'), 1);
   assert.equal(evaluate('new URL(location.href).searchParams.has("workflow")'), false);
-  assert.equal(evaluate('document.querySelector(".toolbar a.button").textContent.trim()'), "Open in Turso ↗");
+  assert.equal(evaluate('document.querySelector(".toolbar a.button").textContent.trim()'), "Open database ↗");
   command("click", ".columns-trigger");
   command("uncheck", 'input[type=checkbox][value=email]');
   command("click", ".columns-apply");

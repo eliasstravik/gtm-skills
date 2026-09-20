@@ -1,13 +1,14 @@
-/** Synthetic SQLite and engine adapters for reproducible browser acceptance checks. */
+/** A synthetic database and engine adapters for reproducible browser acceptance checks. */
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve, extname } from "node:path";
-import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import { pgTable, text } from "drizzle-orm/pg-core";
 import { viewerApi } from "../templates/lib/viewer-handler";
-import { migrateViewer } from "../templates/lib/viewer-grants";
+import { db } from "../templates/lib/db";
+import { testDatabase } from "./db";
 import { page } from "../templates/viewer/shell";
 import registry, {
-  client,
   entry,
   tables,
   run,
@@ -82,11 +83,11 @@ for (let i = 1; i < 45; i++)
     attributes: { ...run.attributes, "gtm.viewer.id": `workflow-${i}` },
   });
 Object.assign(tables, {
-  companies: sqliteTable("companies", {
+  companies: pgTable("fixture_companies", {
     key: text().primaryKey(),
     name: text(),
   }),
-  employment: sqliteTable("employment", {
+  employment: pgTable("fixture_employment", {
     key: text().primaryKey(),
     person: text(),
     company: text(),
@@ -131,30 +132,31 @@ process.env.GTM_VIEWER_PROTECTED = "1";
 process.env.GTM_VIEWER_LABEL = "Acme";
 process.env.GTM_VIEWER_SHARE_ORIGIN = "http://127.0.0.1:3943";
 if (process.env.GTM_VIEWER_FIXTURE_LOCAL === "1") delete process.env.VERCEL;
-await migrateViewer(client);
-await client.executeMultiple(
-  "CREATE TABLE people (key TEXT PRIMARY KEY,name TEXT,secret TEXT); CREATE TABLE companies (key TEXT PRIMARY KEY,name TEXT); CREATE TABLE employment (key TEXT PRIMARY KEY,person TEXT,company TEXT);",
-);
-await client.execute(
-  "WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<10000) INSERT INTO people SELECT printf('p%05d',x), CASE WHEN x=1 THEN 'Ada Example' ELSE 'Person ' || x END, 'PRIVATE' FROM n",
-);
-await client.executeMultiple(
-  "INSERT INTO companies VALUES ('acme','Acme Labs'),('orbit','Orbit Example'); INSERT INTO employment VALUES ('a','p00001','acme'),('b','p00001','orbit');",
-);
+await testDatabase();
+const client = db();
+// Physical names carry a prefix: the runtime's own gtm.people and gtm.companies come first on the local search path.
+for (const statement of [
+  "CREATE TABLE fixture_people (key TEXT PRIMARY KEY,name TEXT,secret TEXT)",
+  "CREATE TABLE fixture_companies (key TEXT PRIMARY KEY,name TEXT)",
+  "CREATE TABLE fixture_employment (key TEXT PRIMARY KEY,person TEXT,company TEXT)",
+  "INSERT INTO fixture_people SELECT 'p' || lpad(x::text, 5, '0'), CASE WHEN x=1 THEN 'Ada Example' ELSE 'Person ' || x END, 'PRIVATE' FROM generate_series(1, 10000) x",
+  "INSERT INTO fixture_companies VALUES ('acme','Acme Labs'),('orbit','Orbit Example')",
+  "INSERT INTO fixture_employment VALUES ('a','p00001','acme'),('b','p00001','orbit')",
+]) await client.execute(statement);
 const publicDir = resolve(process.argv[2]);
 if (process.env.GTM_VIEWER_FIXTURE_COLUMNS === "1") {
   const names = ["domain", "description", "industries", "company_size_label", "headquarters_label", "enriched_at", "enrichment_status", "linkedin_url", "tagline", "website_url", "email_domain", "founded_year", "phone", "revenue", "funding", "technologies", "locations", "specialties", "identifiers", "sources", "provenance", "section_status", "raw_responses", "last_attempt_at", "error", "cost_usd", "created_at", "updated_at"];
-  Object.assign(tables, { companies: sqliteTable("companies", {
+  Object.assign(tables, { companies: pgTable("fixture_companies", {
     key: text().primaryKey(), name: text(), ...Object.fromEntries(names.map(name => [name, text()])),
   }) });
   entry.data.tables.find(table => table.name === "companies")!.columns.push(...names);
   Object.assign(entry.data.tables.find(table => table.name === "companies")!, { defaultColumns: ["name", "domain", "description", "industries", "company_size_label", "enrichment_status"] });
-  for (const name of names) await client.execute(`ALTER TABLE companies ADD COLUMN ${name} TEXT`);
-  await client.execute("UPDATE companies SET domain='example.com', description='Synthetic company for interface checks', industries='Software', company_size_label='11–50', headquarters_label='Stockholm', enrichment_status='Enriched'");
+  for (const name of names) await client.execute(sql`ALTER TABLE fixture_companies ADD COLUMN ${sql.identifier(name)} TEXT`);
+  await client.execute("UPDATE fixture_companies SET domain='example.com', description='Synthetic company for interface checks', industries='Software', company_size_label='11–50', headquarters_label='Stockholm', enrichment_status='Enriched'");
 }
 if (process.env.GTM_VIEWER_FIXTURE_LINKS === "1") {
   Object.assign(tables, {
-    people: sqliteTable("people", {
+    people: pgTable("fixture_people", {
       key: text().primaryKey(),
       name: text(),
       secret: text(),
@@ -164,11 +166,12 @@ if (process.env.GTM_VIEWER_FIXTURE_LINKS === "1") {
   });
   entry.data.tables[0].columns.push("website", "profile");
   entry.sharePolicy.tables[0].columns.push("website", "profile");
-  await client.executeMultiple(
-    "ALTER TABLE people ADD COLUMN website TEXT; ALTER TABLE people ADD COLUMN profile TEXT;" +
-      "UPDATE people SET website = 'example.com', profile = 'https://example.org/#profile' WHERE key = 'p00001';" +
-      "UPDATE people SET website = 'javascript:alert(1)' WHERE key = 'p00002';",
-  );
+  for (const statement of [
+    "ALTER TABLE fixture_people ADD COLUMN website TEXT",
+    "ALTER TABLE fixture_people ADD COLUMN profile TEXT",
+    "UPDATE fixture_people SET website = 'example.com', profile = 'https://example.org/#profile' WHERE key = 'p00001'",
+    "UPDATE fixture_people SET website = 'javascript:alert(1)' WHERE key = 'p00002'",
+  ]) await client.execute(statement);
 }
 if (process.env.GTM_VIEWER_FIXTURE_WORKSPACE === "1") {
   await client.execute("CREATE TABLE imported_contacts (email TEXT, name TEXT)");
@@ -177,7 +180,7 @@ if (process.env.GTM_VIEWER_FIXTURE_WORKSPACE === "1") {
     GTM_CONNECTIONS_ORIGIN: "https://private.example",
     GTM_CONNECTIONS_ENABLED: "1",
     GTM_VIEWER_VERCEL_RUNS_URL: "https://vercel.com/acme/workflows/workflows/runs?environment=production",
-    GTM_VIEWER_DATABASE_URL: "https://app.turso.tech/acme/databases/results",
+    GTM_VIEWER_DATABASE_URL: "https://console.neon.tech/app/projects/acme",
   });
 }
 for (const port of process.env.GTM_VIEWER_FIXTURE_LOCAL === "1"
