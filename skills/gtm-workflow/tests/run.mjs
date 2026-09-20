@@ -10,7 +10,7 @@ import { spawnSync } from "node:child_process";
 import { parseArgs } from "node:util";
 import { SUPERUSER, createCluster, postgresTools, startCluster, stopCluster } from "../connections/local/database.mjs";
 
-const { values: flags, positionals } = parseArgs({ allowPositionals: true, options: { "scratch-host": { type: "string" } } });
+const { values: flags, positionals } = parseArgs({ allowPositionals: true, options: { "scratch-host": { type: "string" }, only: { type: "string", multiple: true } } });
 const runtime = resolve(positionals[0] ?? "templates");
 const require = createRequire(join(runtime, "package.json"));
 const { build } = require("esbuild");
@@ -71,7 +71,9 @@ try {
   const all = [
     "migrate",
     "query-route",
+    "two-process",
     "profiles",
+    "store",
     "business",
     "linked-data",
     "workspace-data",
@@ -85,7 +87,8 @@ try {
     "connections-platform",
     "connections-apply",
   ];
-  for (const name of scratch ? scratchSuites : all) {
+  // --only <suite> (repeatable) runs a subset while working on one module.
+  for (const name of (scratch ? scratchSuites : all).filter((suite) => !flags.only || flags.only.includes(suite))) {
     const outfile = join(dir, `${name}.test.mjs`);
     await build({
       entryPoints: [
