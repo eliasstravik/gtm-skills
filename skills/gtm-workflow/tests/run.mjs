@@ -74,6 +74,7 @@ try {
     "two-process",
     "profiles",
     "store",
+    "rows-cache",
     "business",
     "linked-data",
     "workspace-data",
@@ -101,7 +102,7 @@ try {
       packages: "external",
       tsconfigRaw: { compilerOptions: {} },
       plugins: [templateScripts],
-      ...(name === "reliability"
+      ...(["reliability", "rows-cache"].includes(name)
         ? {
             plugins: [
               templateScripts,
