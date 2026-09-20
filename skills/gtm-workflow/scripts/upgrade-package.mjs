@@ -4,17 +4,8 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Only recognized template commands are replaced. All other commands need a human-readable review.
-const stock = {
-  viewer: /^node scripts\/start-viewer\.mjs$/,
-  dev: /^(?:node scripts\/build-viewer\.mjs && )?drizzle-kit migrate && (?:node scripts\/profile-migrate\.mjs && )?(?:node scripts\/viewer-migrate\.mjs && )?(?:WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS=900000 WORKFLOW_LOCAL_BODY_TIMEOUT_MS=900000 )?nitro dev --port 3939$/,
-  build:
-    /^(?:node scripts\/build-viewer\.mjs && )?drizzle-kit migrate && (?:node scripts\/profile-migrate\.mjs && )?(?:node scripts\/viewer-migrate\.mjs && )?nitro build$/,
-  "db:studio": /^drizzle-kit studio$/,
-};
-
-// Merging never drops a dependency, so the ones the runtime stopped using are named here.
-const removed = ["@libsql/client"];
-const without = (dependencies = {}) => Object.fromEntries(Object.entries(dependencies).filter(([name]) => !removed.includes(name)));
+// Add a pattern here when a template command changes, so workspaces still on the old stock command are updated.
+const stock = {};
 
 export function mergePackage(current, template) {
   const scripts = { ...current.scripts };
@@ -29,9 +20,9 @@ export function mergePackage(current, template) {
       ...current,
       version: template.version,
       scripts,
-      dependencies: { ...without(current.dependencies), ...template.dependencies },
+      dependencies: { ...current.dependencies, ...template.dependencies },
       devDependencies: {
-        ...without(current.devDependencies),
+        ...current.devDependencies,
         ...template.devDependencies,
       },
     },

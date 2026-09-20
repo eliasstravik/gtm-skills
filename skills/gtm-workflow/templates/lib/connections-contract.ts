@@ -3,7 +3,7 @@ export const CONNECTIONS_VERSION = 1;
 export type ConnectionUsage = { connection: string; provider?: string };
 export type ConnectionWorkflow = { id: string; title: string; connections?: ConnectionUsage[] };
 // PGHOST, PGUSER, PGPASSWORD and the rest carry no underscore; the Neon integration injects them and node-postgres reads them as defaults.
-const reserved = /^(?:PG[A-Z]|(?:GTM|VERCEL|NEXT|NEXT_PUBLIC|PUBLIC|VITE|NUXT|REACT_APP|DATABASE|TURSO|POSTGRES|MYSQL|REDIS|KV|AWS|AZURE|GOOGLE_CLOUD|SUPABASE|CLERK|AUTH|SESSION|CRON|WORKFLOW|NITRO|H3|BASH|NODE|NPM|PNPM|YARN|BUN|DENO|LD|DYLD|PYTHON|XDG|SSL|OPENSSL|GIT|SSH|CI|SLACK_CONNECTOR)_)/i;
+const reserved = /^(?:PG[A-Z]|(?:GTM|VERCEL|NEXT|NEXT_PUBLIC|PUBLIC|VITE|NUXT|REACT_APP|DATABASE|POSTGRES|MYSQL|REDIS|KV|AWS|AZURE|GOOGLE_CLOUD|SUPABASE|CLERK|AUTH|SESSION|CRON|WORKFLOW|NITRO|H3|BASH|NODE|NPM|PNPM|YARN|BUN|DENO|LD|DYLD|PYTHON|XDG|SSL|OPENSSL|GIT|SSH|CI|SLACK_CONNECTOR)_)/i;
 const system = /^(?:PATH|HOME|USER|LOGNAME|SHELL|PWD|OLDPWD|TMPDIR|TMP|TEMP|LANG|LC_ALL|TERM|COLORTERM|PORT|HOST|HOSTNAME|SYSTEMROOT|APPDATA|LOCALAPPDATA|USERPROFILE|COMSPEC|PATHEXT|CI|SLACK_CONNECTOR|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY|TZ|IFS|ENV|BASH_ENV)$/i;
 export function providerVariable(name: unknown): name is string {
   return typeof name === "string" && /^[A-Za-z_][A-Za-z0-9_]{0,255}$/.test(name) && !reserved.test(name) && !system.test(name);

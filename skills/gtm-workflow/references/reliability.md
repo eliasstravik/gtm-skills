@@ -8,25 +8,6 @@ Copy template-owned files by path. Preserve extra user-authored files in those d
 
 `npm run dev` is the supported local launch path because it also starts the local database, builds the viewer and runs migrations. Direct `nitro dev` reads the same timeout defaults through `nitro.config.ts` and `lib/local-runtime.ts`, but skips those preparatory commands. Both local queue timeouts default to 900,000 ms. Explicit environment values, including `0`, remain overrides. Restart the existing server after an upgrade; a running queue retains the options it had when created. Verify the actual launch command and a diagram page after restart. Hosted deployments use the hosted queue and require deployment verification instead.
 
-## Convert a SQLite workspace
-
-One time, for a workspace from before the runtime moved to Postgres (it has `db/tables/cache.ts`, and `npm run dev` says "this workspace still uses SQLite"). Do it as part of Upgrade, in this order. The new launcher and the new template only work together, so do not stop halfway.
-
-1. Upgrade the Connections component first: shared setup with `--upgrade`.
-2. Replace the template-owned files as Upgrade describes, including the new `lib/schema/`, `lib/tables.ts`, `drizzle-runtime/`, `drizzle-runtime.config.ts`, `scripts/migrate.mjs`, `scripts/local-database.mjs` and `scripts/studio.mjs`. Delete `scripts/profile-migrate.mjs`, `scripts/viewer-migrate.mjs` and `scripts/start-viewer.mjs`.
-3. Delete `db/tables/cache.ts` and `db/tables/profiles.ts`, and rewrite `db/tables/index.ts` to export the workspace's own tables only. The runtime's tables now come from `lib/tables.ts`; their names are reserved, so rename a workspace table that uses one.
-4. Rewrite each remaining `db/tables/*.ts` from `sqliteTable` to `pgTable` (`drizzle-orm/pg-core`): `*_json` columns become `jsonb`, time columns `timestamp("…", { withTimezone: true })`, `is_*` and other flag columns `boolean`, money `doublePrecision`, counts `integer`, everything else `text`.
-5. Search `workflows/*.ts` for what the new types change: timestamps compared or sorted as strings, `.toISOString()` written into a time column, flags tested with `=== 1` or `=== 0`, `JSON.parse` or `JSON.stringify` around a `*_json` column, and workspace-written SQL (`rawClient`, `.execute({ sql, args })`, `?` placeholders, `json_extract`, `json_each`). Fix each: times are `Date`, flags are `boolean`, JSON columns hold values, and SQL goes through Drizzle's query builder or `sql` tag as [patterns](patterns.md#names-are-identity) says.
-6. Run `scripts/upgrade-package.mjs` with `--write` (it drops the old database client). It sets every template dependency to the template's version, so put back any the workspace had deliberately pinned newer (for example `ai` and the `@ai-sdk/*` packages). Then copy the template's `package-lock.json` over the workspace's, delete `node_modules` and run `npm install`, and confirm with `npm ci --dry-run`: a lockfile generated from nothing resolves `chokidar` wrongly and `npm ci` rejects it.
-7. Regenerate every generated `workflows/*.data.ts` of a shared-profile workflow (`node scripts/profile-view.mjs <workflow-uuid> workflows/<slug>.data.ts`): the old files list the removed `identifiers_json` column and the Data tab answers "Unknown data column" until they are regenerated.
-8. Confirm the workspace's own `.gitignore` ignores `data/`: the local database lives in `data/pg`.
-9. Delete the old `drizzle/` folder and generate a fresh history: `npm run db:generate -- --name init`.
-10. Start `npm run dev` once: it creates and migrates the local database. Keep `data/gtm.db` until its contents are no longer needed.
-
-A column that holds epoch milliseconds and is used in arithmetic (a rate limiter's `next_allowed_at`) becomes `bigint("…", { mode: "number" })`, not a time. A read-then-write pacing transaction becomes one `INSERT … ON CONFLICT … DO UPDATE … RETURNING` statement.
-
-Local results in `data/gtm.db` are not moved automatically. To keep them, run the skill's `scripts/import-from-turso.mjs <data/gtm.db> --target-local <workflows folder>` right after that first `npm run dev` has migrated and before any workflow runs, because the import refuses a target that already holds rows. The hosted database is moved by the owner with the same script, run from the workspace's `workflows/` folder so it finds the installed `pg` package; it is not part of Upgrade.
-
 ## Diagnose the failing boundary
 
 The `[gtm-workflow]` diagnostic records contain bounded identifiers and error names/codes, never raw request bodies, auth headers, CLI output, or nested error messages. Row/run errors preserve these diagnostics across Workflow serialization. Generic step errors retain names/codes rather than arbitrary provider payloads.

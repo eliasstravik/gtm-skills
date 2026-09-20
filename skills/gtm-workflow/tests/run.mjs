@@ -64,7 +64,6 @@ try {
     "connections-management",
     "connections-platform",
     "connections-apply",
-    "import-from-turso",
   ];
   // --only <suite> (repeatable) runs a subset while working on one module.
   for (const name of (scratch ? scratchSuites : all).filter((suite) => !flags.only || flags.only.includes(suite))) {

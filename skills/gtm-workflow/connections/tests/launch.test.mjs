@@ -216,6 +216,6 @@ test("an empty, garbage or dead launcher file never wedges the workspace, and on
 
 test("a workspace that was not converted gets one line saying so", options, () => sandbox(async (root, launch) => {
   const ws = await fixture(root, "old", { converted: false });
-  await assert.rejects(launch(ws).ready, /still uses SQLite: convert it \(gtm-workflow, Convert a SQLite workspace\)/);
+  await assert.rejects(launch(ws).ready, /from before the Postgres runtime/);
   assert.equal(existsSync(join(ws.workflows, "data")), false);
 }));

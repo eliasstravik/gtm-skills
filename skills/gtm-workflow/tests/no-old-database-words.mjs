@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// The runtime is on Postgres. This holds the rule and its allow-list in one place: the old database's names appear
-// only where they still mean something. Keep the list short: reword a doc rather than add it here.
+// The runtime is on Postgres. This holds the rule in one place: the old database's names appear nowhere but here.
+// Reword a doc rather than add an exception.
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,21 +10,11 @@ const WORDS = /libsql|turso|sqlite/i;
 const SEARCHED = ["skills/gtm-workflow", "skills/gtm-agent", "README.md", "docs"];
 const SKIPPED_FOLDERS = ["node_modules", ".output", ".nitro", ".vercel", ".swc", "data"];
 const SKIPPED = [
-  /^skills\/gtm-workflow\/connections\//, // the component's own journal and lock stay on SQLite
+  /^skills\/gtm-workflow\/connections\//, // the component's own local journal and lock are SQLite files
   /(^|\/)package-lock\.json$/, // drizzle-orm's optional peers
-  /^skills\/gtm-workflow\/scripts\/import-from-turso\.mjs$/,
-  /^skills\/gtm-workflow\/tests\/import-from-turso\.test\.ts$/,
 ];
-// file → the lines that may carry a word; `section` allows a whole Markdown section instead.
+// file → the lines that may carry a word.
 const ALLOWED = {
-  "skills/gtm-workflow/references/reliability.md": { section: "## Convert a SQLite workspace" },
-  "skills/gtm-workflow/SKILL.md": { line: /reliability\.md#convert-a-sqlite-workspace/ },
-  "skills/gtm-workflow/templates/lib/connections-contract.ts": { line: /^const reserved = / },
-  "skills/gtm-agent/scripts/viewer-config.mjs": { line: /TURSO_(?:\||\s+while)/ },
-  "skills/gtm-agent/scripts/doctor.mjs": { line: /TURSO_(?:\||\s+while)/ },
-  "skills/gtm-workflow/scripts/upgrade-package.mjs": { line: /^const removed = / },
-  "skills/gtm-workflow/tests/reliability.test.ts": { line: /@libsql\/client/ },
-  "skills/gtm-workflow/tests/run.mjs": { line: /"import-from-turso"/ },
   "skills/gtm-workflow/tests/no-old-database-words.mjs": { line: /./ },
 };
 
@@ -49,7 +39,7 @@ for (const start of SEARCHED)
     (await readFile(file, "utf8")).split(/\r?\n/).forEach((line, index) => {
       if (/^#{1,6} /.test(line)) section = line.trim();
       if (!WORDS.test(line)) return;
-      if (allowed?.section ? section === allowed.section || line.trim() === allowed.section : allowed?.line?.test(line)) return;
+      if (allowed?.line?.test(line)) return;
       problems.push(`${name}:${index + 1}: ${line.trim().slice(0, 160)}`);
     });
   }
