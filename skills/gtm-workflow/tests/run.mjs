@@ -70,6 +70,7 @@ try {
   await symlink(join(runtime, "node_modules"), join(dir, "node_modules"), process.platform === "win32" ? "junction" : "dir");
   const all = [
     "migrate",
+    "query-route",
     "profiles",
     "business",
     "linked-data",
