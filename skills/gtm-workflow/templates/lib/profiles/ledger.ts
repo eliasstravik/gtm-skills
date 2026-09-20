@@ -20,7 +20,6 @@ CREATE TABLE IF NOT EXISTS profile_attempts (
  created_at TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS profile_unsettled ON profile_attempts (entity_key, operation) WHERE state IN ('reserved','dispatched','uncertain');
-CREATE INDEX IF NOT EXISTS profile_attempts_lookup ON profile_attempts (entity_key, operation, created_at);
 CREATE TABLE IF NOT EXISTS profile_inputs (
  workflow_id TEXT NOT NULL, source_id TEXT NOT NULL, row_id TEXT NOT NULL, input_json TEXT NOT NULL,
  person_key TEXT, first_observed_at TEXT NOT NULL, last_observed_at TEXT NOT NULL,

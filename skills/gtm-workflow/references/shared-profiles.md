@@ -10,8 +10,6 @@ Use `resolveIdentity`, `applyEvidence`, `getProfile`, `isFresh`, `recentMiss` an
 
 Internal keys are generated and stable. Platform namespaces and identifier string precision survive normalization. A URL can establish a provisional person. A company domain plus a matching name can establish provisional lookup evidence; conflicting platform evidence remains ambiguous. A domain alone or a name alone never reconciles conflicting companies. Imported email is source input, not a global person identity.
 
-Turso bills every row a query scans ([cost-aware design](cost.md)). Every lookup must be an index search, never `json_each` over a profile column in a per-record query. `identifiers_json` stays the record of aliases. `profile_identifiers` indexes them: `store.ts` writes it with each profile, and `profile-migrate.mjs` repairs it on every build. `tests/profiles.test.ts` fails when a lookup plan scans `people`, `companies` or `profile_attempts`.
-
 `sources_json` uses the viewer's permanent workflow UUID, source/import ID and source-row ID. Membership accumulates across imports; renaming a workflow does not change it. Provider provenance and network membership are separate.
 
 Keep every role in `experiences_json`. Each role has an experience key, nullable company key, company evidence, title, precision-preserving dates and current/ended/unknown status. Confirmed current roles create company work. Historical roles may reuse resolved companies but never trigger new lookups. Multiple unranked current roles leave primary-company shortcuts null.
