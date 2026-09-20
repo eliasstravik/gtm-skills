@@ -35,9 +35,10 @@ const quote = (name) => `"${String(name).replaceAll('"', '""')}"`;
 export class ImportError extends Error {}
 
 function postgres(workflowsDir) {
-  for (const base of [join(skill, "templates"), workflowsDir].filter(Boolean))
+  // An installed skill has no node_modules of its own, so also look where the command is run: the workspace's workflows folder.
+  for (const base of [join(skill, "templates"), workflowsDir, process.cwd()].filter(Boolean))
     try { return createRequire(join(base, "package.json"))("pg"); } catch { /* try the next */ }
-  throw new ImportError("The pg package was not found: install the template's dependencies (npm ci in templates/) or give --target-local");
+  throw new ImportError("The pg package was not found: run this from the workspace's workflows folder (after npm install), or install the template's dependencies (npm ci in templates/)");
 }
 
 /** Tables and columns of the source file, as SQLite describes them. */
