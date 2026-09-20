@@ -56,3 +56,13 @@ test("twenty resolutions of the same new person from two processes create one re
   assert.equal((await database.query("SELECT count(*)::int AS n FROM gtm.people")).rows[0].n, 1);
   assert.equal((await database.query("SELECT count(*)::int AS n FROM gtm.profile_identifiers WHERE namespace = 'linkedin_url'")).rows[0].n, 1);
 });
+
+test("a burst of 100 writes completes, and its rate is printed", async () => {
+  // Phase 6 reads this number on Neon: every write is several round trips behind one lock, so a burst is serial.
+  // Locally a transaction is about a millisecond; the queue in lib/db.ts is what keeps a slow one from failing others.
+  const started = Date.now();
+  const results = await Promise.all(Array.from({ length: 100 }, (_, i) => resolveIdentity(db(), "people", { linkedin_url: `linkedin.com/in/burst-${i}` })));
+  const elapsed = Date.now() - started;
+  assert.ok(results.every((result) => result.status === "resolved"));
+  console.log(`# burst: 100 identity resolutions in ${elapsed} ms (${(elapsed / 100).toFixed(1)} ms each) on ${new URL(process.env.DATABASE_URL!).host}`);
+});

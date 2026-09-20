@@ -16,7 +16,8 @@ export async function startTestPostgres(runtime) {
   const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (error) { return error.code === "EPERM"; } };
   for (const entry of await readdir(parent)) {
     const old = join(parent, entry), runner = Number(await readFile(join(old, "runner.pid"), "utf8").catch(() => NaN));
-    if (Number.isInteger(runner) && alive(runner)) continue;
+    // An empty or garbage runner file is a dead run: signal 0 to pid 0 would test this process's own group.
+    if (Number.isInteger(runner) && runner > 0 && alive(runner)) continue;
     if (await local.provenPort(old, { ...SUPERUSER, database: "postgres" })) stopCluster(tools, local.dataDirectory(old));
     await rm(old, { recursive: true, force: true }).catch(() => {});
   }

@@ -126,8 +126,25 @@ test("bad values and workspace drift stop the run before anything is written", a
   // Asked to, the import removes the character Postgres cannot hold, from the whole value and not only up to it.
   const nul = fixture("nul.db", `UPDATE companies SET name = 'Ac' || char(0) || 'me', description = 'a \\u0000 in plain text is only text', industries_json = '["x\\u0000y"]';`);
   await assert.rejects(runImport({ source: nul, targetUrl: database.unpooled, log: quiet }), /name holds a NUL character/);
-  assert.equal((await runImport({ source: nul, targetUrl: database.unpooled, stripNul: true, log: quiet })).passed, true);
+  const stripped = await runImport({ source: nul, targetUrl: database.unpooled, stripNul: true, log: quiet });
+  assert.equal(stripped.passed, true);
+  // The data was changed on the way in, so the report says where and how much.
+  assert.deepEqual(stripped.stripped_nul_cells, { companies: 2 });
+  assert.equal(stripped.tables.companies.stripped_nul_cells, 2);
+  assert.equal(stripped.tables.people.stripped_nul_cells, 0);
   assert.deepEqual((await database.query("SELECT name, description, industries_json FROM gtm.companies")).rows[0], { name: "Acme", description: "a \\u0000 in plain text is only text", industries_json: ["xy"] });
+});
+
+test("a wide workspace table stays under Postgres' 65,535 parameters per statement", async () => {
+  const database = await testDatabase();
+  const columns = Array.from({ length: 150 }, (_, i) => `c${i}`);
+  await database.query(`CREATE TABLE public.wide (key text PRIMARY KEY, ${columns.map((c) => `${c} text`).join(", ")})`);
+  const source = fixture("wide.db", `CREATE TABLE wide (key TEXT PRIMARY KEY, ${columns.map((c) => `${c} TEXT`).join(", ")});
+    WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n WHERE x < 600) INSERT INTO wide (key, c0, c149) SELECT 'k' || x, 'first ' || x, 'last ' || x FROM n;`);
+  // 500 rows of 151 columns would be 75,500 parameters in one statement.
+  const report = await runImport({ source, targetUrl: database.unpooled, log: quiet });
+  assert.equal(report.passed, true);
+  assert.equal(report.tables.wide.target_count, 600);
 });
 
 test("the command line takes its target from its own variable and needs the host typed out", () => {

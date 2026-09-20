@@ -169,6 +169,38 @@ test("GTM_DATABASE=external is honoured from the shell only, starts nothing and 
   assert.equal(await hosting.stop(), 0);
 }));
 
+test("an empty, garbage or dead launcher file never wedges the workspace, and one of many simultaneous claims wins", options, () => sandbox(async (root, launch) => {
+  const ws = await fixture(root, "one"), file = join(ws.workflows, "data/launcher.pid");
+  await mkdir(join(ws.workflows, "data"), { recursive: true });
+  // A crash between creating the file and writing it leaves it empty; Number("") is 0 and signal 0 to pid 0 succeeds.
+  for (const left of ["", "0", "-1", "not a pid", "999999"]) {
+    await writeFile(file, left);
+    const launcher = launch(ws);
+    await launcher.ready;
+    assert.equal(Number(await readFile(file, "utf8")), launcher.child.pid, `after a launcher file holding ${JSON.stringify(left)}`);
+    assert.equal(await launcher.stop(), 0);
+  }
+  // Many processes claim at the same instant: exactly one may win, whatever was left behind.
+  const { claimLauncher } = await import("../local/database.mjs");
+  assert.equal(typeof claimLauncher, "function");
+  const claim = join(root, "claims", "launcher.pid");
+  await mkdir(dirname(claim), { recursive: true });
+  const script = `import { claimLauncher } from ${JSON.stringify(pathToFileURL(join(here, "../local/database.mjs")).href)};
+    const at = Number(process.argv[3]); while (Date.now() < at) {}
+    try { claimLauncher(process.argv[2]); console.log("won"); setTimeout(() => {}, 1500); } catch (error) { console.log(error.message.startsWith("Already running") ? "refused" : error.message); }`;
+  for (const left of [null, "", "999999"]) {
+    await rm(claim, { force: true });
+    if (left !== null) await writeFile(claim, left);
+    const at = Date.now() + 1500;
+    const results = await Promise.all(Array.from({ length: 8 }, () => new Promise((resolve) => {
+      const child = spawn(process.execPath, ["--input-type=module", "-e", script, "--", claim, String(at)], { stdio: ["ignore", "pipe", "inherit"] });
+      let out = ""; child.stdout.on("data", (data) => { out += data; }); child.on("exit", () => resolve(out.trim()));
+    })));
+    assert.deepEqual(results.filter((result) => result === "won").length, 1, `${JSON.stringify(left)}: ${results.join(",")}`);
+    assert.deepEqual(results.filter((result) => result === "refused").length, 7, results.join(","));
+  }
+}));
+
 test("a workspace that was not converted gets one line saying so", options, () => sandbox(async (root, launch) => {
   const ws = await fixture(root, "old", { converted: false });
   await assert.rejects(launch(ws).ready, /still uses SQLite: convert it \(gtm-workflow, Convert a SQLite workspace\)/);

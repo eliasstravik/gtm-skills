@@ -25,6 +25,16 @@ test("migrating twice changes nothing, and each owner's tables land in its own s
   } finally { await database.close(); }
 });
 
+test("two builds migrating an empty database at once both succeed", { skip: process.env.GTM_TEST_SCRATCH === "1" }, async () => {
+  const database = await testDatabase({ migrated: false });
+  try {
+    // Without a lock both read an empty journal and both run 0000; the second dies on CREATE SCHEMA "gtm".
+    await Promise.all([migrate(database.unpooled), migrate(database.unpooled), migrate(database.unpooled)]);
+    assert.equal((await database.query("SELECT count(*)::int AS n FROM drizzle.gtm_runtime_migrations")).rows[0].n, 1);
+    assert.equal((await database.query("SELECT count(*)::int AS n FROM pg_locks WHERE locktype = 'advisory'")).rows[0].n, 0);
+  } finally { await database.close(); }
+});
+
 const commandLine = (env: Record<string, string>) => spawnSync(process.execPath, [join(runtime, "scripts/migrate.mjs")], {
   cwd: runtime, encoding: "utf8",
   env: { PATH: process.env.PATH ?? "", SystemRoot: process.env.SystemRoot ?? "", ...env },

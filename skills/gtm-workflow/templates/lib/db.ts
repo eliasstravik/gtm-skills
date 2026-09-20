@@ -76,6 +76,27 @@ export async function writeLock(tx: Executor, limit = "30s") {
   await tx.execute(sql`SELECT pg_advisory_xact_lock(${WRITE_LOCK_KEY})`);
 }
 
+let writers: Promise<unknown> = Promise.resolve();
+const WRITE_WAIT_MS = 30_000;
+/**
+ * A write transaction for the profile store, the ledger and sharing: queue, transaction, write lock. Writers of this
+ * process wait here in memory, one at a time, not on pooled clients: five transactions blocked on the lock would hold
+ * the whole pool, and the sixth would fail after the pool's 10 seconds with a connection error instead of the lock's.
+ * The queue leaves the other clients free for reads. Inside a transaction it nests without queueing.
+ */
+export async function writeTransaction<T>(executor: Executor, fn: (tx: Executor) => Promise<T>): Promise<T> {
+  const locked = (tx: Executor) => writeLock(tx).then(() => fn(tx));
+  if ("rollback" in executor) return executor.transaction(locked);
+  const asked = Date.now();
+  const turn = writers.then(() => {
+    // Behind a wedged writer everyone would otherwise wait the lock's limit one after another.
+    if (Date.now() - asked > WRITE_WAIT_MS) throw new Error("Waited 30 seconds for this process's write queue; a writer ahead is stuck");
+    return executor.transaction(locked);
+  });
+  writers = turn.catch(() => {});
+  return turn;
+}
+
 const parseTimestamptz = pg.types.getTypeParser(pg.types.builtins.TIMESTAMPTZ) as (value: string) => Date;
 /** The query builder returns Date for timestamptz; raw db.execute(sql`…`) returns text. Pass every raw time through this. */
 export function toDate(value: unknown): Date {
@@ -92,8 +113,9 @@ export async function runReadOnly(text: string, args: unknown[]) {
   if (!url) throw missingUrl();
   const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: CONNECT_TIMEOUT_MS });
   client.on("error", logDropped);
-  await client.connect();
   try {
+    // Inside the try, so a connect that fails half way is ended too.
+    await client.connect();
     await client.query("BEGIN");
     await client.query("SET TRANSACTION READ ONLY");
     await client.query("SET LOCAL statement_timeout = '5s'");

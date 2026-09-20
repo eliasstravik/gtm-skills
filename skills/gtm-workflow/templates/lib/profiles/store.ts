@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq, inArray, or, sql, type SQL } from "drizzle-orm";
-import { stripNul, writeLock, type Executor } from "../db";
+import { stripNul, writeTransaction, type Executor } from "../db";
 import { companies, people, profileIdentifiers } from "../schema/profiles";
 import { profileInputs } from "../schema/ledger";
 import { canonicalUrl, identifiersOf, identityFields } from "./identifiers.mjs";
@@ -114,10 +114,7 @@ export async function transaction<T>(
   db: Executor,
   fn: (tx: Executor) => Promise<T>,
 ): Promise<T> {
-  return db.transaction(async (tx) => {
-    await writeLock(tx);
-    return fn(tx);
-  });
+  return writeTransaction(db, fn);
 }
 function sourceUnion(a: Source[], b: Source[]) {
   const result = new Map<string, Source>();

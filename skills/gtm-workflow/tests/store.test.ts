@@ -69,6 +69,31 @@ test("300 resolutions started at once all complete behind one lock and a pool of
   assert.ok(Date.now() - started < 60_000);
 });
 
+test("writers queue in this process, not in the pool: a slow lock holder fails nobody and reads stay possible", async () => {
+  const database = await testDatabase();
+  // Another process holds the write lock for longer than the pool waits for a free client (10 seconds). Without a
+  // queue, five writers sit on the five pooled clients and the rest fail with "timeout exceeded when trying to connect".
+  const pg = (await import("pg")).default;
+  const outside = new pg.Client({ connectionString: database.unpooled });
+  await outside.connect();
+  await outside.query("SELECT pg_advisory_lock(7461)");
+  const writers = Array.from({ length: 12 }, (_, i) => resolveIdentity(db(), "people", { linkedin_url: `linkedin.com/in/queued-${i}` }));
+  const settled = Promise.allSettled(writers);
+  let read: unknown;
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 11_500));
+    // While they wait, the pool still serves reads.
+    read = await db().execute("SELECT 1 AS one").then((result) => result.rows[0].one, (error) => error.message);
+  } finally {
+    await outside.query("SELECT pg_advisory_unlock(7461)");
+    await outside.end();
+  }
+  const results = await settled;
+  assert.equal(read, 1);
+  assert.deepEqual(results.filter((result) => result.status === "rejected").map((result) => String((result as PromiseRejectedResult).reason?.cause?.message ?? (result as PromiseRejectedResult).reason)), []);
+  assert.equal((await database.query("SELECT count(*)::int AS n FROM gtm.people")).rows[0].n, 12);
+});
+
 test("text the database cannot hold is cleaned on the way in", async () => {
   await testDatabase();
   const person = await resolved("people", { linkedin_url: "linkedin.com/in/nul" });

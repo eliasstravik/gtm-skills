@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { dirname, join, relative } from "node:path";
 import { spawnSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 
 /** Its message is written for the person at the terminal; the launcher prints it as is. */
@@ -59,6 +59,38 @@ function isPostgres(pid) {
     : spawnSync("ps", ["-p", String(pid), "-o", "comm="], { encoding: "utf8" });
   return result.status !== 0 || /postgres/i.test(result.stdout ?? "");
 }
+// A pid of 0 or less is never a process: signal 0 to pid 0 tests the caller's own process group and always succeeds.
+const recordedPid = (file) => { try { const pid = Number(readFileSync(file, "utf8").trim()); return Number.isInteger(pid) && pid > 0 ? pid : 0; } catch { return 0; } };
+
+/**
+ * data/launcher.pid names the one launcher that owns this workspace's database. The claim appears atomically and
+ * complete (a hard link to a finished file), so a file that is empty, unreadable or names a dead process is a
+ * leftover. A leftover is moved aside, never deleted in place: if what was moved turns out to be a live claim made
+ * in the same instant, it is put back.
+ */
+export function claimLauncher(file) {
+  const running = new LocalDatabaseError(`Already running for this workspace (${file})`);
+  const mine = `${file}.${process.pid}.claim`, aside = `${file}.${process.pid}.stale`;
+  writeFileSync(mine, String(process.pid));
+  try {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try { linkSync(mine, file); return; } catch (error) { if (error.code !== "EEXIST") throw error; }
+      const owner = recordedPid(file);
+      if (owner === process.pid) return;
+      if (owner && alive(owner)) throw running;
+      try { renameSync(file, aside); } catch (error) { if (error.code === "ENOENT") continue; throw error; }
+      const moved = recordedPid(aside);
+      if (moved && moved !== process.pid && alive(moved)) {
+        try { linkSync(aside, file); } catch { /* someone else claimed meanwhile */ }
+        rmSync(aside, { force: true });
+        throw running;
+      }
+      rmSync(aside, { force: true });
+    }
+    throw running;
+  } finally { rmSync(mine, { force: true }); }
+}
+
 /** Starts the cluster in `directory` on a free loopback port; returns the port, or null when it did not start. */
 export async function startCluster(tools, directory, log) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -98,13 +130,7 @@ export async function ensureLocalDatabase(workflowsDir, { create = true } = {}) 
   if (!create && !existsSync(join(directory, "PG_VERSION"))) throw new LocalDatabaseError("No local database yet: run `npm run dev` once first");
   mkdirSync(data, { recursive: true });
 
-  const running = `Already running for this workspace (${launcherFile})`;
-  let other = NaN;
-  try { other = Number(readFileSync(launcherFile, "utf8")); } catch { /* no launcher file */ }
-  if (other !== process.pid && Number.isInteger(other) && alive(other)) throw new LocalDatabaseError(running);
-  rmSync(launcherFile, { force: true });
-  try { writeFileSync(launcherFile, String(process.pid), { flag: "wx" }); }
-  catch (error) { if (error.code === "EEXIST") throw new LocalDatabaseError(running); throw error; }
+  claimLauncher(launcherFile);
 
   try {
     const tools = await postgresTools(workflowsDir);
@@ -124,6 +150,8 @@ export async function ensureLocalDatabase(workflowsDir, { create = true } = {}) 
     }
     // After every start, so a crash between creating the folder and creating the role heals itself.
     await local.ensureAppRole(port, SUPERUSER);
+    // Last look before anything is served: only the launcher named in the file may later stop the server.
+    if (recordedPid(launcherFile) !== process.pid) throw new LocalDatabaseError(`Already running for this workspace (${launcherFile})`);
     let stopped = false;
     return {
       url: local.urlForPort(port),
@@ -131,8 +159,8 @@ export async function ensureLocalDatabase(workflowsDir, { create = true } = {}) 
         if (stopped) return;
         stopped = true;
         if (await proven()) stopCluster(tools, directory);
-        rmSync(launcherFile, { force: true });
+        if (recordedPid(launcherFile) === process.pid) rmSync(launcherFile, { force: true });
       },
     };
-  } catch (error) { rmSync(launcherFile, { force: true }); throw error; }
+  } catch (error) { if (recordedPid(launcherFile) === process.pid) rmSync(launcherFile, { force: true }); throw error; }
 }

@@ -22,6 +22,8 @@ import { identifiersOf } from "../templates/lib/profiles/identifiers.mjs";
 const skill = join(dirname(fileURLToPath(import.meta.url)), "..");
 const MAX_BYTES = 0.4 * 1024 ** 3; // the Free plan holds 0.5 GB
 const BATCH = 500;
+const MAX_PARAMETERS = 65535; // per statement, a limit of the Postgres protocol
+const batchFor = (columns) => Math.max(1, Math.min(BATCH, Math.floor(MAX_PARAMETERS / Math.max(1, columns))));
 // Never copied from the source, whatever it holds: PR #119 left a stale table of this name in production, and the
 // reverted code writes only identifiers_json, so the JSON is the truth.
 const DERIVED = ["profile_identifiers"];
@@ -81,12 +83,13 @@ function cellReader(db, tables) {
 }
 
 /** One stored value, shaped for the target column's type. Throws with a reason when it cannot be. */
-function transform(value, type, stripNul) {
+function transform(value, type, stripNul, onStrip) {
   if (value === null || value === undefined) return null;
   // Postgres rejects a raw NUL in any text, and its JSON escape (an odd run of backslashes before u0000) inside jsonb.
   const json = type === "jsonb" || type === "json";
   if (typeof value === "string" && (value.includes("\u0000") || (json && /(?<!\\)(?:\\\\)*\\u0000/.test(value)))) {
     if (!stripNul) throw new Error("holds a NUL character, which Postgres rejects (rerun with --strip-nul to remove it)");
+    onStrip?.();
     value = value.replaceAll("\u0000", "");
     if (json) value = value.replace(/(?<!\\)((?:\\\\)*)\\u0000/g, "$1");
   }
@@ -128,7 +131,7 @@ export async function runImport({ source, targetUrl, diffOnly = false, stripNul 
   const client = new pg.Client({ connectionString: targetUrl, connectionTimeoutMillis: 10000 });
   client.on("error", () => {});
   await client.connect();
-  const report = { source: { file: source, bytes: size }, target: { host: new URL(targetUrl).host }, tables: {}, skipped_tables: [], skipped_columns: [], consumed_columns: [], target_only_tables: [], problems: [], skipped_cache_rows: 0, identifier_conflicts: [], passed: false };
+  const report = { source: { file: source, bytes: size }, target: { host: new URL(targetUrl).host }, tables: {}, skipped_tables: [], skipped_columns: [], consumed_columns: [], target_only_tables: [], problems: [], skipped_cache_rows: 0, stripped_nul_cells: {}, identifier_conflicts: [], passed: false };
   try {
     const from = readSource(db), to = await readTarget(client), cell = cellReader(db, from);
     // First pass, before any write: the diff of the real source against the real target, and every value checked.
@@ -173,11 +176,12 @@ export async function runImport({ source, targetUrl, diffOnly = false, stripNul 
     const now = Date.now(), owners = new Map(), expected = {};
     for (const table of plan) {
       const order = table.key.map(quote).join(", ");
-      let batch = [], claims = [];
+      let batch = [], claims = [], stripped = 0;
+      const size = batchFor(table.columns.length);
       expected[table.name] = new Map();
       for (const row of db.prepare(`SELECT * FROM ${quote(table.name)} ORDER BY ${order}`).iterate()) {
         if (table.name === "cache" && new Date(String(row.expires_at)).getTime() < now) { report.skipped_cache_rows++; continue; }
-        const values = table.columns.map((column) => transform(cell(table.name, row, column), table.types[column].type, stripNul));
+        const values = table.columns.map((column) => transform(cell(table.name, row, column), table.types[column].type, stripNul, () => stripped++));
         expected[table.name].set(JSON.stringify(table.key.map((k) => row[k])), values);
         batch.push(values);
         if (ENTITIES.includes(table.name)) {
@@ -189,11 +193,14 @@ export async function runImport({ source, targetUrl, diffOnly = false, stripNul 
             else if (owner !== row.key) report.identifier_conflicts.push({ entity: table.name, namespace: id.namespace, value: id.value, owner, also_claimed_by: row.key });
           }
         }
-        if (batch.length === BATCH) { await insert(table.schema, table.name, table.columns, batch); batch = []; }
+        if (batch.length >= size) { await insert(table.schema, table.name, table.columns, batch); batch = []; }
         if (claims.length >= BATCH) { await insert("gtm", "profile_identifiers", ["entity", "namespace", "value", "key", "observed_at"], claims); claims = []; }
       }
       await insert(table.schema, table.name, table.columns, batch);
       await insert("gtm", "profile_identifiers", ["entity", "namespace", "value", "key", "observed_at"], claims);
+      // --strip-nul changes data, so the report says in which table and how many cells.
+      report.tables[table.name].stripped_nul_cells = stripped;
+      if (stripped) report.stripped_nul_cells[table.name] = stripped;
     }
 
     // Verify inside the same transaction: every key and every value, no sampling. The tables are small.

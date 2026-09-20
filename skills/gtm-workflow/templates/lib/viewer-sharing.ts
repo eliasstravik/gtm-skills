@@ -6,7 +6,7 @@ import {
   randomUUID,
 } from "node:crypto";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
-import { writeLock, type Executor } from "./db";
+import { writeTransaction, type Executor } from "./db";
 import { gtmViewerGrants } from "./schema/viewer-grants";
 import type { DataPolicy, View } from "./viewer-contract";
 import {
@@ -133,8 +133,7 @@ export async function saveLink(
 ) {
   // One writer at a time, so two owners saving at once see each other's link; the unique index on the one active
   // link per workflow is the backstop, not a process-local lock.
-  return client.transaction(async (tx) => {
-    await writeLock(tx);
+  return writeTransaction(client, async (tx) => {
     const current = await activeLink(tx, scope);
     if (current && options.save !== true) {
       const grant = decodeGrant(current);
