@@ -1,5 +1,5 @@
 // Which values identify a record, and how each is normalised. Plain JavaScript because two callers must agree to the
-// letter: the profile store, and the script that imports SQLite-era records into profile_identifiers.
+// letter: the profile store, and the script that imports records from the previous database into profile_identifiers.
 
 export const identityFields = {
   people: ["linkedin_profile_id", "linkedin_numeric_id", "linkedin_urn", "linkedin_url"],
@@ -25,7 +25,7 @@ export function normalizeIdentifier(entity, namespace, value) {
 
 /**
  * Every identifier a stored record claims, first claim first: its identity columns, then its alias entries.
- * `aliases` is the record's alias list: identifiers_json in a SQLite-era record.
+ * `aliases` is the record's alias list: the identifiers_json column of a record from the previous database.
  */
 export function identifiersOf(entity, record, aliases = record.identifiers_json ?? []) {
   const result = new Map();

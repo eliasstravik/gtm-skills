@@ -38,7 +38,7 @@ Run `node scripts/build-viewer.mjs` before reporting Create, Update or Upgrade c
 
 ## Workspace data
 
-The private workspace Data tab discovers all application tables in the connected local SQLite or deployed Turso database, including tables absent from the workflow and Drizzle registries. It uses the same table chooser, search, filters, sorting, columns, cell details and CSV/JSON exports as workflow Data. Tables need no standard `key` column. Discovery and browsing are read-only. Workflow Data and public links retain their authored table, column and row restrictions. Workspace Data has no public sharing scope.
+The private workspace Data tab discovers all application tables in the connected database, workflow result tables (schema `public`) and runtime tables (schema `gtm`), including tables absent from the workflow and Drizzle registries. It uses the same table chooser, search, filters, sorting, columns, cell details and CSV/JSON exports as workflow Data. Tables need no standard `key` column: a record is identified by its primary key, else by all its columns. Discovery and browsing are read-only. Workflow Data and public links retain their authored table, column and row restrictions. Workspace Data has no public sharing scope.
 
 `GET /api/link` returns its verified `dataUrl`. Use this destination when asked to browse workspace-wide data.
 
@@ -48,7 +48,7 @@ The owner deployment supplies these optional verified settings:
 
 - `GTM_VIEWER_REPOSITORY`: GitHub owner/repository. `GTM_VIEWER_REPOSITORY_ROOT`: runtime directory inside the repository, usually workflows. Source links require the exact `VERCEL_GIT_COMMIT_SHA`, or an explicitly provided `GTM_VIEWER_COMMIT`.
 - `GTM_VIEWER_VERCEL_RUNS_URL`: verified Vercel project runs page including its environment query. The resolver adds the selected run ID.
-- `GTM_VIEWER_DATABASE_URL`: verified database page on app.turso.tech.
+- `GTM_VIEWER_DATABASE_URL`: the database's page on console.neon.tech or vercel.com. The link is shown only when this is set.
 - Local only: `GTM_VIEWER_INSPECTOR_URL` and `GTM_VIEWER_INSPECTOR_STORE=local`, only after confirming that inspector uses this runtime's local store. `GTM_VIEWER_DRIZZLE_URL` names the actual Drizzle instance.
 
 Runs includes a general Open in Vercel button, or Open in Workflow for a verified local inspector, even when the run list is empty. Each run also keeps its direct details link. Workspace and workflow Data both show the configured database action. Missing destinations omit the action. Local source falls back to Copy file path. Hosted/shared responses omit local paths; shared responses omit all owner destinations. Browsing never starts native tools.
@@ -75,7 +75,7 @@ Provision `GTM_VIEWER_LINK_KEY` on the private owner deployment only, as 32 rand
 
 A missing or wrong key disables recovery; it never opens public access or silently replaces the token. Restore the original key, or explicitly revoke/recreate affected links. Planned key rotation must decrypt each active envelope with the old key, authenticate its scope, and re-encrypt with a fresh nonce under the new key before switching configuration. Keep both keys backed up through verification.
 
-Upgrade the template runtime while preserving authored files, tables, migrations, workflow IDs, schedules, credentials and saved data. Author business graphs for all existing workflows by reading their code. Build, then explicitly run `node scripts/viewer-migrate.mjs`. The additive migration adds encrypted storage and a uniqueness constraint, then revokes legacy links only for registered workflows in the current workspace/environment. Old links stop working; owners must copy new links. Business tables and runs remain untouched.
+Upgrade the template runtime while preserving authored files, tables, migrations, workflow IDs, schedules, credentials and saved data. Author business graphs for all existing workflows by reading their code. Build; the grants table, with encrypted storage and its uniqueness constraint, is part of the runtime migrations. `revokeLegacyLinks` revokes links from before encrypted storage, only for registered workflows in the current workspace/environment. Old links stop working; owners must copy new links. Business tables and runs remain untouched.
 
 Deploy matching private/share contract version 2 together. Mixed versions fail closed. Retain source revisions and previous deployment IDs. Roll back both applications together without dropping metadata or restoring revoked links.
 

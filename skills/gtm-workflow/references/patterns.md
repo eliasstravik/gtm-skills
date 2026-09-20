@@ -272,10 +272,14 @@ async function companiesToResearch(): Promise<Row[]> {
 export async function findPeople(input: RowsInput) {
   "use workflow";
   const rows = input.rows ?? (await companiesToResearch());
-  return runRows({ rows, table: "people", step: peopleForCompany, /* caps */ fanOut: { workflow: findPeople, input, chunkSize: 100 } });
+  return runRows({ rows, table: "contacts", step: peopleForCompany, /* caps */ fanOut: { workflow: findPeople, input, chunkSize: 100 } });
 }
 ```
 
 ## Names are identity
 
 A workflow's slug, its table and column names, and the `name` given to `cached()` are how the runtime finds what it already did. Rename any of them and the next run starts from an empty table or cache and buys every row again. Change a label in the doc comment instead; when a name must change, add the new one, copy the rows in a migration, then drop the old one.
+
+The runtime's own table names are reserved (`cache`, `people`, `companies`, `profile_identifiers`, `profile_runs`, `profile_work`, `profile_attempts`, `profile_inputs`, `gtm_viewer_grants`): name a workflow's table after what the workflow produces, such as `contacts` or `inbound_scores`.
+
+A step that writes its own SQL uses Drizzle's query builder or its `sql` tag, never a hand-built string. A row read through the query builder has `Date` times, `boolean` flags and parsed `jsonb`. In raw `sql` a JavaScript array is never interpolated: a list is `= ANY(${sql.param(list)}::text[])`, a `jsonb` value is `${JSON.stringify(value)}::jsonb`, `count(*)` needs `::int`, and a time read back is text until passed through `toDate` from `lib/db.ts`.

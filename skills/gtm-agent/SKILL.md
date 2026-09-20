@@ -19,7 +19,7 @@ The request; the organization's workspace slug (the contract's slug rule; from a
 
 ## Roles
 
-The user has the GitHub and Vercel CLIs signed in on this computer, authorizes the Slack install when required, either directly or through their authorized browser agent, accepts the Turso marketplace terms the first time a team uses it, invites the bot to a channel, and says the first sentence in Slack; the agent runs the scripts, relays exactly what the user must do, and reports the outcome.
+The user has the GitHub and Vercel CLIs signed in on this computer, authorizes the Slack install when required, either directly or through their authorized browser agent, adds the Neon database to the workflow project through Vercel's Neon integration (Production only, preview branching off) and accepts Neon's marketplace terms the first time a team uses it, invites the bot to a channel, and says the first sentence in Slack; the agent runs the scripts, relays exactly what the user must do, and reports the outcome.
 
 ## Procedure
 
@@ -32,7 +32,7 @@ Talk by the six rules in [interaction](../gtm-workspace/references/interaction.m
 | Doctor | `node scripts/doctor.mjs --slug <slug> --team <team> [--github-owner <owner>] [--agent-project <name>] [--workflow-project <name>] [--slack-connector <uid>]`; report the failing lines in business terms with their fixes; run again with `--fix` when the user accepts the safe fixes (project settings, obsolete variables). For Slack changes, run `configure-slack.mjs --team <team> --connector <uid> --apply`, then follow [Slack configuration](references/slack.md) to synchronize the provider manifest and reinstall. Pass a fresh `--slack-manifest <file.json>` to Doctor; it checks provider settings, installation freshness, and live token grants. |
 | Upgrade | In the agent checkout (`~/.gtm/.agents/<slug>/`, or the repository the user names): `git fetch template && git merge template/main`, preserve downstream customizations when merging, resolving routine conflicts within the authorized upgrade; ask only when intended behavior is ambiguous, `git push`; the push deploys. Then Doctor. When the workflow runtime is behind, say so and hand off to gtm-workflow's Upgrade. |
 
-Names are fixed by the slug: `gtm-<slug>` (workspace repository), `gtm-agent-<slug>` (agent repository and project), `gtm-<slug>-workflows` (workflow project), `slack/gtm-agent-<slug>` (connector), the Turso database `gtm-<slug>`. A deployment made by hand before this skill keeps its names; pass them as overrides.
+Names are fixed by the slug: `gtm-<slug>` (workspace repository), `gtm-agent-<slug>` (agent repository and project), `gtm-<slug>-workflows` (workflow project), `slack/gtm-agent-<slug>` (connector), the Neon database `gtm-<slug>`, connected to the workflow project only. A deployment made by hand before this skill keeps its names; pass them as overrides.
 
 ## Outputs
 

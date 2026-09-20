@@ -68,7 +68,7 @@ export async function upsert(tableName: TableName, rows: Record<string, unknown>
 }
 
 /**
- * One writer at a time for the profile store and the ledger, as SQLite gave for free. Call first in a write
+ * One writer at a time for the profile store and the ledger, which were written for a database with a single writer. Call first in a write
  * transaction. Re-entrant within it, released at commit or rollback. A waiter fails after the limit instead of hanging.
  */
 export async function writeLock(tx: Executor, limit = "30s") {

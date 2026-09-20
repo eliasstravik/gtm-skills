@@ -124,31 +124,6 @@ export async function check({
   );
   const notifyPair = ["GTM_NOTIFY_SECRET"].map((k) => aenv.has(k));
   add("Agent has GTM_NOTIFY_SECRET", notifyPair[0], "", "run setup.mjs");
-  for (const k of ["TURSO_STUDIO_URL", "TURSO_STUDIO_TOKEN"]) {
-    if (aenv.has(k)) {
-      if (fix) {
-        run("vercel", [
-          "env",
-          "rm",
-          k,
-          "production",
-          "--project",
-          n.agentProject,
-          "--yes",
-          "--scope",
-          team,
-          "--non-interactive",
-        ]);
-        add(`Removed obsolete ${k}`, true);
-      } else
-        add(
-          `Obsolete ${k} still set`,
-          false,
-          "not read since gtm-agent 0.1.27",
-          `vercel env rm ${k} production --project ${n.agentProject} --scope ${team}`,
-        );
-    }
-  }
 
   // Slack connector
   const all = connectors(team);
@@ -373,7 +348,8 @@ export async function check({
     add(
       "Sharing project has no private runtime credentials",
       ![...shareEnv].some((k) =>
-        /^(TURSO_|GTM_RUN_SECRET$|CRON_SECRET$|GTM_GITHUB_TOKEN$)/.test(k),
+        // Database variables in every form the Neon integration injects, and TURSO_ while those variables still exist.
+        /^(DATABASE_URL|PG|POSTGRES_|TURSO_|GTM_RUN_SECRET$|CRON_SECRET$|GTM_GITHUB_TOKEN$)/.test(k),
       ),
       "",
       "remove private runtime credentials from the sharing project",
@@ -407,8 +383,8 @@ export async function check({
     api(team, "PATCH", `/v9/projects/${wp.id}`, patch);
   const wenv = envNames(team, n.workflowProject);
   for (const k of [
-    "TURSO_DATABASE_URL",
-    "TURSO_AUTH_TOKEN",
+    "DATABASE_URL",
+    "DATABASE_URL_UNPOOLED",
     "GTM_RUN_SECRET",
     "CRON_SECRET",
     "GTM_MODEL",
@@ -419,8 +395,8 @@ export async function check({
       `Workflow project has ${k}`,
       wenv.has(k),
       "",
-      k.startsWith("TURSO")
-        ? "run setup.mjs (it connects Turso)"
+      k.startsWith("DATABASE_URL")
+        ? "add Neon to the workflow project through the Vercel integration, production only; never set this by hand"
         : "run setup.mjs",
     );
   for (const key of ["GTM_VIEWER_PROTECTED", "GTM_VIEWER_SHARE_ORIGIN"])

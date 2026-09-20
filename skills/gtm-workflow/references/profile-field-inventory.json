@@ -47,7 +47,7 @@
       {
         "name": "identifiers_json",
         "type": "JSON[]",
-        "note": "Provider/platform identifier namespace, value, observed time, and source. Keep numeric and opaque LinkedIn identifiers distinct."
+        "note": "Stored in the table gtm.profile_identifiers (entity, namespace, value, key, observed_at), not as a column: one owner per identifier. Keep numeric and opaque LinkedIn identifiers distinct."
       },
       {
         "name": "sources_json",

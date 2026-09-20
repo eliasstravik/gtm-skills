@@ -47,8 +47,17 @@ export async function setupLocal(workspace, { upgrade = false } = {}) {
     workflowsUrl: prior?.workflowsUrl ?? "http://127.0.0.1:3939/viewer" });
   if (!existsSync(join(runtime, "node_modules"))) run("npm", ["ci", "--ignore-scripts", "--no-audit", "--no-fund"], runtime);
   const env = { ...inspectionEnvironment(process.env, managedNames), GTM_ENV_MANAGED: "1", WORKFLOW_TARGET_WORLD: "local", WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS: "false" };
-  // No database, execution server, queue or schedules start here. The first `npm run dev` creates and migrates the local database.
+  // Database preparation is explicit. No execution server, queue or schedules start here.
   run(process.execPath, ["scripts/build-viewer.mjs"], runtime, env);
+  // A workspace from before Postgres has no local-database script: there is nothing to prepare until it is converted.
+  if (existsSync(join(runtime, "scripts/local-database.mjs"))) {
+    const { ensureLocalDatabase, databaseEnvironment } = await import(pathToFileURL(join(component.path, "local/database.mjs"))).catch(() => ({}));
+    requireThat(typeof ensureLocalDatabase === "function", "upgrade_connections_component", 409);
+    // Start this workspace's Postgres, migrate it and stop it again, so `npm run viewer` works before any `npm run dev`.
+    // A running launcher already owns the database and migrates it itself.
+    const database = await ensureLocalDatabase(runtime).catch((error) => { if (/^Already running/.test(error?.message)) return null; throw error; });
+    if (database) try { run(process.execPath, ["scripts/migrate.mjs"], runtime, databaseEnvironment(env, database.url)); } finally { await database.stop(); }
+  }
   return { status: "local_ready", workspace: state.workspace, component: component.version,
     next: `node ${join(skill, "scripts/connections.mjs")} open --workspace ${JSON.stringify(state.workspace)} --target local` };
 }

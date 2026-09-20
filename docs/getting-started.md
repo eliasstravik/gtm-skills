@@ -5,7 +5,7 @@
 - A coding agent that loads skills from skills.sh: Claude Code, Codex, Cursor, OpenCode, or another host.
 - Node.js with `npx`, and `git`.
 - Optional: the GitHub CLI (`gh`) when you want the workspace shared as a private GitHub repository.
-- Optional, for saved workflows: Node.js 22 or newer locally; a Vercel account and a Turso database for hosted runs.
+- Optional, for saved workflows: Node.js 22 or newer locally; a Vercel account, with a Neon database added through it, for hosted runs.
 
 ## Install
 

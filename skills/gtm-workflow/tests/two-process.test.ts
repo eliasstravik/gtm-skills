@@ -1,4 +1,4 @@
-// SQLite allowed one writer at a time and the ledger and the profile store were written for that. Two real processes,
+// The ledger and the profile store were written for a database with one writer at a time. Two real processes,
 // each with its own pool, prove the write lock restores it. Run through Neon's pooler in the Neon check.
 import { test, after, before } from "node:test";
 import assert from "node:assert/strict";

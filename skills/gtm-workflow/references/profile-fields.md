@@ -44,19 +44,19 @@ Revenue, technologies, seniority, discovered contact details, and some funding f
 
 ## Shared metadata
 
-These are proposed application fields, not provider claims. Add them to both tables. `TEXT`, `INTEGER`, and `REAL` are SQLite/Turso storage types. `BOOL` means nullable integer 0/1. `JSON[]` and `JSON{}` mean validated JSON stored as text. Profile columns are nullable unless noted.
+These are proposed application fields, not provider claims. Add them to both tables. The types name a field's kind; in Postgres `TEXT` is `text`, `INTEGER` `integer`, `REAL` `double precision`, `BOOL` a nullable `boolean`, `TIME` a `timestamptz` read and written as `Date`, and `JSON[]` and `JSON{}` validated `jsonb`. Provider-supplied dates that may be partial (`registered_at`, `founded_on`) stay `TEXT`. Profile columns are nullable unless noted.
 
 | Column | Type | Meaning |
 | --- | --- | --- |
 | `key` | TEXT | Required stable internal identity. Never a person's name or a company-name slug. |
-| `created_at` | TEXT | Required UTC time when we first created this record. |
-| `updated_at` | TEXT | Required UTC time of the latest local record change. |
-| `enriched_at` | TEXT | Time of the last accepted successful profile lookup. Failed attempts do not advance it. |
-| `last_attempt_at` | TEXT | Time of the latest attempted lookup. |
+| `created_at` | TIME | Required UTC time when we first created this record. |
+| `updated_at` | TIME | Required UTC time of the latest local record change. |
+| `enriched_at` | TIME | Time of the last accepted successful profile lookup. Failed attempts do not advance it. |
+| `last_attempt_at` | TIME | Time of the latest attempted lookup. |
 | `enrichment_status` | TEXT | Pending, enriched, partial, no_match, ambiguous, failed, or budget_deferred. Freshness is evaluated separately. |
 | `error` | TEXT | Latest safe, human-readable error; no credentials or headers. |
 | `cost_usd` | REAL | Cost attributed to the latest attempt, nullable when unknown. Aggregate spend comes from run accounting, not a sum of these mutable rows. |
-| `identifiers_json` | JSON[] | Provider/platform identifier namespace, value, observed time, and source. Keep numeric and opaque LinkedIn identifiers distinct. |
+| identifiers | table | Not a column: `gtm.profile_identifiers (entity, namespace, value) → key, observed_at` holds every provider/platform identifier and each merged record's old key, one owner per identifier. Keep numeric and opaque LinkedIn identifiers distinct. |
 | `sources_json` | JSON[] | Source/import/workflow membership, original row key, network owner/kind when supplied, connection date, first and last observation. |
 | `provenance_json` | JSON{} | For each field or section: provider, endpoint, response reference/path, fetched time, provider-updated time if returned, and reported/inferred classification when known. |
 | `section_status_json` | JSON{} | Per section: complete, partial, unsupported, not_requested, unknown, or failed, with returned count and provider total/cursor when available. |
@@ -329,7 +329,7 @@ Companies defaults: name, domain, description, industry, size range, LinkedIn em
 
 All remaining canonical fields are available through a column chooser and record details. Repeating sections open as readable lists. Exported JSON preserves them; CSV places serialized JSON in a single cell or uses an explicitly selected flattened export. No automatic `job_1` through `job_5` columns, and no row multiplication when a person has several jobs.
 
-The current linked viewer assumes a relationship table. A two-table implementation needs support for company references inside a person's experience list, plus a reverse query. SQLite JSON facilities are a plausible implementation, but actual Turso/runtime query support and performance still need validation before a builder plan promises this representation. Two user-facing tables do not by themselves prove which physical index strategy is best.
+The current linked viewer assumes a relationship table. A two-table implementation needs support for company references inside a person's experience list, plus a reverse query. The runtime does this with `jsonb`: `jsonb_array_elements(experiences_json)` for the relation and a GIN index on `experiences_json` for the reverse lookup. Two user-facing tables do not by themselves prove which physical index strategy is best.
 
 ### Scope
 
