@@ -123,7 +123,7 @@ export function createCluster(tools, directory) {
  */
 export async function ensureLocalDatabase(workflowsDir, { create = true } = {}) {
   const script = join(workflowsDir, "scripts", "local-database.mjs");
-  if (!existsSync(script)) throw new LocalDatabaseError("This workspace still uses SQLite: convert it (gtm-workflow, Convert a SQLite workspace)");
+  if (!existsSync(script)) throw new LocalDatabaseError("This workspace is from before the Postgres runtime (it has no scripts/local-database.mjs), which this version does not convert");
   const local = await import(pathToFileURL(script));
   const directory = local.dataDirectory(workflowsDir), data = dirname(directory);
   const launcherFile = join(data, "launcher.pid"), serverFile = join(directory, "postmaster.pid"), log = join(data, "postgres.log");

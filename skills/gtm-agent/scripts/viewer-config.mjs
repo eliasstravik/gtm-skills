@@ -71,8 +71,8 @@ export function prepareViewer({
   const names = envNames(team, shareProject);
   if (
     [...names].some((n) =>
-      // Database variables in every form the Neon integration injects, and TURSO_ while those variables still exist.
-      /^(DATABASE_URL|PG|POSTGRES_|TURSO_|GTM_RUN_SECRET$|CRON_SECRET$|GTM_GITHUB_TOKEN$)/.test(n),
+      // Database variables in every form the Neon integration injects.
+      /^(DATABASE_URL|PG|POSTGRES_|GTM_RUN_SECRET$|CRON_SECRET$|GTM_GITHUB_TOKEN$)/.test(n),
     )
   )
     fail(

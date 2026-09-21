@@ -199,8 +199,9 @@ test("an empty, garbage or dead launcher file never wedges the workspace, and on
   const claim = join(root, "claims", "launcher.pid");
   await mkdir(dirname(claim), { recursive: true });
   const script = `import { claimLauncher } from ${JSON.stringify(pathToFileURL(join(here, "../local/database.mjs")).href)};
-    const at = Number(process.argv[3]); while (Date.now() < at) {}
-    try { claimLauncher(process.argv[2]); console.log("won"); setTimeout(() => {}, 1500); } catch (error) { console.log(error.message.startsWith("Already running") ? "refused" : error.message); }`;
+    // With -e the arguments after "--" start at argv[1].
+    const [, file, start] = process.argv; const at = Number(start); while (Date.now() < at) {}
+    try { claimLauncher(file); console.log("won"); setTimeout(() => {}, 1500); } catch (error) { console.log(error.message.startsWith("Already running") ? "refused" : error.message); }`;
   for (const left of [null, "", "999999"]) {
     await rm(claim, { force: true });
     if (left !== null) await writeFile(claim, left);
@@ -211,11 +212,14 @@ test("an empty, garbage or dead launcher file never wedges the workspace, and on
     })));
     assert.deepEqual(results.filter((result) => result === "won").length, 1, `${JSON.stringify(left)}: ${results.join(",")}`);
     assert.deepEqual(results.filter((result) => result === "refused").length, 7, results.join(","));
+    // The winner holds the file it was given, and nothing was written anywhere else.
+    assert.ok(Number(await readFile(claim, "utf8")) > 0);
+    assert.deepEqual((await readdir(dirname(claim))).filter((name) => name !== "launcher.pid"), []);
   }
 }));
 
 test("a workspace that was not converted gets one line saying so", options, () => sandbox(async (root, launch) => {
   const ws = await fixture(root, "old", { converted: false });
-  await assert.rejects(launch(ws).ready, /still uses SQLite: convert it \(gtm-workflow, Convert a SQLite workspace\)/);
+  await assert.rejects(launch(ws).ready, /from before the Postgres runtime/);
   assert.equal(existsSync(join(ws.workflows, "data")), false);
 }));
