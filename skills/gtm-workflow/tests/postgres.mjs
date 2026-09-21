@@ -1,5 +1,5 @@
 // One Postgres per test run, from the template's embedded-postgres package, started the way the launcher starts it.
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -21,8 +21,11 @@ export async function startTestPostgres(runtime) {
     if (await local.provenPort(old, { ...SUPERUSER, database: "postgres" })) stopCluster(tools, local.dataDirectory(old));
     await rm(old, { recursive: true, force: true }).catch(() => {});
   }
-  const home = await mkdtemp(join(parent, "run-")), directory = local.dataDirectory(home);
-  await writeFile(join(home, "runner.pid"), String(process.pid));
+  // The folder is made beside the parent and moved in with its runner file written: one that showed up without it
+  // would be a dead run to another run's cleanup above.
+  const made = await mkdtemp(`${parent}-new-`), home = join(parent, `run-${made.slice(`${parent}-new-`.length)}`), directory = local.dataDirectory(home);
+  await writeFile(join(made, "runner.pid"), String(process.pid));
+  await rename(made, home);
   await mkdir(dirname(directory), { recursive: true });
   createCluster(tools, directory);
   const port = await startCluster(tools, directory, join(home, "postgres.log"));
