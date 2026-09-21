@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
+import { createInterface } from "node:readline";
 import { workspaceState, writePrivateJson } from "../local/state.mjs";
 import { SUPERUSER, createCluster, postgresTools } from "../local/database.mjs";
 
@@ -182,7 +183,7 @@ test("GTM_DATABASE=external is honoured from the shell only, starts nothing and 
   assert.equal(await hosting.stop(), 0);
 }));
 
-test("an empty, garbage or dead launcher file never wedges the workspace, and one of many simultaneous claims wins", options, () => sandbox(async (root, launch) => {
+test("an empty, garbage or dead launcher file never wedges the workspace", options, () => sandbox(async (root, launch) => {
   const ws = await fixture(root, "one"), file = join(ws.workflows, "data/launcher.pid");
   await mkdir(join(ws.workflows, "data"), { recursive: true });
   // A crash between creating the file and writing it leaves it empty; Number("") is 0 and signal 0 to pid 0 succeeds.
@@ -193,30 +194,53 @@ test("an empty, garbage or dead launcher file never wedges the workspace, and on
     assert.equal(Number(await readFile(file, "utf8")), launcher.child.pid, `after a launcher file holding ${JSON.stringify(left)}`);
     assert.equal(await launcher.stop(), 0);
   }
-  // Many processes claim at the same instant: exactly one may win, whatever was left behind.
-  const { claimLauncher } = await import("../local/database.mjs");
-  assert.equal(typeof claimLauncher, "function");
-  const claim = join(root, "claims", "launcher.pid");
-  await mkdir(dirname(claim), { recursive: true });
-  const script = `import { claimLauncher } from ${JSON.stringify(pathToFileURL(join(here, "../local/database.mjs")).href)};
-    // With -e the arguments after "--" start at argv[1].
-    const [, file, start] = process.argv; const at = Number(start); while (Date.now() < at) {}
-    try { claimLauncher(file); console.log("won"); setTimeout(() => {}, 1500); } catch (error) { console.log(error.message.startsWith("Already running") ? "refused" : error.message); }`;
-  for (const left of [null, "", "999999"]) {
-    await rm(claim, { force: true });
-    if (left !== null) await writeFile(claim, left);
-    const at = Date.now() + 1500;
-    const results = await Promise.all(Array.from({ length: 8 }, () => new Promise((resolve) => {
-      const child = spawn(process.execPath, ["--input-type=module", "-e", script, "--", claim, String(at)], { stdio: ["ignore", "pipe", "inherit"] });
-      let out = ""; child.stdout.on("data", (data) => { out += data; }); child.on("exit", () => resolve(out.trim()));
-    })));
-    assert.deepEqual(results.filter((result) => result === "won").length, 1, `${JSON.stringify(left)}: ${results.join(",")}`);
-    assert.deepEqual(results.filter((result) => result === "refused").length, 7, results.join(","));
-    // The winner holds the file it was given, and nothing was written anywhere else.
-    assert.ok(Number(await readFile(claim, "utf8")) > 0);
-    assert.deepEqual((await readdir(dirname(claim))).filter((name) => name !== "launcher.pid"), []);
-  }
 }));
+
+// Needs no Postgres, so it is never skipped. The claimers stay up and are told the millisecond to go, so every round
+// is a tight race whatever the machine is doing, and the round's winner is alive while the others look at its claim.
+test("exactly one of many simultaneous claims wins, whatever was left behind", { timeout: 300_000 }, async () => {
+  const root = await mkdtemp(join(homedir(), ".gtm-claim-test-")), claim = join(root, "claims", "launcher.pid"), takeover = `${claim}.takeover`;
+  const script = `import { claimLauncher } from ${JSON.stringify(pathToFileURL(join(here, "../local/database.mjs")).href)};
+    import { createInterface } from "node:readline";
+    console.log("ready");
+    for await (const line of createInterface({ input: process.stdin })) {
+      const at = Number(line); while (Date.now() < at) {}
+      try { claimLauncher(${JSON.stringify(claim)}); console.log("won"); } catch (error) { console.log(error.message.startsWith("Already running") ? "refused" : error.message); }
+    }`;
+  const claimers = Array.from({ length: 16 }, () => {
+    const child = spawn(process.execPath, ["--input-type=module", "-e", script], { stdio: ["pipe", "pipe", "inherit"] });
+    const lines = createInterface({ input: child.stdout })[Symbol.asyncIterator]();
+    return { child, next: async () => (await lines.next()).value, exited: new Promise((resolve) => child.on("exit", resolve)) };
+  });
+  try {
+    for (const claimer of claimers) assert.equal(await claimer.next(), "ready");
+    // A takeover file is what a launcher killed while clearing a leftover leaves; with no leftover nobody looks at it.
+    const dead = "999999", states = [
+      { left: null }, { left: "" }, { left: "not a pid" }, { left: dead },
+      { left: "", takeover: "" }, { left: dead, takeover: dead }, { left: null, takeover: dead, remains: ["launcher.pid.takeover"] },
+      { left: String(process.pid), winners: 0 }, { left: dead, takeover: String(process.pid), winners: 0, remains: ["launcher.pid.takeover"] },
+    ];
+    for (let round = 0; round < 40; round++) for (const { left, takeover: held, winners = 1, remains = [] } of states) {
+      await rm(dirname(claim), { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+      await mkdir(dirname(claim), { recursive: true });
+      if (left !== null) await writeFile(claim, left);
+      if (held !== undefined) await writeFile(takeover, held);
+      const at = Date.now() + 20;
+      for (const claimer of claimers) claimer.child.stdin.write(`${at}\n`);
+      const results = await Promise.all(claimers.map((claimer) => claimer.next())), state = `round ${round}, ${JSON.stringify({ left, held })}: ${results.join(",")}`;
+      assert.equal(results.filter((result) => result === "won").length, winners, state);
+      assert.equal(results.filter((result) => result === "refused").length, claimers.length - winners, state);
+      // The winner holds the file it was given, a refused round left it as it was, and nothing else was written.
+      const owner = Number(await readFile(claim, "utf8"));
+      assert.equal(owner, winners ? claimers[results.indexOf("won")].child.pid : Number(left), state);
+      assert.deepEqual((await readdir(dirname(claim))).filter((name) => name !== "launcher.pid"), remains, state);
+    }
+  } finally {
+    for (const claimer of claimers) claimer.child.stdin.end();
+    await Promise.all(claimers.map((claimer) => claimer.exited));
+    await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
+});
 
 test("a workspace that was not converted gets one line saying so", options, () => sandbox(async (root, launch) => {
   const ws = await fixture(root, "old", { converted: false });

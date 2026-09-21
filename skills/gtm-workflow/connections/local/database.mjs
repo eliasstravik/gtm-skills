@@ -60,34 +60,38 @@ function isPostgres(pid) {
   return result.status !== 0 || /postgres/i.test(result.stdout ?? "");
 }
 // A pid of 0 or less is never a process: signal 0 to pid 0 tests the caller's own process group and always succeeds.
-const recordedPid = (file) => { try { const pid = Number(readFileSync(file, "utf8").trim()); return Number.isInteger(pid) && pid > 0 ? pid : 0; } catch { return 0; } };
+const recordedPid = (file, missing = 0) => { try { const pid = Number(readFileSync(file, "utf8").trim()); return Number.isInteger(pid) && pid > 0 ? pid : 0; } catch (error) { return error.code === "ENOENT" ? missing : 0; } };
 
 /**
  * data/launcher.pid names the one launcher that owns this workspace's database. The claim appears atomically and
  * complete (a hard link to a finished file), so a file that is empty, unreadable or names a dead process is a
- * leftover. A leftover is moved aside, never deleted in place: if what was moved turns out to be a live claim made
- * in the same instant, it is put back.
+ * leftover. Judging a leftover and removing it are two steps, and by the second the name may hold another launcher's
+ * fresh claim. So only the holder of `<file>.takeover` removes a leftover, and only one it has read while holding it:
+ * a claim is never linked over a file that exists, so that leftover stays what it was read as. A missing file is
+ * never "removed", because a claim can appear there at any instant. The takeover file is claimed the same way, which
+ * clears one left by a launcher killed while it held it.
  */
 export function claimLauncher(file) {
-  const running = new LocalDatabaseError(`Already running for this workspace (${file})`);
-  const mine = `${file}.${process.pid}.claim`, aside = `${file}.${process.pid}.stale`;
+  if (!claimed(file)) throw new LocalDatabaseError(`Already running for this workspace (${file})`);
+}
+function claimed(file) {
+  const mine = `${file}.${process.pid}.claim`, aside = `${file}.${process.pid}.stale`, takeover = `${file}.takeover`;
+  const live = (owner) => owner > 0 && owner !== process.pid && alive(owner);
   writeFileSync(mine, String(process.pid));
   try {
     for (let attempt = 0; attempt < 3; attempt++) {
-      try { linkSync(mine, file); return; } catch (error) { if (error.code !== "EEXIST") throw error; }
+      try { linkSync(mine, file); return true; } catch (error) { if (error.code !== "EEXIST") throw error; }
       const owner = recordedPid(file);
-      if (owner === process.pid) return;
-      if (owner && alive(owner)) throw running;
-      try { renameSync(file, aside); } catch (error) { if (error.code === "ENOENT") continue; throw error; }
-      const moved = recordedPid(aside);
-      if (moved && moved !== process.pid && alive(moved)) {
-        try { linkSync(aside, file); } catch { /* someone else claimed meanwhile */ }
-        rmSync(aside, { force: true });
-        throw running;
-      }
-      rmSync(aside, { force: true });
+      if (owner === process.pid) return true;
+      // A live holder of the takeover file is about to claim: that launcher is the one running.
+      if (live(owner) || !claimed(takeover)) return false;
+      try {
+        const left = recordedPid(file, null);
+        if (live(left)) return false;
+        if (left !== null) { renameSync(file, aside); rmSync(aside, { force: true }); }
+      } finally { rmSync(takeover, { force: true }); }
     }
-    throw running;
+    return false;
   } finally { rmSync(mine, { force: true }); }
 }
 
