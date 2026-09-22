@@ -70,3 +70,9 @@ export const profileInputs = gtm.table(
   },
   (t) => [primaryKey({ columns: [t.workflow_id, t.source_id, t.row_id] })],
 );
+
+/** Request pacing shared by every step and process of one workspace. next_allowed_at is epoch milliseconds. */
+export const providerRateLimits = gtm.table("provider_rate_limits", {
+  provider: text("provider").primaryKey(),
+  next_allowed_at: micro("next_allowed_at").notNull(),
+});
