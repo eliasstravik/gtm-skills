@@ -12,7 +12,9 @@ export type Entry = Display & {
   data: WorkflowData | null;
   sharePolicy: DataPolicy | null;
 };
-export const registry = registryJson as Entry[];
+// The build validates this generated registry. JSON type inference adds `undefined` properties when a
+// workspace's tables have different field maps, and TypeScript then refuses the direct cast.
+export const registry = registryJson as unknown as Entry[];
 export const entryFor = (id: string) => {
   const entry = registry.find((e) => e.id === id || e.slug === id);
   if (!entry) throw new ViewerError(404, "not_found", "Workflow not found.");
