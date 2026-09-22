@@ -95,11 +95,20 @@ function claimed(file) {
   } finally { rmSync(mine, { force: true }); }
 }
 
+/**
+ * Server settings for a throwaway local cluster, passed at every start so clusters made by earlier versions get them
+ * too. Durability against a crash of the machine costs a disk sync per commit and the WAL for replication; a dev
+ * database that is rebuilt from its migrations and imports needs neither, and an enrichment run commits twice per item.
+ * Never for Neon: nothing here reaches a deployed database.
+ */
+export const LOCAL_SERVER_OPTIONS = ["fsync=off", "synchronous_commit=off", "full_page_writes=off", "wal_level=minimal", "max_wal_senders=0"];
+
 /** Starts the cluster in `directory` on a free loopback port; returns the port, or null when it did not start. */
 export async function startCluster(tools, directory, log) {
+  const options = LOCAL_SERVER_OPTIONS.map((setting) => `-c ${setting}`).join(" ");
   for (let attempt = 0; attempt < 3; attempt++) {
     const port = await freePort();
-    if (control(tools, ["start", "-D", directory, "-w", "-t", "60", "-l", log, "-o", `-p ${port}`])) return port;
+    if (control(tools, ["start", "-D", directory, "-w", "-t", "60", "-l", log, "-o", `-p ${port} ${options}`])) return port;
   }
   return null;
 }

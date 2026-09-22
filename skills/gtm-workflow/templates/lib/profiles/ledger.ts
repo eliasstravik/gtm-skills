@@ -133,13 +133,13 @@ export async function markWork(
  * Serialized on the (entity, operation) name, so two workers cannot both reserve the same lookup; the budget is
  * checked and taken in one conditional update of the run row, so concurrent reservations cannot overspend it.
  */
-async function reservation(
+async function reservation<S extends "reserved" | "dispatched">(
   client: Executor,
   lease: RunLease,
   entityKey: string,
   operation: string,
   maximumUsd: number | null,
-  state: "reserved" | "dispatched",
+  state: S,
 ) {
   return transaction(client, async (tx) => {
     await lockNames(tx, [`attempt:${entityKey}:${operation}`]);
@@ -164,9 +164,9 @@ async function reservation(
       await assertOwned(tx, lease);
       return { status: "budget_deferred" as const };
     }
-    const id = randomUUID();
-    await tx.insert(profileAttempts).values({ id, run_id: lease.id, entity_key: entityKey, operation, state, reserved_micro: amount, created_at: new Date() });
-    return { status: state, id };
+    const id = randomUUID(), createdAt = new Date();
+    await tx.insert(profileAttempts).values({ id, run_id: lease.id, entity_key: entityKey, operation, state, reserved_micro: amount, created_at: createdAt });
+    return { status: state, id, createdAt };
   });
 }
 /** The two-step form: reserve, then dispatch. reserveAndDispatch does both in one transaction. */
@@ -215,26 +215,36 @@ export async function settle(
 ) {
   return transaction(client, async (tx) => {
     await lockNames(tx, []);
-    // The row lock serializes a replayed settlement with the first; the run row is touched last, so it is held briefly.
-    const [attempt] = await tx.select().from(profileAttempts).where(eq(profileAttempts.id, id)).for("update");
-    if (!attempt) throw new Error("Unknown attempt");
-    if (attempt.state === "settled") return;
     const saved = stripNul(sanitize(response));
     if (costUsd === null) {
-      await tx.update(profileAttempts).set({ state: "uncertain", response_json: saved }).where(eq(profileAttempts.id, id));
+      const changed = await tx.update(profileAttempts).set({ state: "uncertain", response_json: saved }).where(and(eq(profileAttempts.id, id), ne(profileAttempts.state, "settled"))).returning({ id: profileAttempts.id });
+      if (!changed.length) await known(tx, id);
       return;
     }
     const cost = micros(costUsd);
-    if (cost > attempt.reserved_micro)
+    // One conditional update settles the attempt once, within its reservation; the run row is touched last, so it is held briefly.
+    const [attempt] = await tx
+      .update(profileAttempts)
+      .set({ state: "settled", cost_micro: cost, response_json: saved })
+      .where(and(eq(profileAttempts.id, id), ne(profileAttempts.state, "settled"), sql`${profileAttempts.reserved_micro} >= ${cost}`))
+      .returning({ run_id: profileAttempts.run_id, reserved_micro: profileAttempts.reserved_micro });
+    if (!attempt) {
+      const before = await known(tx, id);
+      if (before.state === "settled") return;
       throw new Error(
         "Provider charge exceeded verified maximum; stop and reconcile",
       );
-    await tx.update(profileAttempts).set({ state: "settled", cost_micro: cost, response_json: saved }).where(eq(profileAttempts.id, id));
+    }
     await tx
       .update(profileRuns)
       .set({ spent_micro: sql`${profileRuns.spent_micro} + ${cost}`, reserved_micro: sql`${profileRuns.reserved_micro} - ${attempt.reserved_micro}` })
       .where(eq(profileRuns.id, attempt.run_id));
   });
+}
+async function known(tx: Executor, id: string) {
+  const [attempt] = await tx.select().from(profileAttempts).where(eq(profileAttempts.id, id));
+  if (!attempt) throw new Error("Unknown attempt");
+  return attempt;
 }
 export async function cancelRun(client: Executor, runId: string) {
   await client.update(profileRuns).set({ state: "cancelled" }).where(and(or(eq(profileRuns.id, runId), eq(profileRuns.owner, runId)), eq(profileRuns.state, "running")));

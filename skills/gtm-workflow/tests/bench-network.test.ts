@@ -3,6 +3,7 @@
 // GTM_BENCH_PEOPLE sets the list size (500 by default); the fixture keeps five people per company.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import pg from "pg";
 import { db as appDatabase, closeDb } from "../templates/lib/db";
 import { testDatabase } from "./db";
 import { prepareNetwork, beginItem, acceptItem, collectCompanies, type NetworkPerson } from "../templates/lib/profiles/network";
@@ -72,9 +73,17 @@ async function transactions(database: Awaited<ReturnType<typeof testDatabase>>) 
   return Number(rows[0].n);
 }
 
-type Phase = { items: number; seconds: number; transactions: number };
+/** Every query the app's pool sends is one round trip to the database: on Neon each costs a millisecond or two. */
+let roundTrips = 0;
+const originalQuery = pg.Client.prototype.query;
+(pg.Client.prototype as any).query = function (this: pg.Client, ...args: unknown[]) {
+  roundTrips += 1;
+  return (originalQuery as any).apply(this, args);
+};
+
+type Phase = { items: number; seconds: number; transactions: number; roundTrips: number };
 const perSecond = (p: Phase) => (p.items / p.seconds).toFixed(1);
-const perItem = (p: Phase) => (p.transactions / p.items).toFixed(2);
+const perItem = (p: Phase) => `${(p.transactions / p.items).toFixed(2)} tx/item, ${(p.roundTrips / p.items).toFixed(1)} round trips/item`;
 
 async function run(workers: number) {
   const database = await testDatabase();
@@ -89,6 +98,7 @@ async function run(workers: number) {
       await closeDb();
       const before = await transactions(database);
       const client = appDatabase();
+      const trips = roundTrips;
       const started = Date.now();
       let next = 0;
       const worker = async () => {
@@ -100,8 +110,9 @@ async function run(workers: number) {
       };
       await Promise.all(Array.from({ length: Math.min(workers, items.length) }, worker));
       const seconds = (Date.now() - started) / 1000;
+      const sent = roundTrips - trips;
       await closeDb();
-      return { items: items.length, seconds, transactions: (await transactions(database)) - before };
+      return { items: items.length, seconds, transactions: (await transactions(database)) - before, roundTrips: sent };
     };
     const people = await phase("people", prepared.people);
     const collected = await collectCompanies(appDatabase(), prepared.lease, prepared.people);
@@ -112,11 +123,11 @@ async function run(workers: number) {
     assert.equal(summary.state, "complete");
     assert.equal(summary.outcomes.find((o) => o.phase === "people" && o.state === "done")?.count, PEOPLE);
     assert.equal(summary.outcomes.find((o) => o.phase === "companies" && o.state === "done")?.count, COMPANIES);
-    const all: Phase = { items: people.items + companies.items, seconds: people.seconds + companies.seconds, transactions: people.transactions + companies.transactions };
+    const all: Phase = { items: people.items + companies.items, seconds: people.seconds + companies.seconds, transactions: people.transactions + companies.transactions, roundTrips: people.roundTrips + companies.roundTrips };
     console.log(
-      `bench-network workers=${workers}: people ${people.items} in ${people.seconds.toFixed(1)}s (${perSecond(people)}/s, ${perItem(people)} tx/item); ` +
-        `companies ${companies.items} in ${companies.seconds.toFixed(1)}s (${perSecond(companies)}/s, ${perItem(companies)} tx/item); ` +
-        `all ${all.items} in ${all.seconds.toFixed(1)}s (${perSecond(all)}/s, ${perItem(all)} tx/item)`,
+      `bench-network workers=${workers}: people ${people.items} in ${people.seconds.toFixed(1)}s (${perSecond(people)}/s, ${perItem(people)}); ` +
+        `companies ${companies.items} in ${companies.seconds.toFixed(1)}s (${perSecond(companies)}/s, ${perItem(companies)}); ` +
+        `all ${all.items} in ${all.seconds.toFixed(1)}s (${perSecond(all)}/s, ${perItem(all)})`,
     );
   } finally {
     restore();

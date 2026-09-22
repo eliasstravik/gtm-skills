@@ -137,7 +137,7 @@ export const blitz: NetworkProvider = {
     if (reserved.status === "existing") {
       const a = reserved.attempt;
       if (a.state === "settled" && a.response_json)
-        return { state: "ready", attemptId: a.id, run: a.response_json as ProviderRun };
+        return { state: "ready", attemptId: a.id, run: a.response_json as ProviderRun, createdAt: a.created_at };
       return { state: "uncertain" };
     }
     if (reserved.status !== "dispatched") return { state: reserved.status };
@@ -153,9 +153,9 @@ export const blitz: NetworkProvider = {
       providerResponse: { httpStatus: result.status },
       cost: { value: 0, currency: "USD", unit: "USD" },
     };
-    if (options.deferSettle) return { state: "ready", attemptId: reserved.id, run, settlement: { costUsd: 0 } };
+    if (options.deferSettle) return { state: "ready", attemptId: reserved.id, run, settlement: { costUsd: 0 }, createdAt: reserved.createdAt };
     await settle(client, reserved.id, 0, run);
-    return { state: "ready", attemptId: reserved.id, run };
+    return { state: "ready", attemptId: reserved.id, run, createdAt: reserved.createdAt };
   },
   normalize(phase, run, { fetchedAt }) {
     return normalizeBlitz(

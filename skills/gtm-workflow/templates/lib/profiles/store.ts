@@ -217,8 +217,9 @@ async function resolve(
   now: string,
   create = true,
   targetKey?: string,
+  options: { deferWrite?: boolean } = {},
 ): Promise<
-  | { status: "resolved"; profile: Profile }
+  | { status: "resolved"; profile: Profile; written: boolean }
   | { status: "unresolved" | "ambiguous" }
 > {
   const { identity, domainEvidence } = normalizeIdentity(entity, supplied);
@@ -227,17 +228,21 @@ async function resolve(
   await lockNames(tx, identityLockNames(entity, supplied));
   const entries = Object.entries(identity);
   const t = tableOf(entity);
+  const ownerOf = and(eq(profileIdentifiers.entity, entity), or(...entries.map(([namespace, value]) => and(eq(profileIdentifiers.namespace, namespace), eq(profileIdentifiers.value, value)))));
   let profiles: Profile[] = [];
+  let known: (typeof profileIdentifiers.$inferSelect)[] = [];
   for (let round = 0; ; round += 1) {
-    // Whoever owns any supplied identifier is a candidate, and so is a company with the same domain and name.
-    const owners = entries.length
+    // Whoever owns any supplied identifier is a candidate, and so is a company with the same domain and name. One query
+    // brings every identifier of every owner, which is what the checks below need.
+    known = entries.length
       ? await tx
-          .select({ key: profileIdentifiers.key })
+          .select()
           .from(profileIdentifiers)
-          .where(and(eq(profileIdentifiers.entity, entity), or(...entries.map(([namespace, value]) => and(eq(profileIdentifiers.namespace, namespace), eq(profileIdentifiers.value, value))))))
+          .where(and(eq(profileIdentifiers.entity, entity), inArray(profileIdentifiers.key, tx.select({ key: profileIdentifiers.key }).from(profileIdentifiers).where(ownerOf))))
       : [];
+    const owners = new Set(known.filter((row) => entries.some(([namespace, value]) => row.namespace === namespace && row.value === value)).map((row) => row.key));
     const matches: SQL[] = [];
-    const candidateKeys = [...new Set([...owners.map((owner) => owner.key), ...(targetKey ? [targetKey] : [])])];
+    const candidateKeys = [...new Set([...owners, ...(targetKey ? [targetKey] : [])])];
     if (candidateKeys.length) matches.push(inArray(t.key, candidateKeys));
     if (domainEvidence) matches.push(and(eq(companies.domain, supplied.domain!), eq(companies.name, supplied.name!))!);
     // No match must mean no rows: an empty or() would select the whole table.
@@ -245,9 +250,9 @@ async function resolve(
     // An identifier changes owner only when its record is merged away, so present candidates mean stable owners.
     if (candidateKeys.every((key) => profiles.some((p) => p.key === key)) || round >= 3) break;
   }
-  const known = profiles.length
-    ? await tx.select().from(profileIdentifiers).where(and(eq(profileIdentifiers.entity, entity), inArray(profileIdentifiers.key, profiles.map((p) => p.key))))
-    : [];
+  // The target record and a domain-and-name match were not found through their identifiers; fetch those too.
+  const uncovered = profiles.map((p) => p.key).filter((key) => !known.some((row) => row.key === key));
+  if (uncovered.length) known = [...known, ...(await tx.select().from(profileIdentifiers).where(and(eq(profileIdentifiers.entity, entity), inArray(profileIdentifiers.key, uncovered))))];
   const aliasesOf = (key: string) => known.filter((alias) => alias.key === key);
   const strong = identityFields[entity].filter((f) => f !== "linkedin_url");
   // Domain/name evidence cannot bridge incompatible platform URLs. A refresh
@@ -364,7 +369,9 @@ async function resolve(
     profile.domain ??= supplied.domain;
     profile.name ??= supplied.name;
   }
-  await write(tx, entity, profile, profiles.length === 1 ? previous : undefined);
+  // A caller that will write the record itself in this transaction can leave the row to that write; a new record or a merge is always written here.
+  const written = !(options.deferWrite && profiles.length === 1);
+  if (written) await write(tx, entity, profile, profiles.length === 1 ? previous : undefined);
   // Same transaction as the record. Supplied values first, so a changed slug stays an identifier next to the record's own columns.
   await claim(
     tx,
@@ -376,7 +383,7 @@ async function resolve(
     ],
     profiles.length === 1 ? known : [],
   );
-  return { status: "resolved", profile };
+  return { status: "resolved", profile, written };
 }
 /** Deleting a record deletes its identifiers in the same transaction; afterwards they resolve to a new record. */
 export async function deleteProfile(db: Executor, entity: Entity, key: string) {
@@ -518,6 +525,7 @@ export async function applyEvidence(
   entity: Entity,
   key: string,
   evidence: Evidence,
+  options: { /** The record as already read, unlocked, by the caller; saves the read that gathers the lock names. */ known?: Profile } = {},
 ) {
   validateFields(entity, evidence.fields);
   if (Object.keys(evidence.fields).some((k) => OPERATIONAL.includes(k)))
@@ -525,7 +533,7 @@ export async function applyEvidence(
   return transaction(client, async (tx) => {
     // Every identifier this application may claim, locked in one batch before any row: the record's own, the evidence's,
     // and those of each role's company. Row locks then never wait in a cycle.
-    const unlocked = await getProfile(tx, entity, key);
+    const unlocked = options.known ?? (await getProfile(tx, entity, key));
     if (!unlocked) throw new Error("Profile not found");
     const own = Object.fromEntries(identityFields[entity].filter((f) => unlocked[f]).map((f) => [f, unlocked[f]])) as Identity;
     const supplied = Object.fromEntries(identityFields[entity].filter((f) => evidence.fields[f] != null).map((f) => [f, evidence.fields[f]])) as Identity;
@@ -571,11 +579,12 @@ export async function applyEvidence(
           evidence.fetched_at,
           true,
           profile.key,
+          { deferWrite: true },
         );
         if (result.status === "ambiguous") outcome = "ambiguous";
         else if (result.status === "resolved") {
-          // The resolution wrote the record (or a merged survivor); what it returned is the row as it now stands.
-          previous = result.profile;
+          // Written (a merge): the row as it now stands. Deferred: the identity columns join the write at the end.
+          if (result.written) previous = result.profile;
           profile = { ...result.profile };
         }
       }

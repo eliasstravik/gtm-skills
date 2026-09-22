@@ -3,7 +3,7 @@ import { cache as cacheTable } from "./schema/cache";
 import { defineHook, getWorkflowMetadata, setAttributes } from "workflow";
 import { resumeHook, start } from "workflow/api";
 import { z } from "zod";
-import { db, table, upsert, type TableName } from "./db";
+import { db, table, upsert, type Executor, type TableName } from "./db";
 import { canNotify, notify, type SlackTarget } from "./notify";
 import { rowFailure } from "./failure";
 
@@ -57,6 +57,24 @@ export async function saveRow(
   );
 }
 
+/**
+ * Persist several rows in one step: one hop of the workflow engine (about 2.5 s hosted) for a group of rows instead of
+ * one per row. Rows with the same columns go in one statement; a failed row (key, error, cost) is its own shape.
+ */
+export async function saveRows(
+  tableName: TableName,
+  rows: Record<string, unknown>[],
+): Promise<void> {
+  "use step";
+  const now = new Date();
+  const shapes = new Map<string, Record<string, unknown>[]>();
+  for (const row of rows) {
+    const shape = Object.keys(row).sort().join(",");
+    shapes.set(shape, [...(shapes.get(shape) ?? []), { ...row, updated_at: now }]);
+  }
+  for (const group of shapes.values()) await upsert(tableName, group, ["key"]);
+}
+
 /** A workflow's input: rows plus the caps; `notify` is the channel this run posts in, top-level, when the caller overrides the workflow's own; `parent` is set only on a child started by fanOut. */
 export type RowsInput = {
   rows?: Row[];
@@ -88,12 +106,15 @@ export type RunRowsOptions = {
   /** Plain async function in workflow scope; awaits "use step" functions and returns { ...columns, costUsd }. */
   step: (row: Row) => Promise<StepResult>;
   read?: typeof readFresh;
+  /** Given, it is called once per row; otherwise rows are saved in groups of `saveEvery` through saveRows. */
   save?: typeof saveRow;
   /** Counts attempted rows after freshness skipping. */
   maxRows: number;
   maxSpendUsd: number;
   estimateUsd: number;
   concurrency?: number;
+  /** How many finished rows share one save step (default 10). The engine replays finished steps, so a crash before a save loses nothing. */
+  saveEvery?: number;
   freshForMs: number;
   /**
    * Large lists: above chunkSize rows, this run only splits the list and starts one child run of the same workflow per
@@ -122,8 +143,17 @@ const childHook = defineHook({
 export async function runRows(o: RunRowsOptions): Promise<RunResult> {
   await tagRun(o);
   const read = o.read ?? readFresh;
-  const save = o.save ?? saveRow;
   const concurrency = o.concurrency ?? 1;
+  const saveEvery = Math.max(1, o.saveEvery ?? 10);
+  // Finished rows wait here for the group's save step; a custom save is still called once per row.
+  let unsaved: Record<string, unknown>[] = [];
+  const flush = async () => {
+    const rows = unsaved;
+    unsaved = [];
+    if (!rows.length) return;
+    if (o.save) for (const row of rows) await o.save(o.table, row);
+    else await saveRows(o.table, rows);
+  };
   const fresh = new Set(
     await read(
       o.table,
@@ -169,7 +199,7 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
       batch.map(async (row) => {
         try {
           const { costUsd, ...columns } = await o.step(row);
-          await save(o.table, {
+          unsaved.push({
             ...columns,
             key: row.key,
             cost_usd: costUsd,
@@ -184,7 +214,7 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
           return costUsd;
         } catch (error) {
           // A failed row is charged its estimate: it may have paid before it threw, so the cap never undercounts.
-          await save(o.table, {
+          unsaved.push({
             key: row.key,
             error: rowFailure(error, getWorkflowMetadata().workflowRunId),
             cost_usd: o.estimateUsd,
@@ -202,7 +232,9 @@ export async function runRows(o: RunRowsOptions): Promise<RunResult> {
         result.spentUsd += o.estimateUsd;
       }
     }
+    if (unsaved.length >= saveEvery) await flush();
   }
+  await flush();
   if (o.notify?.every === "chunk" && lines.length > 0)
     await post(o.notify.target, clip(lines));
   if (o.notify?.every === "run" && !isChild)
@@ -306,19 +338,17 @@ async function fanOut(o: RunRowsOptions, pending: Row[]): Promise<RunResult> {
     const hooks = waveChunks.map((_, j) =>
       childHook.create({ token: `${workflowRunId}:chunk:${wave + j}` }),
     );
-    const children = await Promise.all(
-      waveChunks.map((chunk, j) =>
-        startChild(workflowId, {
-          ...input,
-          rows: chunk,
-          maxRows: chunk.length,
-          maxSpendUsd: round(chunk.length * o.estimateUsd),
-          parent: `${workflowRunId}:chunk:${wave + j}`,
-        }),
-      ),
+    // One step starts the wave's children and records them: the cancel route reads that list and cancels them with the parent.
+    await startChildren(
+      workflowId,
+      waveChunks.map((chunk, j) => ({
+        ...input,
+        rows: chunk,
+        maxRows: chunk.length,
+        maxSpendUsd: round(chunk.length * o.estimateUsd),
+        parent: `${workflowRunId}:chunk:${wave + j}`,
+      })),
     );
-    // The cancel route reads this list and cancels the children with the parent.
-    await recordChildren(workflowRunId, children);
     for (const r of await Promise.all(hooks)) {
       total.done += r.done;
       total.failed += r.failed;
@@ -329,10 +359,11 @@ async function fanOut(o: RunRowsOptions, pending: Row[]): Promise<RunResult> {
   return total;
 }
 
-async function startChild(
+/** Starts a wave of child runs and records their ids, in one step. */
+async function startChildren(
   workflowId: string,
-  input: RowsInput,
-): Promise<string> {
+  inputs: RowsInput[],
+): Promise<string[]> {
   "use step";
   const { getWorld } = await import("workflow/runtime");
   const parentId = getWorkflowMetadata().workflowRunId;
@@ -344,22 +375,30 @@ async function startChild(
       key.startsWith("gtm.viewer."),
     ),
   );
-  const run = await start({ workflowId }, [input] as never, {
-    attributes: { ...attributes, "gtm.viewer.parent": parentId },
-  });
-  return run.runId;
+  const runIds: string[] = [];
+  for (const input of inputs) {
+    const run = await start({ workflowId }, [input] as never, {
+      attributes: { ...attributes, "gtm.viewer.parent": parentId },
+    });
+    runIds.push(run.runId);
+  }
+  await recordChildren(db(), parentId, runIds);
+  return runIds;
 }
 
-/** Appends child run ids to the parent's record in the cache table, under the name `children`, kept 30 days. */
-async function recordChildren(
+/**
+ * Appends child run ids to the parent's record in the cache table, under the name `children`, kept 30 days. Takes the
+ * database as a parameter: a module a workflow imports may reach the database only inside a step body.
+ */
+export async function recordChildren(
+  client: Executor,
   parentRunId: string,
   runIds: string[],
 ): Promise<void> {
-  "use step";
   const now = new Date();
   // One atomic append, so two steps recording at once cannot lose each other's ids. A retried step may append
   // the same ids twice; listChildren removes duplicates when it reads.
-  await db()
+  await client
     .insert(cacheTable)
     .values({
       name: "children",

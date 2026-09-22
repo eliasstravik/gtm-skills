@@ -52,6 +52,7 @@ try {
     "profiles",
     "store",
     "blitz",
+    "network-workflow",
     "rows-cache",
     "business",
     "linked-data",
@@ -81,7 +82,7 @@ try {
       packages: "external",
       tsconfigRaw: { compilerOptions: {} },
       plugins: [templateScripts],
-      ...(["reliability", "rows-cache"].includes(name)
+      ...(["reliability", "rows-cache", "network-workflow"].includes(name)
         ? {
             plugins: [
               templateScripts,

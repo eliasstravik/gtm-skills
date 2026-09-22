@@ -143,7 +143,7 @@ export async function maximumCharge(
 }
 export type LookupResult =
   /** `settlement` present: the response is not settled yet; the caller settles it with that cost in its own transaction. */
-  | { state: "ready"; attemptId: string; run: ProviderRun; settlement?: { costUsd: number | null } }
+  | { state: "ready"; attemptId: string; run: ProviderRun; settlement?: { costUsd: number | null }; createdAt?: Date }
   | { state: "pending"; attemptId: string; jobId: string }
   | { state: "uncertain" | "budget_deferred" | "unknown_price" | "unresolved" };
 /** Returns promptly for async providers. Poll from a separate durable workflow step. */
@@ -172,6 +172,7 @@ export async function startLookup(
         state: "ready",
         attemptId: a.id,
         run: a.response_json as never,
+        createdAt: a.created_at,
       };
     if (a.job_id)
       return {
@@ -213,9 +214,9 @@ export async function startLookup(
     layer = "step";
     if (run.runId) await saveJob(client, reserved.id, run.runId);
     if (terminal(run)) {
-      if (options.deferSettle) return { state: "ready", attemptId: reserved.id, run, settlement: { costUsd: actualCost(run) } };
+      if (options.deferSettle) return { state: "ready", attemptId: reserved.id, run, settlement: { costUsd: actualCost(run) }, createdAt: reserved.createdAt };
       await settle(client, reserved.id, actualCost(run), run);
-      return { state: "ready", attemptId: reserved.id, run };
+      return { state: "ready", attemptId: reserved.id, run, createdAt: reserved.createdAt };
     }
     if (run.runId)
       return { state: "pending", attemptId: reserved.id, jobId: run.runId };

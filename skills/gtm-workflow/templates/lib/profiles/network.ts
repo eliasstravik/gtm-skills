@@ -328,8 +328,8 @@ export async function acceptItem(
   return transaction(client, async (tx) => {
     const cost = result.settlement ? result.settlement.costUsd : adapter.cost(result.run);
     // Use the original persisted observation time when a completed response replays.
-    const [attempt] = await tx.select({ created_at: profileAttempts.created_at }).from(profileAttempts).where(eq(profileAttempts.id, result.attemptId));
-    const fetchedAt = (attempt?.created_at ?? new Date()).toISOString();
+    const createdAt = result.createdAt ?? (await tx.select({ created_at: profileAttempts.created_at }).from(profileAttempts).where(eq(profileAttempts.id, result.attemptId)))[0]?.created_at;
+    const fetchedAt = (createdAt ?? new Date()).toISOString();
     let profileKey =
       person?.personKey ?? (phase === "companies" ? key : undefined);
     const existing = profileKey
@@ -362,7 +362,7 @@ export async function acceptItem(
     }
     let outcome: WorkState = e.outcome === "success" ? "done" : e.outcome;
     if (profileKey) {
-      const profile = await applyEvidence(tx, phase, profileKey, e);
+      const profile = await applyEvidence(tx, phase, profileKey, e, { known: existing?.key === profileKey ? existing : undefined });
       if (profile.enrichment_status === "ambiguous") outcome = "ambiguous";
       if (person)
         await tx.update(profileInputs).set({ person_key: profile.key }).where(inputOf(person.source.workflow_id, person));
