@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { closeDb, db, writeLock, writeTransaction } from "../templates/lib/db";
 import { readData, type WorkflowData } from "../templates/lib/data-api";
 import { companies, people } from "../templates/lib/profiles/schema";
-import { applyEvidence, deleteProfile, getProfile, resolveIdentity, type Evidence } from "../templates/lib/profiles/store";
+import { applyEvidence, deleteProfile, getProfile, markUnresolved, resolveIdentity, type Evidence } from "../templates/lib/profiles/store";
 import { testDatabase } from "./db";
 
 after(closeDb);
@@ -169,4 +169,15 @@ test("membership and company population from SQL equal a recompute from the stor
   assert.deepEqual(orphans.rows, []);
   const unowned = await db().execute("SELECT p.key FROM gtm.people p WHERE p.linkedin_url IS NOT NULL AND NOT EXISTS (SELECT 1 FROM gtm.profile_identifiers i WHERE i.entity = 'people' AND i.namespace = 'linkedin_url' AND i.value = p.linkedin_url AND i.key = p.key)");
   assert.deepEqual(unowned.rows, []);
+});
+
+test("markUnresolved records a terminal state without provider evidence", async () => {
+  await testDatabase();
+  const company = await resolved("companies", { linkedin_url: "https://www.linkedin.com/company/unresolved-example" }, source("a", "1"));
+  await markUnresolved(db(), "companies", company.key, "No usable LinkedIn URL or domain");
+  const profile = await getProfile(db(), "companies", company.key);
+  assert.equal(profile?.enrichment_status, "unresolved");
+  assert.equal(profile?.error, "No usable LinkedIn URL or domain");
+  assert.ok(profile?.last_attempt_at);
+  await markUnresolved(db(), "companies", "missing-key", "ignored"); // a missing profile is a no-op
 });

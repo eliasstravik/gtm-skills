@@ -306,6 +306,24 @@ export async function deleteProfile(db: Executor, entity: Entity, key: string) {
     await tx.delete(t).where(eq(t.key, key));
   });
 }
+/** Mark a profile as resolved to a terminal non-match state without a provider response. */
+export async function markUnresolved(
+  client: Executor,
+  entity: Entity,
+  key: string,
+  reason: string,
+) {
+  return transaction(client, async (tx) => {
+    const profile = await getProfile(tx, entity, key);
+    if (!profile) return;
+    const now = new Date();
+    profile.enrichment_status = "unresolved";
+    profile.error = reason;
+    profile.last_attempt_at = now;
+    profile.updated_at = now;
+    await write(tx, entity, profile);
+  });
+}
 export async function resolveIdentity(
   client: Executor,
   entity: Entity,
