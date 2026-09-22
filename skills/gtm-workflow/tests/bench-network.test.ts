@@ -1,6 +1,7 @@
 // Throughput of the write path: a network enrichment of fixture people and their companies through a stubbed provider
 // against the test Postgres. Prints items per second and transactions per item with 12 workers and with 1.
-// GTM_BENCH_PEOPLE sets the list size (500 by default); the fixture keeps five people per company.
+// GTM_BENCH_PEOPLE sets the list size (500 by default); the fixture keeps five people per company. GTM_BENCH_LATENCY_MS adds
+// network latency to every round trip, to see the run as Neon would.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import pg from "pg";
@@ -73,17 +74,23 @@ async function transactions(database: Awaited<ReturnType<typeof testDatabase>>) 
   return Number(rows[0].n);
 }
 
-/** Every query the app's pool sends is one round trip to the database: on Neon each costs a millisecond or two. */
+/**
+ * Every query the app's pool sends is one round trip to the database: on Neon each costs a millisecond or two, which
+ * GTM_BENCH_LATENCY_MS adds to every query here to show the hosted shape of the run (0 by default).
+ */
 let roundTrips = 0;
+const LATENCY_MS = Number(process.env.GTM_BENCH_LATENCY_MS) || 0;
 const originalQuery = pg.Client.prototype.query;
 (pg.Client.prototype as any).query = function (this: pg.Client, ...args: unknown[]) {
   roundTrips += 1;
-  return (originalQuery as any).apply(this, args);
+  if (!LATENCY_MS) return (originalQuery as any).apply(this, args);
+  return new Promise((resolve) => setTimeout(resolve, LATENCY_MS)).then(() => (originalQuery as any).apply(this, args));
 };
 
-type Phase = { items: number; seconds: number; transactions: number; roundTrips: number };
+type Phase = { items: number; seconds: number; transactions: number; roundTrips: number; cpuSeconds: number };
 const perSecond = (p: Phase) => (p.items / p.seconds).toFixed(1);
-const perItem = (p: Phase) => `${(p.transactions / p.items).toFixed(2)} tx/item, ${(p.roundTrips / p.items).toFixed(1)} round trips/item`;
+/** Node CPU time of this process over the phase: when it approaches the wall time, the one event loop is the limit, not the database. */
+const perItem = (p: Phase) => `${(p.transactions / p.items).toFixed(2)} tx/item, ${(p.roundTrips / p.items).toFixed(1)} round trips/item, ${((p.cpuSeconds / p.items) * 1000).toFixed(1)} ms node CPU/item`;
 
 async function run(workers: number) {
   const database = await testDatabase();
@@ -99,6 +106,7 @@ async function run(workers: number) {
       const before = await transactions(database);
       const client = appDatabase();
       const trips = roundTrips;
+      const cpu = process.cpuUsage();
       const started = Date.now();
       let next = 0;
       const worker = async () => {
@@ -110,9 +118,10 @@ async function run(workers: number) {
       };
       await Promise.all(Array.from({ length: Math.min(workers, items.length) }, worker));
       const seconds = (Date.now() - started) / 1000;
+      const used = process.cpuUsage(cpu);
       const sent = roundTrips - trips;
       await closeDb();
-      return { items: items.length, seconds, transactions: (await transactions(database)) - before, roundTrips: sent };
+      return { items: items.length, seconds, transactions: (await transactions(database)) - before, roundTrips: sent, cpuSeconds: (used.user + used.system) / 1e6 };
     };
     const people = await phase("people", prepared.people);
     const collected = await collectCompanies(appDatabase(), prepared.lease, prepared.people);
@@ -123,7 +132,7 @@ async function run(workers: number) {
     assert.equal(summary.state, "complete");
     assert.equal(summary.outcomes.find((o) => o.phase === "people" && o.state === "done")?.count, PEOPLE);
     assert.equal(summary.outcomes.find((o) => o.phase === "companies" && o.state === "done")?.count, COMPANIES);
-    const all: Phase = { items: people.items + companies.items, seconds: people.seconds + companies.seconds, transactions: people.transactions + companies.transactions, roundTrips: people.roundTrips + companies.roundTrips };
+    const all: Phase = { items: people.items + companies.items, seconds: people.seconds + companies.seconds, transactions: people.transactions + companies.transactions, roundTrips: people.roundTrips + companies.roundTrips, cpuSeconds: people.cpuSeconds + companies.cpuSeconds };
     console.log(
       `bench-network workers=${workers}: people ${people.items} in ${people.seconds.toFixed(1)}s (${perSecond(people)}/s, ${perItem(people)}); ` +
         `companies ${companies.items} in ${companies.seconds.toFixed(1)}s (${perSecond(companies)}/s, ${perItem(companies)}); ` +

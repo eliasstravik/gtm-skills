@@ -135,18 +135,21 @@ const same = (a: unknown, b: unknown) => {
  */
 async function write(db: Executor, entity: Entity, profile: Profile, previous?: Profile) {
   const fields = fieldsFor(entity);
-  const values = stripNul(Object.fromEntries(Object.entries(profile).map(([key, value]) => [key, value != null && fields[key] === "TIME" ? new Date(value) : (value ?? null)])));
-  validateFields(entity, values);
+  const values = Object.fromEntries(Object.entries(profile).map(([key, value]) => [key, value != null && fields[key] === "TIME" ? new Date(value) : (value ?? null)]));
   const t = tableOf(entity);
   if (!previous || previous.key !== values.key) {
+    const row = stripNul(values);
+    validateFields(entity, row);
     await db
       .insert(t)
-      .values(values as never)
-      .onConflictDoUpdate({ target: t.key, set: Object.fromEntries(Object.keys(values).filter((key) => key !== "key").map((key) => [key, sql.raw(`excluded."${key}"`)])) });
+      .values(row as never)
+      .onConflictDoUpdate({ target: t.key, set: Object.fromEntries(Object.keys(row).filter((key) => key !== "key").map((key) => [key, sql.raw(`excluded."${key}"`)])) });
     return;
   }
-  const changed = Object.fromEntries(Object.entries(values).filter(([key, value]) => key !== "key" && !same(value, previous[key])));
+  // Only the changed columns are cleaned, validated and sent.
+  const changed = stripNul(Object.fromEntries(Object.entries(values).filter(([key, value]) => key !== "key" && !same(value, previous[key]))));
   if (!Object.keys(changed).some((key) => key !== "updated_at")) return;
+  validateFields(entity, changed);
   await db.update(t).set(changed as never).where(eq(t.key, values.key));
 }
 type Claim = { namespace: string; value: string; observed_at?: string | Date | null };

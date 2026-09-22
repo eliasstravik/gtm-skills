@@ -8,7 +8,7 @@ import pg from "pg";
 import { localDatabaseUrl } from "./local-database.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const MIGRATE_LOCK_KEY = 7462; // 7461 is the app's write lock
+const MIGRATE_LOCK_KEY = 7462; // the app locks by hashed names, never by this number
 const CONNECT_NEON = "No DATABASE_URL: connect Neon to this project through the Vercel integration";
 
 /** Migrations only add; a backfill is a migration; nothing that scans a table runs on every build. */

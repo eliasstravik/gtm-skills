@@ -52,7 +52,9 @@ if (!reply) throw new Error("No reply within a day");
 
 ## Child runs
 
-Every workflow passes `fanOut` to `runRows` with its own function: above `chunkSize` rows the run splits the list into child runs of itself, four at a time, each with its exact share of the caps, and adds up their totals. Nothing else to write; the parent is one run with one result. Diagram: the loop's closing node says `more than 100 rows run as child runs`.
+Every workflow passes `fanOut` to `runRows` with its own function: above `chunkSize` rows the run splits the list into child runs of itself, four at a time, each with its exact share of the caps, and adds up their totals. Each wave of children starts in one step, and inside a child finished rows are saved ten to a step: a hosted step boundary costs about 2.5 seconds, so the runtime pays it per group, never per row. Nothing else to write; the parent is one run with one result. Diagram: the loop's closing node says `more than 100 rows run as child runs`.
+
+A network enrichment workflow is one call instead: `runNetwork({ workflow, workflowId, input, apiKeyVariable, defaults })` from `lib/profiles/network-workflow.ts` imports, enriches people in chunks of 100 as child runs four at a time, collects the current companies, enriches them the same way, and returns the run summary; every child works under the parent's run, lease and budget. See the shared profiles reference.
 
 ```ts
 return runRows({
