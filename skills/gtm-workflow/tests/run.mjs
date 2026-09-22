@@ -66,6 +66,7 @@ try {
     "connections-management",
     "connections-platform",
     "connections-apply",
+    "read-budgets",
     "bench-network",
   ];
   // --only <suite> (repeatable) runs a subset while working on one module.

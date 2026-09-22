@@ -215,15 +215,17 @@ test("partial, null, no-match and failed refreshes preserve accepted values; com
     ),
     fetched_at: "2026-09-02T00:00:00Z",
   });
-  assert.equal(partial.full_name, "Original");
+  // applyEvidence returns the columns it read and wrote, not the whole record: the untouched columns are checked as stored.
+  assert.equal(partial.enrichment_status, "partial");
   assert.equal(partial.education_json.length, 1);
+  assert.equal((await getProfile(db, "people", key))?.full_name, "Original");
   const failure = await applyEvidence(db, "people", key, {
     ...evidence({}),
     outcome: "no_match",
     fetched_at: "2026-09-03T00:00:00Z",
   });
   assert.equal(failure.enriched_at.toISOString(), "2026-09-02T00:00:00.000Z");
-  assert.equal(failure.education_json.length, 1);
+  assert.equal((await getProfile(db, "people", key))?.education_json.length, 1);
   assert.ok(
     recentMiss(
       failure,

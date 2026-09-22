@@ -25,6 +25,7 @@ import {
 } from "./ledger";
 import type { LookupResult } from "./provider";
 import { provider as networkProvider, type ProviderName } from "./providers";
+import { identityFields } from "./identifiers.mjs";
 
 export type NetworkInput = {
   rows?: Record<string, unknown>[];
@@ -250,8 +251,9 @@ export async function beginItem(
     return { state: "reused" };
   const profileKey =
     person?.personKey ?? (phase === "companies" ? key : undefined);
+  // What the lookup plan and the freshness check read: the columns the plan is made from, when the record was enriched, and the response envelopes without their payloads.
   const profile = profileKey
-    ? await getProfile(client, phase, profileKey)
+    ? await getProfile(client, phase, profileKey, { columns: [...(phase === "companies" ? ["domain", "name"] : []), "linkedin_url", "enriched_at", "responses_json"], payloads: false })
     : undefined;
   const adapter = networkProvider(input.provider);
   const plan = adapter.identity(phase, {
@@ -332,8 +334,9 @@ export async function acceptItem(
     const fetchedAt = (createdAt ?? new Date()).toISOString();
     let profileKey =
       person?.personKey ?? (phase === "companies" ? key : undefined);
+    // The identity columns, for the lock names applyEvidence takes, and a company's domain, which the adapter normalizes against.
     const existing = profileKey
-      ? await getProfile(tx, phase, profileKey)
+      ? await getProfile(tx, phase, profileKey, { columns: [...(phase === "companies" ? ["domain"] : []), ...identityFields[phase]] })
       : undefined;
     const e = adapter.normalize(phase, result.run, {
       fetchedAt,

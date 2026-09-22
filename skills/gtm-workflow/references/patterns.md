@@ -240,7 +240,8 @@ import { headcounts } from "../db/tables/headcounts";
 
 async function previous(key: string) {
   "use step";
-  const [row] = await db().select().from(headcounts).where(eq(headcounts.key, key));
+  // The one column the comparison needs; a whole row would carry every column of the table out of the database.
+  const [row] = await db().select({ headcount: headcounts.headcount }).from(headcounts).where(eq(headcounts.key, key));
   return row ?? null;
 }
 
@@ -264,11 +265,10 @@ import { gte } from "drizzle-orm";
 import { db } from "../lib/db";
 import { exampleScores } from "../db/tables/example-scores";
 
-/** Companies that scored 70 or more, as rows for this workflow. */
+/** Companies that scored 70 or more, as rows for this workflow: the filter runs in SQL and only the two columns the rows carry come back. */
 async function companiesToResearch(): Promise<Row[]> {
   "use step";
-  const rows = await db().select().from(exampleScores).where(gte(exampleScores.score, 70));
-  return rows.map((r) => ({ key: r.key, score: r.score }));
+  return db().select({ key: exampleScores.key, score: exampleScores.score }).from(exampleScores).where(gte(exampleScores.score, 70));
 }
 
 export async function findPeople(input: RowsInput) {
@@ -285,3 +285,33 @@ A workflow's slug, its table and column names, and the `name` given to `cached()
 The runtime's own table names are reserved (`cache`, `people`, `companies`, `profile_identifiers`, `profile_runs`, `profile_work`, `profile_attempts`, `profile_inputs`, `gtm_viewer_grants`): name a workflow's table after what the workflow produces, such as `contacts` or `inbound_scores`.
 
 A step that writes its own SQL uses Drizzle's query builder or its `sql` tag, never a hand-built string. A row read through the query builder has `Date` times, `boolean` flags and parsed `jsonb`. In raw `sql` a JavaScript array is never interpolated: a list is `= ANY(${sql.param(list)}::text[])`, a `jsonb` value is `${JSON.stringify(value)}::jsonb`, `count(*)` needs `::int`, and a time read back is text until passed through `toDate` from `lib/db.ts`.
+
+## Reads leave the database once and small
+
+Every byte Postgres sends to the app is Neon data transfer, billed past the plan's allowance ([cost on Neon](local.md#cost-on-neon)). A read names its columns, a count or an aggregate runs in SQL, a step reads what it needs once and keeps it, and no step fetches a table to loop over it in Node. The budgets are in `lib/read-budgets.ts`; `GTM_DB_LOG_READS=1` prints a run's statement shapes with their bytes at exit.
+
+```ts
+import { sql } from "drizzle-orm";
+import { db } from "../lib/db";
+import { contacts } from "../db/tables/contacts";
+
+/** How many contacts each company has, for the companies of one batch: one statement, one small row per company. */
+async function contactCounts(companyKeys: string[]): Promise<Record<string, number>> {
+  "use step";
+  const rows = await db()
+    .select({ company: contacts.company_key, total: sql<number>`count(*)::int` })
+    .from(contacts)
+    .where(sql`${contacts.company_key} = ANY(${sql.param(companyKeys)}::text[])`)
+    .groupBy(contacts.company_key);
+  return Object.fromEntries(rows.map((r) => [r.company, r.total]));
+}
+```
+
+Not this, which fetches every column of every matching contact to count them in memory:
+
+```ts
+const rows = await db().select().from(contacts);
+const counts = rows.filter((r) => companyKeys.includes(r.company_key)).length;
+```
+
+A profile read names its columns the same way: `getProfile(db, "people", key, { columns: ["full_name", "primary_company_key"] })` returns those columns and `key`, typed as `ProfileSlice`, not a whole `Profile`; `getProfiles` takes the same option for a batch. A list the viewer or an agent reads is a page of 25 with the default columns; the record's own metadata (`responses_json`, `provenance_json`, `section_status_json`, `sources_json`) never rides on a list.

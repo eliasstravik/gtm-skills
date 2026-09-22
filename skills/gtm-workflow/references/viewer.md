@@ -81,7 +81,7 @@ Deploy matching private/share contract version 2 together. Mixed versions fail c
 
 ## Read-only data
 
-Data supports bounded server-side search, filter, sort and stable tie-break ordering. CSV includes the full filtered permitted dataset, checks authorization during streaming, escapes values and neutralizes spreadsheet formulas. Export cancellation stops the request. Record values may change during export; it is a live paginated read.
+Data supports bounded server-side search, filter, sort and stable tie-break ordering. A list is a page of 25 rows of the requested columns and a `count(*)`; the record's own metadata (`responses_json`, `provenance_json`, `section_status_json`, `sources_json`) is never on a list or offered for one, and a `defaultColumns` that names one fails validation, because every byte a page carries is Neon data transfer ([bytes out](local.md#bytes-out-of-the-database)). A single record carries every registered column but `responses_json`. CSV includes the full filtered permitted dataset, checks authorization during streaming, escapes values and neutralizes spreadsheet formulas. Export cancellation stops the request. Record values may change during export; it is a live paginated read.
 
 ## Connections navigation
 
