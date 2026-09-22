@@ -84,13 +84,18 @@ export async function profileAgentCall(
         ? await getProfile(client, "people", saved.person_key)
         : undefined;
       const evidence = (
-        Object.values(profile?.raw_responses_json ?? {}) as any[]
+        Object.values(profile?.responses_json ?? {}) as any[]
       )
         .filter(
           (e) => e.provider === "clay" && e.endpoint === "/enrichment/person",
         )
         .sort((a, b) => b.fetched_at.localeCompare(a.fetched_at))[0];
+      // The payload lives on the ledger attempt the envelope points at; an envelope from before attempts were referenced carries it itself.
+      const [attempt] = evidence?.attempt_id
+        ? await client.select({ response_json: profileAttempts.response_json }).from(profileAttempts).where(eq(profileAttempts.id, evidence.attempt_id))
+        : [];
       return (
+        attempt?.response_json ??
         evidence?.raw ?? {
           status: "COMPLETED",
           output: null,

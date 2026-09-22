@@ -1,5 +1,5 @@
-// The ledger and the profile store were written for a database with one writer at a time. Two real processes,
-// each with its own pool, prove the write lock restores it. Run through Neon's pooler in the Neon check.
+// Two real processes, each with its own pool, prove that the per-identifier and per-reservation locks hold across
+// processes: one record per identifier, never more reserved than the budget. Run through Neon's pooler in the Neon check.
 import { test, after, before } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -58,8 +58,8 @@ test("twenty resolutions of the same new person from two processes create one re
 });
 
 test("a burst of 100 writes completes, and its rate is printed", async () => {
-  // Phase 6 reads this number on Neon: every write is several round trips behind one lock, so a burst is serial.
-  // Locally a transaction is about a millisecond; the queue in lib/db.ts is what keeps a slow one from failing others.
+  // Phase 6 reads this number on Neon: every write is several round trips; unrelated writers run in parallel up to the pool.
+  // Locally a transaction is about a millisecond; the semaphore in lib/db.ts keeps a burst from exhausting the pool.
   const started = Date.now();
   const results = await Promise.all(Array.from({ length: 100 }, (_, i) => resolveIdentity(db(), "people", { linkedin_url: `linkedin.com/in/burst-${i}` })));
   const elapsed = Date.now() - started;

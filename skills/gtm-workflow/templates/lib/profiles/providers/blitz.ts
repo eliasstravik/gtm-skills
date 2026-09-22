@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import type { Executor } from "../../db";
-import { dispatch, reserve, settle, uncertain } from "../ledger";
+import { reserveAndDispatch, settle, uncertain } from "../ledger";
 import { normalizeBlitz } from "../normalize";
 import type { ProviderRun } from "../provider";
 import type { LookupOptions, NetworkProvider } from "./index";
@@ -133,15 +133,14 @@ export const blitz: NetworkProvider = {
       body = { company_linkedin_url: url };
     }
     const operation = `${plan.provider}:${plan.endpoint}:${plan.mode}`;
-    const reserved = await reserve(client, lease, entityKey, operation, 0);
+    const reserved = await reserveAndDispatch(client, lease, entityKey, operation, 0);
     if (reserved.status === "existing") {
       const a = reserved.attempt;
       if (a.state === "settled" && a.response_json)
-        return { state: "ready", attemptId: a.id, run: a.response_json as ProviderRun };
+        return { state: "ready", attemptId: a.id, run: a.response_json as ProviderRun, createdAt: a.created_at };
       return { state: "uncertain" };
     }
-    if (reserved.status !== "reserved") return { state: reserved.status };
-    if (!(await dispatch(client, lease, reserved.id))) return { state: "uncertain" };
+    if (reserved.status !== "dispatched") return { state: reserved.status };
     const result = await request(client, plan.endpoint, body, apiKey, rate);
     if ("error" in result) {
       await uncertain(client, reserved.id);
@@ -154,8 +153,9 @@ export const blitz: NetworkProvider = {
       providerResponse: { httpStatus: result.status },
       cost: { value: 0, currency: "USD", unit: "USD" },
     };
+    if (options.deferSettle) return { state: "ready", attemptId: reserved.id, run, settlement: { costUsd: 0 }, createdAt: reserved.createdAt };
     await settle(client, reserved.id, 0, run);
-    return { state: "ready", attemptId: reserved.id, run };
+    return { state: "ready", attemptId: reserved.id, run, createdAt: reserved.createdAt };
   },
   normalize(phase, run, { fetchedAt }) {
     return normalizeBlitz(

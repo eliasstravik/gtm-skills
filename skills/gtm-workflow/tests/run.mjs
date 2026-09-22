@@ -52,6 +52,7 @@ try {
     "profiles",
     "store",
     "blitz",
+    "network-workflow",
     "rows-cache",
     "business",
     "linked-data",
@@ -65,6 +66,7 @@ try {
     "connections-management",
     "connections-platform",
     "connections-apply",
+    "bench-network",
   ];
   // --only <suite> (repeatable) runs a subset while working on one module.
   for (const name of (scratch ? scratchSuites : all).filter((suite) => !flags.only || flags.only.includes(suite))) {
@@ -80,7 +82,7 @@ try {
       packages: "external",
       tsconfigRaw: { compilerOptions: {} },
       plugins: [templateScripts],
-      ...(["reliability", "rows-cache"].includes(name)
+      ...(["reliability", "rows-cache", "network-workflow"].includes(name)
         ? {
             plugins: [
               templateScripts,

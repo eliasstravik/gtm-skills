@@ -60,7 +60,7 @@ These are proposed application fields, not provider claims. Add them to both tab
 | `sources_json` | JSON[] | Source/import/workflow membership, original row key, network owner/kind when supplied, connection date, first and last observation. |
 | `provenance_json` | JSON{} | For each field or section: provider, endpoint, response reference/path, fetched time, provider-updated time if returned, and reported/inferred classification when known. |
 | `section_status_json` | JSON{} | Per section: complete, partial, unsupported, not_requested, unknown, or failed, with returned count and provider total/cursor when available. |
-| `raw_responses_json` | JSON{} | Latest retained response envelope per provider/endpoint/mode, plus the response supporting current values if a later attempt failed or was ambiguous. Includes unmapped fields. No unbounded history or secrets. |
+| `responses_json` | JSON{} | Latest retained response envelope per provider/endpoint/mode, plus the envelope supporting current values if a later attempt failed or was ambiguous: provider, endpoint, mode, outcome, sections, times, cost and the ledger attempt (`attempt_id`) whose `response_json` holds the payload with its unmapped fields. Evidence that no attempt holds keeps its payload in the envelope. No unbounded history or secrets. |
 
 There is no need for a field-level event store at this stage. Keep metadata alongside each profile. If a future multi-provider merge cannot be explained by the retained evidence, preserve the earlier supporting response until those values are replaced.
 
@@ -309,7 +309,7 @@ These are design recommendations derived from the inspected differences, not des
 7. Prefer a full profile endpoint, then preserve every returned field. Do not launch a waterfall solely to fill every null column. Extra provider capabilities and spending remain explicit workflow configuration.
 8. A successful response can still be incomplete. Record provider mode, truncation, and section coverage. “Enriched” describes the lookup outcome, not proof the table contains every fact LinkedIn knows.
 9. Keep source provenance and response evidence available to the owner. Default viewing and exports use normalized fields. Raw responses require deliberate inclusion and should never accidentally broaden a shared viewer's data scope.
-10. Additional provider fields are preserved by `raw_responses_json` immediately. Add a canonical column only after its type and meaning are understood. Store provider classifications separately from reported profile facts.
+10. Additional provider fields are preserved immediately in the ledger attempt's `response_json`, which `responses_json` references. Add a canonical column only after its type and meaning are understood. Store provider classifications separately from reported profile facts.
 
 ## Workflow and viewer consequences
 

@@ -465,7 +465,7 @@ test("shared companies never expose another workflow's population or metadata", 
       shared,
       registry,
       db,
-      new URL("http://test/?table=people&columns=raw_responses_json"),
+      new URL("http://test/?table=people&columns=responses_json"),
     ),
   );
   const safe = await readData(

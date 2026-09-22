@@ -28,13 +28,15 @@ export const monid: NetworkProvider = {
       body: { domains: [subject.domain] },
     };
   },
-  lookup(client, lease, entityKey, plan, apiKey) {
+  lookup(client, lease, entityKey, plan, apiKey, options) {
     return startLookup(
       client,
       lease,
       entityKey,
       { provider: plan.provider, endpoint: plan.endpoint, body: plan.body },
       apiKey,
+      fetch,
+      { deferSettle: options.deferSettle },
     );
   },
   normalize(phase, run, { fetchedAt, existingDomain }) {

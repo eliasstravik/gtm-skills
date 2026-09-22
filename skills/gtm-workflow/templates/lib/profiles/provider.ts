@@ -1,8 +1,7 @@
 import type { Executor } from "../db";
 import { failure, reportFailure, type FailureContext } from "../failure";
 import {
-  reserve,
-  dispatch,
+  reserveAndDispatch,
   saveJob,
   settle,
   uncertain,
@@ -143,7 +142,8 @@ export async function maximumCharge(
   return null;
 }
 export type LookupResult =
-  | { state: "ready"; attemptId: string; run: ProviderRun }
+  /** `settlement` present: the response is not settled yet; the caller settles it with that cost in its own transaction. */
+  | { state: "ready"; attemptId: string; run: ProviderRun; settlement?: { costUsd: number | null }; createdAt?: Date }
   | { state: "pending"; attemptId: string; jobId: string }
   | { state: "uncertain" | "budget_deferred" | "unknown_price" | "unresolved" };
 /** Returns promptly for async providers. Poll from a separate durable workflow step. */
@@ -154,10 +154,12 @@ export async function startLookup(
   operation: ProviderOperation,
   key: string,
   fetcher: typeof fetch = fetch,
+  options: { deferSettle?: boolean } = {},
 ): Promise<LookupResult> {
   const name = `${operation.provider}:${operation.endpoint}:default`;
   const maximum = await maximumCharge(operation, key, fetcher);
-  const reserved = await reserve(client, lease, entityKey, name, maximum);
+  // Price and budget checked, attempt written as dispatched, all committed before the POST.
+  const reserved = await reserveAndDispatch(client, lease, entityKey, name, maximum);
   if (
     reserved.status === "budget_deferred" ||
     reserved.status === "unknown_price"
@@ -170,6 +172,7 @@ export async function startLookup(
         state: "ready",
         attemptId: a.id,
         run: a.response_json as never,
+        createdAt: a.created_at,
       };
     if (a.job_id)
       return {
@@ -180,8 +183,6 @@ export async function startLookup(
     // An interrupted reservation is conservative too: only the original dispatcher owns it.
     return { state: "uncertain" };
   }
-  if (!(await dispatch(client, lease, reserved.id)))
-    return { state: "uncertain" };
   let layer: FailureContext["layer"] = "provider_transport";
   try {
     const response = await fetcher("https://api.monid.ai/v1/run", {
@@ -213,8 +214,9 @@ export async function startLookup(
     layer = "step";
     if (run.runId) await saveJob(client, reserved.id, run.runId);
     if (terminal(run)) {
+      if (options.deferSettle) return { state: "ready", attemptId: reserved.id, run, settlement: { costUsd: actualCost(run) }, createdAt: reserved.createdAt };
       await settle(client, reserved.id, actualCost(run), run);
-      return { state: "ready", attemptId: reserved.id, run };
+      return { state: "ready", attemptId: reserved.id, run, createdAt: reserved.createdAt };
     }
     if (run.runId)
       return { state: "pending", attemptId: reserved.id, jobId: run.runId };

@@ -65,9 +65,9 @@
         "note": "Per section: complete, partial, unsupported, not_requested, unknown, or failed, with returned count and provider total/cursor when available."
       },
       {
-        "name": "raw_responses_json",
+        "name": "responses_json",
         "type": "JSON{}",
-        "note": "Latest retained response envelope per provider/endpoint/mode, plus the response supporting current values if a later attempt failed or was ambiguous. Includes unmapped fields. No unbounded history or secrets."
+        "note": "Latest retained response envelope per provider/endpoint/mode, plus the envelope supporting current values if a later attempt failed or was ambiguous: metadata, sections, outcome and the ledger attempt (attempt_id) whose response_json holds the payload with its unmapped fields. No unbounded history or secrets."
       }
     ],
     "people": [
@@ -1163,7 +1163,7 @@
   },
   "mapping_rules": [
     "Mappings name the storage destination, not a literal copy operation or a tested adapter.",
-    "All original source values remain in raw_responses_json, including alternate values mapped to one canonical field.",
+    "All original source values remain in the ledger attempt's response_json, referenced from responses_json, including alternate values mapped to one canonical field.",
     "Structured sections preserve all nested provider fields in raw responses; canonical nested names are described in the Markdown proposal.",
     "Recommendations carry received/given/unknown direction; ambiguous direction stays unknown.",
     "Company range endpoints additionally populate employee_count_min/max; the label is a read projection.",

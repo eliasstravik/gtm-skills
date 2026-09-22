@@ -5,6 +5,8 @@ import { gtm } from "./gtm";
 /**
  * Shared profiles. System times are timestamptz; registered_at and founded_on stay text because
  * providers send partial dates. Identity lives in profile_identifiers, so the LinkedIn columns are display only.
+ * responses_json keeps one envelope per retained provider response: its metadata, sections and a reference to the
+ * ledger attempt that holds the payload (gtm.profile_attempts.response_json), or the payload itself when there is none.
  */
 export const people = gtm.table(
   "people",
@@ -20,7 +22,7 @@ export const people = gtm.table(
     sources_json: jsonb("sources_json"),
     provenance_json: jsonb("provenance_json"),
     section_status_json: jsonb("section_status_json"),
-    raw_responses_json: jsonb("raw_responses_json"),
+    responses_json: jsonb("responses_json"),
     linkedin_url: text("linkedin_url"),
     linkedin_slug: text("linkedin_slug"),
     linkedin_profile_id: text("linkedin_profile_id"),
@@ -89,10 +91,8 @@ export const people = gtm.table(
     posts_preview_json: jsonb("posts_preview_json"),
     activity_preview_json: jsonb("activity_preview_json"),
   },
-  (table) => [
-    index("people_sources_gin").using("gin", sql`${table.sources_json} jsonb_path_ops`),
-    index("people_experiences_gin").using("gin", sql`${table.experiences_json} jsonb_path_ops`),
-  ],
+  // Membership (`sources_json @> …`) is the viewer's predicate on every list and count; nothing queries experiences_json by containment often enough to index it.
+  (table) => [index("people_sources_gin").using("gin", sql`${table.sources_json} jsonb_path_ops`)],
 );
 
 export const companies = gtm.table(
@@ -109,7 +109,7 @@ export const companies = gtm.table(
     sources_json: jsonb("sources_json"),
     provenance_json: jsonb("provenance_json"),
     section_status_json: jsonb("section_status_json"),
-    raw_responses_json: jsonb("raw_responses_json"),
+    responses_json: jsonb("responses_json"),
     linkedin_url: text("linkedin_url"),
     linkedin_slug: text("linkedin_slug"),
     linkedin_company_id: text("linkedin_company_id"),

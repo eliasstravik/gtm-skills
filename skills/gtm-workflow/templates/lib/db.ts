@@ -10,7 +10,10 @@ export type TableName = keyof typeof tables;
 export type Executor = PgDatabase<NodePgQueryResultHKT, typeof tables, ExtractTablesWithRelations<typeof tables>>;
 
 const CONNECT_TIMEOUT_MS = 10_000; // covers Neon waking from zero
-const WRITE_LOCK_KEY = 7461;
+const POOL_MAX_DEFAULT = 16; // twelve provider workers plus readers; Neon's pooler shares server connections per transaction
+const POOL_MAX_CEILING = 32;
+/** How many write transactions of this process may hold a pooled client at once; the rest wait in memory, so reads always find a client. */
+const READ_RESERVE = 2;
 
 function missingUrl() {
   return new Error(
@@ -22,13 +25,19 @@ function missingUrl() {
 // node-postgres emits "error" for idle clients whose connection drops; an unhandled one kills the process. Never log the URL.
 const logDropped = (error: Error) => console.error(`Database connection dropped: ${error.message}`);
 
+/** GTM_DB_POOL_MAX sizes the pool to the worker count; 16 covers the network workflow's twelve workers with clients to spare for reads. */
+export function poolSize() {
+  const asked = Number(process.env.GTM_DB_POOL_MAX);
+  return Number.isInteger(asked) && asked > 0 ? Math.min(asked, POOL_MAX_CEILING) : POOL_MAX_DEFAULT;
+}
+
 let pool: pg.Pool | undefined;
 let instance: ReturnType<typeof drizzle<typeof tables>> | undefined;
 /** One Postgres at DATABASE_URL, locally and deployed. Nothing connects at import time. Call only inside "use step" functions and route handlers. */
 export function db() {
   if (instance) return instance;
   if (!process.env.DATABASE_URL) throw missingUrl();
-  pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 5, connectionTimeoutMillis: CONNECT_TIMEOUT_MS });
+  pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: poolSize(), connectionTimeoutMillis: CONNECT_TIMEOUT_MS });
   pool.on("error", logDropped);
   if (process.env.VERCEL) attachDatabasePool(pool);
   return (instance = drizzle(pool, { schema: tables }));
@@ -67,40 +76,86 @@ export async function upsert(tableName: TableName, rows: Record<string, unknown>
   await db().insert(t as never).values(rows as never).onConflictDoUpdate({ target: conflictTarget.map((c) => t[c]), set });
 }
 
+const LIMIT = /^\d+(ms|s|min)$/;
+const literal = (text: string) => `'${text.replaceAll("'", "''")}'`;
+/** The lock limit each write transaction was opened with; lockNames applies it in the same round trip as the locks. */
+const limits = new WeakMap<object, string>();
+/** The names a transaction already holds: a repeat within it costs nothing. */
+const held = new WeakMap<object, Set<string>>();
 /**
- * One writer at a time for the profile store and the ledger, which were written for a database with a single writer. Call first in a write
- * transaction. Re-entrant within it, released at commit or rollback. A waiter fails after the limit instead of hanging.
+ * Transaction-scoped advisory locks on names, for the things a write is about to create or move: an identifier value
+ * that two writers might both claim, a reservation that two workers might both make, a run being begun. Records that
+ * already exist are locked by their rows (`SELECT … FOR UPDATE`) instead. Every write transaction starts here, with
+ * all its names in one batch: the names are sorted, so two transactions wanting the same names wait on each other in
+ * one order and never in a cycle. Re-entrant within the transaction, released at commit or rollback. A waiter fails
+ * after the transaction's limit (error code 55P03) instead of hanging on a lock held by a stuck process; the same
+ * limit then covers the transaction's row locks. One round trip; none when the transaction already holds the names.
  */
-export async function writeLock(tx: Executor, limit = "30s") {
-  await tx.execute(sql`SELECT set_config('lock_timeout', ${limit}, true)`);
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(${WRITE_LOCK_KEY})`);
+export async function lockNames(tx: Executor, names: string[], limit = limits.get(tx) ?? "30s") {
+  if (!LIMIT.test(limit)) throw new Error(`Invalid lock limit ${limit}`);
+  let mine = held.get(tx);
+  const statements: string[] = [];
+  if (!mine) {
+    held.set(tx, (mine = new Set()));
+    statements.push(`SET LOCAL lock_timeout = ${literal(limit)}`);
+  }
+  const wanted = [...new Set(names)].filter((name) => !mine.has(name)).sort();
+  // unnest keeps the array's order, so the locks are taken in sorted order.
+  if (wanted.length) statements.push(`SELECT pg_advisory_xact_lock(hashtextextended(name, 0)) FROM unnest(ARRAY[${wanted.map(literal).join(",")}]::text[]) AS name`);
+  if (!statements.length) return;
+  // Two statements in one round trip: without parameters node-postgres uses the simple protocol, which allows it.
+  await tx.execute(sql.raw(statements.join("; ")));
+  for (const name of wanted) mine.add(name);
 }
 
-let writers: Promise<unknown> = Promise.resolve();
-let wedgedAt = 0;
+const code = (error: unknown) => (error as { cause?: { code?: string }; code?: string })?.cause?.code ?? (error as { code?: string })?.code;
+const DEADLOCK_RETRIES = 3;
+
+/** A counting semaphore: writers beyond the permits wait here in memory, without a time limit, not on pooled clients. */
+class Semaphore {
+  private waiting: (() => void)[] = [];
+  private held = 0;
+  constructor(private readonly permits: number) {}
+  async acquire() {
+    if (this.held < this.permits) { this.held += 1; return; }
+    await new Promise<void>((resolve) => this.waiting.push(resolve));
+  }
+  release() {
+    const next = this.waiting.shift();
+    if (next) next();
+    else this.held -= 1;
+  }
+}
+let writers: Semaphore | undefined;
+
 /**
- * A write transaction for the profile store, the ledger and sharing: queue, transaction, write lock. Writers of this
- * process wait here in memory, one at a time, not on pooled clients: five transactions blocked on the lock would hold
- * the whole pool, and the sixth would fail after the pool's 10 seconds with a connection error instead of the lock's.
- * The queue leaves the other clients free for reads. Inside a transaction it nests without queueing.
- * Waiting in the queue has no time limit, because a long burst over a slow link is legitimate (a write is about eight
- * round trips). But when the writer at the head times out on the lock, those queued behind it fail at once rather
- * than each waiting the limit in turn.
+ * A write transaction for the profile store, the ledger and sharing. Locks are per record and per identifier (see
+ * lockNames), so writers of different people or companies run in parallel; only writers of the same record or the
+ * same identifier wait for each other. Writers of this process beyond the pool's capacity wait here in memory, so
+ * five transactions blocked on a lock cannot hold the whole pool and starve reads. Inside a transaction it nests
+ * without a new transaction or permit. A transaction that Postgres aborts as a deadlock victim (rare: two merges
+ * touching the same records in opposite order) is rolled back and run again; nothing outside the database happens
+ * inside one, so that is safe. `limit` is the time a lock waits before the transaction fails.
  */
 export async function writeTransaction<T>(executor: Executor, fn: (tx: Executor) => Promise<T>, limit = "30s"): Promise<T> {
-  const locked = (tx: Executor) => writeLock(tx, limit).then(() => fn(tx));
-  if ("rollback" in executor) return executor.transaction(locked);
-  const asked = Date.now();
-  const turn = writers.then(async () => {
-    if (asked < wedgedAt) throw new Error("The write lock is held elsewhere and a writer ahead of this one timed out waiting for it");
-    try { return await executor.transaction(locked); }
-    catch (error) {
-      if ((error as { cause?: { code?: string } }).cause?.code === "55P03") wedgedAt = Date.now();
-      throw error;
+  if ("rollback" in executor) return fn(executor);
+  writers ??= new Semaphore(Math.max(1, poolSize() - READ_RESERVE));
+  await writers.acquire();
+  try {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await executor.transaction((tx) => {
+          limits.set(tx, limit);
+          return fn(tx);
+        });
+      } catch (error) {
+        if (code(error) !== "40P01" || attempt >= DEADLOCK_RETRIES) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 10 * attempt + Math.random() * 20));
+      }
     }
-  });
-  writers = turn.catch(() => {});
-  return turn;
+  } finally {
+    writers.release();
+  }
 }
 
 const parseTimestamptz = pg.types.getTypeParser(pg.types.builtins.TIMESTAMPTZ) as (value: string) => Date;

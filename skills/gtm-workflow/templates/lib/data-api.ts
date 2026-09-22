@@ -319,7 +319,7 @@ export async function readData(
   const visible =
     requested ??
     (key !== null
-      ? selected.columns.filter((c) => identity || c !== "raw_responses_json")
+      ? selected.columns.filter((c) => identity || c !== "responses_json")
       : (selected.defaultColumns ?? selected.columns));
   if (
     !visible.length ||

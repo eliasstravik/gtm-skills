@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 import { stripNul, type Executor } from "../db";
 import { profileAttempts, profileInputs, profileRuns, profileWork } from "../schema/ledger";
 import {
@@ -11,12 +11,15 @@ import {
   markUnresolved,
   recentMiss,
   resolveIdentity,
+  transaction,
   type Source,
 } from "./store";
 import {
   beginRun,
   markWork,
+  renewLease,
   saveWork,
+  settle,
   type RunLease,
   type WorkState,
 } from "./ledger";
@@ -47,6 +50,9 @@ export type NetworkPerson = {
   source: Source;
   original: Record<string, unknown>;
 };
+/** Workers of one chunk: the pool has room for this many plus readers (lib/db.ts). */
+export const DEFAULT_WORKERS = 12;
+const PREPARE_WORKERS = 8;
 const text = (v: unknown) =>
   typeof v === "string" && v.trim() ? v.trim() : undefined;
 export function normalizeInput(
@@ -93,6 +99,14 @@ export function normalizeInput(
 }
 const inputOf = (workflowId: string, person: NetworkPerson) =>
   and(eq(profileInputs.workflow_id, workflowId), eq(profileInputs.source_id, person.source.source_id), eq(profileInputs.row_id, person.source.source_row_id));
+/** Runs fn over items with a fixed number of workers; the first failure rejects, as Promise.all does. */
+export async function eachWith<T>(items: T[], workers: number, fn: (item: T) => Promise<void>) {
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) await fn(items[next++]);
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(workers, items.length)) }, worker));
+}
 export async function prepareNetwork(
   client: Executor,
   workflowId: string,
@@ -144,7 +158,8 @@ export async function prepareNetwork(
       people: [] as NetworkPerson[],
     };
   people = begin.input;
-  for (const person of people) {
+  // Each person is its own record and identifier, so admission runs a few at a time.
+  await eachWith(people, PREPARE_WORKERS, async (person) => {
     if (person.url) {
       const resolved = await resolveIdentity(
         client,
@@ -177,7 +192,7 @@ export async function prepareNetwork(
           last_observed_at: sql`excluded.last_observed_at`,
         },
       });
-  }
+  });
   await saveWork(
     client,
     lease,
@@ -186,18 +201,30 @@ export async function prepareNetwork(
   );
   return { status: "running" as const, runId: lease.id, lease, people };
 }
+/** The saved person keys of these inputs, read in batches. */
+async function personKeysOf(client: Executor, people: NetworkPerson[]) {
+  const keys: string[] = [];
+  for (let i = 0; i < people.length; i += 500) {
+    const batch = people.slice(i, i + 500);
+    const rows = await client
+      .select({ person_key: profileInputs.person_key, source_id: profileInputs.source_id, row_id: profileInputs.row_id, workflow_id: profileInputs.workflow_id })
+      .from(profileInputs)
+      .where(or(...batch.map((person) => inputOf(person.source.workflow_id, person))));
+    const byRow = new Map(rows.map((row) => [`${row.workflow_id}\n${row.source_id}\n${row.row_id}`, row.person_key]));
+    for (const person of batch) {
+      const key = byRow.get(`${person.source.workflow_id}\n${person.source.source_id}\n${person.source.source_row_id}`);
+      if (key) keys.push(key);
+    }
+  }
+  return keys;
+}
 export async function collectCompanies(
   client: Executor,
   lease: RunLease,
   people: NetworkPerson[],
 ) {
   const [run] = await client.select({ companies_json: profileRuns.companies_json }).from(profileRuns).where(eq(profileRuns.id, lease.id));
-  const keys: string[] = [];
-  for (const person of people) {
-    const [row] = await client.select({ person_key: profileInputs.person_key }).from(profileInputs).where(inputOf(person.source.workflow_id, person));
-    if (row?.person_key) keys.push(row.person_key);
-  }
-  const current = await currentCompanies(client, keys);
+  const current = await currentCompanies(client, await personKeysOf(client, people));
   const selected = (run?.companies_json as string[] | null) ?? current.keys;
   await saveWork(client, lease, "companies", selected);
   return { ...current, keys: selected };
@@ -250,13 +277,14 @@ export async function beginItem(
     await markWork(client, lease, phase, key, "reused");
     return { state: "reused" };
   }
+  // The response is settled by acceptItem, in the same transaction as the evidence it becomes and the work it marks.
   const result = await adapter.lookup(
     client,
     lease,
     profile?.key ?? profileKey ?? `input:${person!.source.workflow_id}:${key}`,
     plan,
     apiKey,
-    { requestsPerSecond: input.requestsPerSecond },
+    { requestsPerSecond: input.requestsPerSecond, deferSettle: true },
   );
   if (result.state === "unresolved") {
     if (phase === "companies" && profileKey)
@@ -281,6 +309,11 @@ export async function beginItem(
     );
   return result;
 }
+/**
+ * One transaction: the response is settled, applied as evidence and the work marked, and all of it commits together
+ * or none of it does. A settled response the process loses before this point stays dispatched in the ledger and is
+ * never bought again; the next run replays it as uncertain.
+ */
 export async function acceptItem(
   client: Executor,
   lease: RunLease,
@@ -292,46 +325,71 @@ export async function acceptItem(
   const adapter = networkProvider(input.provider);
   const person = typeof item === "string" ? undefined : item,
     key = typeof item === "string" ? item : item.key;
-  // Use the original persisted observation time when a completed response replays.
-  const [attempt] = await client.select({ created_at: profileAttempts.created_at }).from(profileAttempts).where(eq(profileAttempts.id, result.attemptId));
-  const fetchedAt = (attempt?.created_at ?? new Date()).toISOString(),
-    cost = adapter.cost(result.run);
-  let profileKey =
-    person?.personKey ?? (phase === "companies" ? key : undefined);
-  const existing = profileKey
-    ? await getProfile(client, phase, profileKey)
-    : undefined;
-  const e = adapter.normalize(phase, result.run, {
-    fetchedAt,
-    existingDomain: existing?.domain ?? "",
+  return transaction(client, async (tx) => {
+    const cost = result.settlement ? result.settlement.costUsd : adapter.cost(result.run);
+    // Use the original persisted observation time when a completed response replays.
+    const createdAt = result.createdAt ?? (await tx.select({ created_at: profileAttempts.created_at }).from(profileAttempts).where(eq(profileAttempts.id, result.attemptId)))[0]?.created_at;
+    const fetchedAt = (createdAt ?? new Date()).toISOString();
+    let profileKey =
+      person?.personKey ?? (phase === "companies" ? key : undefined);
+    const existing = profileKey
+      ? await getProfile(tx, phase, profileKey)
+      : undefined;
+    const e = adapter.normalize(phase, result.run, {
+      fetchedAt,
+      existingDomain: existing?.domain ?? "",
+    });
+    e.attempt_id = result.attemptId;
+    if (
+      result.run.status !== "COMPLETED" ||
+      (result.run.providerResponse?.httpStatus ?? 200) >= 400
+    )
+      e.outcome =
+        result.run.providerResponse?.httpStatus === 404 ? "no_match" : "failed";
+    if (
+      phase === "people" &&
+      !profileKey &&
+      e.outcome === "success" &&
+      typeof e.fields.linkedin_url === "string"
+    ) {
+      const resolved = await resolveIdentity(
+        tx,
+        "people",
+        { linkedin_url: e.fields.linkedin_url },
+        person!.source,
+      );
+      if (resolved.status === "resolved") profileKey = resolved.profile.key;
+    }
+    let outcome: WorkState = e.outcome === "success" ? "done" : e.outcome;
+    if (profileKey) {
+      const profile = await applyEvidence(tx, phase, profileKey, e, { known: existing?.key === profileKey ? existing : undefined });
+      if (profile.enrichment_status === "ambiguous") outcome = "ambiguous";
+      if (person)
+        await tx.update(profileInputs).set({ person_key: profile.key }).where(inputOf(person.source.workflow_id, person));
+    } else if (e.outcome === "success") outcome = "unresolved";
+    if (cost === null) outcome = "uncertain";
+    // Last, so the run row's counters are locked only for these statements and the commit.
+    if (result.settlement) await settle(tx, result.attemptId, result.settlement.costUsd, result.run);
+    await markWork(tx, lease, phase, key, outcome);
   });
-  if (
-    result.run.status !== "COMPLETED" ||
-    (result.run.providerResponse?.httpStatus ?? 200) >= 400
-  )
-    e.outcome =
-      result.run.providerResponse?.httpStatus === 404 ? "no_match" : "failed";
-  if (
-    phase === "people" &&
-    !profileKey &&
-    e.outcome === "success" &&
-    typeof e.fields.linkedin_url === "string"
-  ) {
-    const resolved = await resolveIdentity(
-      client,
-      "people",
-      { linkedin_url: e.fields.linkedin_url },
-      person!.source,
-    );
-    if (resolved.status === "resolved") profileKey = resolved.profile.key;
-  }
-  let outcome: WorkState = e.outcome === "success" ? "done" : e.outcome;
-  if (profileKey) {
-    const profile = await applyEvidence(client, phase, profileKey, e);
-    if (profile.enrichment_status === "ambiguous") outcome = "ambiguous";
-    if (person)
-      await client.update(profileInputs).set({ person_key: profile.key }).where(inputOf(person.source.workflow_id, person));
-  } else if (e.outcome === "success") outcome = "unresolved";
-  if (cost === null) outcome = "uncertain";
-  await markWork(client, lease, phase, key, outcome);
+}
+/**
+ * One chunk of a phase: renews the lease once, then looks up and accepts the items with `workers` at a time. Paid
+ * calls happen outside every transaction; the ledger, not the workflow engine, makes them durable, so a step running
+ * this has maxRetries 0 and a rerun of the same chunk buys nothing twice.
+ */
+export async function enrichItems(
+  client: Executor,
+  lease: RunLease,
+  phase: "people" | "companies",
+  items: (NetworkPerson | string)[],
+  input: NetworkInput,
+  apiKey: string,
+  options: { workers?: number } = {},
+) {
+  await renewLease(client, lease);
+  await eachWith(items, options.workers ?? DEFAULT_WORKERS, async (item) => {
+    const initial = await beginItem(client, lease, phase, item, input, apiKey);
+    if (initial.state === "ready") await acceptItem(client, lease, phase, item, initial, input);
+  });
 }

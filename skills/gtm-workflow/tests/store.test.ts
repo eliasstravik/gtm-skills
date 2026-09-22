@@ -1,8 +1,8 @@
-// What Postgres changed for the profile store: one explicit write lock, and identity in profile_identifiers.
+// What Postgres changed for the profile store: per-identifier and per-record locks, and identity in profile_identifiers.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { eq } from "drizzle-orm";
-import { closeDb, db, writeLock, writeTransaction } from "../templates/lib/db";
+import { closeDb, db, lockNames, writeTransaction } from "../templates/lib/db";
 import { readData, type WorkflowData } from "../templates/lib/data-api";
 import { companies, people } from "../templates/lib/profiles/schema";
 import { applyEvidence, deleteProfile, getProfile, markUnresolved, resolveIdentity, type Evidence } from "../templates/lib/profiles/store";
@@ -16,21 +16,23 @@ const resolved = async (...args: Parameters<typeof resolveIdentity> extends [unk
   return (result as Extract<typeof result, { status: "resolved" }>).profile;
 };
 
-test("a second writer fails after the limit instead of waiting for ever", async () => {
+test("a writer waiting on a held identifier fails after the limit; the lock is re-entrant and freed at commit", async () => {
   const database = await testDatabase();
   let release!: () => void;
   const held = new Promise<void>((resolve) => { release = resolve; });
   let locked!: () => void;
   const hasLock = new Promise<void>((resolve) => { locked = resolve; });
-  const first = db().transaction(async (tx) => { await writeLock(tx); locked(); await held; });
+  const name = "id:people:linkedin_url:https://www.linkedin.com/in/held";
+  const first = db().transaction(async (tx) => { await lockNames(tx, [name]); locked(); await held; });
   await hasLock;
   const started = Date.now();
-  await assert.rejects(db().transaction((tx) => writeLock(tx, "300ms")), (error: { cause?: { code?: string } }) => error.cause?.code === "55P03");
+  await assert.rejects(db().transaction((tx) => lockNames(tx, [name], "300ms")), (error: { cause?: { code?: string } }) => error.cause?.code === "55P03");
   assert.ok(Date.now() - started < 5_000);
-  // Re-entrant inside one transaction, and free again once the holder commits.
+  // Another name is free meanwhile.
+  await db().transaction((tx) => lockNames(tx, ["id:people:linkedin_url:https://www.linkedin.com/in/other"], "300ms"));
   release();
   await first;
-  await db().transaction(async (tx) => { await writeLock(tx, "300ms"); await writeLock(tx, "300ms"); });
+  await db().transaction(async (tx) => { await lockNames(tx, [name], "300ms"); await lockNames(tx, [name], "300ms"); });
   assert.equal((await database.query("SELECT count(*)::int AS n FROM pg_locks WHERE locktype = 'advisory'")).rows[0].n, 0);
 });
 
@@ -60,7 +62,7 @@ test("an identifier has one owner: lookups find it, merges move it, deletes free
   assert.notEqual(reborn.key, byUrl.key);
 });
 
-test("300 resolutions started at once all complete behind one lock and a pool of five", async () => {
+test("300 resolutions started at once all complete with per-identifier locks and a pool of sixteen", async () => {
   const database = await testDatabase();
   const started = Date.now();
   const results = await Promise.all(Array.from({ length: 300 }, (_, i) => resolveIdentity(db(), "people", { linkedin_url: `linkedin.com/in/person-${i % 150}` }, source("w", String(i)))));
@@ -69,45 +71,82 @@ test("300 resolutions started at once all complete behind one lock and a pool of
   assert.ok(Date.now() - started < 60_000);
 });
 
-test("writers queue in this process, not in the pool: a slow lock holder fails nobody and reads stay possible", async () => {
+test("twelve writers of one new identifier make one record, and writers of other identifiers do not wait for them", async () => {
   const database = await testDatabase();
-  // Another process holds the write lock for longer than the pool waits for a free client (10 seconds). Without a
-  // queue, five writers sit on the five pooled clients and the rest fail with "timeout exceeded when trying to connect".
+  // Another process holds the identifier lock of one URL for two seconds. Writers of that URL wait; everyone else goes through.
   const pg = (await import("pg")).default;
   const outside = new pg.Client({ connectionString: database.unpooled });
   await outside.connect();
-  await outside.query("SELECT pg_advisory_lock(7461)");
-  const writers = Array.from({ length: 12 }, (_, i) => resolveIdentity(db(), "people", { linkedin_url: `linkedin.com/in/queued-${i}` }));
-  const settled = Promise.allSettled(writers);
-  let read: unknown;
-  try {
-    await new Promise((resolve) => setTimeout(resolve, 11_500));
-    // While they wait, the pool still serves reads.
-    read = await db().execute("SELECT 1 AS one").then((result) => result.rows[0].one, (error) => error.message);
-  } finally {
-    await outside.query("SELECT pg_advisory_unlock(7461)");
-    await outside.end();
-  }
-  const results = await settled;
+  await outside.query("BEGIN");
+  await outside.query("SELECT pg_advisory_xact_lock(hashtextextended('id:people:linkedin_url:https://www.linkedin.com/in/held', 0))");
+  const heldWriters = Promise.allSettled(Array.from({ length: 12 }, (_, i) => resolveIdentity(db(), "people", { linkedin_url: "linkedin.com/in/held" }, source("w", String(i)))));
+  const started = Date.now();
+  const others = await Promise.all(Array.from({ length: 12 }, (_, i) => resolveIdentity(db(), "people", { linkedin_url: `linkedin.com/in/free-${i}` })));
+  const read = await db().execute("SELECT 1 AS one").then((result) => result.rows[0].one);
+  const elapsed = Date.now() - started;
+  await new Promise((resolve) => setTimeout(resolve, 2_000));
+  await outside.query("COMMIT");
+  await outside.end();
+  const results = await heldWriters;
   assert.equal(read, 1);
+  assert.ok(others.every((result) => result.status === "resolved"));
+  assert.ok(elapsed < 1_500, `writers of other identifiers waited ${elapsed}ms behind a held one`);
   assert.deepEqual(results.filter((result) => result.status === "rejected").map((result) => String((result as PromiseRejectedResult).reason?.cause?.message ?? (result as PromiseRejectedResult).reason)), []);
-  assert.equal((await database.query("SELECT count(*)::int AS n FROM gtm.people")).rows[0].n, 12);
+  assert.equal((await database.query("SELECT count(*)::int AS n FROM gtm.people WHERE linkedin_url = 'https://www.linkedin.com/in/held'")).rows[0].n, 1, "twelve writers of one identifier made one record");
+  assert.equal((await database.query("SELECT count(*)::int AS n FROM gtm.people")).rows[0].n, 13);
+  assert.equal(((await database.query("SELECT sources_json FROM gtm.people WHERE linkedin_url = 'https://www.linkedin.com/in/held'")).rows[0].sources_json as unknown[]).length, 12, "every writer's membership survived");
 });
 
-test("behind a lock that never frees, the head of the queue times out and the writers behind it fail at once", async () => {
+test("behind an identifier lock that never frees, every writer of it fails after the limit at once, not in turn", async () => {
   const database = await testDatabase();
   const pg = (await import("pg")).default;
   const outside = new pg.Client({ connectionString: database.unpooled });
   await outside.connect();
-  await outside.query("SELECT pg_advisory_lock(7461)");
+  await outside.query("BEGIN");
+  await outside.query("SELECT pg_advisory_xact_lock(hashtextextended('attempt:stuck:op', 0))");
   try {
     const started = Date.now();
-    const results = await Promise.allSettled(Array.from({ length: 6 }, () => writeTransaction(db(), async () => "wrote", "400ms")));
+    const results = await Promise.allSettled(Array.from({ length: 6 }, () => writeTransaction(db(), (tx) => lockNames(tx, ["attempt:stuck:op"]).then(() => "wrote"), "400ms")));
     assert.deepEqual(results.map((result) => result.status), Array(6).fill("rejected"));
     assert.ok(Date.now() - started < 1_500, "six writers must not each wait the limit in turn");
-  } finally { await outside.query("SELECT pg_advisory_unlock(7461)"); await outside.end(); }
+  } finally { await outside.query("ROLLBACK"); await outside.end(); }
   // Once the lock is free, new writers go through again.
-  assert.equal(await writeTransaction(db(), async () => "wrote"), "wrote");
+  assert.equal(await writeTransaction(db(), (tx) => lockNames(tx, ["attempt:stuck:op"]).then(() => "wrote")), "wrote");
+});
+
+test("twelve people enriched at once who share three employers make exactly three companies, each with its identifiers", async () => {
+  const database = await testDatabase();
+  const keys = await Promise.all(Array.from({ length: 12 }, (_, i) => resolved("people", { linkedin_url: `linkedin.com/in/colleague-${i}` }, source("w", String(i)))));
+  const role = (n: number, current: boolean) => ({
+    experience_key: `e${n}`, company_key: null, company_name: `Employer ${n}`, title: "Role", start_date: null, end_date: null,
+    current_status: current ? "current" : "ended", current_status_evidence: null, company_linkedin_id: `emp-${n}`, company_linkedin_url: `https://www.linkedin.com/company/employer-${n}`, company_domain: `employer${n}.example`,
+  });
+  // Every person holds all three companies as current roles, in a different order each, so the locks are contended in every order.
+  await Promise.all(keys.map((person, i) => applyEvidence(db(), "people", person.key, {
+    provider: "fixture", endpoint: "profile", mode: "full", fetched_at: "2026-09-02T00:00:00Z", outcome: "success", raw: { i }, cost_usd: 0,
+    sections: { experiences_json: "complete" },
+    fields: { full_name: `Colleague ${i}`, experiences_json: [role(i % 3, true), role((i + 1) % 3, true), role((i + 2) % 3, true)] },
+  })));
+  assert.equal((await database.query("SELECT count(*)::int AS n FROM gtm.companies")).rows[0].n, 3);
+  const unresolved = await database.query("SELECT count(*)::int AS n FROM gtm.people p, jsonb_array_elements(p.experiences_json) r WHERE r->>'company_key' IS NULL");
+  assert.equal(unresolved.rows[0].n, 0, "every role resolved to a company");
+  const dangling = await database.query("SELECT count(*)::int AS n FROM gtm.people p, jsonb_array_elements(p.experiences_json) r WHERE NOT EXISTS (SELECT 1 FROM gtm.companies c WHERE c.key = r->>'company_key')");
+  assert.equal(dangling.rows[0].n, 0, "no role points at a deleted company");
+  assert.equal((await database.query("SELECT count(*)::int AS n FROM gtm.profile_identifiers WHERE entity = 'companies'")).rows[0].n, 6, "the id and the URL of each company, each owned once");
+});
+
+test("only changed columns are written: an unchanged resolution does not touch the row", async () => {
+  const database = await testDatabase();
+  const person = await resolved("people", { linkedin_url: "linkedin.com/in/quiet" }, source("w", "1"));
+  const before = await database.query("SELECT xmin::text AS version, updated_at FROM gtm.people WHERE key = $1", [person.key]);
+  // The same identity and the same source again: nothing to write.
+  await resolved("people", { linkedin_url: "linkedin.com/in/quiet" }, source("w", "1"));
+  const after = await database.query("SELECT xmin::text AS version, updated_at FROM gtm.people WHERE key = $1", [person.key]);
+  assert.equal(after.rows[0].version, before.rows[0].version, "the row version is unchanged");
+  // A new source is a change, and updated_at moves with it.
+  await resolved("people", { linkedin_url: "linkedin.com/in/quiet" }, source("w2", "1"));
+  const changed = await database.query("SELECT xmin::text AS version FROM gtm.people WHERE key = $1", [person.key]);
+  assert.notEqual(changed.rows[0].version, before.rows[0].version);
 });
 
 test("text the database cannot hold is cleaned on the way in", async () => {

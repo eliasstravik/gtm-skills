@@ -135,18 +135,18 @@ export const viewer = {
         id: "children",
         type: "child",
         data: {
-          label: "Start child runs in bounded waves",
+          label: "Start a wave of child runs",
           nodeKind: "child",
-          stepId: "step//./lib/rows//startChild",
+          stepId: "step//./lib/rows//startChildren",
         },
       },
       {
         id: "lineage",
         type: "step",
         data: {
-          label: "Record child run identities",
+          label: "Record the wave's child runs",
           nodeKind: "step",
-          stepId: "step//./lib/rows//recordChildren",
+          stepId: "step//./lib/rows//startChildren",
         },
       },
       {
@@ -185,7 +185,7 @@ export const viewer = {
         data: {
           label: "Save the successful result",
           nodeKind: "step",
-          stepId: "step//./lib/rows//saveRow",
+          stepId: "step//./lib/rows//saveRows",
         },
         metadata: {
           loopId: "rows",
@@ -197,7 +197,7 @@ export const viewer = {
         data: {
           label: "Save the failed row and estimated cost",
           nodeKind: "step",
-          stepId: "step//./lib/rows//saveRow",
+          stepId: "step//./lib/rows//saveRows",
         },
         metadata: {
           loopId: "rows",
