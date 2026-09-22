@@ -60,17 +60,21 @@ export function normalizeExperiences(
   return items.map((raw, index) => {
     const e = record(raw) ?? {},
       company = record(e.company) ?? {};
-    const title = text(e.title),
+    const title = text(e.title ?? e.job_title),
       companyName =
         text(e.company) ?? text(e.company_name) ?? text(company.name);
-    const start = partialDate(e.start_date ?? e.startDate ?? e.start),
-      end = partialDate(e.end_date ?? e.endDate ?? e.end);
+    const start = partialDate(
+        e.start_date ?? e.job_start_date ?? e.startDate ?? e.start,
+      ),
+      end = partialDate(e.end_date ?? e.job_end_date ?? e.endDate ?? e.end);
     const current =
       typeof e.is_current === "boolean"
         ? e.is_current
-        : typeof e.isCurrent === "boolean"
-          ? e.isCurrent
-          : null;
+        : typeof e.job_is_current === "boolean"
+          ? e.job_is_current
+          : typeof e.isCurrent === "boolean"
+            ? e.isCurrent
+            : null;
     const companyId = identifier(
       e.company_linkedin_id ?? company.linkedin_company_id,
     );
@@ -81,6 +85,13 @@ export function normalizeExperiences(
         company.url,
     );
     const providerId = identifier(e.id ?? e.experience_id);
+    const jobLocation = record(e.job_location),
+      locationLabel =
+        text(e.location) ??
+        ([jobLocation?.city, jobLocation?.state_code, jobLocation?.country_code]
+          .map(text)
+          .filter((v): v is string => Boolean(v))
+          .join(", ") || null);
     const identity =
       providerId ??
       JSON.stringify([companyId ?? url ?? companyName, title, start]);
@@ -112,12 +123,12 @@ export function normalizeExperiences(
             : "unknown",
       current_status_evidence: {
         is_current: current,
-        end_date: e.end_date ?? e.endDate ?? null,
+        end_date: e.end_date ?? e.job_end_date ?? e.endDate ?? null,
       },
       is_primary: typeof e.is_primary === "boolean" ? e.is_primary : null,
-      description: text(e.description),
-      location_label: text(e.location),
-      employment_type: text(e.employment_type),
+      description: text(e.description ?? e.job_description),
+      location_label: locationLabel,
+      employment_type: text(e.employment_type ?? e.job_contract_type),
       company_snapshot: company,
       observed_at: fetchedAt,
       source_path: `experience[${index}]`,
@@ -264,5 +275,119 @@ export function normalizeContactOut(
       e.fields[field] = record(p[native]) ?? { raw_value: p[native] };
       e.sections[field] = "partial";
     }
+  return e;
+}
+
+function locationText(location: Record<string, any> | null) {
+  return (
+    [location?.city, location?.state_code, location?.country_code]
+      .map(text)
+      .filter((v): v is string => Boolean(v))
+      .join(", ") || null
+  );
+}
+/** Blitz returns the profile and the full experience history from a LinkedIn URL or email. The body may arrive bare or as a run envelope. */
+export function normalizeBlitz(
+  phase: "people" | "companies",
+  raw: unknown,
+  fetchedAt: string,
+  cost: number | null,
+  endpoint: string,
+): Evidence {
+  const envelope = record(raw),
+    root = record(envelope?.output) ?? envelope ?? {};
+  const e = base("blitz", endpoint, root, fetchedAt, cost);
+  if (root.found === false) return e;
+  const list = (field: string, value: unknown) => {
+    if (Array.isArray(value)) {
+      e.fields[field] = value;
+      e.sections[field] = "complete";
+    }
+  };
+  if (phase === "people") {
+    const p = record(root.person);
+    if (!p || !Object.keys(p).length) return e;
+    e.outcome = "success";
+    const mapping = {
+      first_name: "first_name",
+      last_name: "last_name",
+      full_name: "full_name",
+      headline: "headline",
+      about_me: "about",
+      industry: "industry",
+      profile_picture_url: "profile_photo_url",
+    };
+    for (const [native, field] of Object.entries(mapping))
+      if (text(p[native])) e.fields[field] = text(p[native]);
+    const url = text(p.linkedin_url);
+    if (url && canonicalUrl(url, "people"))
+      e.fields.linkedin_url = canonicalUrl(url, "people");
+    if (identifier(p.linkedin_id))
+      e.fields.linkedin_profile_id = identifier(p.linkedin_id);
+    if (count(p.connections_count) !== null) {
+      e.fields.connections_count = count(p.connections_count);
+      e.fields.connections_count_kind = "linkedin";
+    }
+    const location = record(p.location);
+    if (location) {
+      e.fields.location_json = location;
+      e.sections.location_json = "complete";
+      if (locationText(location)) e.fields.location_label = locationText(location);
+      if (text(location.city)) e.fields.city = text(location.city);
+      if (text(location.state_code)) e.fields.region = text(location.state_code);
+      if (text(location.country_code))
+        e.fields.country_code = text(location.country_code);
+      if (text(location.country_name)) e.fields.country = text(location.country_name);
+    }
+    if (Array.isArray(p.experiences)) {
+      e.fields.experiences_json = normalizeExperiences(p.experiences, fetchedAt);
+      e.sections.experiences_json = "complete";
+      const current = p.experiences
+        .map(record)
+        .find((role) => role?.job_is_current === true || role?.is_current === true);
+      if (text(current?.job_title ?? current?.title))
+        e.fields.primary_job_title = text(current?.job_title ?? current?.title);
+    }
+    list("education_json", p.education);
+    list("skills_json", p.skills);
+    list("certifications_json", p.certifications);
+    return e;
+  }
+  const c = record(root.company);
+  if (!c || !Object.keys(c).length) return e;
+  e.outcome = "success";
+  const url = text(c.linkedin_url);
+  if (url && canonicalUrl(url, "companies"))
+    e.fields.linkedin_url = canonicalUrl(url, "companies");
+  if (identifier(c.linkedin_id))
+    e.fields.linkedin_company_id = identifier(c.linkedin_id);
+  if (text(c.name)) e.fields.name = text(c.name);
+  if (text(c.about)) e.fields.description = text(c.about);
+  if (text(c.website)) e.fields.website_url = text(c.website);
+  if (domain(c.domain)) e.fields.domain = domain(c.domain);
+  if (text(c.type)) e.fields.company_type = text(c.type);
+  if (text(c.size)) e.fields.company_size_label = text(c.size);
+  if (count(c.employees_on_linkedin) !== null) {
+    e.fields.linkedin_employee_count = count(c.employees_on_linkedin);
+    e.fields.reported_employee_count = count(c.employees_on_linkedin);
+    e.fields.reported_employee_count_basis = "linkedin";
+  }
+  if (count(c.followers) !== null) e.fields.followers_count = count(c.followers);
+  if (Number.isSafeInteger(Number(c.founded_year)) && Number(c.founded_year) > 0) {
+    e.fields.founded_year = Number(c.founded_year);
+    e.fields.founded_on = partialDate(c.founded_year);
+  }
+  if (text(c.industry)) list("industries_json", [c.industry]);
+  list("specialties_json", c.specialties);
+  const hq = record(c.hq);
+  if (hq) {
+    if (locationText(hq)) e.fields.headquarters_label = locationText(hq);
+    if (text(hq.country_code))
+      e.fields.headquarters_country_code = text(hq.country_code);
+    if (text(hq.country_name)) e.fields.headquarters_country = text(hq.country_name);
+    if (text(hq.region)) e.fields.headquarters_region = text(hq.region);
+    if (text(hq.city)) e.fields.headquarters_city = text(hq.city);
+    list("locations_json", [hq]);
+  }
   return e;
 }

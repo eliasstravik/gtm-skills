@@ -51,6 +51,7 @@ try {
     "two-process",
     "profiles",
     "store",
+    "blitz",
     "rows-cache",
     "business",
     "linked-data",
