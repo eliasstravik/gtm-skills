@@ -3,6 +3,7 @@ import type { RunLease } from "../ledger";
 import type { Evidence } from "../store";
 import type { LookupResult, ProviderRun } from "../provider";
 import { monid } from "./monid";
+import { blitz } from "./blitz";
 
 export type ProviderName = "monid" | "blitz";
 export type Phase = "people" | "companies";
@@ -46,8 +47,7 @@ export type NetworkProvider = {
   cost(run: ProviderRun): number | null;
 };
 
-// blitz is registered in providers/blitz.ts; until then the name resolves to the default.
-const registry: Record<ProviderName, NetworkProvider> = { monid, blitz: monid };
+const registry: Record<ProviderName, NetworkProvider> = { monid, blitz };
 export function provider(name?: ProviderName): NetworkProvider {
   const chosen = registry[name ?? "monid"];
   if (!chosen) throw new Error(`Unknown network provider: ${name}`);
