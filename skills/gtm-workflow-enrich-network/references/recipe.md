@@ -25,11 +25,15 @@ Persist admitted inputs and selected work before spending. Defaults are 200 dist
 The workflow body is one call to `runNetwork` from `lib/profiles/network-workflow.ts` (see the shared profile contract): it imports, enriches people in chunks of 100 as child runs four at a time, collects current companies, enriches them the same way, and returns the summary. Child runs execute only their chunk of their phase; they never reimport or call the other phase. Every child works under the same durable run, lease and budget ledger, and is recorded for cancellation. Sketch:
 
 ```ts
+import { runNetwork, type NetworkRunInput } from "../lib/profiles/network-workflow";
+
 export async function enrichNetwork(input: NetworkRunInput = defaultInput) {
   "use workflow";
   return runNetwork({ workflow: enrichNetwork, workflowId: WORKFLOW_ID, input, apiKeyVariable: "BLITZ_API_KEY", defaults: { maxPeople: 200, maxSpendUsd: 20, freshForDays: 30 } });
 }
 ```
+
+Nothing else runs in workflow scope: the worker count, chunk size and every other default are read inside `runNetwork`'s steps. A workflow-scope reference to a value from `lib/profiles/network.ts` (or any module that reaches `lib/db.ts`) pulls `pg` into the workflow bundle and fails `build-viewer` ("You are attempting to use pg"). The skill's `tests/network-build.test.ts` builds and type-checks exactly this file on every push, so the sketch above is known to compile.
 
 Reserve a documented maximum charge atomically before each paid dispatch. Record returned job IDs before polling. Unknown dispatch/charge status retains the reservation and defers work. Resume a known job; never repeat an uncertain purchase on lock expiry. A provider without a defensible maximum is deferred. Fresh reuse and recent misses cost nothing new.
 

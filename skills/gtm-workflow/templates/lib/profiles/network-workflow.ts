@@ -53,7 +53,7 @@ export async function runNetwork(o: RunNetworkOptions) {
   await setAttributes({ workflow: workflowSlug(), ...(input.chunk && { parent: input.chunk.parent.split(":chunk:")[0] as string, phase: input.chunk.phase }) });
   if (input.chunk) {
     const { chunk, ...settings } = input;
-    await enrichChunk(chunk.lease, chunk.phase, chunk.items, settings, o.apiKeyVariable, o.workers ?? DEFAULT_WORKERS);
+    await enrichChunk(chunk.lease, chunk.phase, chunk.items, settings, o.apiKeyVariable, o.workers);
     const result: ChunkReport = { phase: chunk.phase, count: chunk.items.length };
     await engine.report(chunk.parent, result);
     return result;
@@ -67,7 +67,7 @@ export async function runNetwork(o: RunNetworkOptions) {
     for (let i = 0; i < items.length; i += chunkSize) chunks.push(items.slice(i, i + chunkSize) as NetworkPerson[] | string[]);
     if (chunks.length <= 1) {
       // One chunk runs here: nothing to gain from a child.
-      for (const chunk of chunks) await enrichChunk(lease, name, chunk, input, o.apiKeyVariable, o.workers ?? DEFAULT_WORKERS);
+      for (const chunk of chunks) await enrichChunk(lease, name, chunk, input, o.apiKeyVariable, o.workers);
       return;
     }
     if (!engineWorkflowId) throw new Error("runNetwork's workflow must be the workflow function itself");
@@ -95,11 +95,13 @@ async function prepare(workflowId: string, owner: string, input: NetworkInput) {
 }
 
 /** One chunk of one phase, twelve workers wide, inside one step. Paid calls are made durable by the ledger, so this step never retries. */
-async function enrichChunk(lease: RunLease, phase: Phase, items: NetworkPerson[] | string[], input: NetworkInput, apiKeyVariable: string, workers: number) {
+async function enrichChunk(lease: RunLease, phase: Phase, items: NetworkPerson[] | string[], input: NetworkInput, apiKeyVariable: string, workers?: number) {
   "use step";
   const apiKey = process.env[apiKeyVariable];
   if (!apiKey) throw new Error(`Set ${apiKeyVariable} in the workflow project settings`);
-  await enrichItems(db(), lease, phase, items, input, apiKey, { workers });
+  // DEFAULT_WORKERS is read here, not in workflow scope: `network` reaches `db.ts` and `pg`, and a workflow-scope
+  // reference to any of its values would pull `pg` into the workflow bundle and fail build-viewer.
+  await enrichItems(db(), lease, phase, items, input, apiKey, { workers: workers ?? DEFAULT_WORKERS });
 }
 enrichChunk.maxRetries = 0;
 

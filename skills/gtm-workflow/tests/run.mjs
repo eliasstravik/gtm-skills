@@ -53,6 +53,7 @@ try {
     "store",
     "blitz",
     "network-workflow",
+    "network-build",
     "rows-cache",
     "business",
     "linked-data",
