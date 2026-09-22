@@ -44,6 +44,13 @@ export type DataPage = {
 };
 
 const PAGE_SIZE = 25;
+/**
+ * A record's own metadata: response envelopes, provenance, section coverage and membership. Each is large and none is
+ * a business fact, so a list never sends them and a chooser never offers them for a list; a single record carries
+ * them (all but responses_json for a workflow view). viewer-policy-validation.mjs keeps default columns clear of them.
+ */
+export const RECORD_ONLY_COLUMNS = ["responses_json", "provenance_json", "section_status_json", "sources_json"];
+const forList = (columns: string[]) => columns.filter((c) => !RECORD_ONLY_COLUMNS.includes(c));
 const and = (conditions: SQL[]) => (conditions.length ? sql` WHERE ${sql.join(conditions, sql` AND `)}` : sql``);
 // A jsonb list column as rows; anything that is not a list counts as empty instead of failing the page.
 const elements = (list: SQL) => sql`jsonb_array_elements(CASE WHEN jsonb_typeof(${list}) = 'array' THEN ${list} ELSE '[]'::jsonb END)`;
@@ -316,17 +323,20 @@ export async function readData(
     context = `Connected to ${record.rows[0]?.label ?? relatedKey}`;
   }
   const requested = url.searchParams.get("columns")?.split(",");
+  const listable = key !== null ? selected.columns : forList(selected.columns);
   const visible =
     requested ??
     (key !== null
       ? selected.columns.filter((c) => identity || c !== "responses_json")
-      : (selected.defaultColumns ?? selected.columns));
+      : forList(selected.defaultColumns ?? selected.columns));
   if (
     !visible.length ||
     new Set(visible).size !== visible.length ||
     visible.some((c) => !selected.columns.includes(c))
   )
     throw new DataInputError("Unavailable requested field");
+  if (visible.some((c) => !listable.includes(c)))
+    throw new DataInputError("Field is available on a single record only");
   const props = [...new Set([...keyColumns, ...visible])];
   // Times leave SQL as ISO text in UTC, so no caller parses Postgres' own format. Key columns keep microseconds to match exactly.
   const readable = (c: string) => {
@@ -385,7 +395,7 @@ export async function readData(
         selected.fields?.[id]?.type ??
         getTableColumns(registry[selected.name])[id].dataType,
     })),
-    availableFields: selected.columns.map((id) => ({
+    availableFields: listable.map((id) => ({
       id,
       label: selected.fields?.[id]?.label ?? id.replaceAll("_", " "),
       type:

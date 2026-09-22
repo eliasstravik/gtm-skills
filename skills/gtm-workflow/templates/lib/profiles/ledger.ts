@@ -30,7 +30,8 @@ export type WorkState =
 const owned = (lease: RunLease) => and(eq(profileRuns.id, lease.id), eq(profileRuns.owner, lease.owner), eq(profileRuns.state, "running"), sql`${profileRuns.lease_until} >= now()`);
 /** The run is still this worker's: running, owned, lease unexpired. Once per chunk, not per write. */
 async function assertOwned(client: Executor, lease: RunLease) {
-  const [row] = await client.select().from(profileRuns).where(owned(lease));
+  // Never the whole row: input_json is the run's whole list.
+  const [row] = await client.select({ id: profileRuns.id, reserved_micro: profileRuns.reserved_micro }).from(profileRuns).where(owned(lease));
   if (!row) throw new Error(NOT_OWNED);
   return row;
 }
@@ -55,7 +56,7 @@ export async function beginRun(
   return transaction(client, async (tx) => {
     // One name for every run start of the workspace: the single-flight rule is decided by reading, so starts are serial.
     await lockNames(tx, ["runs"]);
-    const [active] = await tx.select().from(profileRuns).where(eq(profileRuns.state, "running"));
+    const [active] = await tx.select({ id: profileRuns.id, owner: profileRuns.owner, lease_until: profileRuns.lease_until }).from(profileRuns).where(eq(profileRuns.state, "running"));
     if (
       active &&
       (active.id !== options.id ||
@@ -63,7 +64,8 @@ export async function beginRun(
           active.lease_until.getTime() >= Date.now()))
     )
       return { status: "already_running" as const, runId: active.id };
-    const [existing] = await tx.select().from(profileRuns).where(eq(profileRuns.id, options.id));
+    // input_json is read here alone, and used only to resume the saved list.
+    const [existing] = await tx.select({ workflow_id: profileRuns.workflow_id, owner: profileRuns.owner, state: profileRuns.state, input_json: profileRuns.input_json }).from(profileRuns).where(eq(profileRuns.id, options.id));
     if (existing) {
       if (existing.workflow_id !== options.workflowId)
         throw new Error("Run belongs to another workflow");
@@ -143,8 +145,9 @@ async function reservation<S extends "reserved" | "dispatched">(
 ) {
   return transaction(client, async (tx) => {
     await lockNames(tx, [`attempt:${entityKey}:${operation}`]);
+    // A replay within the run needs the settled payload; nothing else on the row is read.
     const [existing] = await tx
-      .select()
+      .select({ id: profileAttempts.id, state: profileAttempts.state, job_id: profileAttempts.job_id, response_json: profileAttempts.response_json, created_at: profileAttempts.created_at })
       .from(profileAttempts)
       .where(and(eq(profileAttempts.entity_key, entityKey), eq(profileAttempts.operation, operation), or(eq(profileAttempts.run_id, lease.id), inArray(profileAttempts.state, UNSETTLED))))
       .orderBy(desc(profileAttempts.created_at))
@@ -242,7 +245,7 @@ export async function settle(
   });
 }
 async function known(tx: Executor, id: string) {
-  const [attempt] = await tx.select().from(profileAttempts).where(eq(profileAttempts.id, id));
+  const [attempt] = await tx.select({ state: profileAttempts.state }).from(profileAttempts).where(eq(profileAttempts.id, id));
   if (!attempt) throw new Error("Unknown attempt");
   return attempt;
 }
@@ -250,7 +253,7 @@ export async function cancelRun(client: Executor, runId: string) {
   await client.update(profileRuns).set({ state: "cancelled" }).where(and(or(eq(profileRuns.id, runId), eq(profileRuns.owner, runId)), eq(profileRuns.state, "running")));
 }
 export async function runSummary(client: Executor, runId: string) {
-  const [run] = await client.select().from(profileRuns).where(eq(profileRuns.id, runId));
+  const [run] = await client.select({ state: profileRuns.state, omitted: profileRuns.omitted, spent_micro: profileRuns.spent_micro, reserved_micro: profileRuns.reserved_micro }).from(profileRuns).where(eq(profileRuns.id, runId));
   if (!run) throw new Error("Unknown run");
   const work = await client
     .select({ phase: profileWork.phase, state: profileWork.state, count: sql<number>`count(*)::int` })

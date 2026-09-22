@@ -70,24 +70,71 @@ export type Evidence = {
 };
 /** What a record keeps per response: the envelope without its payload when a ledger attempt holds that, otherwise with it. */
 export type ResponseEnvelope = Omit<Evidence, "fields" | "raw"> & { raw?: unknown };
+/** A whole stored record, every column. A read that names its columns returns a ProfileSlice of those columns instead. */
 export type Profile = Record<string, any> & { key: string };
+/** The columns a projected read returned, and nothing else: a slice is never passed off as a whole record. */
+export type ProfileSlice<K extends string = string> = { key: string } & { [P in K]: any };
 const tableOf = (entity: Entity) => (entity === "people" ? people : companies);
 const time = (value: unknown) => new Date(value as string | Date).getTime();
 const identifierName = (entity: Entity, namespace: string, value: string) => `id:${entity}:${namespace}:${value}`;
 const CHUNK = 500;
 
+/** The record's own metadata: what every evidence application reads and rewrites. */
+const OPERATIONAL = [
+  "key",
+  "sources_json",
+  "created_at",
+  "updated_at",
+  "enriched_at",
+  "responses_json",
+  "provenance_json",
+  "section_status_json",
+  "last_attempt_at",
+  "enrichment_status",
+  "error",
+  "cost_usd",
+];
+/**
+ * What identity resolution reads of a candidate record: its identity columns to decide, `created_at` to pick the
+ * survivor, `sources_json` for the membership a caller adds. A merge reads the whole rows of its candidates afterwards.
+ */
+const identityColumns = (entity: Entity) => ["key", "created_at", "sources_json", ...identityFields[entity], ...(entity === "companies" ? ["domain", "name"] : [])];
+/** What a person needs after a company merge rewrote its roles. */
+const ROLE_COLUMNS = ["key", "primary_company_key", "experiences_json"];
+
 /** A stored row as the store works with it: jsonb, boolean and timestamptz columns already arrive as values, arrays and Dates. */
 export function decode(_entity: Entity, row: Record<string, unknown>): Profile {
   return row as Profile;
 }
-/** Several records by key, in batches; a merged record's old key finds the survivor. Missing keys are left out. */
-export async function getProfiles(db: Executor, entity: Entity, keys: string[]): Promise<Map<string, Profile>> {
+/** The columns of a projected read, `key` always among them. `responses_json` without payloads: the envelopes only, which is what a freshness check reads. */
+type Projection<K extends string> = { columns: readonly K[]; payloads?: boolean };
+/** responses_json as envelopes: an envelope from before attempts held the payloads carries `raw`, and a freshness check never reads it. */
+const envelopes = (t: typeof people | typeof companies) => sql<Record<string, unknown>>`COALESCE((SELECT jsonb_object_agg(e.key, e.value - 'raw') FROM jsonb_each(${t.responses_json}) AS e), '{}'::jsonb)`;
+function selection<K extends string>(entity: Entity, projection?: Projection<K>) {
   const t = tableOf(entity);
+  if (!projection) return undefined;
+  const columns = Object.fromEntries([...new Set(["key", ...projection.columns])].map((name) => {
+    const column = (t as unknown as Record<string, unknown>)[name];
+    if (!column) throw new Error(`Unknown ${entity} column: ${name}`);
+    return [name, name === "responses_json" && projection.payloads === false ? envelopes(t) : column];
+  }));
+  return columns as Record<K | "key", never>;
+}
+/**
+ * Several records by key, in batches; a merged record's old key finds the survivor. Missing keys are left out.
+ * With `columns`, the rows carry those columns only; without, the whole row.
+ */
+export async function getProfiles(db: Executor, entity: Entity, keys: string[]): Promise<Map<string, Profile>>;
+export async function getProfiles<K extends string>(db: Executor, entity: Entity, keys: string[], projection: Projection<K>): Promise<Map<string, ProfileSlice<K>>>;
+export async function getProfiles<K extends string>(db: Executor, entity: Entity, keys: string[], projection?: Projection<K>): Promise<Map<string, Profile>> {
+  const t = tableOf(entity);
+  const fields = selection(entity, projection);
+  const read = (batch: string[]) => (fields ? db.select(fields).from(t) : db.select().from(t)).where(inArray(t.key, batch)) as unknown as Promise<Profile[]>;
   const found = new Map<string, Profile>();
   const unique = [...new Set(keys)];
   for (let i = 0; i < unique.length; i += CHUNK) {
     const batch = unique.slice(i, i + CHUNK);
-    for (const row of await db.select().from(t).where(inArray(t.key, batch))) found.set(row.key, decode(entity, row));
+    for (const row of await read(batch)) found.set(row.key, decode(entity, row));
     const missing = batch.filter((key) => !found.has(key));
     if (!missing.length) continue;
     const aliases = await db
@@ -95,7 +142,7 @@ export async function getProfiles(db: Executor, entity: Entity, keys: string[]):
       .from(profileIdentifiers)
       .where(and(eq(profileIdentifiers.entity, entity), eq(profileIdentifiers.namespace, "internal_key"), inArray(profileIdentifiers.value, missing)));
     if (!aliases.length) continue;
-    const survivors = new Map((await db.select().from(t).where(inArray(t.key, [...new Set(aliases.map((a) => a.key))]))).map((row) => [row.key, decode(entity, row)]));
+    const survivors = new Map((await read([...new Set(aliases.map((a) => a.key))])).map((row) => [row.key, decode(entity, row)]));
     for (const alias of aliases) {
       const survivor = survivors.get(alias.key);
       if (survivor) found.set(alias.old, survivor);
@@ -103,15 +150,24 @@ export async function getProfiles(db: Executor, entity: Entity, keys: string[]):
   }
   return found;
 }
-/** One record by key. Inside a write transaction, `lock` takes the row lock that serializes writers of this record. */
-export async function getProfile(
+/**
+ * One record by key. Inside a write transaction, `lock` takes the row lock that serializes writers of this record.
+ * With `columns`, the row carries those columns only; without, the whole row.
+ */
+export async function getProfile(db: Executor, entity: Entity, key: string, options?: { lock?: boolean }): Promise<Profile | undefined>;
+export async function getProfile<K extends string>(db: Executor, entity: Entity, key: string, options: { lock?: boolean } & Projection<K>): Promise<ProfileSlice<K> | undefined>;
+export async function getProfile<K extends string>(
   db: Executor,
   entity: Entity,
   key: string,
-  options: { lock?: boolean } = {},
+  options: { lock?: boolean } & Partial<Projection<K>> = {},
 ): Promise<Profile | undefined> {
   const t = tableOf(entity);
-  const one = (k: string) => (options.lock ? db.select().from(t).where(eq(t.key, k)).for("update") : db.select().from(t).where(eq(t.key, k)));
+  const fields = options.columns ? selection(entity, options as Projection<K>) : undefined;
+  const one = (k: string) => {
+    const query = (fields ? db.select(fields).from(t) : db.select().from(t)).where(eq(t.key, k));
+    return (options.lock ? query.for("update") : query) as unknown as Promise<Profile[]>;
+  };
   const [row] = await one(key);
   if (row) return decode(entity, row);
   // A merged record's old key stays an identifier of the survivor.
@@ -122,6 +178,24 @@ export async function getProfile(
   if (!alias) return undefined;
   const [survivor] = await one(alias.key);
   return survivor ? decode(entity, survivor) : undefined;
+}
+/** The keys these keys resolve to today, in the same order, duplicates kept: a merged record's old key becomes the survivor's; an unknown key is left out. */
+async function survivingKeys(db: Executor, entity: Entity, keys: string[]) {
+  const t = tableOf(entity);
+  const survivor = new Map<string, string>();
+  const unique = [...new Set(keys)];
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const batch = unique.slice(i, i + CHUNK);
+    for (const row of await db.select({ key: t.key }).from(t).where(inArray(t.key, batch))) survivor.set(row.key, row.key);
+    const missing = batch.filter((key) => !survivor.has(key));
+    if (!missing.length) continue;
+    const aliases = await db
+      .select({ old: profileIdentifiers.value, key: profileIdentifiers.key })
+      .from(profileIdentifiers)
+      .where(and(eq(profileIdentifiers.entity, entity), eq(profileIdentifiers.namespace, "internal_key"), inArray(profileIdentifiers.value, missing)));
+    for (const alias of aliases) survivor.set(alias.old, alias.key);
+  }
+  return keys.map((key) => survivor.get(key)).filter((key): key is string => Boolean(key));
 }
 const same = (a: unknown, b: unknown) => {
   if (a == null || b == null) return a == null && b == null;
@@ -232,6 +306,8 @@ async function resolve(
   const entries = Object.entries(identity);
   const t = tableOf(entity);
   const ownerOf = and(eq(profileIdentifiers.entity, entity), or(...entries.map(([namespace, value]) => and(eq(profileIdentifiers.namespace, namespace), eq(profileIdentifiers.value, value)))));
+  // Candidates arrive as their identity columns only, locked by row; the whole rows are read only when there is more than one, for the merge.
+  const candidateColumns = selection(entity, { columns: identityColumns(entity) })!;
   let profiles: Profile[] = [];
   let known: (typeof profileIdentifiers.$inferSelect)[] = [];
   for (let round = 0; ; round += 1) {
@@ -249,10 +325,12 @@ async function resolve(
     if (candidateKeys.length) matches.push(inArray(t.key, candidateKeys));
     if (domainEvidence) matches.push(and(eq(companies.domain, supplied.domain!), eq(companies.name, supplied.name!))!);
     // No match must mean no rows: an empty or() would select the whole table.
-    profiles = matches.length ? (await tx.select().from(t).where(or(...matches)).for("update")).map((row) => decode(entity, row)) : [];
+    profiles = matches.length ? (await tx.select(candidateColumns).from(t).where(or(...matches)).for("update")).map((row) => decode(entity, row)) : [];
     // An identifier changes owner only when its record is merged away, so present candidates mean stable owners.
     if (candidateKeys.every((key) => profiles.some((p) => p.key === key)) || round >= 3) break;
   }
+  // A merge folds whole records into one, so it needs every column of each candidate; the rows are already locked.
+  if (profiles.length > 1) profiles = (await tx.select().from(t).where(inArray(t.key, profiles.map((p) => p.key)))).map((row) => decode(entity, row));
   // The target record and a domain-and-name match were not found through their identifiers; fetch those too.
   const uncovered = profiles.map((p) => p.key).filter((key) => !known.some((row) => row.key === key));
   if (uncovered.length) known = [...known, ...(await tx.select().from(profileIdentifiers).where(and(eq(profileIdentifiers.entity, entity), inArray(profileIdentifiers.key, uncovered))))];
@@ -325,9 +403,9 @@ async function resolve(
         profile.provenance_json[field] = duplicate.provenance_json[field];
     }
     if (entity === "companies") {
-      // People with this company, locked by row while their roles are rewritten.
+      // People with this company, locked by row while their roles are rewritten; only the role columns are read and written.
       const affected = await tx
-        .select()
+        .select(selection("people", { columns: ROLE_COLUMNS })!)
         .from(people)
         .where(or(eq(people.primary_company_key, duplicate.key), sql`${people.experiences_json} @> ${JSON.stringify([{ company_key: duplicate.key }])}::jsonb`))
         .for("update");
@@ -406,7 +484,7 @@ export async function markUnresolved(
 ) {
   return transaction(client, async (tx) => {
     await lockNames(tx, []);
-    const stored = await getProfile(tx, entity, key, { lock: true });
+    const stored = await getProfile(tx, entity, key, { lock: true, columns: ["enrichment_status", "error", "last_attempt_at", "updated_at"] });
     if (!stored) return;
     const now = new Date();
     const profile = { ...stored };
@@ -498,20 +576,6 @@ export function sanitize(value: unknown): unknown {
     );
   return value;
 }
-const OPERATIONAL = [
-  "key",
-  "sources_json",
-  "created_at",
-  "updated_at",
-  "enriched_at",
-  "responses_json",
-  "provenance_json",
-  "section_status_json",
-  "last_attempt_at",
-  "enrichment_status",
-  "error",
-  "cost_usd",
-];
 /** The company identities the roles of a person's evidence will resolve, for locking up front. */
 function roleIdentities(evidence: Evidence): Identity[] {
   const roles = evidence.fields.experiences_json;
@@ -523,27 +587,40 @@ function roleIdentities(evidence: Evidence): Identity[] {
     name: role.company_name ?? undefined,
   }));
 }
+/** The columns an evidence application reads: see applyEvidence. */
+function applicationColumns(entity: Entity, evidence: Evidence) {
+  const brought = Object.entries(evidence.fields).filter(([, value]) => value != null).map(([field]) => field);
+  const shortcuts = entity === "people" ? ["experiences_json", "primary_company_key", "primary_job_title"] : [];
+  return [...new Set([...OPERATIONAL, ...identityFields[entity], ...shortcuts, ...brought])];
+}
+/**
+ * Applies one provider response to a record: fields, provenance, section coverage, the retained envelopes, and for a
+ * person the companies of its roles. Returns the columns it read and wrote (see applicationColumns), not the whole
+ * record: an untouched column is read from the store, not from this result.
+ */
 export async function applyEvidence(
   client: Executor,
   entity: Entity,
   key: string,
   evidence: Evidence,
-  options: { /** The record as already read, unlocked, by the caller; saves the read that gathers the lock names. */ known?: Profile } = {},
-) {
+  options: { /** The record's identity columns as already read, unlocked, by the caller; saves the read that gathers the lock names. */ known?: ProfileSlice } = {},
+): Promise<ProfileSlice> {
   validateFields(entity, evidence.fields);
   if (Object.keys(evidence.fields).some((k) => OPERATIONAL.includes(k)))
     throw new Error("Provider cannot write operational metadata");
   return transaction(client, async (tx) => {
     // Every identifier this application may claim, locked in one batch before any row: the record's own, the evidence's,
     // and those of each role's company. Row locks then never wait in a cycle.
-    const unlocked = options.known ?? (await getProfile(tx, entity, key));
+    const unlocked = options.known ?? (await getProfile(tx, entity, key, { columns: identityFields[entity] }));
     if (!unlocked) throw new Error("Profile not found");
     const own = Object.fromEntries(identityFields[entity].filter((f) => unlocked[f]).map((f) => [f, unlocked[f]])) as Identity;
     const supplied = Object.fromEntries(identityFields[entity].filter((f) => evidence.fields[f] != null).map((f) => [f, evidence.fields[f]])) as Identity;
     const names = [...identityLockNames(entity, { ...own, ...supplied })];
     if (entity === "people") for (const role of roleIdentities(evidence)) names.push(...identityLockNames("companies", role));
     await lockNames(tx, names);
-    const stored = await getProfile(tx, entity, key, { lock: true });
+    // The columns this application reads or rewrites: the record's metadata, its identity, the fields the evidence
+    // brings (to keep what a partial section must not replace, and to send only what changed) and the role shortcuts.
+    const stored = await getProfile(tx, entity, key, { lock: true, columns: applicationColumns(entity, evidence) });
     if (!stored) throw new Error("Profile not found");
     let profile: Profile = { ...stored };
     let previous: Profile | undefined = stored;
@@ -586,9 +663,9 @@ export async function applyEvidence(
         );
         if (result.status === "ambiguous") outcome = "ambiguous";
         else if (result.status === "resolved") {
-          // Written (a merge): the row as it now stands. Deferred: the identity columns join the write at the end.
+          // Written (a merge): the whole row as it now stands. Deferred: the identity columns join the write at the end.
           if (result.written) previous = result.profile;
-          profile = { ...result.profile };
+          profile = { ...profile, ...result.profile };
         }
       }
     }
@@ -712,19 +789,29 @@ export async function applyEvidence(
     return profile;
   });
 }
+/**
+ * The companies these people work at now: the distinct company keys of their current roles, how many current roles
+ * there are and how many name no company. Counted in SQL over the roles, so no person's record leaves the database.
+ */
 export async function currentCompanies(client: Executor, personKeys: string[]) {
+  const keys = await survivingKeys(client, "people", personKeys);
   const companies = new Set<string>();
   let roles = 0,
     unresolved = 0;
-  const found = await getProfiles(client, "people", personKeys);
-  for (const key of personKeys) {
-    const person = found.get(key);
-    for (const role of (person?.experiences_json ?? []) as Experience[])
-      if (role.current_status === "current") {
-        roles++;
-        if (role.company_key) companies.add(role.company_key);
-        else unresolved++;
-      }
+  for (let i = 0; i < keys.length; i += CHUNK) {
+    // unnest keeps duplicates, so a person listed twice counts twice, as the list says.
+    const { rows } = await client.execute(sql`
+      SELECT role->>'company_key' AS company_key, count(*)::int AS roles
+      FROM unnest(${sql.param(keys.slice(i, i + CHUNK))}::text[]) AS listed(key)
+      JOIN ${people} p ON p.key = listed.key,
+      jsonb_array_elements(CASE WHEN jsonb_typeof(p.experiences_json) = 'array' THEN p.experiences_json ELSE '[]'::jsonb END) AS role
+      WHERE role->>'current_status' = 'current'
+      GROUP BY 1`);
+    for (const row of rows as { company_key: string | null; roles: number }[]) {
+      roles += Number(row.roles);
+      if (row.company_key) companies.add(row.company_key);
+      else unresolved += Number(row.roles);
+    }
   }
   return { keys: [...companies].sort(), roles, unresolved };
 }

@@ -13,6 +13,9 @@ export function dataSharingIssue({ data, sharePolicy: policy }) {
     policy.tables.some((t) => !all.has(t.name) || !t.row?.version)
   ) return "Data policy must cover every displayed table and relation table with a row policy";
   for (const view of data.tables) {
+    // A list never sends these (lib/data-api.ts RECORD_ONLY_COLUMNS), so a default that names one would show an empty column.
+    const recordOnly = (view.defaultColumns ?? []).filter((c) => ["responses_json", "provenance_json", "section_status_json", "sources_json"].includes(c));
+    if (recordOnly.length) return `Default columns of ${view.name} name record-only fields (${recordOnly.join(", ")}); lists never send them`;
     const shared = policy.tables.find((t) => t.name === view.name);
     if (
       [...(view.defaultColumns ?? view.columns), "key", view.labelColumn ?? "key"].some((c) => !shared.columns.includes(c)) ||

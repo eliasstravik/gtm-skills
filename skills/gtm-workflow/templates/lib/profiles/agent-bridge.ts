@@ -80,8 +80,9 @@ export async function profileAgentCall(
         .select({ person_key: profileInputs.person_key })
         .from(profileInputs)
         .where(and(eq(profileInputs.workflow_id, source.workflow_id), eq(profileInputs.source_id, source.source_id), eq(profileInputs.row_id, source.source_row_id)));
+      // The envelopes only; an envelope from before attempts held payloads carries its own, so payloads stay.
       const profile = saved?.person_key
-        ? await getProfile(client, "people", saved.person_key)
+        ? await getProfile(client, "people", saved.person_key, { columns: ["responses_json"] })
         : undefined;
       const evidence = (
         Object.values(profile?.responses_json ?? {}) as any[]

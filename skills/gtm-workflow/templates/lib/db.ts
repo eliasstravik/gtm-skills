@@ -31,6 +31,77 @@ export function poolSize() {
   return Number.isInteger(asked) && asked > 0 ? Math.min(asked, POOL_MAX_CEILING) : POOL_MAX_DEFAULT;
 }
 
+/**
+ * Bytes this process received from Postgres, counted on the client where the connection's socket hands them over
+ * (after TLS, so what Neon counts as data transfer, give or take the protocol's framing) and attributed to the
+ * statement that connection was running. Per statement shape, so a run's reads can be seen path by path:
+ * `readBytes()` at any time, or GTM_DB_LOG_READS=1 to print the heaviest shapes when the process exits.
+ * tests/read-budgets.test.ts holds every path to the budgets in lib/read-budgets.ts.
+ */
+export type ReadShape = { shape: string; bytes: number; statements: number };
+const reads = { total: 0, statements: 0, shapes: new Map<string, ReadShape>() };
+const SHAPE_LENGTH = 160;
+/** One statement text per shape: parameters, literals and lists collapse, so `in ($1, $2, $3)` and `in ($1)` are one path. */
+export function statementShape(text: string) {
+  return text
+    .replace(/\s+/g, " ")
+    .replace(/'(?:[^']|'')*'/g, "'?'")
+    .replace(/\$\d+/g, "$?")
+    .replace(/\$\?(?:, ?\$\?)+/g, "$?…")
+    .trim()
+    .slice(0, SHAPE_LENGTH);
+}
+type MeteredClient = pg.Client & { _activeQuery?: { text?: string } | null; connection?: { stream?: { prependListener(event: "data", listener: (chunk: Buffer) => void): unknown } } };
+/**
+ * Counts every chunk the connection's socket receives against the statement the client is running on it. The listener
+ * goes before the driver's own, which would already have finished the statement when a whole answer arrives in one chunk.
+ */
+function meterClient(client: pg.Client) {
+  const stream = (client as MeteredClient).connection?.stream;
+  if (!stream) return;
+  stream.prependListener("data", (chunk: Buffer) => {
+    reads.total += chunk.length;
+    const text = (client as MeteredClient)._activeQuery?.text;
+    if (typeof text !== "string") return;
+    const shape = statementShape(text);
+    const entry = reads.shapes.get(shape) ?? { shape, bytes: 0, statements: 0 };
+    entry.bytes += chunk.length;
+    reads.shapes.set(shape, entry);
+  });
+  const original = client.query;
+  // Statements are counted as they are queued; the bytes follow when the answer arrives.
+  (client as { query: unknown }).query = function (this: pg.Client, ...args: unknown[]) {
+    const text = typeof args[0] === "string" ? args[0] : (args[0] as { text?: string } | undefined)?.text;
+    if (typeof text === "string") {
+      reads.statements += 1;
+      const shape = statementShape(text);
+      const entry = reads.shapes.get(shape) ?? { shape, bytes: 0, statements: 0 };
+      entry.statements += 1;
+      reads.shapes.set(shape, entry);
+    }
+    return (original as (...a: unknown[]) => unknown).apply(this, args);
+  };
+}
+/** Bytes received from Postgres so far and the statement shapes that cost the most, heaviest first. */
+export function readBytes(): { total: number; statements: number; shapes: ReadShape[] } {
+  return { total: reads.total, statements: reads.statements, shapes: [...reads.shapes.values()].sort((a, b) => b.bytes - a.bytes).map((s) => ({ ...s })) };
+}
+export function resetReadBytes() {
+  reads.total = 0;
+  reads.statements = 0;
+  reads.shapes.clear();
+}
+let logReadsOnExit = false;
+function logReads() {
+  if (logReadsOnExit || !process.env.GTM_DB_LOG_READS) return;
+  logReadsOnExit = true;
+  process.on("exit", () => {
+    const { total, statements, shapes } = readBytes();
+    console.error(`Database reads: ${total} bytes received over ${statements} statements`);
+    for (const s of shapes.slice(0, 15)) console.error(`  ${s.bytes} bytes, ${s.statements} statements: ${s.shape}`);
+  });
+}
+
 let pool: pg.Pool | undefined;
 let instance: ReturnType<typeof drizzle<typeof tables>> | undefined;
 /** One Postgres at DATABASE_URL, locally and deployed. Nothing connects at import time. Call only inside "use step" functions and route handlers. */
@@ -39,6 +110,8 @@ export function db() {
   if (!process.env.DATABASE_URL) throw missingUrl();
   pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: poolSize(), connectionTimeoutMillis: CONNECT_TIMEOUT_MS });
   pool.on("error", logDropped);
+  pool.on("connect", meterClient);
+  logReads();
   if (process.env.VERCEL) attachDatabasePool(pool);
   return (instance = drizzle(pool, { schema: tables }));
 }
@@ -164,26 +237,65 @@ export function toDate(value: unknown): Date {
   return value instanceof Date ? value : parseTimestamptz(String(value));
 }
 
+/** The most rows one FETCH brings: a few round trips for a page, and little fetched past the byte limit. */
+const FETCH_ROWS = 100;
+const errorCode = (error: unknown) => (error as { code?: string })?.code;
+export type ReadOnlyResult = { columns: string[]; rows: Record<string, unknown>[]; truncated: boolean };
 /**
  * Runs one caller-written statement for /api/query and nothing else. Safety comes from Postgres, not from reading the text:
  * a read-only transaction; the extended protocol, which refuses `select 1; commit; insert …`; a 5 second limit; and a
  * throwaway session that is always ended, so a session lock taken by the statement cannot outlive it.
+ *
+ * The statement runs behind a cursor, so what leaves Postgres is bounded by `limits` (lib/read-budgets.ts) however it
+ * is written: a `select *` over a table of thousands sends the first rows and stops. Rows past the row limit, or past
+ * the byte limit (measured as the rows' JSON), are not fetched, and `truncated` says so. A statement a cursor cannot
+ * hold (EXPLAIN, SHOW, and every write, which the read-only transaction refuses) runs directly, its rows cut in memory.
  */
-export async function runReadOnly(text: string, args: unknown[]) {
+export async function runReadOnly(text: string, args: unknown[], limits: { rows: number; bytes: number }): Promise<ReadOnlyResult> {
   const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
   if (!url) throw missingUrl();
   const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: CONNECT_TIMEOUT_MS });
   client.on("error", logDropped);
+  // queryMode is node-postgres' own option (8.11+) and not yet in @types/pg. Without it a statement with no parameters goes by the simple protocol.
+  const extended = (statement: string, values: unknown[] = []) => client.query({ text: statement, values, queryMode: "extended" } as pg.QueryConfig);
   try {
     // Inside the try, so a connect that fails half way is ended too.
     await client.connect();
+    meterClient(client);
     await client.query("BEGIN");
     await client.query("SET TRANSACTION READ ONLY");
     await client.query("SET LOCAL statement_timeout = '5s'");
     await client.query("SET LOCAL search_path = public, gtm");
-    // queryMode is node-postgres' own option (8.11+) and not yet in @types/pg. Without it a statement with no parameters goes by the simple protocol.
-    const result = await client.query({ text, values: args, queryMode: "extended" } as pg.QueryConfig);
-    return { columns: result.fields.map((field) => field.name), rows: result.rows as Record<string, unknown>[] };
+    // On its own lines, so a trailing line comment cannot swallow the cursor's syntax; a trailing semicolon would.
+    const statement = text.replace(/[\s;]+$/, "");
+    let declared = true;
+    try {
+      await extended(`DECLARE gtm_query NO SCROLL CURSOR FOR\n${statement}\n`, args);
+    } catch (error) {
+      // 42601 syntax error, 0A000 feature not supported: not a query a cursor can hold. Anything else is the statement's own error.
+      if (!["42601", "0A000"].includes(errorCode(error) ?? "")) throw error;
+      declared = false;
+    }
+    if (!declared) {
+      const result = await extended(statement, args);
+      return { columns: result.fields.map((field) => field.name), rows: result.rows.slice(0, limits.rows) as Record<string, unknown>[], truncated: result.rows.length > limits.rows };
+    }
+    const rows: Record<string, unknown>[] = [];
+    let columns: string[] | undefined, bytes = 0, truncated = false;
+    while (!truncated) {
+      // One row past the row limit tells that more exist; past the first batch, a fetch asks for no more rows than the byte limit has room for at the size seen so far.
+      const room = rows.length ? Math.ceil((limits.bytes - bytes) / (bytes / rows.length)) : FETCH_ROWS;
+      const count = Math.max(1, Math.min(FETCH_ROWS, limits.rows + 1 - rows.length, room));
+      const batch = await client.query(`FETCH FORWARD ${count} FROM gtm_query`);
+      columns ??= batch.fields.map((field) => field.name);
+      for (const row of batch.rows as Record<string, unknown>[]) {
+        bytes += Buffer.byteLength(JSON.stringify(row));
+        if (rows.length >= limits.rows || bytes > limits.bytes) { truncated = true; break; }
+        rows.push(row);
+      }
+      if (batch.rows.length < count) break;
+    }
+    return { columns: columns ?? [], rows, truncated };
   } finally {
     await client.query("ROLLBACK").catch(() => {});
     await client.end().catch(() => {});

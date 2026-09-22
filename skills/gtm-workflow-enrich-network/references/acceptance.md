@@ -23,5 +23,6 @@ Validate generated workflows with fake source/provider adapters before buying re
 | Resumption and scale | At least 120 people and 120 distinct companies execute each phase once per item, share one budget, and resume without repeating paid work |
 | Structured export | JSON preserves arrays/objects; CSV quotes each structured value in one cell; raw evidence requires deliberate owner inclusion |
 | Shared consumers | Network and email imports reuse confirmed person/company identities. Freeform model interpretations remain workflow context |
+| Bytes out | `tests/run.mjs <workspace>/workflows --only read-budgets` passes against the workspace's runtime, and a local limited run under `GTM_DB_LOG_READS=1` shows no statement shape that lists every column of `gtm.people` or `gtm.companies` |
 
 For skill routing, try the positive source variants above and negative requests for a one-off fit check, fetching followers only, generic email enrichment, and running an unchanged saved workflow. The recipe is selected only for its owned output; unchanged runs go to `gtm-workflow`.
