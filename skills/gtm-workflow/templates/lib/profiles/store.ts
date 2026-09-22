@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { and, eq, inArray, or, sql, type SQL } from "drizzle-orm";
-import { stripNul, writeTransaction, type Executor } from "../db";
+import { lockNames, stripNul, writeTransaction, type Executor } from "../db";
 import { companies, people, profileIdentifiers } from "../schema/profiles";
 import { profileInputs } from "../schema/ledger";
 import { canonicalUrl, identifiersOf, identityFields } from "./identifiers.mjs";
@@ -65,22 +65,54 @@ export type Evidence = {
   sections: Record<string, Coverage>;
   raw: unknown;
   cost_usd: number | null;
+  /** The ledger attempt whose response_json holds the payload; with it, the record keeps a reference instead of the payload. */
+  attempt_id?: string;
 };
+/** What a record keeps per response: the envelope without its payload when a ledger attempt holds that, otherwise with it. */
+export type ResponseEnvelope = Omit<Evidence, "fields" | "raw"> & { raw?: unknown };
 export type Profile = Record<string, any> & { key: string };
 const tableOf = (entity: Entity) => (entity === "people" ? people : companies);
 const time = (value: unknown) => new Date(value as string | Date).getTime();
+const identifierName = (entity: Entity, namespace: string, value: string) => `id:${entity}:${namespace}:${value}`;
+const CHUNK = 500;
 
 /** A stored row as the store works with it: jsonb, boolean and timestamptz columns already arrive as values, arrays and Dates. */
 export function decode(_entity: Entity, row: Record<string, unknown>): Profile {
   return row as Profile;
 }
+/** Several records by key, in batches; a merged record's old key finds the survivor. Missing keys are left out. */
+export async function getProfiles(db: Executor, entity: Entity, keys: string[]): Promise<Map<string, Profile>> {
+  const t = tableOf(entity);
+  const found = new Map<string, Profile>();
+  const unique = [...new Set(keys)];
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const batch = unique.slice(i, i + CHUNK);
+    for (const row of await db.select().from(t).where(inArray(t.key, batch))) found.set(row.key, decode(entity, row));
+    const missing = batch.filter((key) => !found.has(key));
+    if (!missing.length) continue;
+    const aliases = await db
+      .select({ old: profileIdentifiers.value, key: profileIdentifiers.key })
+      .from(profileIdentifiers)
+      .where(and(eq(profileIdentifiers.entity, entity), eq(profileIdentifiers.namespace, "internal_key"), inArray(profileIdentifiers.value, missing)));
+    if (!aliases.length) continue;
+    const survivors = new Map((await db.select().from(t).where(inArray(t.key, [...new Set(aliases.map((a) => a.key))]))).map((row) => [row.key, decode(entity, row)]));
+    for (const alias of aliases) {
+      const survivor = survivors.get(alias.key);
+      if (survivor) found.set(alias.old, survivor);
+    }
+  }
+  return found;
+}
+/** One record by key. Inside a write transaction, `lock` takes the row lock that serializes writers of this record. */
 export async function getProfile(
   db: Executor,
   entity: Entity,
   key: string,
+  options: { lock?: boolean } = {},
 ): Promise<Profile | undefined> {
   const t = tableOf(entity);
-  const [row] = await db.select().from(t).where(eq(t.key, key));
+  const one = (k: string) => (options.lock ? db.select().from(t).where(eq(t.key, k)).for("update") : db.select().from(t).where(eq(t.key, k)));
+  const [row] = await one(key);
   if (row) return decode(entity, row);
   // A merged record's old key stays an identifier of the survivor.
   const [alias] = await db
@@ -88,28 +120,46 @@ export async function getProfile(
     .from(profileIdentifiers)
     .where(and(eq(profileIdentifiers.entity, entity), eq(profileIdentifiers.namespace, "internal_key"), eq(profileIdentifiers.value, key)));
   if (!alias) return undefined;
-  const [survivor] = await db.select().from(t).where(eq(t.key, alias.key));
+  const [survivor] = await one(alias.key);
   return survivor ? decode(entity, survivor) : undefined;
 }
-async function write(db: Executor, entity: Entity, profile: Profile) {
+const same = (a: unknown, b: unknown) => {
+  if (a == null || b == null) return a == null && b == null;
+  if (a instanceof Date || b instanceof Date) return time(a) === time(b);
+  if (typeof a === "object" || typeof b === "object") return JSON.stringify(a) === JSON.stringify(b);
+  return a === b;
+};
+/**
+ * Writes a record. With `previous` (the row as read in this transaction) only the changed columns are sent, and
+ * nothing at all when only updated_at would change: a resolution that changes nothing is not an update.
+ */
+async function write(db: Executor, entity: Entity, profile: Profile, previous?: Profile) {
   const fields = fieldsFor(entity);
   const values = stripNul(Object.fromEntries(Object.entries(profile).map(([key, value]) => [key, value != null && fields[key] === "TIME" ? new Date(value) : (value ?? null)])));
   validateFields(entity, values);
   const t = tableOf(entity);
-  await db
-    .insert(t)
-    .values(values as never)
-    .onConflictDoUpdate({ target: t.key, set: Object.fromEntries(Object.keys(values).filter((key) => key !== "key").map((key) => [key, sql.raw(`excluded."${key}"`)])) });
+  if (!previous || previous.key !== values.key) {
+    await db
+      .insert(t)
+      .values(values as never)
+      .onConflictDoUpdate({ target: t.key, set: Object.fromEntries(Object.keys(values).filter((key) => key !== "key").map((key) => [key, sql.raw(`excluded."${key}"`)])) });
+    return;
+  }
+  const changed = Object.fromEntries(Object.entries(values).filter(([key, value]) => key !== "key" && !same(value, previous[key])));
+  if (!Object.keys(changed).some((key) => key !== "updated_at")) return;
+  await db.update(t).set(changed as never).where(eq(t.key, values.key));
 }
-/** The primary key is the backstop, the write lock the mechanism: a claim another record already owns is left alone. */
-async function claim(db: Executor, entity: Entity, key: string, identifiers: { namespace: string; value: string; observed_at?: string | Date | null }[]) {
-  if (!identifiers.length) return;
+type Claim = { namespace: string; value: string; observed_at?: string | Date | null };
+/** The primary key is the backstop, the identifier lock the mechanism: a claim another record already owns is left alone. Known claims are skipped. */
+async function claim(db: Executor, entity: Entity, key: string, identifiers: Claim[], known: { namespace: string; value: string; key: string }[] = []) {
+  const wanted = identifiers.filter((id) => !known.some((k) => k.key === key && k.namespace === id.namespace && k.value === id.value));
+  if (!wanted.length) return;
   await db
     .insert(profileIdentifiers)
-    .values(identifiers.map((id) => ({ entity, namespace: id.namespace, value: id.value, key, observed_at: id.observed_at ? new Date(id.observed_at) : null })))
+    .values(wanted.map((id) => ({ entity, namespace: id.namespace, value: id.value, key, observed_at: id.observed_at ? new Date(id.observed_at) : null })))
     .onConflictDoNothing();
 }
-/** Every profile and ledger write goes through here: one writer at a time, as the code was written for. */
+/** Every profile and ledger write goes through here: per-record and per-identifier locks, so unrelated writers run in parallel. */
 export async function transaction<T>(
   db: Executor,
   fn: (tx: Executor) => Promise<T>,
@@ -133,7 +183,33 @@ function sourceUnion(a: Source[], b: Source[]) {
   }
   return [...result.values()];
 }
-/** Called only inside the same serialized transaction as profile writes. */
+/** The identifiers an identity supplies, normalized; the lock names of a resolution are made from these. */
+function normalizeIdentity(entity: Entity, supplied: Identity) {
+  const identity: Record<string, string> = {};
+  for (const field of identityFields[entity]) {
+    const value = supplied[field as keyof Identity];
+    if (!value) continue;
+    if (typeof value !== "string")
+      throw new Error("Identity must preserve string precision");
+    const normalized =
+      field === "linkedin_url" ? canonicalUrl(value, entity) : value.trim();
+    if (normalized) identity[field] = normalized;
+  }
+  const domainEvidence = Boolean(entity === "companies" && supplied.domain && supplied.name);
+  return { identity, domainEvidence };
+}
+/** The lock names a resolution of this identity takes, so a caller can take them up front together with others. */
+export function identityLockNames(entity: Entity, supplied: Identity) {
+  const { identity, domainEvidence } = normalizeIdentity(entity, supplied);
+  const names = Object.entries(identity).map(([namespace, value]) => identifierName(entity, namespace, value));
+  if (domainEvidence) names.push(identifierName("companies", "domain+name", `${supplied.domain}|${supplied.name}`));
+  return names;
+}
+/**
+ * Called only inside a write transaction. Locks the supplied identifiers first, so two writers cannot both create a
+ * record for one identifier, then the candidate records by row, so identity resolution and merges of one record are
+ * serialized. A candidate that disappeared while waiting (merged away) means its identifiers moved: look them up again.
+ */
 async function resolve(
   tx: Executor,
   entity: Entity,
@@ -145,35 +221,30 @@ async function resolve(
   | { status: "resolved"; profile: Profile }
   | { status: "unresolved" | "ambiguous" }
 > {
-  const identity: Record<string, string> = {};
-  for (const field of identityFields[entity]) {
-    const value = supplied[field as keyof Identity];
-    if (!value) continue;
-    if (typeof value !== "string")
-      throw new Error("Identity must preserve string precision");
-    const normalized =
-      field === "linkedin_url" ? canonicalUrl(value, entity) : value.trim();
-    if (normalized) identity[field] = normalized;
-  }
-  const domainEvidence =
-    entity === "companies" && supplied.domain && supplied.name;
+  const { identity, domainEvidence } = normalizeIdentity(entity, supplied);
   if (!Object.keys(identity).length && !domainEvidence)
     return { status: "unresolved" };
+  await lockNames(tx, identityLockNames(entity, supplied));
   const entries = Object.entries(identity);
   const t = tableOf(entity);
-  // Whoever owns any supplied identifier is a candidate, and so is a company with the same domain and name.
-  const owners = entries.length
-    ? await tx
-        .select({ key: profileIdentifiers.key })
-        .from(profileIdentifiers)
-        .where(and(eq(profileIdentifiers.entity, entity), or(...entries.map(([namespace, value]) => and(eq(profileIdentifiers.namespace, namespace), eq(profileIdentifiers.value, value))))))
-    : [];
-  const matches: SQL[] = [];
-  const candidateKeys = [...new Set([...owners.map((owner) => owner.key), ...(targetKey ? [targetKey] : [])])];
-  if (candidateKeys.length) matches.push(inArray(t.key, candidateKeys));
-  if (domainEvidence) matches.push(and(eq(companies.domain, supplied.domain!), eq(companies.name, supplied.name!))!);
-  // No match must mean no rows: an empty or() would select the whole table.
-  const profiles = matches.length ? (await tx.select().from(t).where(or(...matches))).map((row) => decode(entity, row)) : [];
+  let profiles: Profile[] = [];
+  for (let round = 0; ; round += 1) {
+    // Whoever owns any supplied identifier is a candidate, and so is a company with the same domain and name.
+    const owners = entries.length
+      ? await tx
+          .select({ key: profileIdentifiers.key })
+          .from(profileIdentifiers)
+          .where(and(eq(profileIdentifiers.entity, entity), or(...entries.map(([namespace, value]) => and(eq(profileIdentifiers.namespace, namespace), eq(profileIdentifiers.value, value))))))
+      : [];
+    const matches: SQL[] = [];
+    const candidateKeys = [...new Set([...owners.map((owner) => owner.key), ...(targetKey ? [targetKey] : [])])];
+    if (candidateKeys.length) matches.push(inArray(t.key, candidateKeys));
+    if (domainEvidence) matches.push(and(eq(companies.domain, supplied.domain!), eq(companies.name, supplied.name!))!);
+    // No match must mean no rows: an empty or() would select the whole table.
+    profiles = matches.length ? (await tx.select().from(t).where(or(...matches)).for("update")).map((row) => decode(entity, row)) : [];
+    // An identifier changes owner only when its record is merged away, so present candidates mean stable owners.
+    if (candidateKeys.every((key) => profiles.some((p) => p.key === key)) || round >= 3) break;
+  }
   const known = profiles.length
     ? await tx.select().from(profileIdentifiers).where(and(eq(profileIdentifiers.entity, entity), inArray(profileIdentifiers.key, profiles.map((p) => p.key))))
     : [];
@@ -214,7 +285,8 @@ async function resolve(
     (a, b) =>
       time(a.created_at) - time(b.created_at) || a.key.localeCompare(b.key),
   );
-  let profile: Profile = profiles[0] ?? {
+  const previous = profiles[0];
+  let profile: Profile = previous ?? {
     key: randomUUID(),
     created_at: new Date(now),
     updated_at: new Date(now),
@@ -232,9 +304,9 @@ async function resolve(
       prior.sources_json ?? [],
       duplicate.sources_json ?? [],
     );
-    profile.raw_responses_json = {
-      ...duplicate.raw_responses_json,
-      ...prior.raw_responses_json,
+    profile.responses_json = {
+      ...duplicate.responses_json,
+      ...prior.responses_json,
     };
     profile.provenance_json = {
       ...duplicate.provenance_json,
@@ -245,13 +317,15 @@ async function resolve(
         profile.provenance_json[field] = duplicate.provenance_json[field];
     }
     if (entity === "companies") {
-      // People with this company, found through the GIN index on experiences_json.
+      // People with this company, locked by row while their roles are rewritten.
       const affected = await tx
         .select()
         .from(people)
-        .where(or(eq(people.primary_company_key, duplicate.key), sql`${people.experiences_json} @> ${JSON.stringify([{ company_key: duplicate.key }])}::jsonb`));
+        .where(or(eq(people.primary_company_key, duplicate.key), sql`${people.experiences_json} @> ${JSON.stringify([{ company_key: duplicate.key }])}::jsonb`))
+        .for("update");
       for (const row of affected) {
-        const person = decode("people", row);
+        const stored = decode("people", row);
+        const person = { ...stored };
         person.experiences_json = (person.experiences_json ?? []).map(
           (e: Experience) =>
             e.company_key === duplicate.key
@@ -260,7 +334,7 @@ async function resolve(
         );
         if (person.primary_company_key === duplicate.key)
           person.primary_company_key = profile.key;
-        await write(tx, "people", person);
+        await write(tx, "people", person, stored);
       }
     }
     if (entity === "people") {
@@ -290,17 +364,24 @@ async function resolve(
     profile.domain ??= supplied.domain;
     profile.name ??= supplied.name;
   }
-  await write(tx, entity, profile);
+  await write(tx, entity, profile, profiles.length === 1 ? previous : undefined);
   // Same transaction as the record. Supplied values first, so a changed slug stays an identifier next to the record's own columns.
-  await claim(tx, entity, profile.key, [
-    ...entries.map(([namespace, value]) => ({ namespace, value, observed_at: now })),
-    ...identifiersOf(entity, profile, []).map((id) => ({ ...id, observed_at: now })),
-  ]);
+  await claim(
+    tx,
+    entity,
+    profile.key,
+    [
+      ...entries.map(([namespace, value]) => ({ namespace, value, observed_at: now })),
+      ...identifiersOf(entity, profile, []).map((id) => ({ ...id, observed_at: now })),
+    ],
+    profiles.length === 1 ? known : [],
+  );
   return { status: "resolved", profile };
 }
 /** Deleting a record deletes its identifiers in the same transaction; afterwards they resolve to a new record. */
 export async function deleteProfile(db: Executor, entity: Entity, key: string) {
   return transaction(db, async (tx) => {
+    await lockNames(tx, []);
     const t = tableOf(entity);
     await tx.delete(profileIdentifiers).where(and(eq(profileIdentifiers.entity, entity), eq(profileIdentifiers.key, key)));
     await tx.delete(t).where(eq(t.key, key));
@@ -314,14 +395,16 @@ export async function markUnresolved(
   reason: string,
 ) {
   return transaction(client, async (tx) => {
-    const profile = await getProfile(tx, entity, key);
-    if (!profile) return;
+    await lockNames(tx, []);
+    const stored = await getProfile(tx, entity, key, { lock: true });
+    if (!stored) return;
     const now = new Date();
+    const profile = { ...stored };
     profile.enrichment_status = "unresolved";
     profile.error = reason;
     profile.last_attempt_at = now;
     profile.updated_at = now;
-    await write(tx, entity, profile);
+    await write(tx, entity, profile, stored);
   });
 }
 export async function resolveIdentity(
@@ -338,11 +421,14 @@ export async function resolveIdentity(
       new Date().toISOString(),
     );
     if (result.status === "resolved" && source) {
-      result.profile.sources_json = sourceUnion(
-        result.profile.sources_json ?? [],
+      const stored = result.profile;
+      const profile = { ...stored };
+      profile.sources_json = sourceUnion(
+        stored.sources_json ?? [],
         [source],
       );
-      await write(tx, entity, result.profile);
+      await write(tx, entity, profile, stored);
+      result.profile = profile;
     }
     return result;
   });
@@ -359,7 +445,7 @@ export function isFresh(
 ) {
   if (!profile.enriched_at || now - time(profile.enriched_at) >= maxAgeMs)
     return false;
-  const evidence = Object.values(profile.raw_responses_json ?? {}) as any[];
+  const evidence = Object.values(profile.responses_json ?? {}) as any[];
   return evidence.some(
     (e) =>
       e.provider === provider &&
@@ -378,7 +464,7 @@ export function recentMiss(
   maxAgeMs = 30 * 86400000,
   now = Date.now(),
 ) {
-  return Object.values(profile.raw_responses_json ?? {}).some(
+  return Object.values(profile.responses_json ?? {}).some(
     (e: any) =>
       e.provider === provider &&
       e.endpoint === endpoint &&
@@ -402,6 +488,31 @@ export function sanitize(value: unknown): unknown {
     );
   return value;
 }
+const OPERATIONAL = [
+  "key",
+  "sources_json",
+  "created_at",
+  "updated_at",
+  "enriched_at",
+  "responses_json",
+  "provenance_json",
+  "section_status_json",
+  "last_attempt_at",
+  "enrichment_status",
+  "error",
+  "cost_usd",
+];
+/** The company identities the roles of a person's evidence will resolve, for locking up front. */
+function roleIdentities(evidence: Evidence): Identity[] {
+  const roles = evidence.fields.experiences_json;
+  if (!Array.isArray(roles)) return [];
+  return roles.map((role: Experience) => ({
+    linkedin_company_id: role.company_linkedin_id ?? undefined,
+    linkedin_url: role.company_linkedin_url ?? undefined,
+    domain: role.company_domain ?? undefined,
+    name: role.company_name ?? undefined,
+  }));
+}
 export async function applyEvidence(
   client: Executor,
   entity: Entity,
@@ -409,35 +520,25 @@ export async function applyEvidence(
   evidence: Evidence,
 ) {
   validateFields(entity, evidence.fields);
-  if (
-    Object.keys(evidence.fields).some((k) =>
-      [
-        "key",
-        "sources_json",
-        "created_at",
-        "updated_at",
-        "enriched_at",
-        "raw_responses_json",
-        "provenance_json",
-        "section_status_json",
-        "last_attempt_at",
-        "enrichment_status",
-        "error",
-        "cost_usd",
-      ].includes(k),
-    )
-  )
+  if (Object.keys(evidence.fields).some((k) => OPERATIONAL.includes(k)))
     throw new Error("Provider cannot write operational metadata");
   return transaction(client, async (tx) => {
-    let profile = await getProfile(tx, entity, key);
-    if (!profile) throw new Error("Profile not found");
+    // Every identifier this application may claim, locked in one batch before any row: the record's own, the evidence's,
+    // and those of each role's company. Row locks then never wait in a cycle.
+    const unlocked = await getProfile(tx, entity, key);
+    if (!unlocked) throw new Error("Profile not found");
+    const own = Object.fromEntries(identityFields[entity].filter((f) => unlocked[f]).map((f) => [f, unlocked[f]])) as Identity;
+    const supplied = Object.fromEntries(identityFields[entity].filter((f) => evidence.fields[f] != null).map((f) => [f, evidence.fields[f]])) as Identity;
+    const names = [...identityLockNames(entity, { ...own, ...supplied })];
+    if (entity === "people") for (const role of roleIdentities(evidence)) names.push(...identityLockNames("companies", role));
+    await lockNames(tx, names);
+    const stored = await getProfile(tx, entity, key, { lock: true });
+    if (!stored) throw new Error("Profile not found");
+    let profile: Profile = { ...stored };
+    let previous: Profile | undefined = stored;
     let outcome = evidence.outcome;
     if (outcome === "success") {
-      const identity = Object.fromEntries(
-        identityFields[entity]
-          .filter((f) => evidence.fields[f] != null)
-          .map((f) => [f, evidence.fields[f]]),
-      ) as Identity;
+      const identity = supplied;
       // Include prior platform evidence to reject an incompatible refresh.
       const conflicts = identityFields[entity]
         .filter((f) => f !== "linkedin_url")
@@ -472,19 +573,23 @@ export async function applyEvidence(
           profile.key,
         );
         if (result.status === "ambiguous") outcome = "ambiguous";
-        else if (result.status === "resolved") profile = result.profile;
+        else if (result.status === "resolved") {
+          // The resolution wrote the record (or a merged survivor); what it returned is the row as it now stands.
+          previous = result.profile;
+          profile = { ...result.profile };
+        }
       }
     }
-    const envelope = {
+    const envelope: ResponseEnvelope = {
       ...evidence,
       outcome,
-      raw: sanitize(evidence.raw),
       fields: undefined,
-    };
+      raw: evidence.attempt_id ? undefined : sanitize(evidence.raw),
+    } as ResponseEnvelope;
     const ref = createHash("sha256")
       .update(JSON.stringify(envelope))
       .digest("hex");
-    const raw = { ...profile.raw_responses_json, [ref]: envelope };
+    const responses = { ...profile.responses_json, [ref]: envelope };
     const provenance = { ...profile.provenance_json };
     const coverage = { ...profile.section_status_json };
     let partial = false;
@@ -546,10 +651,10 @@ export async function applyEvidence(
           role.company_key =
             company.status === "resolved" ? company.profile.key : null;
           if (company.status === "resolved") {
-            if (!company.profile.name) company.profile.name = role.company_name;
-            if (!company.profile.domain)
-              company.profile.domain = role.company_domain ?? null;
-            await write(tx, "companies", company.profile);
+            const filled = { ...company.profile };
+            if (!filled.name) filled.name = role.company_name;
+            if (!filled.domain) filled.domain = role.company_domain ?? null;
+            await write(tx, "companies", filled, company.profile);
           }
         }
         const current = roles.filter((r) => r.current_status === "current");
@@ -570,15 +675,15 @@ export async function applyEvidence(
       Object.values(provenance).map((p: any) => p.response),
     );
     const latest = new Map<string, string>();
-    for (const [id, e] of Object.entries(raw) as [string, any][]) {
+    for (const [id, e] of Object.entries(responses) as [string, any][]) {
       const operation = JSON.stringify([e.provider, e.endpoint, e.mode]);
       const prior = latest.get(operation);
-      if (!prior || raw[prior].fetched_at <= e.fetched_at)
+      if (!prior || responses[prior].fetched_at <= e.fetched_at)
         latest.set(operation, id);
     }
     for (const id of latest.values()) keep.add(id);
-    profile.raw_responses_json = Object.fromEntries(
-      Object.entries(raw).filter(([id]) => keep.has(id)),
+    profile.responses_json = Object.fromEntries(
+      Object.entries(responses).filter(([id]) => keep.has(id)),
     );
     profile.provenance_json = provenance;
     profile.section_status_json = coverage;
@@ -591,7 +696,7 @@ export async function applyEvidence(
       outcome === "failed"
         ? "Provider lookup failed; previous profile retained"
         : null;
-    await write(tx, entity, profile);
+    await write(tx, entity, profile, previous);
     return profile;
   });
 }
@@ -599,8 +704,9 @@ export async function currentCompanies(client: Executor, personKeys: string[]) {
   const companies = new Set<string>();
   let roles = 0,
     unresolved = 0;
+  const found = await getProfiles(client, "people", personKeys);
   for (const key of personKeys) {
-    const person = await getProfile(client, "people", key);
+    const person = found.get(key);
     for (const role of (person?.experiences_json ?? []) as Experience[])
       if (role.current_status === "current") {
         roles++;

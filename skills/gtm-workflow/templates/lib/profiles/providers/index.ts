@@ -23,13 +23,14 @@ export type LookupPlan =
       body: Record<string, unknown>;
     }
   | { kind: "unresolved"; reason: string };
-export type LookupOptions = { requestsPerSecond?: number };
+/** deferSettle: return a terminal response unsettled, with its cost, for the caller to settle in its own transaction (acceptItem). */
+export type LookupOptions = { requestsPerSecond?: number; deferSettle?: boolean };
 /** One selectable enrichment service. The ledger identity is (provider, endpoint, mode) from identity(). */
 export type NetworkProvider = {
   name: ProviderName;
   /** Decides the ledger identity and request body without any network call. */
   identity(phase: Phase, subject: Subject): LookupPlan;
-  /** Reserve, call, settle. Only called for a "lookup" plan. */
+  /** Reserve and dispatch in one transaction, call, then settle (or leave that to the caller). Only called for a "lookup" plan. */
   lookup(
     client: Executor,
     lease: RunLease,

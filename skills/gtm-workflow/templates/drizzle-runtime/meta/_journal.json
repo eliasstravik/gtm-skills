@@ -15,6 +15,20 @@
       "when": 1790065381847,
       "tag": "0001_provider_rate_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790072428932,
+      "tag": "0002_responses",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790072436298,
+      "tag": "0003_drop_raw_responses",
+      "breakpoints": true
     }
   ]
 }

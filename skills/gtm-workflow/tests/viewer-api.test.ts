@@ -338,7 +338,7 @@ test("shared profile API scopes details, nested projections and both export form
           original: { secret: "PRIVATE" },
         },
       ],
-      raw_responses_json: { secret: "PRIVATE" },
+      responses_json: { secret: "PRIVATE" },
     });
   }
   await client.insert(companies).values({ key: "c", created_at: new Date("2026-09-16"), updated_at: new Date("2026-09-16"), name: "Shared Co" });
@@ -382,7 +382,7 @@ test("shared profile API scopes details, nested projections and both export form
     0,
   );
   for (const op of ["data", "export"])
-    for (const col of ["raw_responses_json", "sources_json", "provenance_json"])
+    for (const col of ["responses_json", "sources_json", "provenance_json"])
       assert.equal(
         (
           await viewerApi(
