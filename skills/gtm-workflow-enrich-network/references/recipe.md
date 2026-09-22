@@ -2,7 +2,7 @@
 
 ## Resolve input and services
 
-Record the source, supplied network owner/platform/kind, input identifiers, selected person and company services, freshness and row/spend caps. There is no prescribed vendor. Inspect current input/output semantics, full-section modes, pricing and authentication before authoring provider adapters.
+Record the source, supplied network owner/platform/kind, input identifiers, selected person and company services, freshness and row/spend caps. There is no prescribed vendor. The runtime ships two adapters, Monid (Clay and ContactOut) and Blitz; any other service is a plain provider-call step written against its documentation. Inspect current input/output semantics, full-section modes, pricing and authentication before authoring provider adapters.
 
 CSV imports persist stable source-row identities before enrichment. Future runs read saved inputs; hosted runs never depend on the conversation's filesystem or an expiring attachment. Service imports retain cursors and provider job IDs. A one-person test includes any source minimum charge.
 
