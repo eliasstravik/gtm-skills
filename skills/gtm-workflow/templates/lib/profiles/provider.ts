@@ -18,6 +18,8 @@ export type ProviderOperation = {
 };
 export type ProviderRun = {
   runId?: string;
+  /** Set by adapters whose ledger identity varies per call (Blitz person versus email lookups). */
+  endpoint?: string;
   status?: string;
   output?: unknown;
   providerResponse?: { httpStatus?: number };
@@ -143,7 +145,7 @@ export async function maximumCharge(
 export type LookupResult =
   | { state: "ready"; attemptId: string; run: ProviderRun }
   | { state: "pending"; attemptId: string; jobId: string }
-  | { state: "uncertain" | "budget_deferred" | "unknown_price" };
+  | { state: "uncertain" | "budget_deferred" | "unknown_price" | "unresolved" };
 /** Returns promptly for async providers. Poll from a separate durable workflow step. */
 export async function startLookup(
   client: Executor,

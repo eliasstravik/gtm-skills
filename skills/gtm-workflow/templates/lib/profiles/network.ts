@@ -8,6 +8,7 @@ import {
   currentCompanies,
   getProfile,
   isFresh,
+  markUnresolved,
   recentMiss,
   resolveIdentity,
   type Source,
@@ -19,8 +20,8 @@ import {
   type RunLease,
   type WorkState,
 } from "./ledger";
-import { normalizeClay, normalizeContactOut } from "./normalize";
-import { actualCost, startLookup, type LookupResult } from "./provider";
+import type { LookupResult } from "./provider";
+import { provider as networkProvider, type ProviderName } from "./providers";
 
 export type NetworkInput = {
   rows?: Record<string, unknown>[];
@@ -33,6 +34,10 @@ export type NetworkInput = {
   networkOwner?: string;
   networkKind?: string;
   resumeRunId?: string;
+  /** Which enrichment service does the lookups; monid when unset. */
+  provider?: ProviderName;
+  /** Request pacing for providers that need it (Blitz); the adapter's default when unset. */
+  requestsPerSecond?: number;
 };
 export type NetworkPerson = {
   key: string;
@@ -221,38 +226,49 @@ export async function beginItem(
   const profile = profileKey
     ? await getProfile(client, phase, profileKey)
     : undefined;
-  const provider = phase === "people" ? "clay" : "contactout",
-    endpoint = phase === "people" ? "/enrichment/person" : "/v1/domain/enrich";
+  const adapter = networkProvider(input.provider);
+  const plan = adapter.identity(phase, {
+    url: person?.url,
+    email: person?.email,
+    domain: profile?.domain ?? undefined,
+    linkedinUrl: profile?.linkedin_url ?? undefined,
+    name: profile?.name ?? undefined,
+  });
+  if (plan.kind === "unresolved") {
+    if (phase === "companies" && profileKey)
+      await markUnresolved(client, "companies", profileKey, plan.reason);
+    await markWork(client, lease, phase, key, "unresolved");
+    return { state: "unresolved" };
+  }
   const age = (input.freshForDays ?? 30) * 86400000;
   if (
     profile &&
     !input.refresh &&
-    (isFresh(profile, provider, endpoint, "default", [], age) ||
-      recentMiss(profile, provider, endpoint, "default", age))
+    (isFresh(profile, plan.provider, plan.endpoint, plan.mode, [], age) ||
+      recentMiss(profile, plan.provider, plan.endpoint, plan.mode, age))
   ) {
     await markWork(client, lease, phase, key, "reused");
     return { state: "reused" };
   }
-  if (
-    (phase === "people" && !person?.url && !person?.email) ||
-    (phase === "companies" && !profile?.domain)
-  ) {
-    await markWork(client, lease, phase, key, "unresolved");
-    return { state: "unresolved" };
-  }
-  const body =
-    phase === "people"
-      ? person!.url
-        ? { "Professional Profile URL": person!.url }
-        : { Email: person!.email }
-      : { domains: [profile!.domain] };
-  const result = await startLookup(
+  const result = await adapter.lookup(
     client,
     lease,
     profile?.key ?? profileKey ?? `input:${person!.source.workflow_id}:${key}`,
-    { provider, endpoint, body },
+    plan,
     apiKey,
+    { requestsPerSecond: input.requestsPerSecond },
   );
+  if (result.state === "unresolved") {
+    if (phase === "companies" && profileKey)
+      await markUnresolved(
+        client,
+        "companies",
+        profileKey,
+        "No LinkedIn company URL could be resolved from the domain",
+      );
+    await markWork(client, lease, phase, key, "unresolved");
+    return { state: "unresolved" };
+  }
   if (["uncertain", "budget_deferred", "unknown_price"].includes(result.state))
     await markWork(
       client,
@@ -271,27 +287,24 @@ export async function acceptItem(
   phase: "people" | "companies",
   item: NetworkPerson | string,
   result: Extract<LookupResult, { state: "ready" }>,
+  input: NetworkInput = {},
 ) {
+  const adapter = networkProvider(input.provider);
   const person = typeof item === "string" ? undefined : item,
     key = typeof item === "string" ? item : item.key;
   // Use the original persisted observation time when a completed response replays.
   const [attempt] = await client.select({ created_at: profileAttempts.created_at }).from(profileAttempts).where(eq(profileAttempts.id, result.attemptId));
   const fetchedAt = (attempt?.created_at ?? new Date()).toISOString(),
-    cost = actualCost(result.run);
+    cost = adapter.cost(result.run);
   let profileKey =
     person?.personKey ?? (phase === "companies" ? key : undefined);
   const existing = profileKey
     ? await getProfile(client, phase, profileKey)
     : undefined;
-  const e =
-    phase === "people"
-      ? normalizeClay(result.run, fetchedAt, cost)
-      : normalizeContactOut(
-          result.run,
-          existing?.domain ?? "",
-          fetchedAt,
-          cost,
-        );
+  const e = adapter.normalize(phase, result.run, {
+    fetchedAt,
+    existingDomain: existing?.domain ?? "",
+  });
   if (
     result.run.status !== "COMPLETED" ||
     (result.run.providerResponse?.httpStatus ?? 200) >= 400
