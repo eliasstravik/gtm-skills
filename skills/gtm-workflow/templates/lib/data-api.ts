@@ -1,6 +1,8 @@
 import { getTableColumns, sql, type SQL } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
-import type { RowPolicy, DataRelation } from "./viewer-contract";
+import { MAX_LIST_ROWS, type RowPolicy, type DataRelation } from "./viewer-contract";
+
+export { MAX_LIST_ROWS };
 
 /** Explicit, workflow-scoped views. Column names are Drizzle property names. */
 export type WorkflowData = {
@@ -27,7 +29,11 @@ type Registry = Record<string, PgTable>;
 /** db() or a transaction; only execute is used, so this module stays free of the database client. */
 type Reader = { execute(query: SQL): Promise<{ rows: Record<string, unknown>[] }> };
 type Relation = NonNullable<WorkflowData["relations"]>[number];
-type Cell = { value: unknown; href?: string };
+/**
+ * One grid cell. `folded` means a JSON value stayed in the database: a list carries only its shape (`entries` for a
+ * list, none for an object), and the viewer reads the whole value from the single record when someone opens it.
+ */
+type Cell = { value: unknown; href?: string; folded?: { entries?: number } };
 export type DataPage = {
   title: string;
   context?: string;
@@ -38,6 +44,8 @@ export type DataPage = {
   next?: string;
   all: string;
   total: number;
+  /** Position of the first row in the whole matching list, so a client can place a window of rows. */
+  offset: number;
   fields: { id: string; label: string; type: string }[];
   availableFields?: { id: string; label: string; type: string }[];
   keys: string[];
@@ -206,9 +214,17 @@ export async function readData(
     ? JSON.stringify(keyColumns.map((c) => Buffer.isBuffer(row[c])
       ? { blob: (row[c] as Buffer).toString("hex") } : row[c]))
     : String(row.key);
-  const pageText = url.searchParams.get("page") ?? "0";
-  if (!/^\d{1,6}$/.test(pageText)) throw new DataInputError("Invalid page");
-  const page = Number(pageText);
+  // A window of rows: `offset` and `limit`, or the older `page` of 25.
+  const number = (name: string, fallback: string, digits: number) => {
+    const text = url.searchParams.get(name) ?? fallback;
+    if (!new RegExp(`^\\d{1,${digits}}$`).test(text)) throw new DataInputError(`Invalid ${name}`);
+    return Number(text);
+  };
+  const limit = number("limit", String(PAGE_SIZE), 3);
+  if (limit < 1 || limit > MAX_LIST_ROWS) throw new DataInputError("Invalid limit");
+  const offset = url.searchParams.has("offset")
+    ? number("offset", "0", 7)
+    : number("page", "0", 6) * limit;
   const href = (params: Record<string, string>) => {
     const out = new URLSearchParams(params);
     const token = url.searchParams.get("t");
@@ -339,8 +355,17 @@ export async function readData(
     throw new DataInputError("Field is available on a single record only");
   const props = [...new Set([...keyColumns, ...visible])];
   // Times leave SQL as ISO text in UTC, so no caller parses Postgres' own format. Key columns keep microseconds to match exactly.
+  // A list folds JSON cells: a People row's roles alone are most of its bytes, and a grid shows a count until opened.
+  // `cells=full` (the export) and a single record read them whole.
+  const fold = (c: string) =>
+    key === null && url.searchParams.get("cells") !== "full" && !keyColumns.includes(c) &&
+    ["json", "jsonb"].includes(getTableColumns(registry[selected.name])[c].getSQLType());
   const readable = (c: string) => {
     const type = getTableColumns(registry[selected.name])[c].getSQLType();
+    if (fold(c)) {
+      const value = sql`v.${column(selected.name, c)}::jsonb`;
+      return sql`CASE WHEN ${value} IS NULL OR jsonb_typeof(${value}) = 'null' THEN NULL WHEN jsonb_typeof(${value}) = 'array' THEN jsonb_array_length(${value}) ELSE -1 END`;
+    }
     if (!type.startsWith("timestamp")) return sql`v.${column(selected.name, c)}`;
     const format = `YYYY-MM-DD"T"HH24:MI:SS.${keyColumns.includes(c) ? "US" : "MS"}`;
     return type.includes("with time zone")
@@ -351,7 +376,7 @@ export async function readData(
   const ordering = sql.join([sql`${sortField} ${order === "desc" ? sql`DESC` : sql`ASC`}`, ...keyColumns.map((c) => sql`v.${column(selected.name, c)}`)], sql`, `);
   let result, total;
   try {
-    result = await client.execute(sql`SELECT ${fields} FROM ${physical(selected.name)} v${and(conditions)} ORDER BY ${ordering} LIMIT ${PAGE_SIZE + 1} OFFSET ${page * PAGE_SIZE}`);
+    result = await client.execute(sql`SELECT ${fields} FROM ${physical(selected.name)} v${and(conditions)} ORDER BY ${ordering} LIMIT ${limit + 1} OFFSET ${offset}`);
     total = await client.execute(sql`SELECT count(*)::int AS total FROM ${physical(selected.name)} v${and(conditions)}`);
   } catch (error) {
     // Class 22 is "data exception": a filter or key value that is not of the column's type.
@@ -359,7 +384,7 @@ export async function readData(
     if (code.startsWith("22")) throw new DataInputError("Invalid filter value");
     throw error;
   }
-  const records = result.rows.slice(0, PAGE_SIZE);
+  const records = result.rows.slice(0, limit);
   const counts: Map<string, number>[] = [];
   for (const r of relations) {
     const count = new Map<string, number>();
@@ -374,10 +399,11 @@ export async function readData(
     }
     counts.push(count);
   }
-  const pagination = (p: number) =>
+  const pagination = (start: number) =>
     href({
       table: selected.name,
-      page: String(p),
+      offset: String(start),
+      ...(limit !== PAGE_SIZE ? { limit: String(limit) } : {}),
       ...(key !== null ? { key } : {}),
       ...(relatedTable !== null
         ? { relatedTable, relatedKey: relatedKey! }
@@ -385,6 +411,7 @@ export async function readData(
     });
   return {
     total: Number(total.rows[0].total),
+    offset,
     keys: records.map(recordKey),
     fields: visible.map((id) => ({
       id,
@@ -416,7 +443,9 @@ export async function readData(
     rows: records.map((row) => [
       ...visible.map(
         (c): Cell => ({
-          value: cellValue(row[c], c, selected.nested),
+          ...(fold(c) && row[c] != null
+            ? { value: null, folded: Number(row[c]) >= 0 ? { entries: Number(row[c]) } : {} }
+            : { value: cellValue(row[c], c, selected.nested) }),
           ...(c === selected.labelColumn
             ? { href: href({ table: selected.name, key: recordKey(row) }) }
             : {}),
@@ -433,8 +462,8 @@ export async function readData(
         }),
       ),
     ]),
-    ...(page > 0 ? { previous: pagination(page - 1) } : {}),
-    ...(result.rows.length > PAGE_SIZE ? { next: pagination(page + 1) } : {}),
+    ...(offset > 0 ? { previous: pagination(Math.max(0, offset - limit)) } : {}),
+    ...(result.rows.length > limit ? { next: pagination(offset + limit) } : {}),
     all: href({ table: selected.name }),
   };
 }

@@ -316,4 +316,4 @@ const rows = await db().select().from(contacts);
 const counts = rows.filter((r) => companyKeys.includes(r.company_key)).length;
 ```
 
-A profile read names its columns the same way: `getProfile(db, "people", key, { columns: ["full_name", "primary_company_key"] })` returns those columns and `key`, typed as `ProfileSlice`, not a whole `Profile`; `getProfiles` takes the same option for a batch. A list the viewer or an agent reads is a page of 25 with the default columns; the record's own metadata (`responses_json`, `provenance_json`, `section_status_json`, `sources_json`) never rides on a list.
+A profile read names its columns the same way: `getProfile(db, "people", key, { columns: ["full_name", "primary_company_key"] })` returns those columns and `key`, typed as `ProfileSlice`, not a whole `Profile`; `getProfiles` takes the same option for a batch. A list the viewer reads is a window of at most 200 rows (100 as the grid scrolls) with the default columns and JSON cells folded to an entry count; the record's own metadata (`responses_json`, `provenance_json`, `section_status_json`, `sources_json`) never rides on a list.

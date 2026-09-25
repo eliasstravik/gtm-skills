@@ -116,8 +116,14 @@ export function usePulse() {
 }
 /** Data re-reads on a pulse at most this often, however fast a run writes: never more than the old polling read. */
 const DATA_MS = 15000;
-export function useRead(op: string, enabled = true) {
+/**
+ * `extra` adds parameters to each read without making them part of what the view is: the Data grid uses it to ask
+ * for the window of rows on screen, so a re-read on the pulse fetches those rows and not a fixed first page.
+ */
+export function useRead(op: string, enabled = true, extra?: () => Record<string, string>) {
   useLocation();
+  const extraRef = useRef(extra);
+  extraRef.current = extra;
   const p = query();
   for (const name of ["node", "step", "expanded"]) p.delete(name);
   if (op === "list") for (const key of [...p.keys()]) p.delete(key);
@@ -160,7 +166,7 @@ export function useRead(op: string, enabled = true) {
       clearTimeout(timer);
       let next: number | undefined;
       try {
-        const data = await api(op, {}, undefined, undefined, controller.signal);
+        const data = await api(op, extraRef.current?.() ?? {}, undefined, undefined, controller.signal);
         if (controller.signal.aborted) return;
         at = Date.now();
         failed = false;

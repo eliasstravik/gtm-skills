@@ -26,7 +26,7 @@ data: {
 } satisfies WorkflowData,
 ```
 
-Each visible table has a string `key`. The link table holds foreign keys to those keys. Click a person's Companies count to see those companies, or a company's People count to see those people. Duplicate role links count a related entity once. Results paginate at 25 rows, including related records. Ordinary cell clicks select a value; View value opens its full content. Use the table chooser or Back to leave related records. Register an Employment view separately when users need role-level browsing.
+Each visible table has a string `key`. The link table holds foreign keys to those keys. Click a person's Companies count to see those companies, or a company's People count to see those people. Duplicate role links count a related entity once. Results scroll as one list without pages, including related records. Ordinary cell clicks select a value; View value opens its full content. Use the table chooser or Back to leave related records. Register an Employment view separately when users need role-level browsing.
 
 Only explicitly listed columns are displayed. Leave raw responses, traces, credentials, and source payloads out of the view. Table access is limited to this workflow's configured views and relationship tables; URL values are SQL parameters, never SQL identifiers. Declaring a table in another workflow's registry entry does not expose it here.
 
