@@ -8,12 +8,15 @@ const passed = /^(?:PATH|HOME|USER|LOGNAME|TMPDIR|TMP|TEMP|LANG|XDG_CONFIG_HOME|
 
 /** `vercel api` as the owner, with the login the Vercel CLI keeps on this computer. Asynchronous, because the manager
  * shares its process with the viewer. A body (and so a key's value) goes through stdin, never the command line. */
-export function ownerCli(team, command = "vercel") {
+export function ownerCli(team, command = ["vercel"]) {
   requireThat(typeof team === "string" && /^[a-zA-Z0-9_-]+$/.test(team), "production_not_linked", 409);
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => passed.test(name)));
   return (method, path, body) => new Promise((resolve, reject) => {
     const args = ["api", path, "--method", method, "--raw", "--non-interactive", "--scope", team, ...(body === undefined ? [] : ["--input", "-"])];
-    const child = spawn(command, args, { env, stdio: ["pipe", "pipe", "ignore"], shell: false, windowsHide: true });
+    // On Windows the CLI is vercel.cmd, which Node starts only through cmd.exe; every argument is checked to be plain first.
+    const shell = process.platform === "win32" && command[0] === "vercel";
+    if (shell && !args.every((arg) => /^[A-Za-z0-9_/?=.:-]+$/.test(arg))) return reject(new ConnectionError("production_unavailable", 503));
+    const child = spawn(command[0], [...command.slice(1), ...args], { env, stdio: ["pipe", "pipe", "ignore"], shell, windowsHide: true });
     const chunks = []; let size = 0;
     const timer = setTimeout(() => child.kill(), 30000);
     const fail = () => reject(new ConnectionError(method === "GET" ? "production_unavailable" : "production_outcome_unknown", 503));

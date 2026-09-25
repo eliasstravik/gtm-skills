@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, writeFile, readFile, chmod } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -121,13 +121,11 @@ test("a failed redeploy still reports the saved push, so the tab asks for a rede
 
 test("the CLI gets the value on stdin, never in its arguments, and none of the launcher's keys", async () => {
   const root = await mkdtemp(join(homedir(), ".gtm-test-"));
-  const command = join(root, "vercel"), log = join(root, "log.json");
-  await writeFile(command, `#!/usr/bin/env node
-let input = ""; process.stdin.on("data", (c) => input += c).on("end", () => {
+  const script = join(root, "vercel.cjs"), log = join(root, "log.json"), command = [process.execPath, script];
+  await writeFile(script, `let input = ""; process.stdin.on("data", (c) => input += c).on("end", () => {
   require("node:fs").writeFileSync(${JSON.stringify(log)}, JSON.stringify({ argv: process.argv.slice(2), input, env: Object.keys(process.env) }));
   process.stdout.write('<claude-code-hint note="x"/>\\n{"ok":true}\\n');
 });\n`);
-  await chmod(command, 0o700);
   process.env.APOLLO_API_KEY = sentinel;
   try {
     const api = ownerCli("acme", command);
@@ -136,7 +134,7 @@ let input = ""; process.stdin.on("data", (c) => input += c).on("end", () => {
     assert.deepEqual(seen.argv, ["api", "/v10/projects/prj_1/env", "--method", "POST", "--raw", "--non-interactive", "--scope", "acme", "--input", "-"]);
     assert.equal(JSON.parse(seen.input).value, sentinel);
     assert.equal(seen.env.includes("APOLLO_API_KEY"), false);
-    await assert.rejects(ownerCli("acme", join(root, "missing"))("GET", "/v2/user"), /production_unavailable/);
+    await assert.rejects(ownerCli("acme", [join(root, "missing")])("GET", "/v2/user"), /production_unavailable/);
     assert.throws(() => ownerCli("acme; rm -rf /"), /production_not_linked/);
   } finally { delete process.env.APOLLO_API_KEY; await rm(root, { recursive: true, force: true }); }
 });
