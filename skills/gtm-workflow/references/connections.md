@@ -13,7 +13,7 @@ node scripts/connections.mjs list --workspace /path/to/gtm-acme --target local -
 node scripts/doctor.mjs --workspace /path/to/gtm-acme --target local --json
 ```
 
-Setup can create an empty workspace with zero workflows. It installs the reviewed component, prepares the local database, and builds inspection assets. Opening Connections or running `npm run viewer` does not start workflows. `npm run dev` deliberately starts the execution runner with the current saved credentials; restart it to apply subsequent changes.
+Setup can create an empty workspace with zero workflows. It adds the workspace root's `.gitignore` and CI file (`.github/workflows/check.yml`) from `root/` when missing, and Doctor lists them under `rootFiles` when missing or different. It installs the reviewed component, prepares the local database, and builds inspection assets. Opening Connections or running `npm run viewer` does not start workflows. `npm run dev` deliberately starts the execution runner with the current saved credentials; restart it to apply subsequent changes.
 
 Local provider values live in the OS credential store. macOS uses Keychain, Windows uses Credential Manager, and Linux explicitly uses Secret Service. A locked or missing store requires its normal OS setup or unlock. Local state and credentials are bound to the canonical workspace path and current OS user. Another clone gets another identity. Windows state uses private NTFS permissions and authenticated named pipes. Native storage, local HTTP changes and access restrictions run in CI on all three platforms.
 

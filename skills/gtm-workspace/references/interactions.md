@@ -29,6 +29,7 @@ Updated Acme's company record and added Priya Shah.
 - created `AGENTS.md`
 - created `CLAUDE.md`
 - created `ORG.md`
+- created `.gitignore`
 - changed `ORG.md`
 - created `members/priya-shah/MEMBER.md`
 
@@ -46,6 +47,7 @@ Created the Acme Corp workspace.
 - created `AGENTS.md`
 - created `CLAUDE.md`
 - created `ORG.md`
+- created `.gitignore`
 
 ## Update
 

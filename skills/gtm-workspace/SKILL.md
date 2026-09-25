@@ -29,9 +29,9 @@ Talk by the six rules in [interaction](references/interaction.md); reproduce [th
 
 | Job | Do |
 | --- | --- |
-| Create | When `~/.gtm/` already holds an empty clone with a remote (empty, or holding only `workflows/`, which shared `gtm-workflow` setup can publish first), scaffold into it, take its directory name as the slug, do not ask where it lives, and after the commit run `git push -u origin main`; a clone that is neither empty nor a workspace (a GitHub-initialised README, say) is reported as a problem in business terms, never scaffolded over. Otherwise ask where it lives: this computer only (recommended), or also a private GitHub repository named `gtm-<slug>`, and `git init` on `main`. Copy `templates/AGENTS.md`, `CLAUDE.md`, and `ORG.md` into `~/.gtm/<slug>/`, fill `ORG.md` from the user and public sources, commit, and when shared run `gh repo create gtm-<slug> --private --source . --push`; the first push into an empty repository is `git push -u origin main`. Import is Create by copying or cloning an existing workspace into `~/.gtm/<slug>/` instead of scaffolding. |
+| Create | When `~/.gtm/` already holds an empty clone with a remote (empty, or holding only `workflows/`, which shared `gtm-workflow` setup can publish first), scaffold into it, take its directory name as the slug, do not ask where it lives, and after the commit run `git push -u origin main`; a clone that is neither empty nor a workspace (a GitHub-initialised README, say) is reported as a problem in business terms, never scaffolded over. Otherwise ask where it lives: this computer only (recommended), or also a private GitHub repository named `gtm-<slug>`, and `git init` on `main`. Copy `templates/AGENTS.md`, `CLAUDE.md`, `ORG.md`, and `gitignore` (as `.gitignore`) into `~/.gtm/<slug>/`, fill `ORG.md` from the user and public sources, commit, and when shared run `gh repo create gtm-<slug> --private --source . --push`; the first push into an empty repository is `git push -u origin main`. Import is Create by copying or cloning an existing workspace into `~/.gtm/<slug>/` instead of scaffolding. |
 | Update | Change `ORG.md` facts, or add, change, or remove `members/<slug>/MEMBER.md` from the template; email is required. |
-| Doctor | Compare the root shape and every file to `templates/` and the contract; report deviations in business terms; offer the fixes as options; rewrite what the user accepts, including legacy layouts (a root README or `.gitignore`, `suborgs/`, missing or misordered fields). The workspace slug is the directory name, never derived from the H1. |
+| Doctor | Compare the root shape and every file to `templates/` and the contract; report deviations in business terms; offer the fixes as options; rewrite what the user accepts, including legacy layouts (a root README, `suborgs/`, missing or misordered fields); `.github/` belongs to `gtm-workflow`'s Doctor. The workspace slug is the directory name, never derived from the H1. |
 
 Every save: one sentence on what will change, pull first when `origin/main` exists, edit through the host's write path, commit on `main` with a plain-language message, push when a remote exists, verify the commit (and that it reached `origin/main` when a remote exists), close with what was created, changed, or deleted.
 
@@ -46,10 +46,10 @@ Several workspaces match and none is named: ask, never save a preference. A fact
 ## QC
 
 - `ORG.md` has the 13 fields of [company data](references/company-data.md) in order, one line each; nested bullets only under Location, Products and services, and Tech stack.
-- The root carries only `AGENTS.md`, `CLAUDE.md`, `ORG.md`, and the entity directories; the pointer files match their templates byte for byte.
+- The root carries only what [the contract](references/contract.md) lists; the pointer files and `.gitignore` match their templates byte for byte.
 - Every slug follows the contract's rule; every member has an email.
 - The closing statement of what changed follows a verified commit.
 
 ## References
 
-[interaction](references/interaction.md) rules; [interactions](references/interactions.md) dialogues; [contract](references/contract.md) for slugs, discovery, root shape, sourcing, and sharing; [company data](references/company-data.md) and [person data](references/person-data.md) vocabularies; `templates/` for `AGENTS.md`, `CLAUDE.md`, `ORG.md`, and `MEMBER.md`.
+[interaction](references/interaction.md) rules; [interactions](references/interactions.md) dialogues; [contract](references/contract.md) for slugs, discovery, root shape, sourcing, and sharing; [company data](references/company-data.md) and [person data](references/person-data.md) vocabularies; `templates/` for `AGENTS.md`, `CLAUDE.md`, `ORG.md`, `gitignore`, and `MEMBER.md`.
