@@ -73,7 +73,7 @@ The policy covers every displayed table, default column, label/primary key and r
 
 Preparing a policy enables the Data checkbox without publishing data or changing an existing grant. Verify the deployed `grants` response has a non-null policy and the checkbox is enabled. Add Data to a link only after an explicit sharing request. Keep the dialog to tab choices and link controls, without a table/column inventory. Older deployments missing a policy say "Data sharing isn't configured". Policy changes pause Data only; Diagram/Runs stay available. Show a short changed-access notice and require an explicit save of the current policy hash. A second policy change rejects the save.
 
-The service adapter is `/api/viewer/service?v=2&workflow=<id>&op=<operation>`. Read `grants` for the current grant, policy hash and data scope. POST `saveLink` with `{views, policy, save}`. Use `save: true` only for explicitly approved scope/policy changes; ordinary Copy recovers the saved link. POST `revokeGrant` with `{id}`. Return exactly the server URL.
+The service adapter is `/api/viewer/service?v=3&workflow=<id>&op=<operation>`. Read `grants` for the current grant, policy hash and data scope. POST `saveLink` with `{views, policy, save}`. Use `save: true` only for explicitly approved scope/policy changes; ordinary Copy recovers the saved link. POST `revokeGrant` with `{id}`. Return exactly the server URL.
 
 ## Encryption, upgrade and rollback
 
