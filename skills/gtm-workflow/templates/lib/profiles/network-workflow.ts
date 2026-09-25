@@ -49,13 +49,19 @@ export async function runNetwork(o: RunNetworkOptions) {
   const chunkSize = o.chunkSize ?? NETWORK_CHUNK_SIZE, concurrency = o.concurrency ?? NETWORK_CONCURRENCY;
   const { workflowRunId } = getWorkflowMetadata();
   const input: NetworkRunInput = { ...o.defaults, ...o.input };
-  const engine = o.engine ?? { startChunks, awaitChunks: (tokens) => Promise.all(tokens.map((token) => chunkHook.create({ token }))), report };
+  // Called bare, never as `engine.x()`: a step called as a method sends its receiver to the step too, and this
+  // object holds functions, which fail the run with "Cannot stringify a function" at `.thisVal`.
+  const { startChunks: startChildren, awaitChunks, report: reportChunk } = o.engine ?? {
+    startChunks,
+    awaitChunks: (tokens: string[]) => Promise.all(tokens.map((token) => chunkHook.create({ token }))),
+    report,
+  };
   await setAttributes({ workflow: workflowSlug(), ...(input.chunk && { parent: input.chunk.parent.split(":chunk:")[0] as string, phase: input.chunk.phase }) });
   if (input.chunk) {
     const { chunk, ...settings } = input;
     await enrichChunk(chunk.lease, chunk.phase, chunk.items, settings, o.apiKeyVariable, o.workers);
     const result: ChunkReport = { phase: chunk.phase, count: chunk.items.length };
-    await engine.report(chunk.parent, result);
+    await reportChunk(chunk.parent, result);
     return result;
   }
   const prepared = await prepare(o.workflowId, workflowRunId, input);
@@ -75,8 +81,8 @@ export async function runNetwork(o: RunNetworkOptions) {
       const waveChunks = chunks.slice(wave, wave + concurrency);
       const tokens = waveChunks.map((_, j) => `${workflowRunId}:${name}:chunk:${wave + j}`);
       // The hooks exist before the children start, so no report can arrive unheard.
-      const reports = engine.awaitChunks(tokens);
-      await engine.startChunks(
+      const reports = awaitChunks(tokens);
+      await startChildren(
         engineWorkflowId,
         waveChunks.map((chunk, j) => ({ ...input, rows: undefined, chunk: { phase: name, items: chunk, lease, parent: tokens[j] } })),
       );
