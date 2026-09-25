@@ -1,8 +1,8 @@
 import { defineHandler } from "nitro";
 import { privateAccess, viewerHeaders } from "../../lib/viewer-access";
 import { viewerLink } from "../../lib/viewer-link";
-export default defineHandler((event) => {
-  privateAccess(event.req);
+export default defineHandler(async (event) => {
+  await privateAccess(event.req);
   return Response.json(
     viewerLink(
       event.req,

@@ -9,6 +9,14 @@ export function connectionsOrigin() {
     return process.env.VERCEL && process.env.GTM_CONNECTIONS_ENABLED === "1" ? `${url.origin}/connections` : url.origin;
   } catch { return undefined; }
 }
+/** Where a webhook sender posts: the public share project relays signed events to the private runtime. Null until sharing is set up. */
+export function intakeUrl(slug: string) {
+  try {
+    const share = new URL(process.env.GTM_VIEWER_SHARE_ORIGIN!);
+    if (share.protocol !== "https:" || !/^[a-z0-9][a-z0-9-]{0,99}$/.test(slug)) return null;
+    return new URL(`/api/intake/${slug}`, share.origin).href;
+  } catch { return null; }
+}
 /** Canonical private entry. Resolves only display metadata and never imports workflow code. */
 export function viewerLink(req: Request, workflow?: string) {
   const entry = workflow ? entryFor(workflow) : undefined;

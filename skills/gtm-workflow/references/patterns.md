@@ -87,6 +87,8 @@ export const intake = defineIntake<{ triggerEvent: string; payload: { uid: strin
 
 Register it: `"<slug>": { run, defaultInput, intake }` in `workflows/index.ts`. Verified locally with an HMAC-signed body: 202 with the run id, 200 `{ duplicate: true }` on redelivery, 401 on a bad signature, 200 `{ ignored: true }` when `toRow` returns null.
 
+Hosted, senders reach it through the share project's relay; the URL and the signing-secret steps to give the user are under [Inbound webhooks](deploy.md#inbound-webhooks).
+
 ## Reaching a person
 
 A run reaches a person only through the GTM agent, which owns Slack. `notify` posts to the agent's notify route, and the route posts the text straight to the channel with the agent's bot token: no model runs, so volume is free. Approvals inside an agent stage notify by themselves. Needs `GTM_AGENT_URL` and `GTM_NOTIFY_SECRET` on the workflow project.

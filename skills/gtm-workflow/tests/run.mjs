@@ -66,6 +66,7 @@ try {
     "cli-mcp",
     "connections-management",
     "connections-platform",
+    "share-intake",
     "connections-apply",
     "read-budgets",
     "bench-network",

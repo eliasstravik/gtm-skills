@@ -35,7 +35,7 @@ import {
 /** The names one deployment uses; overrides cover deployments made before this skill existed. */
 export const names = (slug, o = {}) => ({
   agentProject: o["agent-project"] || `gtm-agent-${slug}`,
-  workflowProject: o["workflow-project"] || `gtm-${slug}-workflows`,
+  workflowProject: o["workflow-project"] || `gtm-${slug}`,
   contextRepo: o["context-repo"] || `gtm-${slug}`,
   agentRepo: o["agent-repo"] || o["agent-project"] || `gtm-agent-${slug}`,
   connector: o["slack-connector"] || `slack/gtm-agent-${slug}`,

@@ -51,7 +51,9 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         "unauthorized",
         "Authenticated hosted service access required.",
       );
-    if (!shared) privateAccess(req);
+    // The agent's bearer (service) and share tokens (shared) are their own credentials; everything else needs the owner.
+    const owner = async () => { if (!service) await privateAccess(req); };
+    if (!shared) await owner();
     if (
       shared &&
       (process.env.GTM_VIEWER_PROTECTED !== "1" ||
@@ -142,7 +144,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         if ("unavailable" in result)
           throw new ViewerError(404, "data_unavailable", result.unavailable);
         return result;
-      }, async () => privateAccess(req), req.signal);
+      }, owner, req.signal);
     }
     const entry = entryFor(url.searchParams.get("workflow") ?? "");
     let grant;
@@ -251,7 +253,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
                   req.headers.get("x-gtm-share-token") ?? "",
                   "data",
                 )
-              : privateAccess(req),
+              : owner(),
           req.signal,
         );
       case "grants": {
@@ -286,7 +288,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
       case "revokeGrant": {
         if (req.method !== "POST")
           throw new ViewerError(405, "method_denied", "POST required.");
-        if (!service) requireMutation(req);
+        if (!service) await requireMutation(req);
         if (!process.env.VERCEL || !process.env.GTM_VIEWER_SHARE_ORIGIN)
           throw new ViewerError(
             409,

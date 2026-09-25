@@ -5,6 +5,9 @@ import { resolve, extname } from "node:path";
 import { sql } from "drizzle-orm";
 import { pgTable, text } from "drizzle-orm/pg-core";
 import { viewerApi } from "../templates/lib/viewer-handler";
+import { hostedOwnerCheck } from "../templates/lib/viewer-access";
+// The browser fixture has no Vercel login; it stands in for a signed-in owner.
+hostedOwnerCheck.check = async () => {};
 import { db } from "../templates/lib/db";
 import { testDatabase } from "./db";
 import { page } from "../templates/viewer/shell";

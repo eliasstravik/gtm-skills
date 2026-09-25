@@ -4,7 +4,9 @@ import pg from "pg";
 import { viewerApi } from "../templates/lib/viewer-handler";
 import { closeDb, db } from "../templates/lib/db";
 import { testDatabase } from "./db";
-import { csrfCookie } from "../templates/lib/viewer-access";
+import { csrfCookie, hostedOwnerCheck } from "../templates/lib/viewer-access";
+// Stands in for a signed-in owner; viewer-grants.test.ts covers the real check.
+hostedOwnerCheck.check = async () => {};
 import { runId, entry, fixtureRuns, run } from "./api-fixture";
 Object.assign(process.env, {
   VERCEL: "1",

@@ -23,8 +23,9 @@ export function connectionConfiguration(env = process.env) {
 /** Native Vercel sessions are validated by Vercel itself, never by trusting decoded JWT claims.
  * The cookie shape is a fail-closed compatibility check, not a signature verifier.
  * No incoming bypass, bearer or workload identity is forwarded to the independent probe.
+ * Getting past Vercel Authentication is not enough: an automation bypass or a trusted OIDC caller has no owner session.
  */
-export async function privateConnectionBrowser(req: Request, config: ReturnType<typeof connectionConfiguration>, fetcher = fetch) {
+export async function ownerSession(req: Request, config: { origin: string; teamId: string }, fetcher = fetch) {
   const url = new URL(req.url);
   insist(url.origin === config.origin, "private_browser_required");
   for (const name of ["authorization", "x-vercel-protection-bypass", "x-vercel-set-bypass-cookie", "x-vercel-trusted-oidc-idp-token"])
@@ -52,6 +53,10 @@ export async function privateConnectionBrowser(req: Request, config: ReturnType<
     insist([301, 302, 303, 307, 308, 401, 403].includes(anonymous.status), "deployment_protection_required");
     insist(authenticated.status === 200 && await authenticated.text() === CONNECTION_ACCESS_PROBE, "private_browser_required");
   } finally { await anonymous.body?.cancel(); if (!authenticated.bodyUsed) await authenticated.body?.cancel(); }
+  return { token };
+}
+export async function privateConnectionBrowser(req: Request, config: ReturnType<typeof connectionConfiguration>, fetcher = fetch) {
+  const { token } = await ownerSession(req, config, fetcher);
   const csrf = createHmac("sha256", config.token).update(`connections-v1:${config.origin}:${token}`).digest("base64url");
   if (req.method !== "GET") {
     const supplied = req.headers.get("x-gtm-csrf") ?? "";
