@@ -1,0 +1,33 @@
+{
+  "$comment": "Rate limits for the public gtm-<ws>-share project, applied by the gtm-workflow skill's setup and checked by doctor. Rules are matched by name; the 'GTM share:' prefix marks them as template-owned. Traffic the firewall answers with 429 is not billed.",
+  "rules": [
+    {
+      "name": "GTM share: intake relay",
+      "description": "Webhook senders. A booking burst stays well under 120 a minute per sender address.",
+      "active": true,
+      "conditionGroup": [{ "conditions": [{ "type": "path", "op": "pre", "value": "/api/intake/" }] }],
+      "action": { "mitigate": { "action": "rate_limit", "rateLimit": { "algo": "fixed_window", "window": 60, "limit": 120, "keys": ["ip"], "action": "rate_limit" } } }
+    },
+    {
+      "name": "GTM share: viewer API",
+      "description": "Share-link reads. One open tab polls about 6 times a minute; 300 leaves room for a shared office address.",
+      "active": true,
+      "conditionGroup": [{ "conditions": [{ "type": "path", "op": "pre", "value": "/api/viewer" }] }],
+      "action": { "mitigate": { "action": "rate_limit", "rateLimit": { "algo": "fixed_window", "window": 60, "limit": 300, "keys": ["ip"], "action": "rate_limit" } } }
+    },
+    {
+      "name": "GTM share: pages",
+      "description": "The share page, its assets and everything else. A page load is about ten requests.",
+      "active": true,
+      "conditionGroup": [
+        {
+          "conditions": [
+            { "type": "path", "op": "pre", "value": "/api/intake/", "neg": true },
+            { "type": "path", "op": "pre", "value": "/api/viewer", "neg": true }
+          ]
+        }
+      ],
+      "action": { "mitigate": { "action": "rate_limit", "rateLimit": { "algo": "fixed_window", "window": 60, "limit": 300, "keys": ["ip"], "action": "rate_limit" } } }
+    }
+  ]
+}
