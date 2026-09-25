@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ArrowPathIcon, EllipsisHorizontalIcon } from "@heroicons/react/16/solid";
-import { initialize, request, clearSession, localMode, integratedMode } from "./transport.mjs";
+import { initialize, request, clearSession, localMode, integratedMode, tailnetMode } from "./transport.mjs";
 import "@fontsource-variable/geist/index.css";
 import "../shared/style.css";
 import "./style.css";
@@ -190,8 +190,10 @@ function App() {
   async function logout() {
     try { await request("/api/logout", {}); } finally { clearSession(); setInventory(null); setSelection(null); setError(localMode ? "reopen_connections" : "sign_in_required"); }
   }
+  // On the tailnet the manager's link names its loopback address; the viewer is this page's own origin.
+  const workflowsUrl = inventory && tailnetMode ? "/viewer" : inventory?.workflowsUrl;
   return <main className="workspace">
-    <nav className="tabs root-navigation" aria-label="Workspace"><a href={inventory?.workflowsUrl ?? "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Workflows</a><a href={inventory?.workflowsUrl ? (() => { const url = new URL(inventory.workflowsUrl, location.origin); url.searchParams.set("view", "data"); return url.href; })() : "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Data</a><a href={integratedMode ? "/connections" : "/"} aria-current="page">Connections</a></nav>
+    <nav className="tabs root-navigation" aria-label="Workspace"><a href={workflowsUrl ?? "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Workflows</a><a href={workflowsUrl ? (() => { const url = new URL(workflowsUrl, location.origin); url.searchParams.set("view", "data"); return url.href; })() : "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Data</a><a href={integratedMode || tailnetMode ? "/connections" : "/"} aria-current="page">Connections</a></nav>
     <div className="title-row"><div><div className="environment-title"><h1>Connections</h1><span className="environment-badge" data-environment={localMode ? "local" : "production"} title={localMode ? "Keys saved on this computer" : "Keys on Vercel"}>{localMode ? "Local" : "Production"}</span></div>{inventory?.workspaceName ? <p className="muted">{inventory.workspaceName}</p> : null}</div>
       {inventory ? <div className="connection-actions"><button type="button" className="icon-button" aria-label="Refresh connections" title="Refresh connections" disabled={loading} onClick={start}><ArrowPathIcon aria-hidden="true" className="connection-icon" /></button>{inventory.vercelUrl ? <a className="button" href={inventory.vercelUrl} target="_blank" rel="noopener noreferrer">Open in Vercel</a> : null}
         {inventory.canWrite ? <button type="button" className="primary" onClick={(event) => select(event, { action: "add" })}>Add connection</button> : null}</div> : null}

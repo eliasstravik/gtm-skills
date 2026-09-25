@@ -59,6 +59,8 @@ export async function privateAccess(req: Request, fetcher = fetch) {
       );
     await hostedOwnerCheck.check(req, fetcher);
   } else {
+    const tailnet = tailnetMode();
+    if (tailnet && fromTailnet(req, tailnet)) return tailnetOwner(req, tailnet);
     const host = req.headers.get("host");
     const allowed = ["127.0.0.1", "localhost", "[::1]"];
     if (!allowed.includes(url.hostname) || host !== url.host)
@@ -72,6 +74,50 @@ export async function privateAccess(req: Request, fetcher = fetch) {
       );
   }
 }
+/** Opt-in tailnet mode, local only: Tailscale Serve proxies `GTM_VIEWER_TAILNET_ORIGIN` straight to this viewer, and only
+ * requests Serve marks with the owner's login get in. Serve drops identity headers a client sends and adds its own, and
+ * adds X-Forwarded-For, so a request from the tailnet always shows where it came from. Never Funnel: that is public. */
+export function tailnetMode(env = process.env) {
+  if (env.VERCEL) return null;
+  const owner = env.GTM_VIEWER_TAILNET_OWNER?.trim().toLowerCase(), value = env.GTM_VIEWER_TAILNET_ORIGIN?.trim();
+  if (!owner && !value) return null;
+  try {
+    const url = new URL(value!);
+    if (owner && url.origin === value && url.protocol === "https:" && url.hostname.endsWith(".ts.net"))
+      return { owner, origin: url.origin, host: url.host };
+  } catch {}
+  // Half a setting fails closed: the owner meant to open the viewer to the tailnet, and gets told why it is shut.
+  throw new ViewerError(503, "tailnet_configuration", "Set both GTM_VIEWER_TAILNET_OWNER and GTM_VIEWER_TAILNET_ORIGIN (https://<host>.ts.net[:port]).");
+}
+type Tailnet = NonNullable<ReturnType<typeof tailnetMode>>;
+function fromTailnet(req: Request, tailnet: Tailnet) {
+  const h = req.headers;
+  return ["tailscale-user-login", "tailscale-funnel-request", "x-forwarded-for", "x-forwarded-host", "forwarded"].some((name) => h.has(name)) ||
+    h.get("host") === tailnet.host || h.get("origin") === tailnet.origin;
+}
+function tailnetOwner(req: Request, tailnet: Tailnet) {
+  const h = req.headers;
+  if (h.has("tailscale-funnel-request"))
+    throw new ViewerError(403, "funnel_denied", "The viewer is never public; use Tailscale Serve, not Funnel.");
+  // A Host-rewriting relay would hide X-Forwarded-For, so a tagged device without a login would pass as local: Serve
+  // must point at the viewer itself.
+  if (h.get("host") !== tailnet.host)
+    throw new ViewerError(403, "host_denied", "Point Tailscale Serve straight at the viewer, without a relay.");
+  if (h.get("tailscale-user-login")?.trim().toLowerCase() !== tailnet.owner)
+    throw new ViewerError(403, "tailnet_owner_required", "Only the workspace owner's Tailscale login opens this viewer.");
+  const origin = h.get("origin");
+  if (origin && origin !== tailnet.origin)
+    throw new ViewerError(403, "origin_denied", "Use the viewer's tailnet address.");
+}
+/** The tailnet setting when this request came through Tailscale Serve in tailnet mode, else null. */
+export function tailnetRequest(req: Request) {
+  const tailnet = tailnetMode();
+  return tailnet && fromTailnet(req, tailnet) ? tailnet : null;
+}
+/** The origin a browser page of this viewer sends: the tailnet address for a request from the tailnet, else the request's own. */
+export function viewerOrigin(req: Request) {
+  return tailnetRequest(req)?.origin ?? new URL(req.url).origin;
+}
 export function csrfCookie() {
   const value = randomBytes(32).toString("base64url");
   return {
@@ -81,9 +127,8 @@ export function csrfCookie() {
 }
 export async function requireMutation(req: Request) {
   await privateAccess(req);
-  const url = new URL(req.url);
   if (
-    req.headers.get("origin") !== url.origin ||
+    req.headers.get("origin") !== viewerOrigin(req) ||
     req.headers.get("sec-fetch-site") === "cross-site"
   )
     throw new ViewerError(403, "csrf", "Open sharing from the private viewer.");

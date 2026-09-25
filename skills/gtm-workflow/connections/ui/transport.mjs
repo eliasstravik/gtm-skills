@@ -1,4 +1,6 @@
-const local = location.protocol === "http:" && ["localhost", "127.0.0.1"].includes(location.hostname);
+// The local manager's page, or the same page served by the local viewer on its tailnet address (tailnet mode).
+export const tailnetMode = document.getElementById("root")?.dataset.tailnet === "true";
+const local = tailnetMode || (location.protocol === "http:" && ["localhost", "127.0.0.1"].includes(location.hostname));
 export const integratedMode = document.getElementById("root")?.dataset.integrated === "true";
 let bearer = local ? sessionStorage.getItem("gtm-connections-session") : null;
 let csrf;
@@ -7,7 +9,7 @@ let bootstrap = params.get("bootstrap");
 if (location.hash) history.replaceState(null, "", location.pathname);
 export function clearSession() { bearer = null; csrf = null; sessionStorage.removeItem("gtm-connections-session"); }
 export async function request(path, body) {
-  if (integratedMode) path = path === "/api/connections" ? "/api/connection-management" : path.replace(/^\/api\//, "/api/connection-management/");
+  if (integratedMode || tailnetMode) path = path === "/api/connections" ? "/api/connection-management" : path.replace(/^\/api\//, "/api/connection-management/");
   const response = await fetch(path, { method: body === undefined ? "GET" : "POST", cache: "no-store", redirect: "error", credentials: local ? "omit" : "same-origin",
     headers: { ...(bearer ? { authorization: `Bearer ${bearer}` } : {}), ...(csrf ? { "x-gtm-csrf": csrf } : {}), ...(body === undefined ? {} : { "content-type": "application/json" }) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
