@@ -1,5 +1,5 @@
-import React, { useRef, useState } from "react";
-import { api, ApiError } from "./common";
+import React, { useEffect, useRef, useState } from "react";
+import { api, ApiError, usePulse } from "./common";
 const choices = ["logic", "runs", "data"];
 const name = (view: string) =>
   ({ logic: "Diagram", runs: "Runs", data: "Data" })[view];
@@ -17,6 +17,12 @@ export default function Sharing({ meta }: any) {
     !!saved &&
     choices.some((v) => views.includes(v) !== saved.views.includes(v));
   const stale = !!saved?.views.includes("data") && saved.dataPolicy !== policy;
+  // A link turned on, changed or off elsewhere (another tab, the agent) shows here while the dialog is open.
+  const version = usePulse().data;
+  useEffect(() => {
+    if (!dialog.current?.open || !loaded || busy) return;
+    refresh(false).catch((e) => setMessage((e as Error).message));
+  }, [version]);
   function dismiss() {
     dialog.current?.close();
     setUrl("");

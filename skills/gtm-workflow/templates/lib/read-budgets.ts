@@ -24,6 +24,8 @@ export const READ_BUDGETS = {
   dataApiList: 100_000,
   /** Per viewer call for one record: every column but responses_json. */
   dataApiRecord: 24_000,
+  /** Per viewer pulse, which every open tab sends every few seconds: fingerprints only, never rows. */
+  viewerPulse: 500,
   /** The query route (POST /api/query): rows and bytes one statement may return. Past either, `truncated` is true. */
   queryRouteRows: 1_000,
   queryRouteBytes: 2 * 1024 * 1024,

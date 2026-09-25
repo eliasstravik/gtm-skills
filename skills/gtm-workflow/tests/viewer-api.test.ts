@@ -1,5 +1,6 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import pg from "pg";
 import { viewerApi } from "../templates/lib/viewer-handler";
 import { closeDb, db } from "../templates/lib/db";
 import { testDatabase } from "./db";
@@ -88,6 +89,13 @@ test("all seven scopes enforce direct API reads and CSV, while canonical links o
     assert.equal(projection.shareEnabled, false);
     assert.equal(projection.destinations, undefined);
     assert.ok(!JSON.stringify(projection).includes("PRIVATE"));
+    // Every link may pulse; it learns about data only when it shares data, and never about the deployment.
+    const beat = await viewerApi(req("pulse", token), true);
+    assert.equal(beat.status, 200);
+    const pulse = await beat.json();
+    assert.equal(typeof pulse.registry, "string");
+    assert.equal("data" in pulse, views.includes("data"), `${views}: pulse data`);
+    assert.equal("deployment" in pulse, false);
     for (const [op, view] of [
       ["workflow", "logic"],
       ["runs", "runs"],
@@ -133,6 +141,42 @@ test("all seven scopes enforce direct API reads and CSV, while canonical links o
       true,
     );
     assert.equal((await viewerApi(req("meta", token), true)).status, 410);
+    // Once only: every refused link counts toward the invalid-link rate limit the later tests stay under.
+    if (mask === 7) assert.equal((await viewerApi(req("pulse", token), true)).status, 410);
+  }
+});
+test("the pulse is fingerprints only, and its data fingerprint moves when a write commits", async () => {
+  const pulse = async (extra = "") => {
+    const response = await viewerApi(new Request(`https://private.example/api/viewer?v=3&op=pulse${extra}`, { headers: { "x-gtm-viewer-project": "fixture" } }));
+    assert.equal(response.status, 200);
+    return response.json();
+  };
+  process.env.VERCEL_DEPLOYMENT_ID = "dpl_fixture";
+  try {
+    const first = await pulse();
+    assert.deepEqual(Object.keys(first).sort(), ["data", "deployment", "registry", "version"]);
+    assert.equal(first.deployment, "dpl_fixture");
+    // Reads, a workflow the registry lacks and a preview do not move it or fail it.
+    await viewerApi(req("data"));
+    assert.deepEqual(await pulse("&workflow=gone&preview=runs"), first);
+    // A write in progress does not move it: a view must not re-read before the write is visible.
+    const writer = new pg.Client({ connectionString: process.env.DATABASE_URL });
+    await writer.connect();
+    try {
+      await writer.query("BEGIN");
+      await writer.query("INSERT INTO fixture_people VALUES ('pulse', 'Pulse Example', NULL)");
+      assert.equal((await pulse()).data, first.data);
+      await writer.query("COMMIT");
+    } finally {
+      await writer.end();
+    }
+    const second = await pulse();
+    assert.notEqual(second.data, first.data);
+    assert.equal(second.registry, first.registry);
+    await client.execute("CREATE TABLE pulse_new_table (id INTEGER)");
+    assert.notEqual((await pulse()).data, second.data);
+  } finally {
+    delete process.env.VERCEL_DEPLOYMENT_ID;
   }
 });
 test("browser mutation needs CSRF and both contract and environment identity must match", async () => {

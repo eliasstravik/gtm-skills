@@ -10,6 +10,7 @@ import { prepareNetwork, enrichItems, collectCompanies } from "../templates/lib/
 import { finishRun, runSummary } from "../templates/lib/profiles/ledger";
 import { readCounts, readData } from "../templates/lib/data-api";
 import { profileView } from "../templates/lib/profiles/view";
+import { dataVersion } from "../templates/lib/viewer-pulse";
 import { people, companies } from "../templates/lib/schema/profiles";
 import queryRoute from "../templates/server/api/query.post";
 import { networkFixture } from "./network-fixture";
@@ -65,6 +66,8 @@ test("every read path stays within its byte budget", async () => {
     await measure("viewer single record", READ_BUDGETS.dataApiRecord, 1, () => readData(view, registry, client, page(`table=people&key=${personKey}`)));
     await measure("viewer related companies of one person", READ_BUDGETS.dataApiList, 1, () => readData(view, registry, client, page(`table=companies&relatedTable=people&relatedKey=${personKey}`)));
     await measure("viewer counts", READ_BUDGETS.dataApiList, 1, () => readCounts(view, registry, client));
+    // The pulse every open viewer tab sends every few seconds: its only database read.
+    await measure("viewer pulse", READ_BUDGETS.viewerPulse, 1, () => dataVersion(client));
     // The record's own metadata never rides on a list, however asked.
     for (const column of ["responses_json", "provenance_json", "section_status_json", "sources_json"]) {
       await assert.rejects(readData(view, registry, client, page(`table=people&columns=full_name,${column}`)), /single record only/);
