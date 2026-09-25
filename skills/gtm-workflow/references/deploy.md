@@ -44,6 +44,15 @@ After building or editing a workflow with an intake, tell the user in plain word
 
 An intake always names `secretEnv` and `signature`; an unsigned intake would let anyone start runs through the public relay.
 
+## Share rate limits
+
+The share project is public on purpose (share links, the share read API, the intake relay), so never turn on Deployment Protection for it. Its firewall rate-limits each IP address instead, from one definition, `templates/share-firewall.json`: `/api/intake/*` 120 a minute, `/api/viewer*` 300, everything else 300, answering 429 over the limit. Real use stays far below (an open share tab reads about 6 times a minute); a flood is cut off, and Vercel does not bill requests the firewall mitigates.
+
+- Hosted setup (`scripts/setup.mjs --deploy`) applies them to `gtm-<ws>-share` (or `--share-project`) and publishes, touching only rules named `GTM share: …`; the project owner's other rules stay. It is idempotent: a matching project is left alone, and a pending unpublished firewall draft stops it with `draft_pending` rather than publishing someone's half-made edit. Its result carries `shareFirewall` (`applied`, `current`, `draft_pending`, `no_share_project`, `failed`).
+- Doctor (`scripts/doctor.mjs --target production`) reports `shareFirewall`: `current`, or `missing`/`differs` with the rule names, and exits 2 on drift. Hosted setup repairs it. Upgrade reruns hosted setup, so changed limits in the template roll out with it.
+- Spend cap: both also report `spendCap`, the team's Spend Management budget (amount and whether it pauses projects), and warn when there is none or it only alerts. It is a team setting: never change it; tell the owner to add one under Settings > Billing > Spend Management with Pause on. Vercel publishes no API for it, so `unknown` means it could not be read, not that it is off. Marketplace charges such as Neon are outside it.
+- The private runtime `gtm-<ws>` needs no share rules: Vercel Authentication answers outsiders before any function runs.
+
 ## Protected viewer rollout
 
 Follow [viewer.md](viewer.md) for machine access, the share-only companion, immutable workflow identities and grant policy. Configure and deploy the upgraded agent before activating the native gate. Verify harmless Queue/resumption, cron and any signed intake under protection. Deploy the share-only project with `npm run build:share`, production-to-production trust, and only its private origin/project settings. Verify its fixed read proxy before setting `GTM_VIEWER_SHARE_ORIGIN` on the private runtime and redeploying to expose Share.
