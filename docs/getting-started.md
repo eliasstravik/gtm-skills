@@ -56,12 +56,6 @@ Something not working? [Open an issue](https://github.com/eliasstravik/gtm-skill
 
 ## Enrich a network
 
-Install `gtm-workflow-enrich-network` together with its dependencies if you installed only selected skills:
-
-```sh
-npx skills add eliasstravik/gtm-skills -s gtm-workflow-enrich-network -s gtm-workflow -s gtm-workspace -g -y
-```
-
 Say "Build a workflow to enrich my connections and their current companies." The agent asks for the source and enrichment services only when you have not supplied them. CSVs, existing tables, and services that retrieve a network are supported sources. Choose any compatible direct providers or aggregators, independently for people and companies.
 
-The default is up to five current experiences per person. The workflow saves people, companies, and employment links; Open data lets you browse in both directions. Source retrieval and all enrichment share the run budget. Building does not start a paid run.
+Every current role is kept; each confirmed current employer is enriched. The workflow saves people, companies, and employment links; Open data lets you browse in both directions. Source retrieval and all enrichment share the run budget. Building does not start a paid run.

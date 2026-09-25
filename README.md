@@ -66,8 +66,7 @@ Each skill owns one part of the workspace and hands off to the others. Install `
 | `gtm-icp` | Ideal customer profiles: the companies the organization sells to |
 | `gtm-persona` | Personas: the people the organization sells to |
 | `gtm-qualify-prospects` | In-conversation fit checks of supplied people or companies |
-| `gtm-workflow` | Saved workflows: code, tables, runs, schedules, and deploys |
-| `gtm-workflow-enrich-network` | A workflow recipe for connections or followers, enriched people and current companies, with links in both directions; requires `gtm-workflow` |
+| `gtm-workflow` | Saved workflows: code, tables, runs, schedules, and deploys, and workflow recipes such as network enrichment |
 | `gtm-agent` | GTM Agent itself: deploying the Slack agent to Vercel, its workflow project, and their wiring, from one prompt |
 
 ## Choose how to get started

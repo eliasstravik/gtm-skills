@@ -25,4 +25,4 @@ Validate generated workflows with fake source/provider adapters before buying re
 | Shared consumers | Network and email imports reuse confirmed person/company identities. Freeform model interpretations remain workflow context |
 | Bytes out | `tests/run.mjs <workspace>/workflows --only read-budgets` passes against the workspace's runtime, and a local limited run under `GTM_DB_LOG_READS=1` shows no statement shape that lists every column of `gtm.people` or `gtm.companies` |
 
-For skill routing, try the positive source variants above and negative requests for a one-off fit check, fetching followers only, generic email enrichment, and running an unchanged saved workflow. The recipe is selected only for its owned output; unchanged runs go to `gtm-workflow`.
+For routing, confirm `gtm-workflow` picks up the positive source variants above and loads this recipe, and does not load it for a one-off fit check, fetching followers only, generic email enrichment, or running an unchanged saved workflow. The recipe is selected only for its owned output; unchanged runs need no recipe.
