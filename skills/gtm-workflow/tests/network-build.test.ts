@@ -89,7 +89,7 @@ export const workflows = { "enrich-network": { run: enrichNetwork, defaultInput:
 
 test("the recipe's sketch is what this suite builds", async () => {
   // In the skill checkout the recipe sits beside the runtime; a workspace has no copy and skips this.
-  const recipe = resolve(process.env.GTM_TEST_RUNTIME!, "../../gtm-workflow-enrich-network/references/recipe.md");
+  const recipe = resolve(process.env.GTM_TEST_RUNTIME!, "../recipes/enrich-network/recipe.md");
   if (!existsSync(recipe)) return;
   const sketch = /```ts\n([\s\S]*?)```/.exec(await readFile(recipe, "utf8"))?.[1];
   assert.ok(sketch, "recipe.md has a ts sketch");

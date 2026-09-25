@@ -10,7 +10,7 @@ Names and email-only inputs remain operational source records until provider evi
 
 ## Shared data
 
-Follow the runtime's [shared profile contract](../../gtm-workflow/references/shared-profiles.md) and its complete field dictionary. Use the shared API for every canonical write. Keep exactly two result tables, People and Companies, with workflow membership keyed by the viewer's permanent UUID.
+Follow the runtime's [shared profile contract](../../references/shared-profiles.md) and its complete field dictionary. Use the shared API for every canonical write. Keep exactly two result tables, People and Companies, with workflow membership keyed by the viewer's permanent UUID.
 
 Employment history belongs in `experiences_json` on each person. Preserve every returned role, including ended and unknown roles. Resolve every confidently identified current employer and retain pending company links before enrichment. Multiple roles at one company remain separate entries and create one company lookup. Unranked concurrent roles do not imply a primary employer.
 
@@ -37,7 +37,7 @@ Nothing else runs in workflow scope: the worker count, chunk size and every othe
 
 Reserve a documented maximum charge atomically before each paid dispatch. Record returned job IDs before polling. Unknown dispatch/charge status retains the reservation and defers work. Resume a known job; never repeat an uncertain purchase on lock expiry. A provider without a defensible maximum is deferred. Fresh reuse and recent misses cost nothing new.
 
-Reads are budgeted: the runtime's helpers read the columns each step needs, count roles in SQL and never fetch a whole record per item, and `lib/read-budgets.ts` says what an enriched person, an enriched company, a listed row and a viewer call may cost in bytes out of Postgres. A workflow that adds its own reads (a filter over saved people, a report, a re-check) names columns with `getProfile(db, entity, key, { columns })` or `getProfiles`, aggregates in SQL, and is checked with `node <skill>/tests/run.mjs <workspace>/workflows --only read-budgets` and a local run under `GTM_DB_LOG_READS=1` before it ships; see [bytes out of the database](../../gtm-workflow/references/local.md#bytes-out-of-the-database).
+Reads are budgeted: the runtime's helpers read the columns each step needs, count roles in SQL and never fetch a whole record per item, and `lib/read-budgets.ts` says what an enriched person, an enriched company, a listed row and a viewer call may cost in bytes out of Postgres. A workflow that adds its own reads (a filter over saved people, a report, a re-check) names columns with `getProfile(db, entity, key, { columns })` or `getProfiles`, aggregates in SQL, and is checked with `node <skill>/tests/run.mjs <workspace>/workflows --only read-budgets` and a local run under `GTM_DB_LOG_READS=1` before it ships; see [bytes out of the database](../../references/local.md#bytes-out-of-the-database).
 
 Resume the saved people and company lists. A failed company does not require repurchasing its person's enrichment. Report person outcomes, unique companies, actual current-role count, unresolved employers, omitted inputs, pending work, and known/uncertain spend. Distinguish partial completion from fully enriched results.
 

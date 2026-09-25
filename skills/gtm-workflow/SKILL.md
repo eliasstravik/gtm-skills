@@ -1,6 +1,6 @@
 ---
 name: gtm-workflow
-description: Triggers when a user asks to build, create, update, run, test, schedule, deploy, host, upgrade, inspect, open the inspection UI, or delete a saved GTM workflow, its result table, runs, or diagram in a GTM workspace, with phrasings like "build a workflow that scores our inbound companies", "run Score inbound accounts", "put it on a weekly schedule, hosted", or "upgrade the workflow runtime". Owns the workflows folder, which holds workflow code, tables, runs, schedules, diagrams, and Vercel deploys. Not for the workspace, ICPs, or personas themselves (gtm-workspace, gtm-icp, gtm-persona), or one-off fit checks that are not saved (gtm-qualify-prospects).
+description: Triggers when a user asks to build, create, update, run, test, schedule, deploy, host, upgrade, inspect, open the inspection UI, or delete a saved GTM workflow, its result table, runs, or diagram in a GTM workspace, with phrasings like "build a workflow that scores our inbound companies", "run Score inbound accounts", "put it on a weekly schedule, hosted", "enrich my network, connections, or followers and their companies", or "upgrade the workflow runtime". Owns the workflows folder, which holds workflow code, tables, runs, schedules, diagrams, and Vercel deploys. Not for the workspace, ICPs, or personas themselves (gtm-workspace, gtm-icp, gtm-persona), or one-off fit checks that are not saved (gtm-qualify-prospects).
 ---
 
 # GTM Workflow
@@ -9,7 +9,7 @@ description: Triggers when a user asks to build, create, update, run, test, sche
 
 Apply this skill when a request concerns a saved workflow: creating, changing, running, scheduling, deploying, upgrading, inspecting, opening its UI, or deleting one, or its table, runs, or diagram.
 
-When creating or changing a workflow that enriches connections or followers and their current companies, load [gtm-workflow-enrich-network](../gtm-workflow-enrich-network/SKILL.md) when installed for that recipe; this skill still owns its lifecycle. Ordinary runs of an unchanged workflow need only this skill.
+When creating or changing a workflow, check [recipes](recipes/README.md) (e.g. network enrichment) for one that matches the request and follow it; this skill still owns the lifecycle. Ordinary runs of an unchanged workflow need no recipe.
 
 Show the intent menu only when the user's entire request is `/gtm-workflow` or `/gtm-workflows`, with no action or other words. Ask **Choose a workflow action.** with three choices: **Open GTM Workflows**, **Create a workflow**, **Manage a workflow**, and wait. Manage asks which workflow and action: change, run/test, schedule/deploy, upgrade/repair, or delete. Bare entry performs no creation, execution or deployment.
 
