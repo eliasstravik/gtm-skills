@@ -130,7 +130,8 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         workflows,
         environment: deploymentScope().environment,
         workspace: process.env.GTM_VIEWER_LABEL ?? "GTM workspace",
-        connectionsUrl: connectionsOrigin(req),
+        // Origin-relative: behind a trusted proxy the request URL names the loopback address, not the browser's.
+        connectionsUrl: connectionsOrigin(),
         destinations: destinations(),
       });
     }

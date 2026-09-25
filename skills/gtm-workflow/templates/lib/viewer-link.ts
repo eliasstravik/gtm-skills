@@ -3,7 +3,8 @@ import { configuredNames } from "./connections-contract";
 import { localConnectionsEnabled } from "./connections-local";
 export function connectionsOrigin(req?: Request) {
   if (process.env.GTM_VIEWER_MODE === "share") return undefined;
-  // Local: the viewer's own route, which finds the manager and signs the browser in at each click.
+  // Local: the viewer's own route, which finds the manager and signs the browser in at each click. Absolute only
+  // for /api/link callers, which need a whole address; the page itself gets the relative path.
   if (localConnectionsEnabled()) return req ? new URL("/connections", req.url).href : "/connections";
   try {
     const value = process.env.GTM_CONNECTIONS_ORIGIN, url = new URL(value!);
