@@ -12,6 +12,7 @@ import { inspectionEnvironment } from "../connections/local/inspection-environme
 import { safeError, requireThat } from "../connections/src/errors.mjs";
 import { scaffoldManifest } from "./scaffold-manifest.mjs";
 import { writeRootFiles } from "./root-files.mjs";
+import { applyShareFirewall, teamSpendCap } from "./share-firewall.mjs";
 const skill = dirname(dirname(fileURLToPath(import.meta.url)));
 export async function setupLocal(workspace, { upgrade = false } = {}) {
   process.umask(0o077);
@@ -62,7 +63,8 @@ export async function setupLocal(workspace, { upgrade = false } = {}) {
     if (database) try { run(process.execPath, ["scripts/migrate.mjs"], runtime, databaseEnvironment(env, database.url)); } finally { await database.stop(); }
   }
   return { status: "local_ready", workspace: state.workspace, component: component.version,
-    next: `node ${join(skill, "scripts/connections.mjs")} open --workspace ${JSON.stringify(state.workspace)} --target local` };
+    // The viewer starts Connections itself; its Connections tab signs the browser in.
+    next: `cd ${JSON.stringify(runtime)} && npm run viewer, then open http://127.0.0.1:3939/viewer (Connections: http://127.0.0.1:3939/connections)` };
 }
 async function main() {
   const { values } = parseArgs({ options: { workspace: { type: "string" }, local: { type: "boolean" }, deploy: { type: "boolean" }, team: { type: "string" }, "github-owner": { type: "string" }, json: { type: "boolean" }, upgrade: { type: "boolean" }, verification: { type: "string" }, "workflow-project": { type: "string" }, "share-project": { type: "string" }, "agent-project": { type: "string" }, "agent-repository": { type: "string" }, "intake-protection-verified": { type: "boolean" } } });
@@ -74,6 +76,11 @@ async function main() {
     const state = await workspaceState(workspace), config = await privateJson(state.configPath);
     const { setupHosted } = await import(pathToFileURL(join(config.component.path, "setup/private-project.mjs")));
     result = await setupHosted({ workspace, team: values.team, githubOwner: values["github-owner"], upgrade: values.upgrade, verification: values.verification, workflowProject: values["workflow-project"], shareProject: values["share-project"], agentProject: values["agent-project"], agentRepository: values["agent-repository"], intakeProtectionVerified: values["intake-protection-verified"] });
+    // The public share project gets the template's rate limits on every hosted setup and upgrade; the spend cap is only checked.
+    const workflowName = (await privateJson(state.configPath))?.production?.workflowName;
+    const shareProject = values["share-project"] ?? (workflowName && `${workflowName}-share`);
+    const shareFirewall = !shareProject ? undefined : (() => { try { return applyShareFirewall({ project: shareProject, team: values.team }); } catch (error) { return { project: shareProject, status: "failed", code: error.code }; } })();
+    result = { ...result, ...(shareFirewall ? { shareFirewall } : {}), spendCap: teamSpendCap({ team: values.team }) };
   }
   console.log(JSON.stringify(result)); process.exitCode = ["human_step", "deployment_required"].includes(result.status) ? 2 : 0;
 }

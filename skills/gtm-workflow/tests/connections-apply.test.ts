@@ -5,10 +5,11 @@ import { changeAndApplyConnection } from "../templates/lib/connections-managemen
 const id = "cd145659-2da3-40af-86af-49febc08e67d", projectId = "prj_test";
 const origin = "https://workflows.example.com";
 const serving = { id: "dpl_serving", readyState: "READY" };
+const managed = { id: "env_marker", key: "GTM_CONNECTIONS_MANAGED", type: "plain", target: ["production"], updatedAt: 1, value: JSON.stringify(["APOLLO_API_KEY"]) };
 function fixture({ latest = { uid: serving.id, state: "READY", meta: {} }, createFails = false, writeFails = false } : any = {}) {
   const writes: any[] = [];
   const api = async (method: string, path: string, body?: any): Promise<any> => {
-    if (method === "GET" && path.includes("/env")) return { envs: [{ id: "env_test", key: "APOLLO_API_KEY", target: ["production"], updatedAt: 1 }] };
+    if (method === "GET" && path.includes("/env")) return { envs: [{ id: "env_test", key: "APOLLO_API_KEY", target: ["production"], updatedAt: 1 }, managed] };
     if (method === "GET" && path.includes("/projects/")) return { id: projectId, name: "workflows", targets: { production: { id: "dpl_not_serving", readyState: "BUILDING" } }, secret: "never-return" };
     if (method === "GET" && path.includes("/aliases/")) return { projectId, deployment: serving };
     if (method === "GET" && path.includes("/deployments?")) return { deployments: [latest] };
@@ -38,7 +39,7 @@ test("add and delete apply automatically; renaming never touches deployments", a
   let calls = 0;
   const result = await changeAndApplyConnection(async (method, path) => {
     calls++; assert.match(path, /\/env/);
-    return method === "GET" ? { envs: [{ id: "env_test", key: "APOLLO_API_KEY", target: ["production"], updatedAt: 1 }] } : {};
+    return method === "GET" ? { envs: [{ id: "env_test", key: "APOLLO_API_KEY", target: ["production"], updatedAt: 1 }, managed] } : {};
   }, projectId, { ...change(), value: undefined, label: "Apollo" }, origin);
   assert.equal(calls, 2); assert.equal(result.requiresDeployment, false); assert.equal(result.application, undefined);
 });
