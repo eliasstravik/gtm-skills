@@ -17,7 +17,7 @@ export default defineHandler(async (event) => {
   if (incoming.searchParams.get("v") !== String(CONTRACT_VERSION))
     return error(409, "Viewer version changed. Reload this page.");
   const op = incoming.searchParams.get("op") ?? "workflow";
-  if (!["meta", "workflow", "runs", "data", "export"].includes(op))
+  if (!["meta", "pulse", "workflow", "runs", "data", "export"].includes(op))
     return error(404, "View unavailable.");
   const token = event.req.headers.get("x-gtm-share-token") ?? "";
   if (!/^[A-Za-z0-9_-]{43}$/.test(token))

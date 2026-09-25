@@ -61,6 +61,8 @@ jobs:
         working-directory: skills/gtm-workflow/templates
       - run: npm install --global agent-browser@0.34.0
       - run: agent-browser install --with-deps
+      - name: Verify an open viewer follows workflow, data and deployment changes
+        run: node skills/gtm-workflow/tests/live-refresh.mjs skills/gtm-workflow/templates
       - name: Verify column Apply updates without reload or polling
         run: |
           GTM_VIEWER_FIXTURE_COLUMNS=1 GTM_VIEWER_FIXTURE_WORKSPACE=1 node skills/gtm-workflow/tests/serve.mjs skills/gtm-workflow/templates &

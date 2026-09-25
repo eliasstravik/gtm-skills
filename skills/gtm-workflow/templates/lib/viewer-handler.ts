@@ -30,6 +30,7 @@ import { DataInputError, type DataPage } from "./data-api";
 import { exportCsv } from "./viewer-csv";
 import { connectionsOrigin } from "./viewer-link";
 import { readWorkspaceData } from "./workspace-data";
+import { dataVersion, fingerprint } from "./viewer-pulse";
 const reply = (
   data: unknown,
   status = 200,
@@ -40,6 +41,8 @@ const reply = (
     { status, headers: { ...viewerHeaders, ...headers } },
   );
 const failures = new Map<string, { count: number; until: number }>();
+// A deploy or a local registry rebuild loads this module again, so computing it once is enough.
+const registryVersion = fingerprint(registry);
 export async function viewerApi(req: Request, shared = false, service = false) {
   try {
     if (service && (!process.env.VERCEL || !bearerOk(req)))
@@ -92,7 +95,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
             : ["data", "export"].includes(operation)
               ? "data"
               : undefined;
-      if (operation !== "meta" && (!needed || !preview.includes(needed)))
+      if (!["meta", "pulse"].includes(operation) && (!needed || !preview.includes(needed)))
         throw new ViewerError(
           403,
           "view_denied",
@@ -106,6 +109,14 @@ export async function viewerApi(req: Request, shared = false, service = false) {
       throw new ViewerError(405, "method_denied", "Read-only endpoint.");
     if (shared && req.method !== "GET")
       throw new ViewerError(405, "method_denied", "Read-only endpoint.");
+    // The page asks this every few seconds and reads again only what moved. A new deployment reloads the page, for
+    // its assets; the registry covers workflows and their diagrams; data covers every table, row and share link.
+    if (!shared && operation === "pulse")
+      return reply({
+        deployment: process.env.VERCEL_DEPLOYMENT_ID ?? null,
+        registry: registryVersion,
+        data: await dataVersion(db()),
+      });
     if (!shared && operation === "list") {
       const workflows = registry.map(({ id, slug, title, description }) => ({
         id,
@@ -136,7 +147,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
     const entry = entryFor(url.searchParams.get("workflow") ?? "");
     let grant;
     if (shared) {
-      if (!["meta", "workflow", "runs", "data", "export"].includes(operation))
+      if (!["meta", "pulse", "workflow", "runs", "data", "export"].includes(operation))
         throw new ViewerError(404, "not_found", "View unavailable.");
       const key =
         req.headers.get("x-vercel-forwarded-for") ??
@@ -157,7 +168,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
             ? "runs"
             : operation === "data" || operation === "export"
               ? "data"
-              : operation === "meta"
+              : operation === "meta" || operation === "pulse"
                 ? undefined
                 : "logic",
         );
@@ -171,6 +182,13 @@ export async function viewerApi(req: Request, shared = false, service = false) {
       }
     }
     switch (operation) {
+      // A recipient learns only about its own workflow, and about data only when the link shares it. Each pulse
+      // checks the link again, so a revoked link stops showing within one pulse.
+      case "pulse":
+        return reply({
+          registry: fingerprint(entry),
+          ...(grant?.views.includes("data") ? { data: await dataVersion(db()) } : {}),
+        });
       case "meta":
       case "workflow": {
         const csrf = shared ? undefined : csrfCookie();

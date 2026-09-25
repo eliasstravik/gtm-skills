@@ -4,6 +4,12 @@
 
 `npm run viewer` serves an existing local database on loopback. Opening Workflows starts no workflows, providers, migrations, schedules or inspectors. Workspace navigation is Workflows, Data, Connections. Workflows is a name-and-purpose list; a selected workflow has Diagram, Runs and Data. Runs lists metadata only. Detailed debugging and database administration use verified native destinations.
 
+## Live updates
+
+An open viewer follows the workspace without a reload. Every five seconds (ten on a share link) it asks `GET /api/viewer?op=pulse` for three fingerprints: the deployment, the workflow registry and the database. A view reads again only when its fingerprint moves: workflows, their diagrams and a removed workflow on the registry; tables, rows and share links on the database, at most every 15 seconds while a run keeps writing. Runs live in the workflow runtime, not in Postgres, so the Runs list keeps its own 15-second timer, three seconds while a run is active. A new deployment reloads the page for its new code, never under an open dialog or menu. The database fingerprint is `md5(pg_current_snapshot())`, about 100 bytes, which moves when any write commits; it is held to `viewerPulse` in `lib/read-budgets.ts`. The pulse stops while the tab is hidden and after 30 minutes without input, and checks at once when the page is shown or used again.
+
+Locally, the dev server (`npm run dev` and `npm run viewer`) rebuilds the registry with `scripts/build-viewer.mjs` whenever a `.ts` file under `workflows/` or `lib/` changes (`scripts/viewer-watch.mjs`), so a new, changed or removed workflow shows in an open viewer within seconds. A build that fails, such as a half-written file or an entry without a `viewer.id`, prints the reason in the server log and keeps the last good registry. Hosted, workflows change only with a deployment. Schedules are not shown in the viewer; they change with `vercel.json`, which on Vercel is a deployment too.
+
 ## Author the business diagram
 
 Every registry entry has a permanent `viewer.id` UUID. Assign it with `npm run viewer:register` for a new workflow and preserve it through updates, renames and upgrades.
