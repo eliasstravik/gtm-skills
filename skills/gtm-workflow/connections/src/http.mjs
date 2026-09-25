@@ -5,7 +5,7 @@ export const securityHeaders = {
   "cache-control": "private, no-store", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff", "x-frame-options": "DENY",
   "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
 };
-export function createHandler({ mode, origin, manager, auth, publicDirectory, ready = true }) {
+export function createHandler({ mode, origin, manager, production, auth, publicDirectory, ready = true }) {
   return async (request, peer) => {
     let response;
     try {
@@ -34,6 +34,12 @@ export function createHandler({ mode, origin, manager, auth, publicDirectory, re
           else if (path === "/api/connections" && request.method === "POST") {
             requireThat(principal.write, "read_only", 403);
             response = Response.json(await manager.change(await readJson(request), principal.actor));
+          } else if (path === "/api/production" && request.method === "GET") {
+            // Hints only: offline, signed out of the Vercel CLI or not linked, the tab just shows no hints.
+            response = Response.json(production ? await production.names().catch(() => ({ linked: true, unavailable: true })) : { linked: false });
+          } else if (path === "/api/production/push" && request.method === "POST") {
+            requireThat(principal.write && production, "read_only", 403);
+            response = Response.json(await production.push(await readJson(request)));
           } else requireThat(false, "not_found", 404);
         }
       }

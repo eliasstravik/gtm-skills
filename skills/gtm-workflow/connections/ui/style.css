@@ -37,3 +37,10 @@
 .connection-submit .connection-icon { fill: var(--bg); }
 @keyframes connection-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .connection-spinner { animation: none; } }
+
+.connection-hint { font-size: 12px; margin-top: 4px; color: light-dark(#a35200, #ffb224); }
+.connection-confirm { display: flex; gap: 8px; align-items: flex-start; margin: 16px 0 0; }
+.connection-confirm input { min-height: 0; margin-top: 3px; }
+.production-only { margin-top: 40px; }
+.production-only > p { margin-top: 4px; }
+.production-only .connection-row { grid-template-columns: minmax(0, 1fr) auto; }

@@ -14,13 +14,15 @@ import { createHandler } from "../src/http.mjs";
 import { boundedResponse } from "../src/vercel.mjs";
 import { requireThat } from "../src/errors.mjs";
 import { runtimeSnapshot } from "../src/snapshot.mjs";
+import { createProduction } from "./production.mjs";
 export function openBrowser(url) {
   const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer.exe" : "xdg-open";
   const child = spawn(command, [url], { shell: false, stdio: "ignore" });
   return new Promise((resolve, reject) => { child.once("error", () => reject(Error("Open Connections from a local desktop session."))); child.once("exit", (code) => code === 0 ? resolve() : reject(Error("Open Connections from a local desktop session."))); });
 }
 // workflowsUrl: the launcher passes the viewer it serves, so Connections links back to its real port.
-export async function startLocal(workspace, { open = true, publish = true, stateOptions, store: suppliedStore, environment: suppliedEnvironment, workflowsUrl } = {}) {
+// productionApi: the tests' stand-in for the Vercel CLI.
+export async function startLocal(workspace, { open = true, publish = true, stateOptions, store: suppliedStore, environment: suppliedEnvironment, workflowsUrl, productionApi } = {}) {
   process.umask(0o077);
   const state = await workspaceState(workspace, stateOptions), config = await privateJson(state.configPath);
   requireThat(config?.workspace === state.workspace, "run_local_setup", 409);
@@ -51,10 +53,12 @@ export async function startLocal(workspace, { open = true, publish = true, state
   });
   await new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
   const origin = `http://127.0.0.1:${server.address().port}`, auth = localAuth(origin);
-  const manager = createManager({ journal, storage: localStorage({ journal, store, environment }), active,
+  const storage = localStorage({ journal, store, environment });
+  const manager = createManager({ journal, storage, active,
     context: { mode: "local", workspace: state.id, workspaceName: basename(state.workspace), workflowsUrl: workflowsUrl ?? config.workflowsUrl,
       ...(config.production?.origin ? { productionUrl: config.production.origin } : {}) } });
-  handler = createHandler({ mode: "local", origin, manager, auth, publicDirectory: fileURLToPath(new URL("../dist/public", import.meta.url)) });
+  const production = createProduction({ state, store, storage, api: productionApi });
+  handler = createHandler({ mode: "local", origin, manager, production, auth, publicDirectory: fileURLToPath(new URL("../dist/public", import.meta.url)) });
   const ipcPath = process.platform === "win32" ? `\\\\.\\pipe\\gtm-connections-${state.id}-${randomUUID()}` : join(state.directory, `m-${randomUUID().slice(0, 8)}.sock`);
   const ipcToken = randomBytes(32).toString("hex");
   const ipc = createServer(async (request, response) => {

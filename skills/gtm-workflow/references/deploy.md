@@ -2,7 +2,7 @@
 
 Connections uses an existing protected workflow project. Run the trusted skill's `scripts/setup.mjs --workspace <path> --deploy --team <team> --workflow-project <existing-project>`. It configures project-scoped access and creates no additional projects or databases. See [Connections setup](connections.md) for the token setup and browser verification.
 
-Enter provider keys directly in the private Workflows UI's Connections tab. Local keys are never uploaded automatically. Production changes save Vercel Secrets and take effect after a deliberate workflow deployment.
+Enter provider keys directly in the private Workflows UI's Connections tab. Local keys are never uploaded automatically; the local tab's Push to Production sends one key up only when the owner asks. Production changes save Vercel Secrets and take effect after a deliberate workflow deployment.
 
 Ordinary authored workflow deployment is a push to the workspace repository's production branch. The project builds from `workflows/`; Connections deploys with that runtime. Preserve the existing isolated share project and its access restrictions.
 

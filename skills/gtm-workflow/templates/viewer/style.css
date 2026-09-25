@@ -194,6 +194,53 @@ caption {
 .section-heading {
   justify-content: space-between;
 }
+/* Local or Production, next to the page title: Geist's amber and blue badges. A local page also gets a thin amber rule
+   along the top edge, so the two viewers never look alike. */
+.environment-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.environment-badge {
+  --badge: light-dark(#0068d6, #52a8ff);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--badge);
+  background: color-mix(in srgb, var(--badge) 10%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--badge) 22%, var(--bg));
+}
+.environment-badge::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.environment-badge[data-environment="local"] {
+  --badge: light-dark(#a35200, #ffb224);
+}
+.environment-badge[data-environment="preview"] {
+  --badge: var(--muted);
+}
+:root[data-environment="local"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 100;
+  height: 2px;
+  background: light-dark(#f5a524, #ffb224);
+  pointer-events: none;
+}
 .workflow-list {
   margin-top: 24px;
   border-top: 1px solid var(--border);
