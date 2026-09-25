@@ -11,6 +11,7 @@ import { workspaceState, privateJson, writePrivateJson } from "../connections/lo
 import { inspectionEnvironment } from "../connections/local/inspection-environment.mjs";
 import { safeError, requireThat } from "../connections/src/errors.mjs";
 import { scaffoldManifest } from "./scaffold-manifest.mjs";
+import { writeRootFiles } from "./root-files.mjs";
 const skill = dirname(dirname(fileURLToPath(import.meta.url)));
 export async function setupLocal(workspace, { upgrade = false } = {}) {
   process.umask(0o077);
@@ -30,6 +31,8 @@ export async function setupLocal(workspace, { upgrade = false } = {}) {
     scaffold = await scaffoldManifest(runtime);
     await writePrivateJson(state.configPath, { ...prior, workspace: state.workspace, workspaceId: state.id, scaffold });
   }
+  // CI and the root ignore file sit outside workflows/; missing ones are added on every setup, existing ones are kept.
+  await writeRootFiles(workspace);
   const run = (command, args, cwd, env = inspectionEnvironment(process.env)) => {
     const windowsNpm = process.platform === "win32" && command === "npm";
     const result = spawnSync(windowsNpm ? "npm.cmd" : command, args, { cwd, env, encoding: "utf8", stdio: "pipe", maxBuffer: 8 * 1024 * 1024, shell: windowsNpm });

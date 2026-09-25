@@ -5,6 +5,7 @@ import { componentDigest } from "../connections/local/install.mjs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { safeError, requireThat } from "../connections/src/errors.mjs";
+import { rootFileDrift } from "./root-files.mjs";
 try {
   const { values } = parseArgs({ options: { workspace: { type: "string" }, target: { type: "string", default: "local" }, json: { type: "boolean" } } });
   requireThat(values.workspace, "workspace_required");
@@ -13,11 +14,11 @@ try {
   if (values.target === "production") {
     const { doctorHosted } = await import(pathToFileURL(join(config.component.path, "setup/private-project.mjs")));
     const result = await doctorHosted(state, config);
-    console.log(JSON.stringify(result)); process.exitCode = result.status === "production_ready" ? 0 : 2;
+    console.log(JSON.stringify({ ...result, rootFiles: await rootFileDrift(state.workspace) })); process.exitCode = result.status === "production_ready" ? 0 : 2;
   } else {
     const { nativeStore } = await import(pathToFileURL(join(config.component.path, "local/storage.mjs")));
     const store = nativeStore(state.id);
     requireThat(Boolean(store.loadForRuntime("GTM_CONNECTIONS_READ_SECRET")), "run_local_setup", 409);
-    console.log(JSON.stringify({ status: "local_ready", workspace: state.workspace, credentialStore: process.platform === "linux" ? "Secret Service" : process.platform === "darwin" ? "Keychain" : "Windows Credential Manager", component: config.component.version }));
+    console.log(JSON.stringify({ status: "local_ready", workspace: state.workspace, credentialStore: process.platform === "linux" ? "Secret Service" : process.platform === "darwin" ? "Keychain" : "Windows Credential Manager", component: config.component.version, rootFiles: await rootFileDrift(state.workspace) }));
   }
 } catch (error) { console.error(JSON.stringify(safeError(error))); process.exitCode = 1; }
