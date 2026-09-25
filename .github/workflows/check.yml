@@ -51,6 +51,7 @@ jobs:
       - run: npm ci
         working-directory: skills/gtm-workflow/templates
       - run: node skills/gtm-workflow/tests/no-old-database-words.mjs
+      - run: node --test skills/gtm-workflow/tests/docs-contract.test.mjs
       - run: node --test skills/gtm-agent/tests/*.test.mjs
       - run: node --test skills/gtm-workspace/tests/*.test.mjs
       - run: node --test skills/gtm-workflow/tests/root-files.test.mjs
