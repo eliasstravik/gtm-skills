@@ -26,7 +26,7 @@ Existing `.env` and `.env.local` credentials remain external configuration. Prec
 Use the existing workflow project with Vercel Authentication protecting all deployments. Run from the installed skill directory:
 
 ```sh
-node scripts/setup.mjs --deploy --workspace /path/to/gtm-acme --team acme --workflow-project gtm-acme-workflows --json
+node scripts/setup.mjs --deploy --workspace /path/to/gtm-acme --team acme --workflow-project gtm-acme --json
 ```
 
 Setup creates no projects, databases, identity applications or integrations. It saves a project-scoped Vercel API token as the Production Secret `GTM_CONNECTIONS_VERCEL_TOKEN` and nonsecret bindings: `GTM_CONNECTIONS_ENABLED`, `GTM_CONNECTIONS_TEAM_ID`, `GTM_CONNECTIONS_ORIGIN`, and `GTM_CONNECTIONS_VERCEL_URL`. The dashboard URL uses the team slug and project name, not their internal IDs. Deploy the current runtime, then open `/connections` through the normal private Workflows URL. Local provider keys stay local.

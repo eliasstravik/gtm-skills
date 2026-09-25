@@ -1,5 +1,6 @@
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { ViewerError } from "./viewer-grants";
+import { ownerSession } from "./connections-access";
 export const viewerHeaders = {
   "cache-control": "private, no-store",
   "referrer-policy": "no-referrer",
@@ -21,8 +22,33 @@ export function deploymentScope() {
     );
   return { workspace, environment };
 }
+// Owner sessions Vercel confirmed recently, by cookie hash, so polling does not probe on every request.
+const confirmed = new Map<string, number>();
+const CONFIRMED_MS = 60_000;
+/** A signed-in owner, as Vercel confirms it. Passing Vercel Authentication alone (an automation bypass, a trusted
+ * OIDC caller such as the share project) is not an owner; those reach only bearer, share-token or signed routes. */
+export async function hostedOwner(req: Request, fetcher = fetch) {
+  const origin = process.env.GTM_CONNECTIONS_ORIGIN, teamId = process.env.GTM_CONNECTIONS_TEAM_ID;
+  if (!origin || !teamId)
+    throw new ViewerError(503, "configuration", "Run hosted setup before opening the private viewer.");
+  const key = createHash("sha256").update(req.headers.get("cookie") ?? "").digest("base64url");
+  const bypass = ["authorization", "x-vercel-protection-bypass", "x-vercel-set-bypass-cookie", "x-vercel-trusted-oidc-idp-token"]
+    .some((name) => req.headers.has(name) || new URL(req.url).searchParams.has(name));
+  if (!bypass && (confirmed.get(key) ?? 0) > Date.now()) return;
+  try {
+    await ownerSession(req, { origin, teamId }, fetcher);
+  } catch (error) {
+    const unavailable = (error as { status?: number }).status === 503;
+    throw new ViewerError(unavailable ? 503 : 403, unavailable ? "unavailable" : "owner_required",
+      unavailable ? "Could not confirm your Vercel session. Try again." : "Open the private viewer signed in to Vercel.");
+  }
+  if (confirmed.size > 1000) confirmed.clear();
+  confirmed.set(key, Date.now() + CONFIRMED_MS);
+}
+/** Tests replace `check` to stand in for Vercel; nothing in the runtime reassigns it. */
+export const hostedOwnerCheck = { check: hostedOwner };
 /** The opt-in is set only after Vercel Authentication is enabled on All Deployments. */
-export function privateAccess(req: Request) {
+export async function privateAccess(req: Request, fetcher = fetch) {
   const url = new URL(req.url);
   if (process.env.VERCEL) {
     if (process.env.GTM_VIEWER_PROTECTED !== "1")
@@ -31,6 +57,7 @@ export function privateAccess(req: Request) {
         "disabled",
         "The private viewer is not enabled.",
       );
+    await hostedOwnerCheck.check(req, fetcher);
   } else {
     const host = req.headers.get("host");
     const allowed = ["127.0.0.1", "localhost", "[::1]"];
@@ -52,8 +79,8 @@ export function csrfCookie() {
     cookie: `gtm_viewer_csrf=${value}; Path=/; SameSite=Strict; HttpOnly${process.env.VERCEL ? "; Secure" : ""}`,
   };
 }
-export function requireMutation(req: Request) {
-  privateAccess(req);
+export async function requireMutation(req: Request) {
+  await privateAccess(req);
   const url = new URL(req.url);
   if (
     req.headers.get("origin") !== url.origin ||

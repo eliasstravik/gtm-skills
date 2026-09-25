@@ -1,11 +1,11 @@
 import { page } from "../viewer/shell";
 import { viewerHeaders, privateAccess } from "./viewer-access";
-export function viewerPage(req: Request) {
+export async function viewerPage(req: Request) {
   try {
-    privateAccess(req);
-  } catch {
-    return new Response("Private viewer unavailable.", {
-      status: 503,
+    await privateAccess(req);
+  } catch (error) {
+    return new Response((error as Error).message || "Private viewer unavailable.", {
+      status: (error as { status?: number }).status ?? 503,
       headers: viewerHeaders,
     });
   }

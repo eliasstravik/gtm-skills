@@ -13,6 +13,7 @@ import {
   csrfCookie,
   privateAccess,
 } from "../templates/lib/viewer-access";
+import { CONNECTION_ACCESS_PROBE } from "../templates/lib/connections-access";
 import type { DataPolicy } from "../templates/lib/viewer-contract";
 process.env.GTM_VIEWER_LINK_KEY = randomBytes(32).toString("hex");
 const scope = {
@@ -185,7 +186,7 @@ test("malformed scopes and unseen Data policy cannot create a link", async () =>
     client.close();
   }
 });
-test("browser writes require matching Origin and CSRF cookie/header", () => {
+test("browser writes require matching Origin and CSRF cookie/header", async () => {
   const { value, cookie } = csrfCookie();
   const headers = {
     host: "localhost:3939",
@@ -194,7 +195,7 @@ test("browser writes require matching Origin and CSRF cookie/header", () => {
     cookie,
     "x-gtm-csrf": value,
   };
-  requireMutation(
+  await requireMutation(
     new Request("http://localhost:3939/api/viewer/grants", {
       method: "POST",
       headers,
@@ -205,25 +206,64 @@ test("browser writes require matching Origin and CSRF cookie/header", () => {
     { ...headers, "x-gtm-csrf": "x" },
     { ...headers, cookie: "" },
   ])
-    assert.throws(
-      () =>
-        requireMutation(
-          new Request("http://localhost:3939/api/viewer/grants", {
-            method: "POST",
-            headers: bad,
-          }),
-        ),
-      { status: 403 },
-    );
-  assert.throws(
-    () =>
-      privateAccess(
-        new Request("http://evil.test:3939/viewer", {
-          headers: { host: "evil.test:3939" },
+    await assert.rejects(
+      requireMutation(
+        new Request("http://localhost:3939/api/viewer/grants", {
+          method: "POST",
+          headers: bad,
         }),
       ),
+      { status: 403 },
+    );
+  await assert.rejects(
+    privateAccess(
+      new Request("http://evil.test:3939/viewer", {
+        headers: { host: "evil.test:3939" },
+      }),
+    ),
     { code: "host_denied" },
   );
+});
+
+test("hosted viewer needs an owner session Vercel confirms, not just a request past Vercel", async () => {
+  const origin = "https://gtm-acme.vercel.app", teamId = "team_acme";
+  const saved = { ...process.env };
+  Object.assign(process.env, { VERCEL: "1", GTM_VIEWER_PROTECTED: "1", GTM_CONNECTIONS_ORIGIN: origin, GTM_CONNECTIONS_TEAM_ID: teamId });
+  const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  const jwt = (claims: Record<string, unknown>) => `${encode({ alg: "none" })}.${encode(claims)}.signature`;
+  const owner = jwt({ userId: "user_a", ownerId: teamId, aud: "gtm-acme.vercel.app", sub: "sso-protection" });
+  // Vercel: an anonymous probe is sent to login, the owner's cookie gets the probe text.
+  const vercel = async (_url: unknown, init?: RequestInit) =>
+    (init?.headers as Record<string, string> | undefined)?.cookie === `_vercel_jwt=${owner}`
+      ? new Response(CONNECTION_ACCESS_PROBE)
+      : new Response("", { status: 401 });
+  const request = (headers: Record<string, string> = {}, query = "") =>
+    new Request(`${origin}/api/viewer?v=3${query}`, { headers });
+  try {
+    await privateAccess(request({ cookie: `_vercel_jwt=${owner}` }), vercel);
+    for (const [headers, query] of [
+      [{}, ""],
+      [{ "x-vercel-protection-bypass": "synthetic" }, ""],
+      [{}, "&x-vercel-protection-bypass=synthetic"],
+      [{ "x-vercel-trusted-oidc-idp-token": "synthetic" }, ""],
+      [{ cookie: `_vercel_jwt=${owner}`, "x-vercel-protection-bypass": "synthetic" }, ""],
+      [{ cookie: `_vercel_jwt=${jwt({ userId: "user_a", ownerId: teamId, aud: "gtm-acme.vercel.app", sub: "sso-protection", bypass: true })}` }, ""],
+      [{ cookie: `_vercel_jwt=${jwt({ userId: "user_b", ownerId: teamId, aud: "gtm-acme.vercel.app", sub: "sso-protection" })}` }, ""],
+    ] as const)
+      await assert.rejects(privateAccess(request(headers, query), vercel), { code: "owner_required" }, JSON.stringify(headers) + query);
+    // Protection turned off: the anonymous probe gets through, so no session counts.
+    await assert.rejects(
+      privateAccess(request({ cookie: `_vercel_jwt=${jwt({ userId: "user_c", ownerId: teamId, aud: "gtm-acme.vercel.app", sub: "sso-protection" })}` }), async () => new Response(CONNECTION_ACCESS_PROBE)),
+      { code: "owner_required" },
+    );
+    // A confirmed session is remembered briefly, so viewer polling does not probe Vercel on every request.
+    await privateAccess(request({ cookie: `_vercel_jwt=${owner}` }), async () => { throw Error("not probed again"); });
+    delete process.env.GTM_CONNECTIONS_ORIGIN;
+    await assert.rejects(privateAccess(request({ cookie: `_vercel_jwt=${owner}` }), vercel), { code: "configuration" });
+  } finally {
+    for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
+    Object.assign(process.env, saved);
+  }
 });
 
 import { effectivePolicy } from "../templates/lib/viewer-policy";

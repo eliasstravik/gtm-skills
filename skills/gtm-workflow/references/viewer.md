@@ -61,7 +61,7 @@ Runs includes a general Open in Vercel button, or Open in Workflow for a verifie
 
 ## Private access and sharing
 
-Keep native Vercel Authentication on All Deployments and set `GTM_VIEWER_PROTECTED=1` only after verifying it. Keep the existing agent's exact-origin gate and execution credentials. Browser mutations require Origin and CSRF; authenticated service mutations use the existing bearer and platform gate.
+Keep native Vercel Authentication on All Deployments and set `GTM_VIEWER_PROTECTED=1` only after verifying it. Hosted, the private viewer also needs a signed-in owner: a single Vercel session cookie that Vercel itself confirms (the same check as Connections, using `GTM_CONNECTIONS_ORIGIN` and `GTM_CONNECTIONS_TEAM_ID`, remembered for a minute). A request that only passed Vercel Authentication, through an automation bypass or a trusted project's OIDC identity, is not the owner. Keep the existing agent's exact-origin gate and execution credentials. Browser mutations require Origin and CSRF; authenticated service mutations use the existing bearer and platform gate.
 
 The separate share project uses `npm run build:share`, with only `GTM_VIEWER_PRIVATE_ORIGIN` and `GTM_VIEWER_PRIVATE_PROJECT_ID`. Configure its production deployment as a Trusted Source of its private project. The fixed GET proxy supplies short-lived OIDC identity. No database, provider, run, cron or link encryption key belongs on the share project.
 
