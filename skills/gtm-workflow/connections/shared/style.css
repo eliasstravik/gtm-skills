@@ -178,7 +178,9 @@ caption {
   margin: auto;
   padding: 40px 32px;
 }
-.root-navigation { padding: 0; margin-bottom: 28px; }
+/* Workspace tabs share the page's edge: flush in the padded Workflows list, on the 24px gutter in the full-width Data view. */
+.workspace > .root-navigation { padding: 0; margin-bottom: 28px; }
+.workflow > .title-row { padding: 20px 24px 8px; flex-shrink: 0; }
 .title-row,
 .section-heading,
 .breadcrumbs,
@@ -308,14 +310,17 @@ td {
   padding: 10px 24px;
   border-bottom: 1px solid var(--border);
 }
-.pagination {
+.pagination,
+.grid-footer {
   display: flex;
   gap: 20px;
   justify-content: flex-end;
+  align-items: center;
   padding: 10px 24px;
   min-height: 42px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 .status {
   display: inline-flex;
@@ -568,6 +573,10 @@ fieldset legend {
 .data-grid th {
   position: sticky;
 }
+/* Row numbers are row headers: they scroll with their row, only column headers stay on top. */
+.data-grid tbody th {
+  position: static;
+}
 .data-grid th button {
   border: 0;
   background: transparent;
@@ -575,6 +584,15 @@ fieldset legend {
   min-height: 24px;
   width: 100%;
   text-align: left;
+}
+/* The grid starts on the same 24px edge as the heading and toolbar; the scrollbar still spans the pane. */
+.data-pane .table-scroll {
+  padding-inline: 24px;
+}
+.data-grid .spacer td {
+  height: auto;
+  padding: 0;
+  border: 0;
 }
 .data-grid td:hover {
   background: var(--surface);
@@ -637,6 +655,12 @@ fieldset legend {
   }
   .tabs {
     padding: 0 12px;
+  }
+  .workflow > .title-row {
+    padding: 16px 12px 4px;
+  }
+  .data-pane .table-scroll {
+    padding-inline: 12px;
   }
   .toolbar {
     padding: 10px 12px;
@@ -718,4 +742,17 @@ fieldset legend {
 .structured-value dd {
   margin-left: 0;
   overflow-wrap: anywhere;
+}
+/* A JSON value left in the database until opened; reads like the summary of an expandable value. */
+.data-grid button.folded {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  min-height: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.data-grid button.folded::before {
+  content: "▸ ";
 }
