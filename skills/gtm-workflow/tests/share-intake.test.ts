@@ -42,9 +42,23 @@ test("forwards a signed event byte for byte with the OIDC identity and only sign
 test("refuses unsigned requests, bad slugs and oversized bodies before reaching the private runtime", async () => {
   const calls = upstream(() => Response.json({}));
   assert.equal((await post("cal-booking", { "content-type": "application/json" })).status, 401);
+  // Vercel's own proxy signature is on every request and is not the sender's.
+  assert.equal((await post("cal-booking", { "x-vercel-proxy-signature": "Bearer x", "x-vercel-proxy-signature-ts": "1" })).status, 401);
   assert.equal((await post("../run/x", { "x-cal-signature-256": "a" })).status, 404);
   assert.equal((await post("cal-booking", { "x-cal-signature-256": "a" }, "x".repeat(1024 * 1024 + 1))).status, 413);
   assert.equal(calls.length, 0);
+});
+
+test("a workflow without an intake is a 404, not a relay fault", async () => {
+  upstream(() => new Response("No intake for x", { status: 404, headers: { "content-type": "text/plain" } }));
+  assert.equal((await post("x", { "x-cal-signature-256": "a" })).status, 404);
+});
+
+test("the sender's headers never include Vercel's own", async () => {
+  const calls = upstream(() => Response.json({}, { status: 202 }));
+  await post("cal-booking", { "x-cal-signature-256": "a", "x-vercel-proxy-signature": "Bearer x", "x-vercel-id": "iad1::x" });
+  const sent = calls[0].init.headers as Record<string, string>;
+  assert.ok(!Object.keys(sent).some((name) => name.startsWith("x-vercel-") && name !== "x-vercel-trusted-oidc-idp-token"));
 });
 
 test("a Vercel login page from the private runtime is a relay fault, not a sender error", async () => {

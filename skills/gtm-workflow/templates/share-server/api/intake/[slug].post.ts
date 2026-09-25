@@ -36,6 +36,8 @@ export default defineHandler(async (event) => {
   let signed = false;
   for (const [name, value] of event.req.headers) {
     const key = name.toLowerCase();
+    // Vercel stamps its own x-vercel-* headers (x-vercel-proxy-signature among them) on every request; never the sender's.
+    if (key.startsWith("x-vercel-")) continue;
     if (SIGNATURE.test(key)) signed = true;
     if ((SIGNATURE.test(key) || FORWARD.test(key)) && value.length <= 1024) forward[key] = value;
   }
@@ -73,7 +75,9 @@ export default defineHandler(async (event) => {
     // The private route answers small JSON; anything else (a Vercel login page) is a configuration fault.
     const text = (await response.text()).slice(0, 4096);
     if (!response.headers.get("content-type")?.includes("application/json"))
-      return reply(502, "The private runtime did not accept the relay");
+      return response.status === 404
+        ? reply(404, "No such intake")
+        : reply(502, "The private runtime did not accept the relay");
     return new Response(text, { status: response.status, headers });
   } catch {
     return reply(502, "The private runtime is unavailable");
