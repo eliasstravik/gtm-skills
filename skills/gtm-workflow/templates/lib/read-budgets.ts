@@ -18,10 +18,10 @@ export const READ_BUDGETS = {
   enrichedPerson: 12_000,
   /** Per company over its phase. */
   enrichedCompany: 6_000,
-  /** Per row of a viewer list page with the default columns; the People default carries the roles section, which is most of it. */
-  listedRow: 4_000,
-  /** Per viewer list call: a page of 25 with its count and relation counts. */
-  dataApiList: 100_000,
+  /** Per row of a viewer list with the default columns. JSON cells stay in the database (a count of entries), so the roles section no longer rides along; measured 246 on People. */
+  listedRow: 400,
+  /** Per viewer list call: a window of 100 rows (LIST_WINDOW_ROWS) with its count and relation counts; measured 24,574 on People. */
+  dataApiList: 40_000,
   /** Per viewer call for one record: every column but responses_json. */
   dataApiRecord: 24_000,
   /** Per viewer pulse, which every open tab sends every few seconds: fingerprints only, never rows. */

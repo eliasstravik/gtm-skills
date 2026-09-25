@@ -17,7 +17,7 @@ try {
   command("select", "[name=data-table]", table);
   command("wait", "--text", "Ada Import");
   command("fill", '[aria-label="Search data"]', "Ada");
-  command("wait", "--text", "1 matching records");
+  command("wait", "--text", "1 matching record");
   assert.equal(evaluate('document.querySelectorAll("tbody tr").length'), 1);
   assert.equal(evaluate('new URL(location.href).searchParams.has("workflow")'), false);
   assert.equal(evaluate('document.querySelector(".toolbar a.button").textContent.trim()'), "Open database ↗");

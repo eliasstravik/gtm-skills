@@ -470,11 +470,19 @@ test("shared companies never expose another workflow's population or metadata", 
       new URL("http://test/?table=people&columns=responses_json"),
     ),
   );
-  const safe = await readData(
+  // A list leaves the roles in the database; opening them reads the one record, projected to the shared leaves.
+  const listed = await readData(
     shared,
     registry,
     db,
     new URL("http://test/?table=people&columns=experiences_json"),
+  );
+  assert.deepEqual(listed.rows[0][0], { value: null, folded: { entries: 1 } });
+  const safe = await readData(
+    shared,
+    registry,
+    db,
+    new URL(`http://test/?table=people&columns=experiences_json&key=${listed.keys[0]}`),
   );
   assert.equal((safe.rows[0][0].value as any[])[0].original, undefined);
   assert.equal((safe.rows[0][0].value as any[])[0].title, "Founder");

@@ -86,13 +86,13 @@ try {
     "240",
   );
   command("fill", 'input[aria-label="Search data"]', "Ada Example");
-  wait("1 matching records");
+  wait("1 matching record");
   shot("data");
   clickText("a", "View 2");
   wait("Connected to Ada Example");
   shot("related-data");
   command("back");
-  wait("1 matching records");
+  wait("1 matching record");
   clickText("button", "Share");
   wait("Sharing is off");
   command("click", 'button[role="switch"]');

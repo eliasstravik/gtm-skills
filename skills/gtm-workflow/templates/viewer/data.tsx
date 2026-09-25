@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CONTRACT_VERSION } from "../lib/viewer-contract";
 import { href, navigate, query, shared, token } from "./navigation";
-import { Search, State, time, useRead } from "./common";
+import { api, Search, State, time, useRead } from "./common";
 import { webUrl } from "./web-url";
 import { ColumnChooser } from "./column-chooser";
+import { useRows } from "./rows";
 const valueText = (value: unknown) =>
   value == null
     ? ""
@@ -92,9 +93,21 @@ function StructuredValue({ value }: { value: unknown }): React.ReactNode {
   return <CellValue value={value} />;
 }
 export default function Data({ destinations }: any) {
-  const state = useRead("data"),
-    d = state.data,
-    p = query();
+  const p = query();
+  // What the rows depend on; paging parameters from older links are not part of it.
+  const viewKey = new URLSearchParams(
+    [...p].filter(([name]) => !["node", "step", "expanded", "eventCursor", "page", "offset", "limit"].includes(name)),
+  ).toString();
+  const request = useRef<() => Record<string, string>>(undefined);
+  const state = useRead("data", true, () => request.current?.() ?? {});
+  // While a new search or table loads, the toolbar and the old rows stay, so typing is never interrupted.
+  const kept = useRef<any>(undefined);
+  if (state.data) kept.current = state.data;
+  const d = state.error && !state.data ? undefined : kept.current;
+  const scroller = useRef<HTMLDivElement>(null);
+  const list = useRows(viewKey, scroller, d?.unavailable ? undefined : d);
+  request.current = list.request;
+  const focusAfterDraw = useRef<[number, number] | null>(null);
   const [message, setMessage] = useState(""),
     [exporting, setExporting] = useState(false);
   const [selected, setSelected] = useState<[number, number] | null>(null),
@@ -105,6 +118,37 @@ export default function Data({ destinations }: any) {
     origin = useRef<HTMLElement | null>(null);
   const abort = useRef<AbortController | null>(null);
   const visible = d?.fields?.map((f: any) => f.id) ?? [];
+  /**
+   * A cell's whole value. A list leaves JSON values in the database (`folded`), so opening or copying one reads that
+   * single record's column, only for this record and only when asked.
+   */
+  async function whole(row: number, column: number) {
+    const record = list.rows[row],
+      c = record?.cells[column];
+    if (!c?.folded) return c?.value;
+    setMessage("Loading value…");
+    const read = await api("data", {
+      key: record!.key,
+      columns: d.fields[column].id,
+      q: "",
+      field: "",
+      offset: "0",
+      limit: "1",
+    });
+    setMessage("");
+    if (!read.rows?.length) throw Error("This record changed. Refresh to see it.");
+    return read.rows[0][0].value;
+  }
+  async function open(row: number, column: number, from: HTMLElement) {
+    try {
+      const value = await whole(row, column);
+      origin.current = from;
+      setDetail(value);
+      popover.current?.showModal();
+    } catch (error) {
+      setMessage((error as Error).message);
+    }
+  }
   useEffect(() => {
     setSelected(null);
   }, [JSON.stringify([d?.keys, d?.columns])]);
@@ -191,14 +235,27 @@ export default function Data({ destinations }: any) {
     }
   }
 
-  const cell = selected && d?.rows[selected[0]]?.[selected[1]];
+  const cell = selected && list.rows[selected[0]]?.cells[selected[1]];
   function focusCell(row: number, column: number) {
-    grid.current
-      ?.querySelector<HTMLElement>(
-        `[data-row="${row}"][data-column="${column}"]`,
-      )
-      ?.focus();
+    const target = grid.current?.querySelector<HTMLElement>(
+      `[data-row="${row}"][data-column="${column}"]`,
+    );
+    if (target) return target.focus();
+    // The row is outside the drawn window or not read yet: bring it on screen and focus it once it is drawn.
+    focusAfterDraw.current = [row, column];
+    list.reveal(row);
   }
+  useLayoutEffect(() => {
+    if (!focusAfterDraw.current) return;
+    const [row, column] = focusAfterDraw.current;
+    const target = grid.current?.querySelector<HTMLElement>(
+      `[data-row="${row}"][data-column="${column}"]`,
+    );
+    if (target) {
+      focusAfterDraw.current = null;
+      target.focus();
+    }
+  });
   function resize(event: React.PointerEvent, column: number) {
     event.preventDefault();
     event.stopPropagation();
@@ -223,7 +280,7 @@ export default function Data({ destinations }: any) {
   }
   return (
     <section className="pane data-pane" aria-label="Data">
-      <State state={state} />
+      <State state={d && !state.error ? { ...state, loading: false } : state} />
       {d &&
         (d.unavailable ? (
           <p className="notice">No configured data for this workflow.</p>
@@ -293,13 +350,13 @@ export default function Data({ destinations }: any) {
                 fields={d.availableFields ?? d.fields} visible={visible}
                 onChange={columns => update({ columns: columns?.join(",") })} />
               <button
-                disabled={exporting || !d.total}
+                disabled={exporting || !list.total}
                 onClick={() => download("csv")}
               >
                 Export CSV
               </button>
               <button
-                disabled={exporting || !d.total}
+                disabled={exporting || !list.total}
                 onClick={() => download("json")}
               >
                 Export JSON
@@ -321,13 +378,15 @@ export default function Data({ destinations }: any) {
               )}
               {cell && (
                 <>
-                  <button onClick={() => copy(cell.value)}>Copy cell</button>
                   <button
-                    onClick={(e) => {
-                      origin.current = e.currentTarget;
-                      setDetail(cell.value);
-                      popover.current?.showModal();
-                    }}
+                    onClick={() =>
+                      whole(...selected!).then(copy, (error) => setMessage(error.message))
+                    }
+                  >
+                    Copy cell
+                  </button>
+                  <button
+                    onClick={(e) => open(...selected!, e.currentTarget)}
                   >
                     View value
                   </button>
@@ -339,23 +398,26 @@ export default function Data({ destinations }: any) {
                 {d.context} <button onClick={() => history.back()}>Back</button>
               </p>
             )}
-            <div className="table-scroll">
+            <div className="table-scroll" ref={scroller}>
               <table
                 ref={grid}
                 className="data-grid"
                 role="grid"
                 aria-label={d.title}
                 aria-readonly="true"
+                aria-rowcount={list.total + 1}
+                aria-busy={state.loading || list.loading}
                 onKeyDown={(event) => {
                   if (!selected) return;
-                  const [row, column] = selected;
+                  // A key pressed before the last move drew its row moves on from that row, so no press is lost.
+                  const [row, column] = focusAfterDraw.current ?? selected;
                   if (
                     event.key === "Enter" &&
                     (event.target as Element).matches('[role="gridcell"]')
                   ) {
                     const anchor = (
                       event.target as HTMLElement
-                    ).querySelector<HTMLAnchorElement>("a.cell-link");
+                    ).querySelector<HTMLElement>("a.cell-link, button.folded");
                     if (anchor) {
                       event.preventDefault();
                       anchor.click();
@@ -367,7 +429,7 @@ export default function Data({ destinations }: any) {
                     !window.getSelection()?.toString()
                   ) {
                     event.preventDefault();
-                    copy(cell?.value);
+                    whole(row, column).then(copy, (error) => setMessage(error.message));
                   }
                   const delta = (
                     {
@@ -380,7 +442,7 @@ export default function Data({ destinations }: any) {
                   if (delta) {
                     event.preventDefault();
                     focusCell(
-                      Math.max(0, Math.min(d.rows.length - 1, row + delta[0])),
+                      Math.max(0, Math.min(list.total - 1, row + delta[0])),
                       Math.max(
                         0,
                         Math.min(d.columns.length - 1, column + delta[1]),
@@ -396,7 +458,7 @@ export default function Data({ destinations }: any) {
                   ))}
                 </colgroup>
                 <thead>
-                  <tr>
+                  <tr aria-rowindex={1}>
                     <th className="row-number" aria-label="Row number">
                       #
                     </th>
@@ -468,12 +530,31 @@ export default function Data({ destinations }: any) {
                   </tr>
                 </thead>
                 <tbody>
-                  {d.rows.map((row: any[], i: number) => (
-                    <tr key={d.keys[i]}>
+                  {list.before > 0 && (
+                    <tr className="spacer" aria-hidden="true">
+                      <td colSpan={d.columns.length + 1} style={{ height: list.before }} />
+                    </tr>
+                  )}
+                  {Array.from({ length: list.end - list.start }, (_, n) => {
+                    const i = list.start + n,
+                      record = list.rows[i];
+                    if (!record)
+                      return (
+                        <tr key={`missing-${i}`} data-index={i} aria-rowindex={i + 2} className="placeholder">
+                          <th scope="row" className="row-number">
+                            {i + 1}
+                          </th>
+                          <td colSpan={d.columns.length} className="muted">
+                            {list.failed ? "Rows unavailable. Refresh to try again." : "Loading…"}
+                          </td>
+                        </tr>
+                      );
+                    return (
+                    <tr key={record.key} data-index={i} aria-rowindex={i + 2}>
                       <th scope="row" className="row-number">
                         {i + 1}
                       </th>
-                      {row.map((c, j) => (
+                      {record.cells.map((c, j) => (
                         <td
                           key={j}
                           role="gridcell"
@@ -501,15 +582,33 @@ export default function Data({ destinations }: any) {
                           {c.href ? (
                             <a href={link(c.href)}>{valueText(c.value)}</a>
                           ) : (
-                            <CellValue value={c.value} />
+                            c.folded ? (
+                              <button
+                                className="folded"
+                                tabIndex={-1}
+                                onClick={(e) => open(i, j, e.currentTarget.closest("td")!)}
+                              >
+                                {c.folded.entries === undefined
+                                  ? "View details"
+                                  : `${c.folded.entries} ${c.folded.entries === 1 ? "entry" : "entries"}`}
+                              </button>
+                            ) : (
+                              <CellValue value={c.value} />
+                            )
                           )}
                         </td>
                       ))}
                     </tr>
-                  ))}
+                    );
+                  })}
+                  {list.after > 0 && (
+                    <tr className="spacer" aria-hidden="true">
+                      <td colSpan={d.columns.length + 1} style={{ height: list.after }} />
+                    </tr>
+                  )}
                 </tbody>
               </table>
-              {!d.rows.length && (
+              {!list.total && (
                 <p className="notice">
                   {p.has("q") || p.has("field")
                     ? "No matching records."
@@ -517,13 +616,11 @@ export default function Data({ destinations }: any) {
                 </p>
               )}
             </div>
-            <nav className="pagination" aria-label="Data pages">
-              <span className="muted">
-                {d.total.toLocaleString()} matching records
-              </span>
-              {d.previous && <a href={link(d.previous)}>Previous</a>}
-              {d.next && <a href={link(d.next)}>Next</a>}
-            </nav>
+            <p className="grid-footer muted">
+              {state.loading
+                ? "Loading…"
+                : `${list.total.toLocaleString()} matching ${list.total === 1 ? "record" : "records"}`}
+            </p>
           </>
         ))}
       <p className="grid-message" role="status">
