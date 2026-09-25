@@ -8,6 +8,10 @@ import { csrfCookie, hostedOwnerCheck } from "../templates/lib/viewer-access";
 // Stands in for a signed-in owner; viewer-grants.test.ts covers the real check.
 hostedOwnerCheck.check = async () => {};
 import { runId, entry, fixtureRuns, run } from "./api-fixture";
+import localIndex from "../templates/viewer-server/routes/index.get";
+import runtimeIndex from "../templates/server/routes/index.get";
+import workflowRoute from "../templates/server/routes/gtm/[slug].get";
+import dataRoute from "../templates/server/routes/gtm/[slug]/data.get";
 Object.assign(process.env, {
   VERCEL: "1",
   VERCEL_PROJECT_ID: "fixture",
@@ -482,5 +486,27 @@ test("private link discovery exposes only the fixed Connections origin and share
     delete process.env.GTM_VIEWER_MODE;
     if (previous === undefined) delete process.env.GTM_CONNECTIONS_ORIGIN;
     else process.env.GTM_CONNECTIONS_ORIGIN = previous;
+  }
+});
+test("links the browser follows are origin-relative, so the viewer works behind a trusted proxy", async () => {
+  // A relay (Tailscale Serve, say) hands the viewer a loopback Host; an absolute link would send the remote browser to its own loopback.
+  const vercel = process.env.VERCEL;
+  delete process.env.VERCEL;
+  process.env.GTM_CONNECTIONS_MANAGER = "/home/owner/.gtm/connections/id/manager.json";
+  try {
+    const list = await viewerApi(new Request("http://127.0.0.1:53860/api/viewer?v=3&op=list", { headers: { host: "127.0.0.1:53860" } }));
+    assert.equal(list.status, 200);
+    assert.equal((await list.json()).connectionsUrl, "/connections");
+  } finally { delete process.env.GTM_CONNECTIONS_MANAGER; process.env.VERCEL = vercel; }
+  const routes: [unknown, Record<string, string>, string][] = [
+    [localIndex, {}, "/viewer"],
+    [runtimeIndex, {}, "/viewer"],
+    [workflowRoute, { slug: "stable" }, "/viewer?workflow=stable&view=logic"],
+    [dataRoute, { slug: "stable" }, "/viewer?workflow=stable&view=data"],
+  ];
+  for (const [route, params, location] of routes) {
+    const response = (route as (event: unknown) => Response)({ req: new Request("http://127.0.0.1:53860/gtm/stable"), context: { params } });
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("location"), location);
   }
 });

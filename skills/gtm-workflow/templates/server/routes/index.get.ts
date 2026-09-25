@@ -1,4 +1,5 @@
 import { defineHandler } from "nitro";
-export default defineHandler((event) =>
-  Response.redirect(new URL("/viewer", event.req.url), 302),
+// A relative location, so a browser behind a trusted proxy stays on the address it used.
+export default defineHandler(() =>
+  new Response(null, { status: 302, headers: { location: "/viewer" } }),
 );
