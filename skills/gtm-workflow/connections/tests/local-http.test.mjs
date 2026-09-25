@@ -72,3 +72,39 @@ test("real local HTTP and native credential CRUD never expose stored values", as
     await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
   }
 });
+test("the socket forwards the tailnet viewer's API calls through the same session, CSRF and one-use sign-in", async () => {
+  const root = await mkdtemp(join(homedir(), ".gtm-test-")), workspace = join(root, "workspace");
+  await mkdir(workspace);
+  const stateOptions = { create: true, root, boundary: root };
+  const state = await workspaceState(workspace, stateOptions);
+  await writePrivateJson(state.configPath, { workspace: state.workspace, workflowsUrl: "http://127.0.0.1:3939/viewer" });
+  const values = new Map(), store = { set: (name, value) => values.set(name, value), remove: (name) => values.delete(name), loadForRuntime: (name) => values.get(name) ?? null };
+  let server;
+  try {
+    server = await startLocal(workspace, { open: false, stateOptions, store, environment: {} });
+    const transport = await privateJson(join(state.directory, "manager.json"));
+    const ipc = (path, { method = "GET", token = transport.ipcToken, headers = {}, body } = {}) => new Promise((resolve, reject) => {
+      const request = httpRequest({ socketPath: transport.ipcPath, method, path, headers: { authorization: `Bearer ${token}`, ...headers } }, (response) => {
+        const chunks = []; response.on("data", (chunk) => chunks.push(chunk));
+        response.on("end", () => { const text = Buffer.concat(chunks).toString(); resolve({ status: response.statusCode, json: text ? JSON.parse(text) : null }); });
+      }); request.on("error", reject); request.end(body);
+    });
+    assert.equal((await ipc("/proxy/api/connections", { token: "wrong" })).status, 401);
+    assert.equal((await ipc("/proxy/api/connections")).status, 401, "no session, no inventory");
+    const bootstrap = new URLSearchParams(new URL((await ipc("/open")).json.url).hash.slice(1)).get("bootstrap");
+    const exchange = () => ipc("/proxy/api/session", { method: "POST", body: JSON.stringify({ bootstrap }) });
+    const signedIn = await exchange(); assert.equal(signedIn.status, 200);
+    assert.equal((await exchange()).status, 401, "the sign-in link works once");
+    const session = { "x-gtm-session": signedIn.json.bearer };
+    assert.equal((await ipc("/proxy/api/connections", { headers: session })).status, 200);
+    const add = (headers) => ipc("/proxy/api/connections", { method: "POST", headers: { ...session, ...headers },
+      body: JSON.stringify({ id: randomUUID(), variable: "BLITZ_API_KEY", action: "add", version: "absent", value: "synthetic" }) });
+    assert.equal((await add({})).status, 403, "a change still needs the CSRF token");
+    assert.equal((await add({ "x-gtm-csrf": signedIn.json.csrf })).status, 200);
+    assert.equal(values.get("BLITZ_API_KEY"), "synthetic");
+    assert.equal((await ipc("/proxy/", { headers: session })).status, 404, "only the manager's API is forwarded");
+  } finally {
+    if (server) await server.close();
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  }
+});

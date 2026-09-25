@@ -1,7 +1,7 @@
 import { lstat, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { request as httpRequest } from "node:http";
-import { privateAccess } from "./viewer-access";
+import { privateAccess, tailnetMode, tailnetRequest, viewerOrigin } from "./viewer-access";
 
 const headers = { "cache-control": "no-store", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff" };
 /** The launcher starts Connections next to the viewer and says where its manager.json is; the manager can restart
@@ -50,8 +50,51 @@ export async function openLocalConnections(req: Request) {
     return unavailable("Open Connections from the viewer's Connections tab.", 403);
   try {
     const { ipcPath, ipcToken } = await manager(process.env.GTM_CONNECTIONS_MANAGER!);
-    return new Response(null, { status: 303, headers: { ...headers, location: await signInLink(ipcPath, ipcToken) } });
+    const link = await signInLink(ipcPath, ipcToken);
+    // From the tailnet the manager's loopback address is out of reach: the page opens on the viewer's own address and
+    // its calls come back through the viewer, which forwards them over the owner-only socket.
+    return new Response(null, { status: 303, headers: { ...headers, location: tailnetRequest(req) ? `/connections/manage${new URL(link).hash}` : link } });
   } catch {
     return unavailable("Connections is not running. Restart the viewer (`npm run viewer` or `npm run dev`) to start it.");
   }
+}
+
+const pageHeaders = { ...headers, "content-type": "text/html; charset=utf-8", "x-frame-options": "DENY",
+  "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'" };
+/** GET /connections/manage in tailnet mode: the Connections page on the viewer's address. It signs in with the one-use
+ * link in its fragment, which only /connections hands out. */
+export async function localConnectionsPage(req: Request) {
+  if (!localConnectionsEnabled() || !tailnetMode()) return new Response("Not found.", { status: 404, headers });
+  try { await privateAccess(req); } catch { return new Response("Local viewer access only.", { status: 403, headers }); }
+  return new Response('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connections</title><link rel="stylesheet" href="/connections-assets/app.css"></head><body><div id="root" data-tailnet="true"></div><script type="module" src="/connections-assets/app.js"></script></body></html>', { headers: pageHeaders });
+}
+const API_PATH = /^(?:connections|session|logout|health|production|production\/push)$/;
+/** /api/connection-management/<path> in tailnet mode: the page's calls, forwarded to the manager's own API over its
+ * owner-only socket. The manager still wants its session bearer and, for a change, its CSRF token; the viewer adds
+ * the owner's tailnet login and, for a change, this viewer's exact origin from its own page. */
+export async function forwardLocalConnections(req: Request, path: string) {
+  const refuse = (error: string, status: number) => Response.json({ error }, { status, headers });
+  if (!localConnectionsEnabled() || !tailnetMode() || !API_PATH.test(path)) return refuse("not_found", 404);
+  try { await privateAccess(req); } catch { return refuse("reopen_connections", 403); }
+  const post = req.method === "POST";
+  if ((!post && req.method !== "GET") || req.headers.get("sec-fetch-site") !== "same-origin" || (post && req.headers.get("origin") !== viewerOrigin(req)))
+    return refuse("origin_denied", 403);
+  const body = post ? Buffer.from(await req.arrayBuffer()) : undefined;
+  if (body && body.length > 65536) return refuse("too_large", 413);
+  let target: { ipcPath: string; ipcToken: string };
+  try { target = await manager(process.env.GTM_CONNECTIONS_MANAGER!); } catch { return refuse("reopen_connections", 503); }
+  const session = req.headers.get("authorization")?.replace(/^Bearer /, ""), csrf = req.headers.get("x-gtm-csrf");
+  return new Promise<Response>((resolve) => {
+    const forward = httpRequest({ socketPath: target.ipcPath, method: req.method, path: `/proxy/api/${path}`, timeout: 30000, headers: {
+      authorization: `Bearer ${target.ipcToken}`, ...(session ? { "x-gtm-session": session } : {}), ...(csrf ? { "x-gtm-csrf": csrf } : {}),
+      ...(body ? { "content-type": "application/json", "content-length": body.length } : {}) } }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk) => chunks.push(chunk));
+      res.on("end", () => resolve(new Response(Buffer.concat(chunks), { status: res.statusCode ?? 502, headers: { ...headers, "content-type": "application/json" } })));
+      res.on("error", () => resolve(refuse("connections_unavailable", 503)));
+    });
+    forward.on("error", () => resolve(refuse("connections_unavailable", 503)));
+    forward.on("timeout", () => forward.destroy(Error("timeout")));
+    forward.end(body);
+  });
 }

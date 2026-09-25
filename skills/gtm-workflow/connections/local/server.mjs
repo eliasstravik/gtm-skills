@@ -71,6 +71,18 @@ export async function startLocal(workspace, { open = true, publish = true, state
     if (request.method === "GET" && request.url === "/open") {
       auth.renew(); response.setHeader("content-type", "application/json"); return response.end(JSON.stringify({ url: auth.opener() }));
     }
+    // The local viewer in tailnet mode forwards its Connections page's API calls here, after checking the owner's tailnet
+    // login and its own origin. They run through the same handler as a loopback call: the session bearer and CSRF token
+    // still decide, and the page's own address is never trusted here.
+    if (/^\/proxy\/api\/[a-z/]+$/.test(request.url) && ["GET", "POST"].includes(request.method)) {
+      const post = request.method === "POST", session = request.headers["x-gtm-session"], csrf = request.headers["x-gtm-csrf"];
+      const forwarded = new Request(`${origin}${request.url.slice("/proxy".length)}`, { method: request.method,
+        headers: { host: new URL(origin).host, ...(session ? { authorization: `Bearer ${session}` } : {}), ...(csrf ? { "x-gtm-csrf": csrf } : {}),
+          ...(post ? { origin, "sec-fetch-site": "same-origin", "content-type": "application/json" } : {}) },
+        ...(post ? { body: Readable.toWeb(request), duplex: "half" } : {}) });
+      const answer = await handler(forwarded, "127.0.0.1");
+      response.writeHead(answer.status, Object.fromEntries(answer.headers)); return response.end(Buffer.from(await answer.arrayBuffer()));
+    }
     if (request.method !== "GET" || request.url !== "/connections") { response.writeHead(404); return response.end(); }
     try { response.setHeader("content-type", "application/json"); response.end(JSON.stringify(await manager.inventory())); }
     catch { response.writeHead(503); response.end('{"error":"connections_unavailable"}'); }
