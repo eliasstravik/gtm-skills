@@ -65,6 +65,7 @@ try {
     "reliability",
     "cli-mcp",
     "connections-management",
+    "connections-local",
     "connections-platform",
     "share-intake",
     "connections-apply",

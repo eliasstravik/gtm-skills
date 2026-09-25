@@ -18,8 +18,13 @@ test("local authority binds peer, host, origin, CSRF, one-use bootstrap and expi
 });
 test("inventory reports presence and declared gateway usage without credential material", () => {
   const sentinel = "sentinel-provider-DO-NOT-EXPOSE";
-  const names = configuredNames({ MONID_API_KEY: sentinel, BLITZ_API_KEY: "  ", CUSTOM_API_KEY: "x", GTM_ADMIN_API_KEY: "secret", NEXT_PUBLIC_BAD_API_KEY: "x", DATABASE_AUTH_TOKEN: "x" });
-  assert.deepEqual(names, ["CUSTOM_API_KEY", "MONID_API_KEY"]);
+  const shell = { CUSTOM_API_KEY: "x", CLAUDE_CODE_MESSAGING_TOKEN: "x", GUM_LOG_KEY_FOREGROUND: "x", OPENAI_API_KEY: "x", GTM_ADMIN_API_KEY: "secret" };
+  // Only keys saved through Connections: local labels from the launcher, hosted the GTM_CONNECTIONS_MANAGED marker.
+  assert.deepEqual(configuredNames({ ...shell, MONID_API_KEY: sentinel }), []);
+  assert.deepEqual(configuredNames({ ...shell, MONID_API_KEY: sentinel, BLITZ_API_KEY: "  ", GTM_CONNECTIONS_LABELS: JSON.stringify({ MONID_API_KEY: "Monid", BLITZ_API_KEY: "Blitz", GTM_ADMIN_API_KEY: "x" }) }), ["MONID_API_KEY"]);
+  const names = configuredNames({ ...shell, MONID_API_KEY: sentinel, GTM_CONNECTIONS_MANAGED: JSON.stringify(["MONID_API_KEY", "GTM_ADMIN_API_KEY", "ABSENT_API_KEY"]) });
+  assert.deepEqual(names, ["MONID_API_KEY"]);
+  assert.deepEqual(configuredNames({ ...shell, GTM_CONNECTIONS_MANAGED: "not json" }), []);
   const rows = connectionInventory(names, [{ id: "wf", title: "Enrichment", connections: [{ connection: "monid", provider: "Apollo" }] }], true);
   assert.equal(rows.find((row) => row.id === "MONID_API_KEY").usage[0].provider, "Apollo");
   assert.equal(rows.some((row) => row.id === "apollo"), false);

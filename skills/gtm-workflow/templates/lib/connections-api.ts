@@ -18,9 +18,10 @@ export async function connectionsApi(req: Request, workflows: ConnectionWorkflow
   let names = configuredNames(process.env), labels = runtimeLabels(process.env);
   if (hosted && process.env.GTM_CONNECTIONS_ENABLED === "1") {
     try {
-      const config = connectionConfiguration(), rows = await connectionMetadata(connectionsVercel(config), config.projectId);
+      // The live marker, not this deployment's copy: a key saved since the last build is listed once it is deployed.
+      const config = connectionConfiguration(), rows = (await connectionMetadata(connectionsVercel(config), config.projectId)).filter((row) => row.managed);
       labels = Object.fromEntries(rows.map((row) => [row.variable, row.comment]));
-      names = [...new Set([...names, ...rows.map((row) => row.variable)])].filter((name) => Boolean(process.env[name]?.trim()));
+      names = rows.map((row) => row.variable).filter((name) => Boolean(process.env[name]?.trim())).sort();
     } catch { return Response.json({ error: "Connection names are unavailable." }, { status: 503, headers }); }
   }
   return Response.json({ version: CONNECTIONS_VERSION, workspace, environment,

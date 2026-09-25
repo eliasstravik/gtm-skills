@@ -62,7 +62,8 @@ export async function setupLocal(workspace, { upgrade = false } = {}) {
     if (database) try { run(process.execPath, ["scripts/migrate.mjs"], runtime, databaseEnvironment(env, database.url)); } finally { await database.stop(); }
   }
   return { status: "local_ready", workspace: state.workspace, component: component.version,
-    next: `node ${join(skill, "scripts/connections.mjs")} open --workspace ${JSON.stringify(state.workspace)} --target local` };
+    // The viewer starts Connections itself; its Connections tab signs the browser in.
+    next: `cd ${JSON.stringify(runtime)} && npm run viewer, then open http://127.0.0.1:3939/viewer (Connections: http://127.0.0.1:3939/connections)` };
 }
 async function main() {
   const { values } = parseArgs({ options: { workspace: { type: "string" }, local: { type: "boolean" }, deploy: { type: "boolean" }, team: { type: "string" }, "github-owner": { type: "string" }, json: { type: "boolean" }, upgrade: { type: "boolean" }, verification: { type: "string" }, "workflow-project": { type: "string" }, "share-project": { type: "string" }, "agent-project": { type: "string" }, "agent-repository": { type: "string" }, "intake-protection-verified": { type: "boolean" } } });

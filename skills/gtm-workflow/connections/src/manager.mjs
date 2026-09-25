@@ -10,7 +10,8 @@ export function createManager({ journal, storage, active, context }) {
     for (const field of saved) field.label ??= metadata.find((entry) => entry.variable === field.variable)?.label;
     const names = saved.map((row) => row.variable);
     const rows = connectionInventory(names, [], false);
-    for (const entry of snapshot?.connections ?? []) if (!rows.some((row) => row.id === entry.id)) rows.push({ ...entry, fields: [] });
+    // From the runner only what no key stands for (AI Gateway's platform identity); its variables are not connections.
+    for (const entry of snapshot?.connections ?? []) if (entry.platformIdentity && !rows.some((row) => row.id === entry.id)) rows.push({ ...entry, fields: [] });
     for (const row of rows) {
       const live = snapshot?.connections?.find((entry) => (entry.fields ?? []).some((field) => row.fields.some((own) => own.variable === field.variable)));
       row.active = snapshot ? Boolean(live?.configured) : null;

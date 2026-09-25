@@ -19,7 +19,8 @@ export function openBrowser(url) {
   const child = spawn(command, [url], { shell: false, stdio: "ignore" });
   return new Promise((resolve, reject) => { child.once("error", () => reject(Error("Open Connections from a local desktop session."))); child.once("exit", (code) => code === 0 ? resolve() : reject(Error("Open Connections from a local desktop session."))); });
 }
-export async function startLocal(workspace, { open = true, publish = true, stateOptions, store: suppliedStore, environment: suppliedEnvironment } = {}) {
+// workflowsUrl: the launcher passes the viewer it serves, so Connections links back to its real port.
+export async function startLocal(workspace, { open = true, publish = true, stateOptions, store: suppliedStore, environment: suppliedEnvironment, workflowsUrl } = {}) {
   process.umask(0o077);
   const state = await workspaceState(workspace, stateOptions), config = await privateJson(state.configPath);
   requireThat(config?.workspace === state.workspace, "run_local_setup", 409);
@@ -51,7 +52,7 @@ export async function startLocal(workspace, { open = true, publish = true, state
   await new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
   const origin = `http://127.0.0.1:${server.address().port}`, auth = localAuth(origin);
   const manager = createManager({ journal, storage: localStorage({ journal, store, environment }), active,
-    context: { mode: "local", workspace: state.id, workspaceName: basename(state.workspace), workflowsUrl: config.workflowsUrl,
+    context: { mode: "local", workspace: state.id, workspaceName: basename(state.workspace), workflowsUrl: workflowsUrl ?? config.workflowsUrl,
       ...(config.production?.origin ? { productionUrl: config.production.origin } : {}) } });
   handler = createHandler({ mode: "local", origin, manager, auth, publicDirectory: fileURLToPath(new URL("../dist/public", import.meta.url)) });
   const ipcPath = process.platform === "win32" ? `\\\\.\\pipe\\gtm-connections-${state.id}-${randomUUID()}` : join(state.directory, `m-${randomUUID().slice(0, 8)}.sock`);
@@ -60,6 +61,11 @@ export async function startLocal(workspace, { open = true, publish = true, state
     const given = request.headers.authorization?.replace(/^Bearer /, "") ?? "";
     if (Buffer.byteLength(given) !== Buffer.byteLength(ipcToken) || !timingSafeEqual(Buffer.from(given), Buffer.from(ipcToken))) {
       response.writeHead(401); return response.end();
+    }
+    // A fresh one-use sign-in link, for the viewer's Connections tab and a repeated `connections open`. Only a caller that
+    // can read manager.json (the owner) holds this token; the link it returns is as private as the one `open` sends the OS.
+    if (request.method === "GET" && request.url === "/open") {
+      auth.renew(); response.setHeader("content-type", "application/json"); return response.end(JSON.stringify({ url: auth.opener() }));
     }
     if (request.method !== "GET" || request.url !== "/connections") { response.writeHead(404); return response.end(); }
     try { response.setHeader("content-type", "application/json"); response.end(JSON.stringify(await manager.inventory())); }

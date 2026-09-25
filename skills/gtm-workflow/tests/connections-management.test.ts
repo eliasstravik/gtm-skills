@@ -42,6 +42,8 @@ test("configuration excludes share, preview and unprotected deployments", () => 
   for (const change of [{ GTM_VIEWER_MODE: "share" }, { VERCEL_ENV: "preview" }, { GTM_VIEWER_PROTECTED: "0" }]) assert.throws(() => connectionConfiguration({ ...env, ...change }));
 });
 const raw = { id: "env_test", key: "APOLLO_API_KEY", target: ["production"], updatedAt: 1, value: "NEVER_RETURN_THIS_KEY", decryptedValue: "NEVER_RETURN_THIS_KEY" };
+// The tab's own record of what it saved; a plain variable, so Vercel returns its value.
+const marker = (...keys: string[]) => ({ id: "env_marker", key: "GTM_CONNECTIONS_MANAGED", type: "plain", target: ["production"], updatedAt: 1, value: JSON.stringify(keys) });
 test("inventory drops values and marks shared, duplicate and multi-target keys read-only", async () => {
   const rows = await connectionMetadata(async (_method, path) => {
     assert.match(path, /decrypt=false/);
@@ -61,15 +63,15 @@ test("inventory hides the variables the Neon integration injects", async () => {
   assert.deepEqual(rows.map((row) => row.variable), [raw.key]);
 });
 test("writes reject stale versions, infrastructure and multi-target configuration", async () => {
-  const api = async (method: string) => { assert.equal(method, "GET"); return { envs: [raw] }; };
+  const api = async (method: string) => { assert.equal(method, "GET"); return { envs: [raw, marker(raw.key)] }; };
   await assert.rejects(changeConnection(api, config.projectId, { variable: raw.key, action: "replace", version: "stale", value: "synthetic" }), /connection_changed/);
   await assert.rejects(changeConnection(api, config.projectId, { variable: "GTM_SECRET_API_KEY", action: "add", version: "absent", value: "synthetic" }), /invalid_provider_variable/);
-  await assert.rejects(changeConnection(async () => ({ envs: [{ ...raw, target: ["production", "preview"] }] }), config.projectId, { variable: raw.key, action: "disconnect", version: "env_test:1" }), /use_vercel_settings/);
+  await assert.rejects(changeConnection(async () => ({ envs: [{ ...raw, target: ["production", "preview"] }, marker(raw.key)] }), config.projectId, { variable: raw.key, action: "disconnect", version: "env_test:1" }), /use_vercel_settings/);
 });
 test("replacement writes production Secret and preserves existing comment", async () => {
   const writes: any[] = [];
   const api = async (method: string, path: string, body?: any) => {
-    if (method === "GET") return { envs: [{ ...raw, comment: "Existing customization" }] };
+    if (method === "GET") return { envs: [{ ...raw, comment: "Existing customization" }, marker(raw.key)] };
     writes.push({ method, path, body: structuredClone(body) }); return {};
   };
   const input = { variable: raw.key, action: "replace", version: "env_test:1", value: "synthetic-new-key" };
@@ -86,7 +88,7 @@ test("unknown write outcomes are redacted and never automatically retried", asyn
 test("custom names persist in Notes; editing a name never reads or replaces the secret", async () => {
   const writes: any[] = [];
   const api = async (method: string, _path: string, body?: any) => {
-    if (method === "GET") return { envs: [{ ...raw, key: "HUBSPOT_PROD_KEY", type: "sensitive", comment: "HubSpot" }] };
+    if (method === "GET") return { envs: [{ ...raw, key: "HUBSPOT_PROD_KEY", type: "sensitive", comment: "HubSpot" }, marker("HUBSPOT_PROD_KEY")] };
     writes.push(structuredClone(body)); return {};
   };
   await changeConnection(api, config.projectId, { variable: "HUBSPOT_PROD_KEY", action: "replace", label: "HubSpot (Production)", version: "env_test:1" });
@@ -108,7 +110,40 @@ test("adding custom keys stores the name as a Note and keeps system controls res
 });
 
 test("name-only changes need no deployment", async () => {
-  const result = await changeConnection(async (method) => method === "GET" ? { envs: [raw] } : {}, config.projectId,
+  const result = await changeConnection(async (method) => method === "GET" ? { envs: [raw, marker(raw.key)] } : {}, config.projectId,
     { variable: raw.key, action: "replace", label: "Apollo", version: "env_test:1" });
   assert.equal(result.requiresDeployment, false);
+});
+
+test("only keys the tab saved are listed or changed; other project variables stay Vercel's", async () => {
+  const envs = [raw, { ...raw, id: "cli", key: "MONID_API_KEY", comment: "Monid" }, marker(raw.key, "GONE_API_KEY")];
+  const rows = await connectionMetadata(async () => ({ envs }), config.projectId);
+  assert.deepEqual(rows.map((row) => [row.variable, row.managed]), [[raw.key, true], ["MONID_API_KEY", false]]);
+  const reads = async (method: string) => { assert.equal(method, "GET"); return { envs }; };
+  for (const change of [{ action: "replace", version: "cli:1", value: "synthetic" }, { action: "disconnect", version: "cli:1" }, { action: "add", version: "absent", value: "synthetic" }])
+    await assert.rejects(changeConnection(reads, config.projectId, { variable: "MONID_API_KEY", ...change }), /use_vercel_settings/);
+  // A second marker, or one that is not a plain production-only variable, is not trusted.
+  for (const bad of [[marker(), marker()], [{ ...marker(), type: "sensitive" }], [{ ...marker(), target: ["production", "preview"] }]])
+    await assert.rejects(connectionMetadata(async () => ({ envs: [raw, ...bad] }), config.projectId), /use_vercel_settings/);
+});
+test("adding marks the name before the key exists; deleting unmarks it after", async () => {
+  let envs: any[] = [];
+  const writes: any[] = [];
+  const api = async (method: string, path: string, body?: any) => {
+    if (method === "GET") return { envs };
+    writes.push({ method, path, body: structuredClone(body) });
+    if (body?.key === "GTM_CONNECTIONS_MANAGED") envs = [...envs, { ...marker(), value: body.value }];
+    else if (method === "PATCH" && path.endsWith("/env_marker")) envs = envs.map((row) => row.id === "env_marker" ? { ...row, value: body.value } : row);
+    else if (method === "POST") envs = [...envs, { ...raw, key: body.key, id: "env_new" }];
+    else if (method === "DELETE") envs = envs.filter((row) => !path.endsWith(`/${row.id}`));
+    return {};
+  };
+  await changeConnection(api, config.projectId, { variable: "APOLLO_API_KEY", action: "add", label: "Apollo", version: "absent", value: "synthetic" });
+  assert.deepEqual(writes.map((write) => [write.method, write.body?.key]), [["POST", "GTM_CONNECTIONS_MANAGED"], ["POST", "APOLLO_API_KEY"]]);
+  assert.deepEqual(writes[0].body, { value: '["APOLLO_API_KEY"]', type: "plain", target: ["production"], comment: "Keys saved through Connections", key: "GTM_CONNECTIONS_MANAGED" });
+  assert.deepEqual((await connectionMetadata(api, config.projectId)).map((row) => [row.variable, row.managed]), [["APOLLO_API_KEY", true]]);
+  writes.length = 0;
+  await changeConnection(api, config.projectId, { variable: "APOLLO_API_KEY", action: "disconnect", version: "env_new:1" });
+  assert.deepEqual(writes.map((write) => write.method), ["DELETE", "PATCH"]);
+  assert.equal(writes[1].body.value, "[]");
 });

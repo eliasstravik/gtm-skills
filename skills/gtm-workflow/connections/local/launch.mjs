@@ -8,6 +8,7 @@ import { openJournal } from "../src/journal.mjs";
 import { nativeStore, settings, inspectionEnvironment, runtimeEnvironment } from "./storage.mjs";
 import { requireThat } from "../src/errors.mjs";
 import { ensureLocalDatabase, databaseEnvironment, externalDatabase, LocalDatabaseError } from "./database.mjs";
+import { startLocal } from "./server.mjs";
 export { ensureLocalDatabase };
 // `options` exists for the launcher tests: private state outside the home folder, a stand-in credential store and a stub server.
 export async function launch(workspace, mode = "dev", options = {}) {
@@ -19,7 +20,8 @@ export async function launch(workspace, mode = "dev", options = {}) {
   // The external way out starts nothing and never migrates; migrating that database is an explicit `node scripts/migrate.mjs`.
   const database = external ? { url: shell.url, unpooled: shell.unpooled ?? shell.url, async stop() {} } : await ensureLocalDatabase(cwd, { create: mode === "dev" });
   if (external) console.error(`Using the external database on ${new URL(shell.url).host}; it is not migrated from here`);
-  try { return await serve(); } catch (error) { await database.stop(); throw error; }
+  let connections = null;
+  try { return await serve(); } catch (error) { await connections?.close().catch(() => {}); await database.stop(); throw error; }
   async function serve() {
   const journal = await openJournal({ url: `file:${state.database}` });
   const store = options.store ?? nativeStore(state.id), environment = await settings(state.workspace);
@@ -32,32 +34,48 @@ export async function launch(workspace, mode = "dev", options = {}) {
   run(["scripts/build-viewer.mjs"]);
   // Opening the viewer never migrates. The migrate script finds this workspace's database through the same folder check.
   if (mode === "dev" && !external) run(["scripts/migrate.mjs"]);
+  const port = Number(mode === "viewer" ? environment.GTM_VIEWER_PORT ?? 3939 : environment.GTM_RUNTIME_PORT ?? 3939);
+  requireThat(Number.isInteger(port) && port > 0 && port <= 65535, "invalid_local_port");
+  // Connections comes up with the viewer, so its tab works from the first page. After the build steps: spawnSync blocks
+  // this process and the manager's server with it. The viewer finds the manager through manager.json at each click.
+  connections = await startConnections(port, environment);
+  const managerOrigin = connections?.origin ?? config.managerOrigin ?? "";
   const runtime = mode === "dev" ? databaseEnvironment(await runtimeEnvironment({ journal, store, environment }), database.url, database.unpooled) : clean;
   if (mode === "dev") {
     runtime.GTM_RUN_SECRET = store.loadForRuntime("GTM_RUN_SECRET");
     runtime.GTM_CONNECTIONS_READ_SECRET = store.loadForRuntime("GTM_CONNECTIONS_READ_SECRET");
     runtime.GTM_CONNECTIONS_WORKSPACE = state.id;
     runtime.GTM_CONNECTIONS_PROCESS_GENERATION = randomUUID();
-    runtime.GTM_CONNECTIONS_ORIGIN = config.managerOrigin ?? "";
+    runtime.GTM_CONNECTIONS_ORIGIN = managerOrigin;
     runtime.WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS = "900000"; runtime.WORKFLOW_LOCAL_BODY_TIMEOUT_MS = "900000";
   } else runtime.GTM_VIEWER_MODE = "local";
   runtime.GTM_ENV_MANAGED = "1";
+  runtime.GTM_CONNECTIONS_MANAGER = join(state.directory, "manager.json");
   const generation = runtime.GTM_CONNECTIONS_GENERATION;
   for (const name of Object.keys(process.env)) delete process.env[name];
   Object.assign(process.env, runtime);
-  const port = Number(mode === "viewer" ? environment.GTM_VIEWER_PORT ?? 3939 : environment.GTM_RUNTIME_PORT ?? 3939);
-  requireThat(Number.isInteger(port) && port > 0 && port <= 65535, "invalid_local_port");
   const server = await (options.serve ?? nitroServer)({ cwd, port });
   if (mode === "dev") await writePrivateJson(join(state.directory, "runtime.json"), { pid: process.pid, origin: `http://127.0.0.1:${port}`, workspace: state.id, generation, processGeneration: runtime.GTM_CONNECTIONS_PROCESS_GENERATION });
   journal.close();
   console.log(JSON.stringify({ status: mode === "dev" ? "runner_started" : "viewer_started", origin: `http://127.0.0.1:${port}`, ...(generation ? { generation } : {}) }));
   let closing;
-  const close = () => (closing ??= (async () => { await Promise.resolve(server.close()).catch(() => {}); await database.stop(); })());
+  const close = () => (closing ??= (async () => { await Promise.resolve(server.close()).catch(() => {}); await connections?.close().catch(() => {}); await database.stop(); })());
   // `on`, not `once`: under `npm run dev` Ctrl+C arrives twice (from the terminal and forwarded by npm), and a second
   // signal with no listener left would kill the process half way through stopping the database. SIGHUP is a closed terminal.
   for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) process.on(signal, () => { close().then(() => process.exit(0), () => process.exit(1)); });
   process.on("exit", () => database.stopNow?.());
   return { origin: `http://127.0.0.1:${port}`, close };
+  }
+  async function startConnections(port, environment) {
+    // The manager sets a private umask for its socket and files; the rest of this process keeps the owner's.
+    const mask = process.umask(0o077);
+    try {
+      return await startLocal(state.workspace, { open: false, stateOptions: options.stateOptions, store: options.store, environment,
+        workflowsUrl: `http://127.0.0.1:${port}/viewer` });
+    } catch {
+      console.error("Connections did not start; the viewer runs without its Connections tab. Run Connections Doctor.");
+      return null;
+    } finally { process.umask(mask); }
   }
 }
 async function nitroServer({ cwd, port }) {

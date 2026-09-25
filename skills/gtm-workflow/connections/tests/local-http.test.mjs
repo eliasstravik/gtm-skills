@@ -27,6 +27,22 @@ test("real local HTTP and native credential CRUD never expose stored values", as
     assert.equal(await ipc(), 401);
     assert.equal(await ipc("wrong"), 401);
     assert.equal(await ipc(transport.ipcToken), 200);
+    // The viewer's Connections tab asks for a fresh one-use link; each new one retires the last.
+    const link = (token) => new Promise((resolve, reject) => {
+      const request = httpRequest({ socketPath: transport.ipcPath, path: "/open", headers: token ? { authorization: `Bearer ${token}` } : {} }, (response) => {
+        const chunks = []; response.on("data", (chunk) => chunks.push(chunk));
+        response.on("end", () => resolve({ status: response.statusCode, body: Buffer.concat(chunks).toString() }));
+      }); request.on("error", reject); request.end();
+    });
+    assert.equal((await link()).status, 401);
+    const first = new URL(JSON.parse((await link(transport.ipcToken)).body).url), second = new URL(JSON.parse((await link(transport.ipcToken)).body).url);
+    assert.equal(first.origin, server.origin); assert.match(second.hash, /^#bootstrap=[A-Za-z0-9_-]{43}$/);
+    const exchange = (url) => fetch(`${server.origin}/api/session`, { method: "POST", headers: { origin: server.origin, "sec-fetch-site": "same-origin", "content-type": "application/json" },
+      body: JSON.stringify({ bootstrap: new URLSearchParams(url.hash.slice(1)).get("bootstrap") }) });
+    assert.equal((await exchange(first)).status, 401);
+    assert.equal((await exchange(second)).status, 200);
+    assert.equal((await exchange(second)).status, 401);
+    server.auth.renew();
     assert.equal((await fetch(`${server.origin}/api/connections`)).status, 401);
     assert.equal((await fetch(`${server.origin}/api/health`)).status, 401);
     assert.equal((await fetch(`${server.origin}/api/connections`, { headers: { "x-forwarded-host": "anything" } })).status, 403);

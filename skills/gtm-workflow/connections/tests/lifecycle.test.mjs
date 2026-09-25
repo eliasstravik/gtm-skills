@@ -8,7 +8,8 @@ const sentinel = "synthetic-sentinel-never-return-8943";
 async function fixture() {
   const journal = await openJournal({ url: ":memory:" }), values = new Map();
   const store = { set: (name, value) => values.set(name, value), remove: (name) => values.delete(name), loadForRuntime: (name) => values.get(name) };
-  const environment = { BLITZ_API_KEY: "external-sentinel", PATH: "/bin" };
+  // Whatever the shell that started the launcher exported, including provider-like names, is never a connection.
+  const environment = { BLITZ_API_KEY: "external-sentinel", CLAUDE_CODE_MESSAGING_TOKEN: "shell", GUM_LOG_KEY_BACKGROUND: "shell", PATH: "/bin" };
   const storage = localStorage({ journal, store, environment });
   let active = null;
   const manager = createManager({ journal, storage, active: async () => active, context: { mode: "local" } });
@@ -18,12 +19,17 @@ test("empty-workflow CRUD, managed precedence, tombstones and generation activat
   const f = await fixture();
   try {
     let rows = (await f.manager.inventory()).connections;
-    assert.equal(rows[0].status, "Configured externally");
-    await f.manager.change({ id: randomUUID(), variable: "BLITZ_API_KEY", action: "replace", value: sentinel, version: "external" }, "owner");
+    assert.deepEqual(rows, [], "environment variables are never listed");
+    f.setActive({ generation: "0", connections: [{ id: "CLAUDE_CODE_MESSAGING_TOKEN", name: "x", configured: true, platformIdentity: false, usage: [], fields: [{ variable: "CLAUDE_CODE_MESSAGING_TOKEN" }] }] });
+    assert.deepEqual((await f.manager.inventory()).connections, [], "nor what an older runner reports");
+    f.setActive(null);
+    await f.manager.change({ id: randomUUID(), variable: "BLITZ_API_KEY", action: "add", value: sentinel, version: "absent" }, "owner");
+    rows = (await f.manager.inventory()).connections;
+    assert.deepEqual(rows.map((row) => row.id), ["BLITZ_API_KEY"]); assert.equal(rows[0].fields[0].externalCopy, true);
     let env = await runtimeEnvironment(f); assert.equal(env.BLITZ_API_KEY, sentinel); assert.equal(env.GTM_CONNECTIONS_GENERATION, "1");
     rows = (await f.manager.inventory()).connections; assert.equal(rows[0].status, "Saved locally, runner not started");
     f.setActive({ generation: "1", connections: [{ id: "blitz", configured: true, usage: [], fields: [{ variable: "BLITZ_API_KEY" }] }] });
-    assert.equal((await f.manager.inventory()).connections[0].status, "Runner restarted after save");
+    assert.equal((await f.manager.inventory()).connections[0].status, "Configured");
     await f.manager.change({ id: randomUUID(), variable: "BLITZ_API_KEY", action: "disconnect", version: "1" }, "owner");
     env = await runtimeEnvironment(f); assert.equal(env.BLITZ_API_KEY, undefined); assert.equal(f.values.has("BLITZ_API_KEY"), false);
     assert.match((await f.manager.inventory()).connections[0].status, /restart local runner/);

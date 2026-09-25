@@ -1,7 +1,10 @@
 import { entryFor } from "./viewer-reader";
 import { configuredNames } from "./connections-contract";
-export function connectionsOrigin() {
+import { localConnectionsEnabled } from "./connections-local";
+export function connectionsOrigin(req?: Request) {
   if (process.env.GTM_VIEWER_MODE === "share") return undefined;
+  // Local: the viewer's own route, which finds the manager and signs the browser in at each click.
+  if (localConnectionsEnabled()) return req ? new URL("/connections", req.url).href : "/connections";
   try {
     const value = process.env.GTM_CONNECTIONS_ORIGIN, url = new URL(value!);
     if (url.origin !== value || url.username || url.password) return undefined;
@@ -29,7 +32,7 @@ export function viewerLink(req: Request, workflow?: string) {
   };
   return {
     viewerUrl: url.href,
-    connectionsUrl: connectionsOrigin(),
+    connectionsUrl: connectionsOrigin(req),
     workflowId: entry?.id,
     commit:
       process.env.VERCEL_GIT_COMMIT_SHA ??

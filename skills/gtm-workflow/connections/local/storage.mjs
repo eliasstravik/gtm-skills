@@ -2,7 +2,6 @@ import { createRequire } from "node:module";
 import { readFile, lstat } from "node:fs/promises";
 import { parseEnv } from "node:util";
 import { join } from "node:path";
-import { configuredNames } from "../dist/catalog.mjs";
 import { ConnectionError, requireThat } from "../src/errors.mjs";
 export { inspectionEnvironment } from "./inspection-environment.mjs";
 
@@ -29,14 +28,15 @@ export function nativeStore(workspaceId) {
 export function localStorage({ journal, store, environment }) {
   return {
     async list() {
+      // Only keys saved through this page. Environment variables are never listed, whatever their names; one that
+      // shares a saved key's name is shown as that key's external copy.
       const meta = await journal.list(), operations = await journal.operations();
-      const external = configuredNames(environment);
-      const names = new Set([...external, ...meta.map((row) => row.variable), ...operations.map((row) => row.variable)]);
+      const names = new Set([...meta.map((row) => row.variable), ...operations.map((row) => row.variable)]);
       return [...names].sort().map((variable) => {
         const row = meta.find((item) => item.variable === variable);
         const op = operations.find((item) => item.variable === variable);
         return { variable, label: row?.label, state: op && ["prepared", "write_attempted", "unresolved"].includes(op.phase) ? "unresolved" : row?.state ?? "external",
-          version: row ? String(row.generation) : op ? `operation:${op.id}` : "external", editable: true, externalCopy: external.includes(variable) };
+          version: row ? String(row.generation) : op ? `operation:${op.id}` : "external", editable: true, externalCopy: Boolean(environment[variable]?.trim()) };
       });
     },
     async write(input) {
