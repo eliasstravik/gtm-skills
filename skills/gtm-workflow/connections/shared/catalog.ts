@@ -33,9 +33,19 @@ export function runtimeLabels(env: Record<string, string | undefined>): Record<s
     return Object.fromEntries(Object.entries(labels).filter(([key, label]) => providerVariable(key) && connectionLabel(label))) as Record<string, string>;
   } catch { return {}; }
 }
+/** Hosted, the project variable that lists the keys saved through the Connections tab. Other project variables are never connections. */
+export const MANAGED_CONNECTIONS = "GTM_CONNECTIONS_MANAGED";
+export function managedList(value: unknown): string[] {
+  try {
+    const names = JSON.parse(typeof value === "string" ? value : "[]");
+    return Array.isArray(names) ? [...new Set(names.filter(providerVariable))].sort() : [];
+  } catch { return []; }
+}
+/** Only keys saved through the Connections tab count: locally the launcher passes their labels, hosted the tab keeps
+ * GTM_CONNECTIONS_MANAGED. A variable from the shell, `.env` or a Vercel setting made elsewhere is never listed, whatever its name. */
 export function configuredNames(env: Record<string, string | undefined>) {
-  const labels = runtimeLabels(env);
-  return Object.keys(env).filter((name) => (credentialVariable(name) || Object.hasOwn(labels, name)) && Boolean(env[name]?.trim())).sort();
+  const managed = new Set([...Object.keys(runtimeLabels(env)), ...managedList(env[MANAGED_CONNECTIONS])]);
+  return [...managed].filter((name) => Boolean(env[name]?.trim())).sort();
 }
 export function connectionInventory(names: string[], workflows: ConnectionWorkflow[], platformIdentity = false, labels: Record<string, string> = {}) {
   const rows = [...new Set(names.filter(providerVariable))].sort().map((variable) => {
