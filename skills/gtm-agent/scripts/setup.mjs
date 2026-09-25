@@ -2,7 +2,7 @@
 // Deploys one GTM Agent end to end and wires it to its workspace repository and workflow project. Idempotent: every
 // step checks what exists and moves on, so it can be run again after a fix. Needs gh and vercel signed in, Node 22+.
 //
-//   node setup.mjs --slug acme --team acme-team [--github-owner acme] [--channel C0…] [--model openai/gpt-5.6-luna]
+//   node setup.mjs --slug acme --team acme-team [--github-owner acme] [--channel C0…] [--model openai/gpt-6-luna]
 //                  [--region iad1] [--no-workflows] [--slack-connector slack/existing] [--skip-slack]
 //
 // Exit 0: done. Exit 2: a human step is needed (the message says which); run again afterwards. Exit 1: failed.

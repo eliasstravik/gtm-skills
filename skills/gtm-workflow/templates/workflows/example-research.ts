@@ -14,7 +14,7 @@ export const diagram = `flowchart TB
   start([Read the company list]) --> loop
   subgraph loop [For each company]
     direction TB
-    researchCompany["Research the company<br/><small>Agent · AI Gateway · gpt-5.6-luna · about $0.03 per row</small>"]:::agent
+    researchCompany["Research the company<br/><small>Agent · AI Gateway · gpt-6-luna · about $0.03 per row</small>"]:::agent
     fetchPage["Read the pages the agent asks for<br/><small>company site · free</small>"]
     saveBrief["Save the brief<br/><small>table example_research</small>"]:::save
     researchCompany --> fetchPage --> researchCompany --> saveBrief
