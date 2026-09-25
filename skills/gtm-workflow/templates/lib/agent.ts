@@ -66,7 +66,7 @@ export type AgentOptions<T = string> = {
   estimateUsd: number;
   /** AI Gateway model id; defaults to GTM_MODEL on the project. */
   model?: string;
-  /** Reasoning effort; defaults to GTM_REASONING on the project, else the provider's default. */
+  /** Reasoning effort; defaults to GTM_REASONING on the project, else high. */
   reasoning?: Reasoning;
   /** Names from skills/index.ts, appended to the instructions. */
   skills?: string[];
@@ -107,13 +107,13 @@ const WRAP_UP = "Stop using tools now. Return the requested result from what you
 /** Workflow scope. One row's agent stage: builds the tools, runs the loop, enforces the caps, returns the parsed result. */
 export async function runAgent<T = string>(o: AgentOptions<T>): Promise<AgentResult<T>> {
   if ((o.prompt == null) === (o.messages == null)) throw new Error(`Agent ${o.name}: give exactly one of prompt or messages`);
-  const reasoning = o.reasoning ?? (process.env.GTM_REASONING as Reasoning | undefined);
+  const reasoning = o.reasoning ?? ((process.env.GTM_REASONING || "high") as Reasoning);
   const maxSteps = o.maxSteps ?? 20;
   const timeout = o.timeout ?? "10m";
   const method = (o.skills ?? []).map(readSkill);
   const backend = chooseBackend(o);
   if (backend !== "gateway") return runOnCli(o, backend, [o.instructions, ...method].join("\n\n"), reasoning, durationMs(timeout));
-  const model = o.model ?? process.env.GTM_MODEL ?? "openai/gpt-5.6-luna";
+  const model = o.model ?? process.env.GTM_MODEL ?? "openai/gpt-6-luna";
   const tools = guardTools(o.name, await buildTools(o.tools, model), o.approve ?? [], o.notify);
   const output = o.schema ? Output.object<T>({ schema: jsonSchema<T>(sanitizeSchema(z.toJSONSchema(o.schema)) as never) }) : (Output.text() as unknown as ReturnType<typeof Output.object<T>>);
   const overBudget = (steps: StepResult<ToolSet>[]) => o.maxUsd != null && spentUsd(steps) >= o.maxUsd;

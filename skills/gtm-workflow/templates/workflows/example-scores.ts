@@ -16,7 +16,7 @@ export const diagram = `flowchart TB
   subgraph loop [For each company]
     direction TB
     fetchHomepage["Fetch the homepage<br/><small>company site · free</small>"]
-    scoreCompany["Score against the ICP<br/><small>AI Gateway · gpt-5.6-luna · about $0.01 per row</small>"]:::ai
+    scoreCompany["Score against the ICP<br/><small>AI Gateway · gpt-6-luna · about $0.01 per row</small>"]:::ai
     saveScore["Save the score<br/><small>table example_scores</small>"]:::save
     fetchHomepage --> scoreCompany --> saveScore
   end
@@ -81,7 +81,7 @@ const scorePrompt = (domain: string, page: string) => `Score how well ${domain} 
 /** AI step through AI Gateway. Gateway cost arrives later, so cost_usd is the declared estimate. */
 async function scoreCompany(domain: string, page: string) {
   "use step";
-  const { object } = await generateObject({ model: process.env.GTM_MODEL ?? "openai/gpt-5.6-luna", schema: Score, prompt: scorePrompt(domain, page) });
+  const { object } = await generateObject({ model: process.env.GTM_MODEL ?? "openai/gpt-6-luna", schema: Score, prompt: scorePrompt(domain, page) });
   return { value: object, costUsd: ESTIMATE_USD };
 }
 scoreCompany.maxRetries = 0;
