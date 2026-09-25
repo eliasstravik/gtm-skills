@@ -53,6 +53,13 @@ test("inventory drops values and marks shared, duplicate and multi-target keys r
   const duplicate = await connectionMetadata(async () => ({ envs: [raw, { ...raw, id: "duplicate" }] }), config.projectId);
   assert.ok(duplicate.every((row) => !row.editable));
 });
+test("inventory hides the variables the Neon integration injects", async () => {
+  // Vercel stores these as sensitive with no integration marker, so only their names can exclude them.
+  const neon = ["NEON_PROJECT_ID", "DATABASE_URL", "DATABASE_URL_UNPOOLED", "PGHOST", "PGHOST_UNPOOLED", "PGUSER", "PGDATABASE", "PGPASSWORD",
+    "POSTGRES_URL", "POSTGRES_URL_NON_POOLING", "POSTGRES_URL_NO_SSL", "POSTGRES_PRISMA_URL", "POSTGRES_HOST", "POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DATABASE"];
+  const rows = await connectionMetadata(async () => ({ envs: [raw, ...neon.map((key) => ({ ...raw, id: key, key, type: "sensitive" }))] }), config.projectId);
+  assert.deepEqual(rows.map((row) => row.variable), [raw.key]);
+});
 test("writes reject stale versions, infrastructure and multi-target configuration", async () => {
   const api = async (method: string) => { assert.equal(method, "GET"); return { envs: [raw] }; };
   await assert.rejects(changeConnection(api, config.projectId, { variable: raw.key, action: "replace", version: "stale", value: "synthetic" }), /connection_changed/);
