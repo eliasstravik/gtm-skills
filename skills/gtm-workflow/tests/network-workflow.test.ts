@@ -41,22 +41,33 @@ function stubBlitz(calls: Call[]) {
   return () => { globalThis.fetch = original; };
 }
 
+/**
+ * The engine serializes a step's receiver along with its arguments: `engine.startChunks(...)` would send `engine`,
+ * closures and all, and fail the run with "Cannot stringify a function" at `.thisVal`. Steps must be called bare.
+ */
+function assertNoReceiver(receiver: unknown, step: string) {
+  assert.equal(receiver, undefined, `${step} was called as a method; the engine would serialize its receiver`);
+}
+
 /** Records what the parent asked the engine to do, and runs each child through runNetwork as the engine would. */
 function fakeEngine(options: Omit<Parameters<typeof runNetwork>[0], "input" | "engine">) {
   const started: NetworkRunInput[] = [];
   const reports = new Map<string, ChunkReport>();
   const waiting = new Map<string, (report: ChunkReport) => void>();
   const engine = {
-    async startChunks(_workflowId: string, inputs: NetworkRunInput[]) {
+    async startChunks(this: unknown, _workflowId: string, inputs: NetworkRunInput[]) {
+      assertNoReceiver(this, "startChunks");
       started.push(...inputs);
       // Children run concurrently, as separate runs would.
       await Promise.all(inputs.map((input) => runNetwork({ ...options, input, engine })));
       return inputs.map((_, i) => `child-${started.length - inputs.length + i}`);
     },
-    awaitChunks(tokens: string[]) {
+    awaitChunks(this: unknown, tokens: string[]) {
+      assertNoReceiver(this, "awaitChunks");
       return Promise.all(tokens.map((token) => new Promise<ChunkReport>((resolve) => { const done = reports.get(token); if (done) resolve(done); else waiting.set(token, resolve); })));
     },
-    async report(token: string, result: ChunkReport) {
+    async report(this: unknown, token: string, result: ChunkReport) {
+      assertNoReceiver(this, "report");
       reports.set(token, result);
       waiting.get(token)?.(result);
     },
