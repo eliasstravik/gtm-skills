@@ -28,8 +28,16 @@ test("discovers unregistered tables and supports search, sort, pagination, detai
     assert.equal(page.rows.length, 25);
     assert.ok(page.next);
     assert.deepEqual(page.availableFields?.map((f) => f.id), ["id", "name", "score", "seen_at", "active", "facts"]);
-    // Real types read as themselves: a time as ISO text in UTC, a flag as a boolean, JSON as a value.
-    assert.deepEqual(page.rows[0].slice(3, 6).map((cell) => cell.value), ["2026-09-01T10:00:00.123Z", false, { n: 1 }]);
+    // Real types read as themselves: a time as ISO text in UTC, a flag as a boolean. A list leaves JSON in the database.
+    assert.deepEqual(page.rows[0].slice(3, 5).map((cell) => cell.value), ["2026-09-01T10:00:00.123Z", false]);
+    assert.deepEqual(page.rows[0][5], { value: null, folded: {} });
+    // A window of rows further down, as the grid scrolls.
+    const window = new URL(url); window.searchParams.set("sort", "id"); window.searchParams.set("offset", "50"); window.searchParams.set("limit", "100");
+    const later = await readWorkspaceData(client, window);
+    assert.ok(!("unavailable" in later));
+    assert.equal(later.offset, 50);
+    assert.deepEqual(later.rows.map((row) => row[0].value), [51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61]);
+    assert.equal(later.next, undefined);
     const lowercase = new URL(url); lowercase.searchParams.set("q", "person 61");
     const found = await readWorkspaceData(client, lowercase);
     assert.ok(!("unavailable" in found));
@@ -48,6 +56,8 @@ test("discovers unregistered tables and supports search, sort, pagination, detai
     assert.ok(!("unavailable" in record));
     assert.equal(record.total, 1);
     assert.equal(record.rows[0][0].value, 61);
+    // A single record carries its JSON whole.
+    assert.deepEqual(record.rows[0][5].value, { n: 61 });
     url.searchParams.set("format", "json");
     const response = await exportCsv(url, async (u) => {
       const result = await readWorkspaceData(client, u);
@@ -57,6 +67,7 @@ test("discovers unregistered tables and supports search, sort, pagination, detai
     const rows = await response.json();
     assert.equal(rows.length, 51);
     assert.equal(rows[50].score, 11);
+    assert.deepEqual(rows[50].facts, { n: 11 }, "an export carries JSON whole");
     assert.equal(new Set(rows.map((r: any) => r.id)).size, 51);
     for (const query of ["table=missing", "table=contacts&sort=missing", "table=contacts&key=invalid", "table=contacts&field=id%22%3BDELETE", "table=contacts&field=score&operator=gt&value=ten"])
       await assert.rejects(() => readWorkspaceData(client, new URL(`http://localhost/?${query}`)));

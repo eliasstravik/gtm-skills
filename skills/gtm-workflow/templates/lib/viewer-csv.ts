@@ -1,4 +1,4 @@
-import type { DataPage } from "./data-api";
+import { MAX_LIST_ROWS, type DataPage } from "./data-api";
 import { ViewerError } from "./viewer-grants";
 import { viewerHeaders } from "./viewer-access";
 export function csvCell(value: unknown) {
@@ -9,7 +9,7 @@ export function csvCell(value: unknown) {
   if (/^[\s]*[=+@-]|^[\t\r\n]/.test(text)) text = "'" + text;
   return `"${text.replaceAll('"', '""')}"`;
 }
-/** One authorized bounded page per pull; cancellation stops database reads. */
+/** One authorized bounded window of rows per pull; cancellation stops database reads. */
 export async function exportCsv(
   url: URL,
   read: (url: URL) => Promise<DataPage>,
@@ -19,7 +19,11 @@ export async function exportCsv(
   const json = url.searchParams.get("format") === "json";
   const start = new Date().toISOString();
   const pageUrl = new URL(url);
-  pageUrl.searchParams.set("page", "0");
+  pageUrl.searchParams.delete("page");
+  pageUrl.searchParams.set("offset", "0");
+  pageUrl.searchParams.set("limit", String(MAX_LIST_ROWS));
+  // An export carries whole JSON values, which a grid list folds.
+  pageUrl.searchParams.set("cells", "full");
   pageUrl.searchParams.delete("run");
   await authorize();
   let page = await read(pageUrl);
@@ -39,6 +43,7 @@ export async function exportCsv(
     page.fields.findIndex((f) => f.id === id),
   );
   let index = 0,
+    offset = 0,
     header = true,
     done = false;
   const encoder = new TextEncoder();
@@ -52,9 +57,10 @@ export async function exportCsv(
           return;
         }
         if (index) {
-          pageUrl.searchParams.set("page", String(index));
+          pageUrl.searchParams.set("offset", String(offset));
           page = await read(pageUrl);
         }
+        offset += page.rows.length;
         const firstPage = header;
         let text = header
           ? indices.map((i) => csvCell(page.fields[i].label)).join(",") + "\r\n"

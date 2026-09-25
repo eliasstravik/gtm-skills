@@ -9,6 +9,7 @@ import { testDatabase } from "./db";
 import { prepareNetwork, enrichItems, collectCompanies } from "../templates/lib/profiles/network";
 import { finishRun, runSummary } from "../templates/lib/profiles/ledger";
 import { readCounts, readData } from "../templates/lib/data-api";
+import { LIST_WINDOW_ROWS as CHUNK, MAX_LIST_ROWS } from "../templates/lib/viewer-contract";
 import { profileView } from "../templates/lib/profiles/view";
 import { dataVersion } from "../templates/lib/viewer-pulse";
 import { people, companies } from "../templates/lib/schema/profiles";
@@ -58,10 +59,14 @@ test("every read path stays within its byte budget", async () => {
     const view = profileView(WORKFLOW).data;
     const registry = { people, companies };
     const page = (params: string) => new URL(`http://viewer/api/viewer?v=3&op=data&${params}`);
-    const list = await measure("viewer list call, people with the default columns", READ_BUDGETS.dataApiList, 1, () => readData(view, registry, client, page("table=people")));
-    assert.equal(list.rows.length, 25);
-    await measure("listed row, people with the default columns", READ_BUDGETS.listedRow, 25, () => readData(view, registry, client, page("table=people")));
-    await measure("viewer list call, companies with the default columns", READ_BUDGETS.dataApiList, 1, () => readData(view, registry, client, page("table=companies")));
+    // The Data grid scrolls through a table in windows of up to 100 rows (LIST_WINDOW_ROWS, viewer/rows.ts), never the whole table.
+    const window = `offset=10&limit=${CHUNK}`;
+    const list = await measure("viewer list call, 100 people with the default columns", READ_BUDGETS.dataApiList, 1, () => readData(view, registry, client, page(`table=people&${window}`)));
+    assert.equal(list.rows.length, CHUNK);
+    assert.equal(list.offset, 10);
+    await measure("listed row, people with the default columns", READ_BUDGETS.listedRow, CHUNK, () => readData(view, registry, client, page(`table=people&${window}`)));
+    await measure("viewer list call, companies with the default columns", READ_BUDGETS.dataApiList, 1, () => readData(view, registry, client, page(`table=companies&limit=${CHUNK}`)));
+    await assert.rejects(readData(view, registry, client, page(`table=people&limit=${MAX_LIST_ROWS + 1}`)), /Invalid limit/);
     const personKey = prepared.people[0].personKey!;
     await measure("viewer single record", READ_BUDGETS.dataApiRecord, 1, () => readData(view, registry, client, page(`table=people&key=${personKey}`)));
     await measure("viewer related companies of one person", READ_BUDGETS.dataApiList, 1, () => readData(view, registry, client, page(`table=companies&relatedTable=people&relatedKey=${personKey}`)));
