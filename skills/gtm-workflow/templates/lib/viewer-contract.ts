@@ -1,5 +1,12 @@
 /** Browser-safe display contract. Never imports workflow execution or database code. */
 export const CONTRACT_VERSION = 3;
+/**
+ * The Data grid reads a table in windows of rows (`offset`, `limit`), never whole: rows ahead of the screen come
+ * LIST_WINDOW_ROWS at a time, and one call returns at most MAX_LIST_ROWS. Each row is Neon data transfer, held to
+ * `listedRow` and `dataApiList` in lib/read-budgets.ts.
+ */
+export const LIST_WINDOW_ROWS = 100;
+export const MAX_LIST_ROWS = 200;
 export type RowPolicy = {
   version: string;
   column?: string;

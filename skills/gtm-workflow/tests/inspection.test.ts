@@ -114,7 +114,8 @@ test("10,000 records export across pages with the authorized fields, filters and
     );
     const csv = await response.text();
     assert.equal(csv.split("\r\n").length, 5002);
-    assert.equal(reads, 200);
+    // Windows of MAX_LIST_ROWS (200): 5,000 matching rows in 25 reads.
+    assert.equal(reads, 25);
     assert.ok(csv.startsWith('"name","score"\r\n"Person 10000","10000"'));
     assert.ok(!csv.includes("PRIVATE"));
     for (const suffix of [

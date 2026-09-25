@@ -65,6 +65,8 @@ jobs:
       - run: agent-browser install --with-deps
       - name: Verify an open viewer follows workflow, data and deployment changes
         run: node skills/gtm-workflow/tests/live-refresh.mjs skills/gtm-workflow/templates
+      - name: Verify the Data grid scrolls 5,000 rows without pages and reads only rows near the screen
+        run: node skills/gtm-workflow/tests/data-grid.mjs skills/gtm-workflow/templates
       - name: Verify column Apply updates without reload or polling
         run: |
           GTM_VIEWER_FIXTURE_COLUMNS=1 GTM_VIEWER_FIXTURE_WORKSPACE=1 node skills/gtm-workflow/tests/serve.mjs skills/gtm-workflow/templates &
