@@ -1,3 +1,5 @@
+# For the gtm-skills repository only: keeps build output out of templates/. Workspaces get templates/gitignore instead,
+# which setup renames to .gitignore (skill installers drop dotfiles, so the shipped copy has no leading dot).
 /.swc
 /node_modules/
 /.output/

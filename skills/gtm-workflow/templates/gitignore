@@ -1,3 +1,5 @@
+# Shipped to every workspace as workflows/.gitignore: setup renames this file, because skill installers drop dotfiles.
+# (templates/.gitignore is a different file: it only keeps this repository's own templates/ folder clean.)
 node_modules
 .env
 .env.*
@@ -9,4 +11,3 @@ data/
 
 public/viewer-assets/
 public/connections-assets/
-/.swc
