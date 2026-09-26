@@ -1,14 +1,14 @@
 import type { ModelCallStreamPart } from "@ai-sdk/workflow";
 import { defineHandler } from "nitro";
 import { getRun } from "workflow/api";
-import { bearerOk } from "../../../../lib/sign";
+import { apiAccess } from "../../../../lib/route-access";
 
 const LIMIT = 2000;
 const clip = (v: unknown) => { const s = typeof v === "string" ? v : JSON.stringify(v) ?? ""; return s.length > LIMIT ? `${s.slice(0, LIMIT)}…` : s; };
 
 /** Live events of a run whose agent stages stream: one JSON object per line (text, reasoning, tool calls and results, finishes). Ends when the run does. */
-export default defineHandler((event) => {
-  if (!bearerOk(event.req)) return new Response("Unauthorized", { status: 401 });
+export default defineHandler(async (event) => {
+  if (!(await apiAccess(event.req))) return new Response("Unauthorized", { status: 401 });
   const id = event.context.params?.id ?? "";
   const startIndex = Number(event.url.searchParams.get("startIndex") ?? "0") || 0;
   const lines = getRun(id).getReadable<ModelCallStreamPart>({ startIndex }).pipeThrough(

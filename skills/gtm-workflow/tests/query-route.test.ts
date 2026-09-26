@@ -6,19 +6,18 @@ import { closeDb, db } from "../templates/lib/db";
 import { resolveIdentity } from "../templates/lib/profiles/store";
 import { testDatabase } from "./db";
 
-const SECRET = "query-route-test";
 let database: Awaited<ReturnType<typeof testDatabase>>;
 before(async () => {
-  process.env.GTM_RUN_SECRET = SECRET;
   database = await testDatabase();
   await database.query("CREATE TABLE public.query_route_victim (n integer)");
   await database.query("INSERT INTO gtm.people (key, created_at, updated_at, full_name) VALUES ('p1', now(), now(), 'Ada')");
 });
 after(closeDb);
 
-async function ask(sql: string, args?: unknown[], bearer = SECRET) {
+// Locally the route answers this computer only (lib/route-access.ts): another Host is refused.
+async function ask(sql: string, args?: unknown[], host = "localhost") {
   const response = await (route as unknown as (event: unknown) => Promise<unknown>)({
-    req: new Request("http://localhost/api/query", { method: "POST", headers: { authorization: `Bearer ${bearer}`, "content-type": "application/json" }, body: JSON.stringify({ sql, args }) }),
+    req: new Request("http://localhost/api/query", { method: "POST", headers: { host, "content-type": "application/json" }, body: JSON.stringify({ sql, args }) }),
     context: {},
   });
   return response instanceof Response ? { status: response.status, text: await response.text() } : { status: 200, body: response as { columns: string[]; rows: Record<string, unknown>[]; truncated: boolean } };
@@ -26,7 +25,7 @@ async function ask(sql: string, args?: unknown[], bearer = SECRET) {
 const victims = async () => (await database.query("SELECT count(*)::int AS n FROM public.query_route_victim")).rows[0].n;
 
 test("reads with $1 parameters, runtime tables by plain or qualified name, and the 1,000-row cap", async () => {
-  assert.equal((await ask("select 1", [], "wrong")).status, 401);
+  assert.equal((await ask("select 1", [], "evil.test")).status, 401);
   const sum = await ask("select $1::int + 1 as n", [41]);
   assert.deepEqual(sum.body, { columns: ["n"], rows: [{ n: 42 }], truncated: false });
   for (const name of ["people", "gtm.people"]) assert.deepEqual((await ask(`select full_name from ${name} where key = $1`, ["p1"])).body?.rows, [{ full_name: "Ada" }]);

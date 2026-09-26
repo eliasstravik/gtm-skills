@@ -1,3 +1,1 @@
-import { defineHandler } from "nitro";
-import { openLocalConnections } from "../../lib/connections-local";
-export default defineHandler((event) => openLocalConnections(event.req));
+export { default } from "../../server/routes/connections.get";

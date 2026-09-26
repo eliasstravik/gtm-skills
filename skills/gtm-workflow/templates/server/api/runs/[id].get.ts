@@ -1,7 +1,7 @@
 import { defineHandler } from "nitro";
 import { getRun } from "workflow/api";
 import { listApprovals } from "../../../lib/approval-api";
-import { bearerOk } from "../../../lib/sign";
+import { apiAccess } from "../../../lib/route-access";
 import { rowFailure } from "../../../lib/failure";
 
 /**
@@ -9,7 +9,7 @@ import { rowFailure } from "../../../lib/failure";
  * approvals lists the run's human-approval requests, pending ones first; decide one with POST /api/runs/<id>/approve.
  */
 export default defineHandler(async (event) => {
-  if (!bearerOk(event.req)) return new Response("Unauthorized", { status: 401 });
+  if (!(await apiAccess(event.req))) return new Response("Unauthorized", { status: 401 });
   const id = event.context.params?.id ?? "";
   const run = getRun(id);
   const status = await run.status;

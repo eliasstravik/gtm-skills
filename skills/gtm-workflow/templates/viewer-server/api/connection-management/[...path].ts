@@ -1,3 +1,1 @@
-import { defineHandler } from "nitro";
-import { forwardLocalConnections } from "../../../lib/connections-local";
-export default defineHandler((event) => forwardLocalConnections(event.req, event.context.params?.path ?? ""));
+export { default } from "../../../server/api/connection-management/session.get";

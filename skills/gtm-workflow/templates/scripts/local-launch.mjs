@@ -1,35 +1,89 @@
-// Resolve only an already installed component from owner-controlled state.
-import { readFile, realpath, lstat } from "node:fs/promises";
-import { homedir } from "node:os";
+// `npm run dev` (and, until it goes, `npm run viewer`): this workspace's own Postgres, migrations, the viewer registry
+// and the Nitro dev server, all local. Keys and settings come from `.env` and `.env.local` like any Vercel app.
+import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
-import { createHash } from "node:crypto";
-const root = join(homedir(), ".gtm"), workspace = await realpath(resolve(".."));
-async function read(path) {
-  const stat = await lstat(path);
-  if (!stat.isFile() || stat.isSymbolicLink() || (stat.mode & 0o077) || (process.getuid && stat.uid !== process.getuid())) throw Error("Unsafe local component state.");
-  return JSON.parse(await readFile(path, "utf8"));
-}
-try {
-  let id;
-  try {
-    const binding = await read(join(root, "connections/bindings", `${createHash("sha256").update(workspace).digest("hex")}.json`));
-    if (binding.workspace !== workspace) throw Error("Workspace binding mismatch.");
-    id = binding.id;
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-    id = (await read(join(root, "connections/workspaces.json")))[workspace];
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { parseEnv } from "node:util";
+import { LocalDatabaseError, databaseEnvironment, ensureLocalDatabase, isProductionDatabase } from "./local-database.mjs";
+
+const cwd = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+/**
+ * The environment a local process gets: the shell over `.env.local` over `.env`, as Vercel's own tools order them.
+ * `vercel env pull` writes Vercel's system variables into `.env.local` (VERCEL=1, VERCEL_ENV, empty VERCEL_GIT_*, …);
+ * the template reads `VERCEL` as "running on Vercel", so every VERCEL_* goes except the OIDC token the AI Gateway uses.
+ */
+export function localEnvironment(dir = cwd, shell = process.env) {
+  const files = {};
+  for (const name of [".env", ".env.local"]) {
+    try { Object.assign(files, parseEnv(readFileSync(join(dir, name), "utf8"))); }
+    catch (error) { if (error.code !== "ENOENT") throw error; }
   }
-  if (!/^[0-9a-f-]{36}$/.test(id)) throw Error();
-  const config = await read(join(root, "connections", id, "config.json")), component = config.component;
-  if (!component || !/^[0-9a-f]{64}$/.test(component.digest) || dirname(component.path) !== join(root, "components") || config.workspace !== workspace) throw Error();
-  const { componentDigest } = await import(pathToFileURL(join(component.path, "local/install.mjs")));
-  if (await componentDigest(component.path) !== component.digest) throw Error();
-  const { launch, ensureLocalDatabase } = await import(pathToFileURL(join(component.path, "local/launch.mjs")));
-  // The template and the Connections component are released separately; an older component cannot start Postgres.
-  if (typeof ensureLocalDatabase !== "function") throw Object.assign(Error("Upgrade Connections: run shared setup with `--upgrade`"), { name: "LocalDatabaseError" });
-  await launch(workspace, process.argv[2] === "viewer" ? "viewer" : "dev");
-} catch (error) {
-  console.error(error?.name === "LocalDatabaseError" ? error.message : "Local runtime unavailable. Run the installed gtm-workflow setup and Connections Doctor.");
-  process.exitCode = 1;
+  const merged = { ...files, ...shell };
+  for (const name of Object.keys(merged)) if (name.startsWith("VERCEL") && name !== "VERCEL_OIDC_TOKEN") delete merged[name];
+  return merged;
+}
+
+/** Build, migration and inspection children get no keys: nothing they do needs one. */
+const withoutKeys = (env) => Object.fromEntries(Object.entries(env).filter(([name]) => !/(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)/i.test(name)));
+
+export async function launch(mode = "dev", options = {}) {
+  const env = localEnvironment();
+  // node-postgres takes PG* from the environment as defaults; the built-in database gets every field passed explicitly.
+  for (const name of Object.keys(process.env)) if (/^PG/.test(name)) delete process.env[name];
+  process.chdir(cwd);
+  const database = await ensureLocalDatabase(cwd, { create: mode === "dev" });
+  try {
+    if (await isProductionDatabase(database.url)) throw new LocalDatabaseError("This database is production's. Local work never runs against it.");
+    // No database variable from a pulled file or the shell reaches a local process; the built-in one is passed whole.
+    const runtime = databaseEnvironment(env, database.url);
+    const run = (args) => {
+      const result = spawnSync(process.execPath, args, { cwd, env: withoutKeys(runtime), stdio: "inherit" });
+      if (result.status !== 0) throw new LocalDatabaseError(`${args[0]} failed`);
+    };
+    run(["scripts/build-viewer.mjs"]);
+    // Opening the viewer never migrates.
+    if (mode === "dev") run(["scripts/migrate.mjs"]);
+    const port = Number(mode === "viewer" ? env.GTM_VIEWER_PORT ?? 3939 : env.GTM_RUNTIME_PORT ?? 3939);
+    if (!Number.isInteger(port) || port <= 0 || port > 65535) throw new LocalDatabaseError("Set GTM_RUNTIME_PORT (or GTM_VIEWER_PORT) to a port number");
+    if (mode === "dev") Object.assign(runtime, { WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS: "900000", WORKFLOW_LOCAL_BODY_TIMEOUT_MS: "900000" });
+    else Object.assign(runtime, { GTM_VIEWER_MODE: "local", WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS: "false" });
+    for (const name of Object.keys(process.env)) delete process.env[name];
+    Object.assign(process.env, runtime);
+    const server = await (options.serve ?? nitroServer)({ cwd, port });
+    console.log(JSON.stringify({ status: mode === "dev" ? "runner_started" : "viewer_started", origin: `http://127.0.0.1:${port}` }));
+    let closing;
+    const close = () => (closing ??= (async () => { await Promise.resolve(server.close()).catch(() => {}); await database.stop(); })());
+    // `on`, not `once`: under `npm run dev` Ctrl+C arrives twice (from the terminal and forwarded by npm), and a second
+    // signal with no listener left would kill the process half way through stopping the database. SIGHUP is a closed terminal.
+    for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) process.on(signal, () => { close().then(() => process.exit(0), () => process.exit(1)); });
+    process.on("exit", () => database.stopNow?.());
+    return { origin: `http://127.0.0.1:${port}`, close };
+  } catch (error) { await database.stop(); throw error; }
+}
+
+async function nitroServer({ cwd, port }) {
+  const require = createRequire(join(cwd, "package.json"));
+  const { createNitro, prepare, build } = await import(pathToFileURL(require.resolve("nitro/builder")));
+  // Pinned Nitro's own CLI uses this dev server. dotenv stays off: it would read `.env.local` again, VERCEL=1 included.
+  const { NitroDevServer } = await import(pathToFileURL(join(dirname(require.resolve("nitro/package.json")), "dist/_dev.mjs")));
+  let nitro;
+  async function reload() {
+    if (nitro) { await nitro.options._c12.unwatch?.(); await nitro.close(); }
+    nitro = await createNitro({ rootDir: cwd, dev: true, _cli: { command: "dev" } }, { dotenv: false, watch: true, c12: { onUpdate: reload } });
+    nitro.hooks.hookOnce("restart", reload);
+    await new NitroDevServer(nitro).listen({ port, hostname: "127.0.0.1" });
+    await prepare(nitro); await build(nitro);
+  }
+  await reload();
+  return { close: () => nitro.close() };
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  launch(process.argv[2] === "viewer" ? "viewer" : "dev").catch((error) => {
+    console.error(error?.name === "LocalDatabaseError" ? error.message : error);
+    process.exitCode = 1;
+  });
 }

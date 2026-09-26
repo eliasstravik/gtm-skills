@@ -1,10 +1,10 @@
 import { defineHandler } from "nitro";
 import { decideApproval } from "../../../../lib/approval-api";
-import { bearerOk } from "../../../../lib/sign";
+import { apiAccess } from "../../../../lib/route-access";
 
 /** Decide a pending approval: body { token, approved, reason? }. The waiting tool runs on approval or reports the denial to the agent. */
 export default defineHandler(async (event) => {
-  if (!bearerOk(event.req)) return new Response("Unauthorized", { status: 401 });
+  if (!(await apiAccess(event.req))) return new Response("Unauthorized", { status: 401 });
   const id = event.context.params?.id ?? "";
   const body = (await event.req.json().catch(() => ({}))) as { token?: string; approved?: boolean; reason?: string | null };
   if (!body.token || typeof body.approved !== "boolean") return new Response("Body needs token and approved", { status: 400 });

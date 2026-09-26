@@ -3,6 +3,8 @@ import { connectionConfiguration, connectionHeaders, privateConnectionBrowser, C
 
 import { applyConnections, applicationId, connectionDeployment } from "./connections-apply";
 import { gatewayPlatformIdentity } from "./connections-platform";
+import { changeLocalKey, linkedToVercel, savedKeyNames } from "./connections-local";
+import { privateAccess, viewerOrigin } from "./viewer-access";
 
 type Configuration = ReturnType<typeof connectionConfiguration>;
 /** managed: saved through the Connections tab, so listed and editable here. Every other project variable is left to Vercel settings. */
@@ -103,8 +105,30 @@ export async function changeAndApplyConnection(api: Api, projectId: string, inpu
   const application = result.requiresDeployment ? await applyConnections(api, projectId, input.id, origin) : undefined;
   return { ...result, ...(application ? { application } : {}) };
 }
+/** The local Keys page: the same page as production's, over `.env.local` (see lib/connections-local.ts). Only this
+ * computer or the owner's tailnet login; a change only from this viewer's own page. */
+async function localManagement(req: Request, workflows: ConnectionWorkflow[], operation: string) {
+  try { await privateAccess(req); } catch { throw new ConnectionsError("local_access_only", 403); }
+  insist(["GET", "POST"].includes(req.method), "method_not_allowed", 405);
+  if (operation === "session") return Response.json({ csrf: null }, { headers: connectionHeaders });
+  if (req.method === "POST") {
+    insist(req.headers.get("origin") === viewerOrigin(req) && req.headers.get("sec-fetch-site") === "same-origin" &&
+      req.headers.get("content-type")?.split(";")[0] === "application/json", "csrf_denied");
+    const input = await readJson(req, 16384);
+    insist(input && typeof input === "object" && ["add", "replace", "disconnect"].includes(input.action), "invalid_change", 400);
+    const result = await changeLocalKey({ action: input.action, variable: input.variable, value: input.value });
+    input.value = undefined;
+    return Response.json({ ...result, restartRequired: true }, { headers: connectionHeaders });
+  }
+  const names = savedKeyNames();
+  return Response.json({ mode: "local", canWrite: true, linked: linkedToVercel(), workflowsUrl: "/viewer",
+    connections: connectionInventory(names, workflows).map((entry) => ({ ...entry, status: "Saved",
+      fields: entry.fields.map((field) => ({ variable: field.variable, label: field.variable, version: "local", editable: true, state: "saved" })) })),
+  }, { headers: connectionHeaders });
+}
 export async function connectionsManagement(req: Request, workflows: ConnectionWorkflow[], operation = "inventory") {
   try {
+    if (!process.env.VERCEL) return await localManagement(req, workflows, operation);
     const config = connectionConfiguration();
     const session = await privateConnectionBrowser(req, config);
     insist(["GET", "POST"].includes(req.method), "method_not_allowed", 405);

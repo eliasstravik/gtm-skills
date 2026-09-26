@@ -1,13 +1,13 @@
 import { defineHandler } from "nitro";
 import { getRun } from "workflow/api";
 import { listChildren } from "../../../../lib/runs-api";
-import { bearerOk } from "../../../../lib/sign";
+import { apiAccess } from "../../../../lib/route-access";
 import { db } from "../../../../lib/db";
 import { cancelRun } from "../../../../lib/profiles/ledger";
 
 /** Cancel a run and every child run it fanned out; returns the ids that were cancelled. */
 export default defineHandler(async (event) => {
-  if (!bearerOk(event.req)) return new Response("Unauthorized", { status: 401 });
+  if (!(await apiAccess(event.req))) return new Response("Unauthorized", { status: 401 });
   const id = event.context.params?.id ?? "";
   await cancelRun(db(), id);
   const children = await listChildren(id);

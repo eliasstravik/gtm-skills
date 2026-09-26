@@ -1,7 +1,7 @@
 import { defineHandler } from "nitro";
 import { runReadOnly } from "../../lib/db";
 import { READ_BUDGETS } from "../../lib/read-budgets";
-import { bearerOk } from "../../lib/sign";
+import { apiAccess } from "../../lib/route-access";
 
 /**
  * Read the database: POST { sql, args? } with bearer GTM_RUN_SECRET returns { columns, rows, truncated }.
@@ -13,7 +13,7 @@ import { bearerOk } from "../../lib/sign";
 const LIMITS = { rows: READ_BUDGETS.queryRouteRows, bytes: READ_BUDGETS.queryRouteBytes };
 
 export default defineHandler(async (event) => {
-  if (!bearerOk(event.req)) return new Response("Unauthorized", { status: 401 });
+  if (!(await apiAccess(event.req))) return new Response("Unauthorized", { status: 401 });
   const body = (await event.req.json().catch(() => null)) as { sql?: unknown; args?: unknown } | null;
   const sql = typeof body?.sql === "string" ? body.sql.trim() : "";
   const args = Array.isArray(body?.args) ? body.args.map((a) => (typeof a === "string" || typeof a === "number" || typeof a === "boolean" || a === null ? a : String(a))) : [];
