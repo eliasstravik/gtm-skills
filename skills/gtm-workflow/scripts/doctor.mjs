@@ -46,7 +46,13 @@ try {
     const installed = existsSync(join(runtime, "package.json")) && existsSync(join(runtime, "node_modules"));
     const developmentDatabase = target.linked ? await productionInDevelopment(runtime) : { status: "not_linked" };
     const status = !installed ? "run_local_setup" : developmentDatabase.status === "production" ? "production_database_in_development" : "local_ready";
-    console.log(JSON.stringify({ status, workspace, linked: target.linked, developmentDatabase, rootFiles: await rootFileDrift(workspace),
+    // Copy-down and local imports: the saved Neon project and Postgres 18 client tools.
+    const version = spawnSync("pg_dump", ["--version"], { encoding: "utf8" });
+    const major = Number(/\b(\d+)/.exec(version.stdout ?? "")?.[1]);
+    const copyDown = !existsSync(join(runtime, "data", "neon.json")) ? { status: "unavailable", instruction: "Run setup --deploy with neonctl signed in." }
+      : !(major >= 18) ? { status: "unavailable", instruction: "Install Postgres 18 client tools: `brew install libpq`, then add $(brew --prefix libpq)/bin to PATH." }
+      : { status: "available" };
+    console.log(JSON.stringify({ status, workspace, linked: target.linked, developmentDatabase, copyDown, rootFiles: await rootFileDrift(workspace),
       ...(status === "production_database_in_development" ? { instruction: "In Vercel, open the Neon integration's settings for this project and untick Development for the production database." } : {}) }));
     process.exitCode = status === "local_ready" ? 0 : 2;
   }

@@ -34,11 +34,15 @@ export async function launch(options = {}) {
   // node-postgres takes PG* from the environment as defaults; the built-in database gets every field passed explicitly.
   for (const name of Object.keys(process.env)) if (/^PG/.test(name)) delete process.env[name];
   process.chdir(cwd);
-  const database = await ensureLocalDatabase(cwd);
+  // DATABASE_URL set locally (a Neon development branch pulled with `vercel env pull`, say) is used as it is; otherwise
+  // this workspace's own built-in Postgres. Either way production's database is refused.
+  const database = env.DATABASE_URL
+    ? { url: env.DATABASE_URL, unpooled: env.DATABASE_URL_UNPOOLED || env.DATABASE_URL, async stop() {}, stopNow() {} }
+    : await ensureLocalDatabase(cwd);
   try {
-    if (await isProductionDatabase(database.url)) throw new LocalDatabaseError("This database is production's. Local work never runs against it.");
-    // No database variable from a pulled file or the shell reaches a local process; the built-in one is passed whole.
-    const runtime = databaseEnvironment(env, database.url);
+    if (await isProductionDatabase(database.unpooled ?? database.url)) throw new LocalDatabaseError("DATABASE_URL points at the production database. Local work never runs against it: remove it from .env.local (in Vercel, untick Development for the production database in the Neon integration).");
+    // Only DATABASE_URL and DATABASE_URL_UNPOOLED reach the app; PG* and POSTGRES_* from a pulled file never do.
+    const runtime = databaseEnvironment(env, database.url, database.unpooled ?? database.url);
     const run = (args) => {
       const result = spawnSync(process.execPath, args, { cwd, env: withoutKeys(runtime), stdio: "inherit" });
       if (result.status !== 0) throw new LocalDatabaseError(`${args[0]} failed`);

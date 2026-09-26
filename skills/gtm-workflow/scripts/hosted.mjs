@@ -1,7 +1,7 @@
 // The deployed copy's one-time configuration, through the owner's own Vercel CLI login: the production Keys page's
 // project token and settings, and the checks Doctor runs. Creates no projects or databases.
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseEnv } from "node:util";
 
@@ -116,4 +116,35 @@ export function linkWorkflows(workspace, { team, project }) {
   }
   requireThat(cli(["link", "--yes", "--project", project]).status === 0, "vercel_link_failed", 503);
   return { linked: "now", addedToDevelopment: added };
+}
+
+/** Runs a CLI and returns its JSON output, or null when it fails. */
+const json = (command, args, cwd) => {
+  const result = spawnSync(command, args, { cwd, encoding: "utf8", stdio: "pipe", maxBuffer: 16 * 1024 * 1024 });
+  if (result.status !== 0) return null;
+  try { return JSON.parse(result.stdout.split("\n").filter((line) => !line.startsWith("<claude-code-hint")).join("\n")); } catch { return null; }
+};
+/**
+ * For copy-down (`npm run db:pull`) and imports: which Neon organization and project hold production's database. The
+ * production marker names its endpoint (read through the linked project with `vercel curl`); the owner's `neonctl`
+ * login finds the project with that endpoint, reading metadata only. Saved, without secrets, in the gitignored
+ * `workflows/data/neon.json`. Null when either tool cannot answer (then copy-down and local imports are unavailable).
+ */
+export function saveNeonProject(workspace) {
+  const runtime = join(workspace, "workflows");
+  const reply = json("vercel", ["curl", "/api/query", "--non-interactive", "--", "-sS", "-X", "POST", "-H", "content-type: application/json", "-d", JSON.stringify({ sql: "select endpoint from gtm.environment where name = 'production'" })], runtime);
+  const endpoint = reply?.rows?.[0]?.endpoint;
+  if (typeof endpoint !== "string" || !/^ep-[a-z0-9-]+$/.test(endpoint)) return { status: "production_endpoint_unknown" };
+  for (const org of json("neonctl", ["orgs", "list", "--output", "json"]) ?? []) {
+    const listed = json("neonctl", ["projects", "list", "--org-id", org.id, "--output", "json"]);
+    for (const project of (Array.isArray(listed) ? listed : listed?.projects) ?? []) {
+      const endpoints = json("neonctl", ["api", `/projects/${project.id}/endpoints`])?.endpoints ?? [];
+      if (!endpoints.some((row) => row.id === endpoint)) continue;
+      const neon = { orgId: org.id, projectId: project.id, endpoint };
+      mkdirSync(join(runtime, "data"), { recursive: true });
+      writeFileSync(join(runtime, "data", "neon.json"), JSON.stringify(neon, null, 2) + "\n");
+      return { status: "saved", ...neon };
+    }
+  }
+  return { status: "neon_project_not_found", endpoint, instruction: "Sign in with `neonctl auth` as a member of the Neon organization Vercel made for this team, then run setup --deploy again." };
 }
