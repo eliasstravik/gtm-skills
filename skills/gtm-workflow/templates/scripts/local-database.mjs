@@ -80,15 +80,9 @@ export class LocalDatabaseError extends Error {
 export const SUPERUSER = { user: "postgres", password: "postgres" };
 const DATABASE_VARIABLE = /^(?:DATABASE_URL|PG|POSTGRES_)/;
 
-/** The one way out of the local database: GTM_DATABASE=external in the shell that runs the command, never in .env. */
-export const externalDatabase = (shell = process.env) => shell.GTM_DATABASE === "external";
-
-/**
- * A .env pulled from Vercel must never point a local run or a local migration at Neon: drop every database
- * variable from an environment the launcher built, then set the two the app reads.
- */
+/** Drop every database variable from an environment the launcher built, then set the two the app reads. */
 export function databaseEnvironment(environment, url, unpooled = url) {
-  const result = Object.fromEntries(Object.entries(environment).filter(([name]) => !DATABASE_VARIABLE.test(name) && name !== "GTM_DATABASE"));
+  const result = Object.fromEntries(Object.entries(environment).filter(([name]) => !DATABASE_VARIABLE.test(name)));
   return { ...result, DATABASE_URL: url, DATABASE_URL_UNPOOLED: unpooled };
 }
 

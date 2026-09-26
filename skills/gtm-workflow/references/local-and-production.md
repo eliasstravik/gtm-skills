@@ -9,6 +9,8 @@ A workspace is an ordinary Vercel app: `workflows/` on a laptop is local, the Ve
 | Database | this workspace's own Postgres (`data/pg`) | Neon, through the Vercel integration |
 | Who gets in | this computer, or the owner's tailnet login | Vercel Authentication on every deployment |
 | Previews | none | none: `main` only (`vercel.json` `git.deploymentEnabled`, project setting off) |
+| Schedules | never fire; run by hand with `curl -X POST http://127.0.0.1:3939/api/run/<slug>` | Vercel Cron from `vercel.json` |
+| Data | separate; `npm run db:pull` copies production down on request | written only by production and merge-only imports |
 
 ## From a laptop, with Vercel's own tools
 
@@ -18,7 +20,7 @@ Link once: `vercel link` in `workflows/` (shared setup `--deploy` does it; it fi
 - Read production rows: `vercel curl /api/query -- -X POST -H 'content-type: application/json' -d '{"sql":"select key, score from example_scores limit 20"}'`.
 - A run's state: `vercel curl /api/runs/<id>`; runs: `npx workflow inspect runs --backend vercel`; logs: `vercel logs`.
 - Keys: `vercel env add <NAME> production` (or the deployed Keys page, or the dashboard); `vercel env pull` fills `.env.local` from Development as usual.
-- The database: the Neon console, from the project's Storage tab.
+- The database: the Neon console, from the project's Storage tab. Copy it down with `npm run db:pull`; a power user's Neon development branch goes in `DATABASE_URL` locally (see [local database](local.md#local-database)).
 
 `vercel curl` is in beta; if it breaks, plain `curl` with `-H "x-vercel-protection-bypass: <secret>"` (Project Settings > Deployment Protection > Protection Bypass for Automation) does the same.
 

@@ -77,7 +77,7 @@ try {
   assert.equal(upgraded.scripts.custom, "echo keep");
   prepare(["scripts/build-viewer.mjs"]);
   // An explicit target, as for any database the launcher did not start.
-  prepare(["scripts/migrate.mjs"], { ...process.env, GTM_DATABASE: "external", DATABASE_URL: databaseUrl, DATABASE_URL_UNPOOLED: databaseUrl });
+  prepare(["scripts/migrate.mjs"], { ...process.env, DATABASE_URL: databaseUrl, DATABASE_URL_UNPOOLED: databaseUrl });
   await writeFile(
     join(target, "workflows/reliability-fixture.ts"),
     `

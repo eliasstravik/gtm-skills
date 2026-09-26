@@ -9,7 +9,7 @@ import { spawn } from "node:child_process";
 
 const runtime = resolve(process.argv[2] ?? "templates");
 const dir = await mkdtemp(join(tmpdir(), "gtm-local-launch-"));
-const PORT = 3944, origin = `http://127.0.0.1:${PORT}`;
+const PORT = 3946, origin = `http://127.0.0.1:${PORT}`;
 for (const name of await readdir(runtime))
   if (!["node_modules", ".output", ".nitro", "public", "data", ".env.local", ".env", ".vercel"].includes(name)) await cp(join(runtime, name), join(dir, name), { recursive: true });
 await mkdir(join(dir, "node_modules"));

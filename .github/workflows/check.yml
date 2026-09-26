@@ -12,6 +12,14 @@ jobs:
           node-version: 22
       - run: npm ci
         working-directory: skills/gtm-workflow/templates
+      # Copy-down (db:pull) needs pg_dump/pg_restore at least as new as Neon's Postgres 18.
+      - name: Install Postgres 18 client tools
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -q && sudo apt-get install -yq postgresql-client-18
+          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
       - run: node skills/gtm-workflow/tests/no-old-database-words.mjs
       - run: node --test skills/gtm-workflow/tests/docs-contract.test.mjs
       - run: node --test skills/gtm-agent/tests/*.test.mjs

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate as applyFolder } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
-import { endpointOf, localDatabaseUrl } from "./local-database.mjs";
+import { endpointOf, isProductionDatabase, localDatabaseUrl } from "./local-database.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const MIGRATE_LOCK_KEY = 7462; // the app locks by hashed names, never by this number
@@ -46,14 +46,20 @@ export async function migrate(url, { production = false } = {}) {
   }
 }
 
-/** A remote target only on a production build or when asked for in this command's own environment, never from .env. */
+/**
+ * Production builds migrate the project's database; preview builds nothing. Locally (npm run dev, npm run build):
+ * DATABASE_URL when the environment sets it, else this workspace's running built-in Postgres; never production's.
+ */
 async function commandLineTarget() {
   const remote = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
-  if (process.env.VERCEL_ENV === "production" || process.env.GTM_DATABASE === "external") {
+  if (process.env.VERCEL_ENV === "production") {
     if (!remote) throw new Error(CONNECT_NEON);
     return remote;
   }
-  return localDatabaseUrl(root).catch(() => null);
+  if (process.env.VERCEL) return null;
+  if (!remote) return localDatabaseUrl(root).catch(() => null);
+  if (await isProductionDatabase(remote)) throw new Error("DATABASE_URL points at the production database; local migrations never run against it");
+  return remote;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

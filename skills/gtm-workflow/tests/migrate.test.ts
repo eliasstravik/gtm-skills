@@ -50,18 +50,15 @@ test("a build with no database skips migrations; a production build without one 
   const production = commandLine({ VERCEL_ENV: "production" });
   assert.notEqual(production.status, 0);
   assert.match(production.stderr, /connect Neon/);
-  const external = commandLine({ GTM_DATABASE: "external" });
-  assert.notEqual(external.status, 0);
 });
 
-test("remote URLs in the shell are ignored by a local or preview build", { skip: process.env.GTM_TEST_SCRATCH === "1" }, () => {
+test("a preview build ignores database URLs; a local one uses DATABASE_URL, checked first", { skip: process.env.GTM_TEST_SCRATCH === "1" }, () => {
   const remote = { DATABASE_URL: "postgres://nobody:nothing@remote.invalid/db", DATABASE_URL_UNPOOLED: "postgres://nobody:nothing@remote.invalid/db" };
-  for (const env of [remote, { ...remote, VERCEL: "1", VERCEL_ENV: "preview" }]) {
-    const result = commandLine(env);
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /skipping migrations/);
-    assert.doesNotMatch(result.stdout + result.stderr, /remote\.invalid/);
-  }
+  const preview = commandLine({ ...remote, VERCEL: "1", VERCEL_ENV: "preview" });
+  assert.equal(preview.status, 0, preview.stderr);
+  assert.match(preview.stdout, /skipping migrations/);
+  // The production guard must reach the database before anything is migrated; an unreachable one fails the command.
+  assert.notEqual(commandLine(remote).status, 0);
 });
 
 test("a workspace table may not take a runtime table's name", () => {

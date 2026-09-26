@@ -12,6 +12,7 @@
     "db:generate": "drizzle-kit generate",
     "db:generate:runtime": "drizzle-kit generate --config drizzle-runtime.config.ts",
     "db:studio": "node scripts/studio.mjs",
+    "db:pull": "node scripts/db-pull.mjs",
     "viewer:register": "node scripts/viewer-registry.mjs",
     "build:share": "node scripts/build-share.mjs && GTM_VIEWER_MODE=share nitro build"
   },
@@ -28,7 +29,6 @@
     "@vercel/oidc": "3.8.7",
     "@xyflow/react": "12.11.6",
     "ai": "7.0.99",
-    "croner": "10.0.1",
     "drizzle-orm": "0.45.2",
     "nitro": "3.0.260903-beta",
     "pg": "8.23.0",
