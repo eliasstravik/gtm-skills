@@ -31,6 +31,7 @@
 | `GTM_MODEL`, `GTM_REASONING` | | yes, optional | by hand |
 | `GTM_AGENT_URL` | | yes | existing notification binding |
 | `GTM_WORKFLOW_BYPASS_SECRET`, `GTM_WORKFLOW_GATE_REQUIRED` | yes | | staged gate access; host-only injection |
+| `GTM_NEON_IMPORT_URL` | optional | | `scripts/import-access.mjs`: the no-delete import role's connection, sensitive; host-only injection as `Neon-Connection-String` |
 | `GTM_VIEWER_PROTECTED`, `GTM_VIEWER_SHARE_ORIGIN` | | yes | set only after native protection and companion verification |
 | `GTM_DATA_URL` | | optional | by hand, only to name the database's page |
 | `DATABASE_URL`, `DATABASE_URL_UNPOOLED` | never | yes | the Neon integration in Vercel, Production only; never by hand, and never on the share project |
