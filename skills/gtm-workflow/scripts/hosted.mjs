@@ -114,7 +114,10 @@ export function linkWorkflows(workspace, { team, project }) {
     requireThat(cli(["env", "add", name, "development", "--project", project, "--no-sensitive", "--yes"], value).status === 0, "vercel_command_failed", 503);
     added.push(name);
   }
+  // `vercel link` appends its own lines to workflows/.gitignore, which already ignores .vercel and .env*: keep ours.
+  const ignore = join(runtime, ".gitignore"), ours = existsSync(ignore) ? readFileSync(ignore, "utf8") : null;
   requireThat(cli(["link", "--yes", "--project", project]).status === 0, "vercel_link_failed", 503);
+  if (ours !== null) writeFileSync(ignore, ours);
   return { linked: "now", addedToDevelopment: added };
 }
 
@@ -132,7 +135,7 @@ const json = (command, args, cwd) => {
  */
 export function saveNeonProject(workspace) {
   const runtime = join(workspace, "workflows");
-  const reply = json("vercel", ["curl", "/api/query", "--non-interactive", "--", "-sS", "-X", "POST", "-H", "content-type: application/json", "-d", JSON.stringify({ sql: "select endpoint from gtm.environment where name = 'production'" })], runtime);
+  const reply = json("vercel", ["curl", "/api/query", "--", "-sS", "-X", "POST", "-H", "content-type: application/json", "-d", JSON.stringify({ sql: "select endpoint from gtm.environment where name = 'production'" })], runtime);
   const endpoint = reply?.rows?.[0]?.endpoint;
   if (typeof endpoint !== "string" || !/^ep-[a-z0-9-]+$/.test(endpoint)) return { status: "production_endpoint_unknown" };
   for (const org of json("neonctl", ["orgs", "list", "--output", "json"]) ?? []) {
