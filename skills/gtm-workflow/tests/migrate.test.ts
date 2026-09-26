@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { pgTable, text } from "drizzle-orm/pg-core";
 import { migrate } from "../templates/scripts/migrate.mjs";
+import { isProductionDatabase } from "../templates/scripts/local-database.mjs";
 import { mergeTables } from "../templates/lib/tables";
 import { testDatabase } from "./db";
 import { readFileSync } from "node:fs";
@@ -67,4 +68,19 @@ test("a workspace table may not take a runtime table's name", () => {
   assert.throws(() => mergeTables({ people: pgTable("my_people", { key: text("key").primaryKey() }) }), /reserved by the runtime/);
   assert.throws(() => mergeTables({ mine: pgTable("cache", { key: text("key").primaryKey() }) }), /cache is reserved by the runtime/);
   assert.ok("mine" in mergeTables({ mine: pgTable("mine", { key: text("key").primaryKey() }) }));
+});
+
+test("only a production build marks its database, and the guard matches that endpoint only", { skip: process.env.GTM_TEST_SCRATCH === "1" }, async () => {
+  const database = await testDatabase();
+  try {
+    assert.equal(await isProductionDatabase(database.unpooled), false, "no marker table: not production");
+    await migrate(database.unpooled);
+    assert.equal(await isProductionDatabase(database.unpooled), false, "an ordinary migrate writes no marker");
+    await migrate(database.unpooled, { production: true });
+    assert.equal(await isProductionDatabase(database.unpooled), true);
+    // A copy of production under another host (a Neon branch) is not production.
+    const elsewhere = new URL(database.unpooled); elsewhere.hostname = "localhost";
+    assert.equal(await isProductionDatabase(elsewhere.href), false);
+    await database.query("DELETE FROM gtm.environment");
+  } finally { await database.close(); }
 });

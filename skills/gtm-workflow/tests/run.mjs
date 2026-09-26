@@ -38,7 +38,9 @@ const templateScripts = {
   name: "template-scripts",
   setup(build) {
     // The skill's own scripts too: they guard their command line by their own URL.
-    build.onResolve({ filter: /^\.\.\/scripts\/[a-z-]+\.mjs$/ }, (args) => ({ path: pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), args.path)).href, external: true }));
+    build.onResolve({ filter: /^\.\.\/scripts\/[a-z-]+\.mjs$/ }, (args) => dirname(args.importer) !== dirname(fileURLToPath(import.meta.url))
+      ? { path: pathToFileURL(join(runtime, "scripts", args.path.split("/").pop())).href, external: true }
+      : { path: pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), args.path)).href, external: true });
     build.onResolve({ filter: /templates\/scripts\/[a-z-]+\.mjs$/ }, (args) => ({ path: pathToFileURL(join(runtime, "scripts", args.path.split("/").pop())).href, external: true }));
   },
 };
@@ -109,7 +111,7 @@ try {
             ],
           }
         : {}),
-      ...(name === "viewer-api"
+      ...(name === "viewer-api" || name === "connections-local"
         ? {
             plugins: [
               templateScripts,

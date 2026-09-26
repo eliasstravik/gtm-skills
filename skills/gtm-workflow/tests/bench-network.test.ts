@@ -144,10 +144,9 @@ async function readPaths(personKey: string) {
   await measure("viewer single person record", () => readData(view, registry, client, page(`table=people&key=${personKey}`)));
   await measure("viewer related companies of one person", () => readData(view, registry, client, page(`table=companies&relatedTable=people&relatedKey=${personKey}`)));
   await measure("viewer counts", () => readCounts(view, registry, client));
-  process.env.GTM_RUN_SECRET = "bench";
   const ask = async (sql: string) => {
     const response = await (queryRoute as unknown as (event: unknown) => Promise<unknown>)({
-      req: new Request("http://localhost/api/query", { method: "POST", headers: { authorization: "Bearer bench", "content-type": "application/json" }, body: JSON.stringify({ sql, args: [] }) }),
+      req: new Request("http://localhost/api/query", { method: "POST", headers: { host: "localhost", "content-type": "application/json" }, body: JSON.stringify({ sql, args: [] }) }),
       context: {},
     });
     if (response instanceof Response) throw new Error(await response.text());

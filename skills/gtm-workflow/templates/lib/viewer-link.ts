@@ -1,11 +1,11 @@
 import { entryFor } from "./viewer-reader";
 import { configuredNames } from "./connections-contract";
-import { localConnectionsEnabled } from "./connections-local";
+import { localKeyNames } from "./connections-local";
 export function connectionsOrigin(req?: Request) {
   if (process.env.GTM_VIEWER_MODE === "share") return undefined;
-  // Local: the viewer's own route, which finds the manager and signs the browser in at each click. Absolute only
-  // for /api/link callers, which need a whole address; the page itself gets the relative path.
-  if (localConnectionsEnabled()) return req ? new URL("/connections", req.url).href : "/connections";
+  // Local: the Keys page on this same server. Absolute only for /api/link callers, which need a whole address; the page
+  // itself gets the relative path.
+  if (!process.env.VERCEL) return req ? new URL("/connections", req.url).href : "/connections";
   try {
     const value = process.env.GTM_CONNECTIONS_ORIGIN, url = new URL(value!);
     if (url.origin !== value || url.username || url.password) return undefined;
@@ -42,6 +42,6 @@ export function viewerLink(req: Request, workflow?: string) {
     diagramUrl: view("logic"),
     runsUrl: view("runs"),
     dataUrl: view("data"),
-    keys: configuredNames(process.env),
+    keys: process.env.VERCEL ? configuredNames(process.env) : localKeyNames(),
   };
 }

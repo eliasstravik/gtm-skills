@@ -1,11 +1,11 @@
 import { defineHandler } from "nitro";
-import { bearerOk } from "../../../lib/sign";
+import { apiAccess } from "../../../lib/route-access";
 import { viewerLink, intakeUrl } from "../../../lib/viewer-link";
 import { viewerHeaders } from "../../../lib/viewer-access";
 import { workflows } from "../../../workflows";
 import { findWorkflow } from "../../../lib/workflow-registry";
-export default defineHandler((event) => {
-  if (!bearerOk(event.req))
+export default defineHandler(async (event) => {
+  if (!(await apiAccess(event.req)))
     return new Response("Unauthorized", {
       status: 401,
       headers: viewerHeaders,

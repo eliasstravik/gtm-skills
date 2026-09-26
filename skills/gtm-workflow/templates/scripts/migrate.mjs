@@ -5,14 +5,14 @@ import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate as applyFolder } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
-import { localDatabaseUrl } from "./local-database.mjs";
+import { endpointOf, localDatabaseUrl } from "./local-database.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const MIGRATE_LOCK_KEY = 7462; // the app locks by hashed names, never by this number
 const CONNECT_NEON = "No DATABASE_URL: connect Neon to this project through the Vercel integration";
 
 /** Migrations only add; a backfill is a migration; nothing that scans a table runs on every build. */
-export async function migrate(url) {
+export async function migrate(url, { production = false } = {}) {
   console.log(`Migrating database on ${new URL(url).host}`);
   const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: 10000 });
   client.on("error", () => {});
@@ -31,6 +31,13 @@ export async function migrate(url) {
     for (const [folder, journal] of [["drizzle-runtime", "gtm_runtime_migrations"], ["drizzle", "gtm_workspace_migrations"]]) {
       if (!existsSync(join(root, folder, "meta", "_journal.json"))) continue;
       await applyFolder(db, { migrationsFolder: join(root, folder), migrationsSchema: "drizzle", migrationsTable: journal });
+    }
+    // The production marker the local launcher, doctor and the Keys page look for before touching a database
+    // (isProductionDatabase in local-database.mjs). Only a production build writes it, naming its own endpoint.
+    if (production) {
+      await client.query("CREATE SCHEMA IF NOT EXISTS gtm");
+      await client.query("CREATE TABLE IF NOT EXISTS gtm.environment (name text PRIMARY KEY, endpoint text NOT NULL)");
+      await client.query("INSERT INTO gtm.environment (name, endpoint) VALUES ('production', $1) ON CONFLICT (name) DO UPDATE SET endpoint = excluded.endpoint", [endpointOf(url)]);
     }
   } finally {
     // Ending the session releases the lock too; the explicit unlock is for the orderly case.
@@ -52,7 +59,7 @@ async function commandLineTarget() {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const url = await commandLineTarget();
-    if (url) await migrate(url);
+    if (url) await migrate(url, { production: process.env.VERCEL_ENV === "production" });
     else console.log("No database for this build: skipping migrations");
   } catch (error) {
     console.error(`Migration failed: ${error.message}`);

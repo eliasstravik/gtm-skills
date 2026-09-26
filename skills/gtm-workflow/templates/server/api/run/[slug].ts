@@ -1,17 +1,19 @@
 import { defineHandler } from "nitro";
 import { start } from "workflow/api";
 import { viewerAttributes } from "../../../lib/viewer-provenance";
-import { bearerOk } from "../../../lib/sign";
+import { apiAccess } from "../../../lib/route-access";
 import { workflows } from "../../../workflows";
 import { findWorkflow } from "../../../lib/workflow-registry";
 
 /**
- * Start a run. GET: cron, input = defaultInput (bearer GTM_RUN_SECRET or CRON_SECRET).
- * POST: manual, input = { ...defaultInput, ...body } (bearer GTM_RUN_SECRET). Returns { id }.
+ * Start a run. POST: input = { ...defaultInput, ...body }. Returns { id }. GET is Vercel Cron's form (input =
+ * defaultInput, CRON_SECRET) and exists only on Vercel: locally a GET never starts anything, so no link or image on
+ * another web page can start a run on this computer. Access: see lib/route-access.ts.
  */
 export default defineHandler(async (event) => {
   const isGet = event.req.method === "GET";
-  if (!bearerOk(event.req, isGet))
+  if (isGet && !process.env.VERCEL) return new Response("POST to start a run", { status: 405, headers: { allow: "POST" } });
+  if (!(await apiAccess(event.req, { cron: isGet })))
     return new Response("Unauthorized", { status: 401 });
   const slug = event.context.params?.slug ?? "";
   const wf = findWorkflow(workflows, slug);

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ArrowPathIcon, EllipsisHorizontalIcon } from "@heroicons/react/16/solid";
-import { initialize, request, clearSession, localMode, integratedMode, tailnetMode } from "./transport.mjs";
+import { initialize, request, localMode } from "./transport.mjs";
 import "@fontsource-variable/geist/index.css";
 import "../viewer/style.css";
 import "./style.css";
@@ -25,20 +25,19 @@ const messages = {
   invalid_label: "Enter a name of up to 256 characters on one line.",
   replacement_key_required: "Enter a new key value to replace this connection.",
   invalid_key: "Enter a nonempty key on one line.",
-  unlock_os_credential_store: "Unlock your OS credential store. Linux requires a running, unlocked Secret Service such as GNOME Keyring.",
-  production_not_linked: "This workspace is not linked to its Vercel project yet. Run hosted setup on this computer first.",
-  production_unavailable: "Vercel could not be reached. Check that you are signed in to the Vercel CLI (`vercel login`), then try again.",
-  production_outcome_unknown: "Vercel did not confirm the push. Open Production Connections to check the key before pushing again.",
-  production_key_exists: "Production already has this key. Confirm the replacement to push it.",
-  local_key_not_saved: "Save this key here first, then push it.",
-  saved_credential_missing: "The key saved on this computer could not be read. Edit it here, then push again.",
+  local_access_only: "Open the Keys page from this computer's viewer (or your own tailnet address).",
+  csrf_denied: "Refresh this page and try again.",
+  vercel_cli_unavailable: "The Vercel CLI is not installed here. Install it (npm i -g vercel), sign in with `vercel login`, then save again.",
+  vercel_request_denied: "Vercel refused the change. Check `vercel login` and that you can edit this project, then save again.",
+  production_database_in_development: "This project's Development environment on Vercel holds the production database. In Vercel, open the Neon integration's settings and untick Development for it, then save again. Your .env.local was not changed.",
 };
 const message = (code) => messages[code] ?? "Connections could not complete this request. Refresh or run Connections Doctor.";
 function EntryForm({ selection, inventory, close, updated, beginApply, failedApply }) {
   const dialog = useRef(null), form = useRef(null), password = useRef(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const deleting = selection.action === "disconnect", editing = Boolean(selection.field);
-  const needsKey = !editing || ["external", "unresolved", "unknown", "disconnected"].includes(selection.field?.state);
+  // Locally the key is all there is to edit, so an edit always takes a new value.
+  const needsKey = localMode || !editing || ["external", "unresolved", "unknown", "disconnected"].includes(selection.field?.state);
   useEffect(() => {
     dialog.current.showModal();
     const clear = () => { if (password.current) password.current.value = ""; };
@@ -55,7 +54,7 @@ function EntryForm({ selection, inventory, close, updated, beginApply, failedApp
     }
     const value = String(data.get("key") ?? "");
     const body = { id: crypto.randomUUID(), variable, action: selection.action, version: selection.field?.version ?? existing?.version ?? "absent",
-      ...(deleting ? {} : { label: String(data.get("label")).trim(), ...(value ? { value } : {}) }),
+      ...(deleting ? {} : { ...(localMode ? {} : { label: String(data.get("label")).trim() }), ...(value ? { value } : {}) }),
       ...(data.get("supersede") ? { supersede: true } : {}),
     };
     const applies = inventory.mode === "production" && (deleting || !editing || Boolean(value));
@@ -70,7 +69,7 @@ function EntryForm({ selection, inventory, close, updated, beginApply, failedApp
       {deleting ? <>
         <p>Workflows using this connection may stop working.</p>
       </> : <div className="connection-fields">
-        <label htmlFor="connection-label">Name</label><input id="connection-label" name="label" placeholder="Apollo" defaultValue={selection.field?.label ?? ""} maxLength={256} required autoFocus />
+        {localMode ? null : <><label htmlFor="connection-label">Name</label><input id="connection-label" name="label" placeholder="Apollo" defaultValue={selection.field?.label ?? ""} maxLength={256} required autoFocus /></>}
         <label htmlFor="variable">Key</label><input id="variable" name="variable" placeholder="APOLLO_API_KEY" defaultValue={selection.field?.variable ?? selection.preset ?? ""} disabled={editing} pattern="[A-Za-z_][A-Za-z0-9_]*" maxLength={256} required />
         <label htmlFor="new-key">{editing ? "New API key value" : "API key value"}</label><input ref={password} id="new-key" name="key" type="password" placeholder={editing && !needsKey ? "Leave blank to keep the current key" : "your_apollo_api_key"} autoComplete="new-password" maxLength={8192} required={needsKey} />
         {["unresolved", "write_attempted"].includes(selection.row?.change?.phase) ? <label><input name="supersede" type="checkbox" required />Replace the unresolved save with this new entry</label> : null}
@@ -78,30 +77,6 @@ function EntryForm({ selection, inventory, close, updated, beginApply, failedApp
       {error ? <p role="alert" className="error">{error}</p> : null}
       <div className="dialog-actions"><button type="button" disabled={busy} onClick={cancel}>Cancel</button>
         <button className={`connection-submit primary${deleting ? " danger" : ""}`} type="submit" disabled={busy} aria-busy={busy}>{busy ? <ArrowPathIcon aria-hidden="true" className="connection-icon connection-spinner" /> : null}{busy ? deleting ? "Deleting…" : "Saving…" : deleting ? "Delete connection" : "Save connection"}</button></div>
-    </form>
-  </dialog>;
-}
-/** Sends a key saved here to production. Only the value goes up; nothing is read back down. */
-function PushForm({ selection, production, close, pushed }) {
-  const dialog = useRef(null);
-  const [busy, setBusy] = useState(false), [error, setError] = useState("");
-  const { field } = selection, existing = production.names.includes(field.variable);
-  useEffect(() => { dialog.current.showModal(); }, []);
-  function cancel() { if (!busy) close(); }
-  async function submit(event) {
-    event.preventDefault(); setError(""); setBusy(true);
-    try { pushed(await request("/api/production/push", { id: crypto.randomUUID(), variable: field.variable, ...(existing ? { replace: true } : {}) })); close(); }
-    catch (failure) { setError(message(failure.message)); }
-    finally { setBusy(false); }
-  }
-  return <dialog ref={dialog} aria-labelledby="push-title" className="connection-dialog" onCancel={(event) => { event.preventDefault(); cancel(); }}>
-    <form onSubmit={submit}>
-      <h2 id="push-title">{existing ? `Replace ${field.variable} in Production?` : `Push ${field.variable} to Production?`}</h2>
-      <p className="muted">Sends the key saved on this computer to {production.project} as a sensitive Production variable, then redeploys Production so it takes effect. Values are never read back down.</p>
-      {existing ? <label className="connection-confirm"><input name="replace" type="checkbox" required />Production already has {field.variable}. Replace it with this computer’s key.</label> : null}
-      {error ? <p role="alert" className="error">{error}</p> : null}
-      <div className="dialog-actions"><button type="button" disabled={busy} onClick={cancel}>Cancel</button>
-        <button className={`connection-submit primary${existing ? " danger" : ""}`} type="submit" disabled={busy} aria-busy={busy}>{busy ? <ArrowPathIcon aria-hidden="true" className="connection-icon connection-spinner" /> : null}{busy ? "Pushing…" : existing ? "Replace in Production" : "Push to Production"}</button></div>
     </form>
   </dialog>;
 }
@@ -113,8 +88,8 @@ function App() {
   const [inventory, setInventory] = useState(null), [error, setError] = useState(""), [selection, setSelection] = useState(null), [loading, setLoading] = useState(true);
   const trigger = useRef(null);
   const [pendingApply, setPendingApply] = useState(readPending), [retrying, setRetrying] = useState(false);
-  // Local only: which key names production has, for the hints. Null until known, and stays null when Vercel can't be asked.
-  const [production, setProduction] = useState(null), [pushResult, setPushResult] = useState(null);
+  // Local only: a saved change is used from the next `npm run dev`.
+  const [restart, setRestart] = useState(false);
   useEffect(() => { document.documentElement.dataset.environment = localMode ? "local" : "production"; }, []);
   function rememberApply(value) {
     setPendingApply(value);
@@ -130,6 +105,7 @@ function App() {
     pendingApply && inventory?.application?.id !== pendingApply.id ? { state: "failed" } : inventory?.application;
   const applying = application?.state === "applying";
   async function updated(result, id) {
+    if (result.restartRequired) setRestart(true);
     if (id) rememberApply({ id, state: "pending" });
     if (result.application) setInventory((current) => current ? { ...current, application: result.application } : current);
     try { await refresh(); } catch { setError("vercel_unavailable"); }
@@ -146,7 +122,7 @@ function App() {
     if (pendingApply && inventory?.application?.id === pendingApply.id && inventory.application.state === "applied") rememberApply(null);
   }, [inventory?.application?.id, inventory?.application?.state]);
   useEffect(() => {
-    if (!integratedMode || pendingApply?.state === "saving" || (!applying && !pendingApply)) return;
+    if (localMode || pendingApply?.state === "saving" || (!applying && !pendingApply)) return;
     // Reads only. Closing the tab does not stop Vercel's update.
     let stopped = false, timer, inactivePolls = 0;
     const poll = async () => {
@@ -167,7 +143,6 @@ function App() {
   function closeEntry() { setSelection(null); requestAnimationFrame(() => trigger.current?.focus()); }
   async function refresh() {
     setInventory(await request("/api/connections"));
-    if (localMode) request("/api/production").then((next) => setProduction(next.linked && Array.isArray(next.names) ? next : null), () => setProduction(null));
   }
   async function start() {
     setLoading(true); setError("");
@@ -187,14 +162,10 @@ function App() {
     window.addEventListener("pageshow", restore); window.addEventListener("pagehide", hide);
     return () => { document.removeEventListener("click", dismissMenus); window.removeEventListener("pageshow", restore); window.removeEventListener("pagehide", hide); };
   }, []);
-  async function logout() {
-    try { await request("/api/logout", {}); } finally { clearSession(); setInventory(null); setSelection(null); setError(localMode ? "reopen_connections" : "sign_in_required"); }
-  }
-  // On the tailnet the manager's link names its loopback address; the viewer is this page's own origin.
-  const workflowsUrl = inventory && tailnetMode ? "/viewer" : inventory?.workflowsUrl;
+  const workflowsUrl = inventory?.workflowsUrl;
   return <main className="workspace">
-    <nav className="tabs root-navigation" aria-label="Workspace"><a href={workflowsUrl ?? "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Workflows</a><a href={workflowsUrl ? (() => { const url = new URL(workflowsUrl, location.origin); url.searchParams.set("view", "data"); return url.href; })() : "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Data</a><a href={integratedMode || tailnetMode ? "/connections" : "/"} aria-current="page">Connections</a></nav>
-    <div className="title-row"><div><div className="environment-title"><h1>Connections</h1><span className="environment-badge" data-environment={localMode ? "local" : "production"} title={localMode ? "Keys saved on this computer" : "Keys on Vercel"}>{localMode ? "Local" : "Production"}</span></div>{inventory?.workspaceName ? <p className="muted">{inventory.workspaceName}</p> : null}</div>
+    <nav className="tabs root-navigation" aria-label="Workspace"><a href={workflowsUrl ?? "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Workflows</a><a href={workflowsUrl ? (() => { const url = new URL(workflowsUrl, location.origin); url.searchParams.set("view", "data"); return url.href; })() : "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Data</a><a href="/connections" aria-current="page">Connections</a></nav>
+    <div className="title-row"><div><div className="environment-title"><h1>Connections</h1><span className="environment-badge" data-environment={localMode ? "local" : "production"} title={localMode ? "Keys for runs on this computer" : "Keys for the deployed copy on Vercel"}>{localMode ? "Local" : "Production"}</span></div>{inventory?.workspaceName ? <p className="muted">{inventory.workspaceName}</p> : null}</div>
       {inventory ? <div className="connection-actions"><button type="button" className="icon-button" aria-label="Refresh connections" title="Refresh connections" disabled={loading} onClick={start}><ArrowPathIcon aria-hidden="true" className="connection-icon" /></button>{inventory.vercelUrl ? <a className="button" href={inventory.vercelUrl} target="_blank" rel="noopener noreferrer">Open in Vercel</a> : null}
         {inventory.canWrite ? <button type="button" className="primary" onClick={(event) => select(event, { action: "add" })}>Add connection</button> : null}</div> : null}
     </div>
@@ -209,29 +180,17 @@ function App() {
       <div className="connection-list">{inventory.connections.filter((row) => row.platformIdentity || row.fields.some((field) => field.state !== "disconnected")).map((row) => <div className="connection-row" key={row.id}>
         <div className="connection-name"><h2>{row.name}</h2><p className="muted connection-variable">{row.fields.map((field) => field.variable).join(", ")}</p>
           {row.status && row.status !== "Saved" ? <p className="muted connection-status">{row.status}</p> : null}
-          {production && row.fields.some((field) => field.state === "saved") ? <p className="connection-hint">{row.fields.every((field) => production.names.includes(field.variable)) ? <span className="muted">Also in Production</span> : "Only on this computer"}</p> : null}</div>
+</div>
         {inventory.canWrite && row.fields.length ? <details className="connection-menu"><summary className="icon-button" aria-label={`Actions for ${row.name}`} title="Connection actions"><EllipsisHorizontalIcon aria-hidden="true" className="connection-icon" /></summary><div>{row.fields.map((field) => <React.Fragment key={field.variable}>
-          {field.editable ? <><button type="button" onClick={(event) => select(event, { action: "replace", row, field })}>Edit</button>{production && field.state === "saved" ? <button type="button" onClick={(event) => select(event, { action: "push", row, field })}>{production.names.includes(field.variable) ? "Replace in Production" : "Push to Production"}</button> : null}<button type="button" className="danger-text" onClick={(event) => select(event, { action: "disconnect", row, field })}>Delete</button></> : inventory.vercelUrl ? <a href={inventory.vercelUrl} target="_blank" rel="noopener noreferrer">Open in Vercel</a> : <span className="muted">Read only</span>}
+          {field.editable ? <><button type="button" onClick={(event) => select(event, { action: "replace", row, field })}>Edit</button><button type="button" className="danger-text" onClick={(event) => select(event, { action: "disconnect", row, field })}>Delete</button></> : inventory.vercelUrl ? <a href={inventory.vercelUrl} target="_blank" rel="noopener noreferrer">Open in Vercel</a> : <span className="muted">Read only</span>}
         </React.Fragment>)}</div></details> : null}
       </div>)}</div>
       {!inventory.connections.some((row) => row.platformIdentity || row.fields.some((field) => field.state !== "disconnected")) ? <p className="notice">No connections yet. Add an API key to get started.</p> : null}
-      {production ? (() => {
-        const here = new Set(inventory.connections.flatMap((row) => row.fields).filter((field) => field.state !== "disconnected").map((field) => field.variable));
-        const missing = production.names.filter((name) => !here.has(name));
-        return missing.length ? <section className="production-only" aria-labelledby="production-only-title">
-          <h2 id="production-only-title">Set in Production, not here</h2>
-          <p className="muted">Workflows run on this computer can’t use these keys until you add them here. Values stay on Vercel, so paste each key again.</p>
-          <div className="connection-list">{missing.map((name) => <div className="connection-row" key={name}>
-            <div className="connection-name"><p className="connection-variable">{name}</p></div>
-            {inventory.canWrite ? <button type="button" onClick={(event) => select(event, { action: "add", preset: name })}>Add</button> : null}
-          </div>)}</div>
-        </section> : null;
-      })() : null}
-      {pushResult ? <div className="notice application-notice" role="status"><span>{pushResult.replaced ? `Replaced ${pushResult.variable} in Production.` : `Pushed ${pushResult.variable} to Production.`} {pushResult.application === "applying" ? "Production is redeploying so it takes effect." : "Redeploy Production so it takes effect: open Production Connections and choose Retry, or redeploy in Vercel."}</span>
-        {pushResult.url ? <a className="button" href={pushResult.url} target="_blank" rel="noopener noreferrer">Open Production Connections</a> : null}</div> : null}
-      {!integratedMode ? <div className="connection-footer"><button type="button" onClick={logout}>Sign out</button>{inventory.productionUrl ? <a href={inventory.productionUrl} target="_blank" rel="noopener noreferrer">Open Production</a> : null}</div> : null}
-      {selection?.action === "push" && production ? <PushForm key={`push-${selection.field.variable}`} selection={selection} production={production} close={closeEntry} pushed={(result) => { setPushResult({ ...result, variable: selection.field.variable }); refresh().catch(() => setError("vercel_unavailable")); }} /> :
-        selection ? <EntryForm key={`${selection.action}-${selection.field?.variable ?? selection.preset ?? "new"}`} selection={selection} inventory={inventory} close={closeEntry} updated={updated} beginApply={beginApply} failedApply={failedApply} /> : null}
+      {localMode ? <p className="muted connection-store">{inventory.linked
+        ? "Saved to this project's Development environment on Vercel, then pulled into workflows/.env.local. Hand edits to .env.local are replaced by the next pull. Development variables are stored as plain values, not secrets."
+        : "Saved in workflows/.env.local on this computer."} Changes apply the next time you start npm run dev.</p> : null}
+      {restart ? <div className="notice" role="status"><p>Saved. Restart npm run dev to use it in runs.</p></div> : null}
+      {selection ? <EntryForm key={`${selection.action}-${selection.field?.variable ?? selection.preset ?? "new"}`} selection={selection} inventory={inventory} close={closeEntry} updated={updated} beginApply={beginApply} failedApply={failedApply} /> : null}
     </> : null}
   </main>;
 }

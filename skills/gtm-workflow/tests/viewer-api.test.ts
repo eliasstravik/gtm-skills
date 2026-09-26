@@ -475,13 +475,12 @@ test("private link discovery exposes only the fixed Connections origin and share
     process.env.GTM_CONNECTIONS_ORIGIN = "https://connections.example";
     process.env.GTM_VIEWER_MODE = "share";
     assert.equal(viewerLink(request).connectionsUrl, undefined);
-    // Local: the viewer's own route, whatever port the manager happens to have, so a manager started later is found too.
+    // Local: the Keys page on the same server, at whatever address it was asked on.
     const vercel = process.env.VERCEL;
     delete process.env.VERCEL; delete process.env.GTM_VIEWER_MODE;
-    process.env.GTM_CONNECTIONS_MANAGER = "/home/owner/.gtm/connections/id/manager.json";
     try {
       assert.equal(viewerLink(new Request("http://127.0.0.1:3940/api/link")).connectionsUrl, "http://127.0.0.1:3940/connections");
-    } finally { delete process.env.GTM_CONNECTIONS_MANAGER; if (vercel !== undefined) process.env.VERCEL = vercel; }
+    } finally { if (vercel !== undefined) process.env.VERCEL = vercel; }
   } finally {
     delete process.env.GTM_VIEWER_MODE;
     if (previous === undefined) delete process.env.GTM_CONNECTIONS_ORIGIN;
@@ -492,12 +491,11 @@ test("links the browser follows are origin-relative, so the viewer works behind 
   // A relay (Tailscale Serve, say) hands the viewer a loopback Host; an absolute link would send the remote browser to its own loopback.
   const vercel = process.env.VERCEL;
   delete process.env.VERCEL;
-  process.env.GTM_CONNECTIONS_MANAGER = "/home/owner/.gtm/connections/id/manager.json";
   try {
     const list = await viewerApi(new Request("http://127.0.0.1:53860/api/viewer?v=3&op=list", { headers: { host: "127.0.0.1:53860" } }));
     assert.equal(list.status, 200);
     assert.equal((await list.json()).connectionsUrl, "/connections");
-  } finally { delete process.env.GTM_CONNECTIONS_MANAGER; process.env.VERCEL = vercel; }
+  } finally { process.env.VERCEL = vercel; }
   const routes: [unknown, Record<string, string>, string][] = [
     [localIndex, {}, "/viewer"],
     [runtimeIndex, {}, "/viewer"],

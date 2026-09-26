@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:f
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { SUPERUSER, createCluster, postgresTools, startCluster, stopCluster } from "../connections/local/database.mjs";
+import { SUPERUSER, createCluster, postgresTools, startCluster, stopCluster } from "../templates/scripts/local-database.mjs";
 
 /**
  * One Postgres for the whole run, in its own folder under a known parent. Several worktrees run tests at once, so
