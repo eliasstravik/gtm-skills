@@ -4,11 +4,12 @@ import { viewerAttributes } from "../../../lib/viewer-provenance";
 import { admit } from "../../../lib/intake-api";
 import type { Intake } from "../../../lib/intake";
 import { workflows } from "../../../workflows";
+import { findWorkflow } from "../../../lib/workflow-registry";
 
 /** Inbound webhook: verified, deduped, one run per event with the mapped row. No bearer; the sender's signature is the credential. */
 export default defineHandler(async (event) => {
   const slug = event.context.params?.slug ?? "";
-  const wf = workflows[slug as keyof typeof workflows] as
+  const wf = findWorkflow(workflows, slug) as
     | {
         run: (input: never) => Promise<unknown>;
         defaultInput: Record<string, unknown>;

@@ -71,3 +71,20 @@ test("outside production the relay is off", async () => {
   try { assert.equal((await post("cal-booking", { "x-hub-signature-256": "sha256=a" })).status, 503); }
   finally { process.env.VERCEL_ENV = "production"; }
 });
+
+// Once the runtime trusts the relay's identity, the relay's upstream path is the only thing between a stranger and
+// every private route: it may reach intake and the shared viewer, nothing else.
+test("the relays build only intake and shared-viewer paths, whatever the caller sends", async () => {
+  const calls = upstream(() => Response.json({}, { status: 202 }));
+  for (const slug of ["..%2Fquery", "../query", "..%2F..%2Fapi%2Fquery", "x%2F..%2F..%2Fquery", "%2e%2e", "x/../../run/y", "x?y=1", "x#y", "X"])
+    assert.equal((await post(slug, { "x-cal-signature-256": "a" })).status, 404, slug);
+  assert.equal(calls.length, 0);
+  const viewer = (await import("../templates/share-server/api/viewer.get")).default as unknown as (event: unknown) => Promise<Response>;
+  process.env.GTM_VIEWER_PRIVATE_PROJECT_ID = "prj_x";
+  const token = "a".repeat(43);
+  for (const query of ["op=workflow&workflow=..%2F..%2Fquery", "op=..%2Fquery", "op=workflow&table=%2E%2E%2Fquery"]) {
+    await viewer({ req: new Request(`https://gtm-acme-share.vercel.app/api/viewer?v=${(await import("../templates/lib/viewer-contract")).CONTRACT_VERSION}&${query}`, { headers: { "x-gtm-share-token": token } }), context: {} });
+  }
+  assert.equal(calls.length, 2); // an unknown op stops before the relay
+  for (const call of calls) assert.equal(new URL(call.url).pathname, "/api/viewer/shared", call.url);
+});
