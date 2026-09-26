@@ -1,5 +1,5 @@
-// `npm run dev` (and, until it goes, `npm run viewer`): this workspace's own Postgres, migrations, the viewer registry
-// and the Nitro dev server, all local. Keys and settings come from `.env` and `.env.local` like any Vercel app.
+// `npm run dev`, the one local command: this workspace's own Postgres, migrations, the viewer registry and the Nitro
+// dev server with workflows, viewer and Keys page, all local. Keys and settings come from `.env` and `.env.local` like any Vercel app.
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -29,12 +29,12 @@ export function localEnvironment(dir = cwd, shell = process.env) {
 /** Build, migration and inspection children get no keys: nothing they do needs one. */
 const withoutKeys = (env) => Object.fromEntries(Object.entries(env).filter(([name]) => !/(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)/i.test(name)));
 
-export async function launch(mode = "dev", options = {}) {
+export async function launch(options = {}) {
   const env = localEnvironment();
   // node-postgres takes PG* from the environment as defaults; the built-in database gets every field passed explicitly.
   for (const name of Object.keys(process.env)) if (/^PG/.test(name)) delete process.env[name];
   process.chdir(cwd);
-  const database = await ensureLocalDatabase(cwd, { create: mode === "dev" });
+  const database = await ensureLocalDatabase(cwd);
   try {
     if (await isProductionDatabase(database.url)) throw new LocalDatabaseError("This database is production's. Local work never runs against it.");
     // No database variable from a pulled file or the shell reaches a local process; the built-in one is passed whole.
@@ -44,16 +44,15 @@ export async function launch(mode = "dev", options = {}) {
       if (result.status !== 0) throw new LocalDatabaseError(`${args[0]} failed`);
     };
     run(["scripts/build-viewer.mjs"]);
-    // Opening the viewer never migrates.
-    if (mode === "dev") run(["scripts/migrate.mjs"]);
-    const port = Number(mode === "viewer" ? env.GTM_VIEWER_PORT ?? 3939 : env.GTM_RUNTIME_PORT ?? 3939);
-    if (!Number.isInteger(port) || port <= 0 || port > 65535) throw new LocalDatabaseError("Set GTM_RUNTIME_PORT (or GTM_VIEWER_PORT) to a port number");
-    if (mode === "dev") Object.assign(runtime, { WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS: "900000", WORKFLOW_LOCAL_BODY_TIMEOUT_MS: "900000" });
-    else Object.assign(runtime, { GTM_VIEWER_MODE: "local", WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS: "false" });
+    run(["scripts/migrate.mjs"]);
+    const port = Number(env.GTM_RUNTIME_PORT ?? 3939);
+    if (!Number.isInteger(port) || port <= 0 || port > 65535) throw new LocalDatabaseError("Set GTM_RUNTIME_PORT to a port number");
+    // The local queue's 15-minute transport timeout, and runs left in flight by a stop resume at the next start.
+    Object.assign(runtime, { WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS: "900000", WORKFLOW_LOCAL_BODY_TIMEOUT_MS: "900000", WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS: "true" });
     for (const name of Object.keys(process.env)) delete process.env[name];
     Object.assign(process.env, runtime);
     const server = await (options.serve ?? nitroServer)({ cwd, port });
-    console.log(JSON.stringify({ status: mode === "dev" ? "runner_started" : "viewer_started", origin: `http://127.0.0.1:${port}` }));
+    console.log(JSON.stringify({ status: "runner_started", origin: `http://127.0.0.1:${port}` }));
     let closing;
     const close = () => (closing ??= (async () => { await Promise.resolve(server.close()).catch(() => {}); await database.stop(); })());
     // `on`, not `once`: under `npm run dev` Ctrl+C arrives twice (from the terminal and forwarded by npm), and a second
@@ -82,7 +81,7 @@ async function nitroServer({ cwd, port }) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  launch(process.argv[2] === "viewer" ? "viewer" : "dev").catch((error) => {
+  launch().catch((error) => {
     console.error(error?.name === "LocalDatabaseError" ? error.message : error);
     process.exitCode = 1;
   });

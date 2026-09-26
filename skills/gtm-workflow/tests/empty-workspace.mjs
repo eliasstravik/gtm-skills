@@ -20,7 +20,7 @@ function run(command, args, extraEnv = {}) {
   assert.equal(result.status, 0, result.stdout + result.stderr);
 }
 try {
-  for (const name of ["lib", "scripts", "viewer", "connections-ui", "server", "viewer-server", "share-server", "db", "drizzle", "drizzle-runtime", "skills", "package.json", "tsconfig.json", "nitro.config.ts", "drizzle.config.ts", "drizzle-runtime.config.ts", "vercel.json"])
+  for (const name of ["lib", "scripts", "viewer", "connections-ui", "server", "share-server", "db", "drizzle", "drizzle-runtime", "skills", "package.json", "tsconfig.json", "nitro.config.ts", "drizzle.config.ts", "drizzle-runtime.config.ts", "vercel.json"])
     await cp(join(source, name), join(target, name), { recursive: true });
   // Setup renames this file to .gitignore. The local database lives in data/pg and must never be committed.
   assert.ok((await readFile(join(source, "gitignore"), "utf8")).split(/\r?\n/).includes("data/"), "a scaffolded workspace must ignore data/");

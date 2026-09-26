@@ -7,12 +7,11 @@
     "node": "22.x"
   },
   "scripts": {
-    "dev": "node scripts/local-launch.mjs dev",
+    "dev": "node scripts/local-launch.mjs",
     "build": "node scripts/build-viewer.mjs && node scripts/migrate.mjs && nitro build",
     "db:generate": "drizzle-kit generate",
     "db:generate:runtime": "drizzle-kit generate --config drizzle-runtime.config.ts",
     "db:studio": "node scripts/studio.mjs",
-    "viewer": "node scripts/local-launch.mjs viewer",
     "viewer:register": "node scripts/viewer-registry.mjs",
     "build:share": "node scripts/build-share.mjs && GTM_VIEWER_MODE=share nitro build"
   },

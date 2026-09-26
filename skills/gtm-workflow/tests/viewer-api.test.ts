@@ -8,7 +8,6 @@ import { csrfCookie, hostedOwnerCheck } from "../templates/lib/viewer-access";
 // Stands in for a signed-in owner; viewer-grants.test.ts covers the real check.
 hostedOwnerCheck.check = async () => {};
 import { runId, entry, fixtureRuns, run } from "./api-fixture";
-import localIndex from "../templates/viewer-server/routes/index.get";
 import runtimeIndex from "../templates/server/routes/index.get";
 import workflowRoute from "../templates/server/routes/gtm/[slug].get";
 import dataRoute from "../templates/server/routes/gtm/[slug]/data.get";
@@ -497,7 +496,6 @@ test("links the browser follows are origin-relative, so the viewer works behind 
     assert.equal((await list.json()).connectionsUrl, "/connections");
   } finally { process.env.VERCEL = vercel; }
   const routes: [unknown, Record<string, string>, string][] = [
-    [localIndex, {}, "/viewer"],
     [runtimeIndex, {}, "/viewer"],
     [workflowRoute, { slug: "stable" }, "/viewer?workflow=stable&view=logic"],
     [dataRoute, { slug: "stable" }, "/viewer?workflow=stable&view=data"],

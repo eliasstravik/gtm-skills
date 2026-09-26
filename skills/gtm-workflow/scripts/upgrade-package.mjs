@@ -5,11 +5,14 @@ import { fileURLToPath } from "node:url";
 
 // Only recognized template commands are replaced. All other commands need a human-readable review.
 // Add a pattern here when a template command changes, so workspaces still on the old stock command are updated.
-const stock = {};
+const stock = { dev: /^node scripts\/local-launch\.mjs dev$/ };
+// Stock commands the template dropped; a customized one stays and is listed for review.
+const retired = { viewer: /^node scripts\/local-launch\.mjs viewer$/ };
 
 export function mergePackage(current, template) {
   const scripts = { ...current.scripts };
   const review = [];
+  for (const [name, pattern] of Object.entries(retired)) if (pattern.test(scripts[name] ?? "")) delete scripts[name];
   for (const [name, command] of Object.entries(template.scripts)) {
     if (scripts[name] === undefined || stock[name]?.test(scripts[name]))
       scripts[name] = command;

@@ -32,12 +32,12 @@ PGHOST="db.invalid"
 `);
 await writeFile(join(dir, "server/api/env-probe.get.ts"), `import { defineHandler } from "nitro";
 export default defineHandler(() => ({ vercel: process.env.VERCEL ?? null, env: process.env.VERCEL_ENV ?? null, git: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
-  project: process.env.VERCEL_PROJECT_ID ?? null, oidc: Boolean(process.env.VERCEL_OIDC_TOKEN), apollo: process.env.APOLLO_API_KEY === "sk-local", pghost: process.env.PGHOST ?? null }));
+  project: process.env.VERCEL_PROJECT_ID ?? null, oidc: Boolean(process.env.VERCEL_OIDC_TOKEN), apollo: process.env.APOLLO_API_KEY === "sk-local", pghost: process.env.PGHOST ?? null, recover: process.env.WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS ?? null }));
 `);
 const config = join(dir, "nitro.config.ts");
 await writeFile(config, (await readFile(config, "utf8")).replace('import "./lib/local-runtime";', 'import "./lib/local-runtime";\nimport { writeFileSync } from "node:fs";\nwriteFileSync("config-env.json", JSON.stringify({ vercel: process.env.VERCEL ?? null }));'));
 
-const child = spawn(process.execPath, ["scripts/local-launch.mjs", "dev"], { cwd: dir, env: { PATH: process.env.PATH, HOME: process.env.HOME, GTM_RUNTIME_PORT: String(PORT), ...(process.env.SYSTEMROOT ? { SYSTEMROOT: process.env.SYSTEMROOT } : {}) }, stdio: ["ignore", "pipe", "pipe"] });
+const child = spawn(process.execPath, ["scripts/local-launch.mjs"], { cwd: dir, env: { PATH: process.env.PATH, HOME: process.env.HOME, GTM_RUNTIME_PORT: String(PORT), ...(process.env.SYSTEMROOT ? { SYSTEMROOT: process.env.SYSTEMROOT } : {}) }, stdio: ["ignore", "pipe", "pipe"] });
 let output = "";
 child.stdout.on("data", (chunk) => { output += chunk; });
 child.stderr.on("data", (chunk) => { output += chunk; });
@@ -51,7 +51,7 @@ try {
     probe = await get("/api/env-probe").then((reply) => reply.status === 200 ? reply.body : null, () => null);
   }
   assert.ok(probe, `the dev server did not answer:\n${output}`);
-  assert.deepEqual(probe, { vercel: null, env: null, git: null, project: null, oidc: true, apollo: true, pghost: null });
+  assert.deepEqual(probe, { vercel: null, env: null, git: null, project: null, oidc: true, apollo: true, pghost: null, recover: "true" });
   assert.deepEqual(JSON.parse(await readFile(join(dir, "config-env.json"), "utf8")), { vercel: null });
   // Local mode throughout: the local Keys page and the local key list, no hosted commit.
   const link = await get("/api/link");
