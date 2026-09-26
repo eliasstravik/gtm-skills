@@ -115,12 +115,12 @@ export async function check({
     "SLACK_CONNECTOR",
   ])
     add(`Agent has ${k}`, aenv.has(k), "", "run setup.mjs");
-  const wfPair = ["GTM_WORKFLOW_URL", "GTM_RUN_SECRET"].map((k) => aenv.has(k));
+  // GTM_RUN_SECRET is retired: the agent reaches the workflow project with Vercel's automation bypass only.
   add(
-    "Agent workflow variables are both set or both absent",
-    wfPair[0] === wfPair[1],
-    wfPair.join("/"),
-    "run setup.mjs (it sets both) or remove the one that is set",
+    "Agent has no retired GTM_RUN_SECRET",
+    !aenv.has("GTM_RUN_SECRET"),
+    "",
+    "remove GTM_RUN_SECRET from the agent project",
   );
   const notifyPair = ["GTM_NOTIFY_SECRET"].map((k) => aenv.has(k));
   add("Agent has GTM_NOTIFY_SECRET", notifyPair[0], "", "run setup.mjs");
@@ -385,7 +385,6 @@ export async function check({
   for (const k of [
     "DATABASE_URL",
     "DATABASE_URL_UNPOOLED",
-    "GTM_RUN_SECRET",
     "CRON_SECRET",
     "GTM_MODEL",
     "GTM_AGENT_URL",

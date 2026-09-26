@@ -23,7 +23,7 @@ The user has the GitHub and Vercel CLIs signed in on this computer, authorizes t
 
 ## Procedure
 
-Talk by the six rules in [interaction](../gtm-workspace/references/interaction.md); reproduce [the dialogues](references/interactions.md). Before any job, confirm this computer can do it: `gh auth status` and `vercel whoami` both succeed, and `node --version` is 22 or newer. When they do not, or when this is the hosted agent itself (no `vercel` on PATH, or `GTM_RUN_SECRET` reads `host`), run nothing: say what is missing in one sentence and that a teammate runs `/gtm-agent` on a computer with both CLIs signed in.
+Talk by the six rules in [interaction](../gtm-workspace/references/interaction.md); reproduce [the dialogues](references/interactions.md). Before any job, confirm this computer can do it: `gh auth status` and `vercel whoami` both succeed, and `node --version` is 22 or newer. When they do not, or when this is the hosted agent itself (no `vercel` on PATH, or `GTM_AGENT_HOSTED` is `1`), run nothing: say what is missing in one sentence and that a teammate runs `/gtm-agent` on a computer with both CLIs signed in.
 
 | Job | Do |
 | --- | --- |
@@ -44,7 +44,7 @@ Secrets never pass through the conversation: the scripts generate them and place
 
 ## Protected workflow viewer
 
-Setup stages an origin-scoped workflow bypass in the agent host, deploys that host, then enables native Vercel Authentication on All Deployments. The bypass and execution bearer never enter model-visible exports or user links. Doctor preserves protection and reports missing machine access or mismatched share-project trust. Webhook senders post to the share project's relay (`https://gtm-<slug>-share.vercel.app/api/intake/<workflow>`), which forwards signed events with its OIDC identity; never give a sender a bypass. Move existing senders there before enabling protection; only pass `--intake-protection-verified` after checking each sender.
+Setup stages an origin-scoped workflow bypass in the agent host, deploys that host, then enables native Vercel Authentication on All Deployments. The bypass never enters model-visible exports or user links. Doctor preserves protection and reports missing machine access or mismatched share-project trust. Webhook senders post to the share project's relay (`https://gtm-<slug>-share.vercel.app/api/intake/<workflow>`), which forwards signed events with its OIDC identity; never give a sender a bypass. Move existing senders there before enabling protection; only pass `--intake-protection-verified` after checking each sender.
 
 One public sharing project uses the workspace repository's `workflows/` root and `npm run build:share`. It has production-to-production Trusted Sources access to its own private project, only the fixed GET proxy, and no database, execution or provider credentials. Enable Share after deployment and access verification. See [workflow viewer](../gtm-workflow/references/viewer.md).
 

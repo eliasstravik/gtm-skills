@@ -134,3 +134,22 @@ test("sharing changes from the tailnet page pass the CSRF check with the tailnet
   await requireMutation(change(tailnetOrigin));
   await assert.rejects(requireMutation(change("http://owner-mac.tail0000.ts.net:55591")), { code: "origin_denied" });
 }));
+
+test("production routes: past Vercel Authentication, never the share relay; agent routes want the bypass, cron its secret", async () => {
+  const previous = { ...process.env };
+  Object.assign(process.env, { VERCEL: "1", GTM_VIEWER_PROTECTED: "1", VERCEL_AUTOMATION_BYPASS_SECRET: "bypass-1", CRON_SECRET: "cron-1" });
+  try {
+    const call = (headers: Record<string, string> = {}, options = {}) => apiAccess(new Request("https://gtm-acme.vercel.app/api/run/x", { method: "POST", headers }), options);
+    assert.equal(await call(), true, "a teammate through vercel curl or the browser");
+    assert.equal(await call({ "x-vercel-trusted-oidc-idp-token": "relay" }), false, "the share relay's identity");
+    assert.equal(await call({ "x-vercel-trusted-oidc-idp-token": "relay", "x-vercel-protection-bypass": "bypass-1" }, { agent: true }), false);
+    assert.equal(await call({}, { agent: true }), false, "share links and key names need the bypass");
+    assert.equal(await call({ "x-vercel-protection-bypass": "bypass-2" }, { agent: true }), false);
+    assert.equal(await call({ "x-vercel-protection-bypass": "bypass-1" }, { agent: true }), true);
+    assert.equal(await call({}, { cron: true }), false, "a GET without CRON_SECRET starts nothing");
+    assert.equal(await call({ authorization: "Bearer cron-2" }, { cron: true }), false);
+    assert.equal(await call({ authorization: "Bearer cron-1" }, { cron: true }), true);
+    process.env.GTM_VIEWER_PROTECTED = "0";
+    assert.equal(await call(), false, "nothing is open before protection is verified");
+  } finally { process.env = previous; }
+});

@@ -14,7 +14,8 @@ test("hosted inventory recognizes request identity without an API key or token e
   process.env.VERCEL = "1";
   process.env.VERCEL_ENV = "production";
   process.env.VERCEL_PROJECT_ID = "prj_test";
-  process.env.GTM_RUN_SECRET = "synthetic-read-secret";
+  process.env.GTM_VIEWER_PROTECTED = "1";
+  process.env.VERCEL_AUTOMATION_BYPASS_SECRET = "synthetic-bypass";
   delete process.env.GTM_VIEWER_MODE;
   delete process.env.GTM_CONNECTIONS_ENABLED;
   delete process.env.VERCEL_OIDC_TOKEN;
@@ -23,7 +24,7 @@ test("hosted inventory recognizes request identity without an API key or token e
   globals[symbol] = { get: () => ({ headers: { "x-vercel-oidc-token": token } }) };
   assert.equal(gatewayPlatformIdentity(), true);
   const workflows = [{ id: "qualify", title: "Qualify", connections: [{ connection: "AI_GATEWAY_API_KEY", provider: "TypeSafe" }] }];
-  const response = await connectionsApi(new Request("https://private.example/api/connections", { headers: { authorization: "Bearer synthetic-read-secret" } }), workflows);
+  const response = await connectionsApi(new Request("https://private.example/api/connections", { headers: { "x-vercel-protection-bypass": "synthetic-bypass" } }), workflows);
   assert.equal(response.status, 200);
   const body = await response.json();
   const row = body.connections.find((entry: { id: string }) => entry.id === "ai-gateway");

@@ -10,7 +10,7 @@ import { cp, mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { writeRootFiles } from "./root-files.mjs";
 import { applyShareFirewall, teamSpendCap } from "./share-firewall.mjs";
-import { requireThat, safeError, setupHosted, workflowProject } from "./hosted.mjs";
+import { linkWorkflows, requireThat, safeError, setupHosted, workflowProject } from "./hosted.mjs";
 const skill = dirname(dirname(fileURLToPath(import.meta.url)));
 export async function setupLocal(workspace) {
   await mkdir(workspace, { recursive: true });
@@ -53,6 +53,7 @@ async function main() {
   if (values.deploy) {
     const target = workflowProject(workspace, { team: values.team, project: values["workflow-project"] });
     result = await setupHosted(target);
+    result.link = linkWorkflows(workspace, { team: target.team, project: result.workflowName });
     // The public share project gets the template's rate limits on every hosted setup and upgrade; the spend cap is only checked.
     const shareProject = values["share-project"] ?? `${result.workflowName}-share`;
     let shareFirewall;

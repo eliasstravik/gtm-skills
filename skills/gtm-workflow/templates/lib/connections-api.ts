@@ -6,7 +6,7 @@ import { localKeyNames } from "./connections-local";
 import { gatewayPlatformIdentity } from "./connections-platform";
 const headers = { "cache-control": "private, no-store", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff" };
 export async function connectionsApi(req: Request, workflows: ConnectionWorkflow[]) {
-  if (req.method !== "GET" || process.env.GTM_VIEWER_MODE === "share" || !(await apiAccess(req)))
+  if (req.method !== "GET" || process.env.GTM_VIEWER_MODE === "share" || !(await apiAccess(req, { agent: Boolean(process.env.VERCEL) })))
     return Response.json({ error: "Connection inventory requires read authorization." }, { status: 401, headers });
   const hosted = Boolean(process.env.VERCEL);
   const workspace = hosted ? process.env.VERCEL_PROJECT_ID : "local";

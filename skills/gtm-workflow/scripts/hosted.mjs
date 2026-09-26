@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseEnv } from "node:util";
 
 export class SetupError extends Error {
   constructor(code, status = 400, instruction) { super(code); this.name = "SetupError"; this.code = code; this.status = status; this.instruction = instruction; }
@@ -69,7 +70,9 @@ export async function setupHosted({ team, project: name }) {
     requireThat(typeof grant.bearerToken === "string" && grant.bearerToken.length > 0 && grant.token?.projectId === project.id, "project_token_creation_failed", 503);
     await setProduction(api, project.id, "GTM_CONNECTIONS_VERCEL_TOKEN", grant.bearerToken, { secret: true });
   }
-  for (const [key, value] of Object.entries({ GTM_CONNECTIONS_VERCEL_URL: `https://vercel.com/${teamSlug}/${project.name}/settings/environment-variables`, GTM_CONNECTIONS_ORIGIN: origin, GTM_CONNECTIONS_TEAM_ID: project.accountId, GTM_CONNECTIONS_ENABLED: "1" }))
+  // GTM_VIEWER_PROTECTED says Vercel Authentication was verified on all deployments (checked above): the private routes
+  // trust any request that reached them only when it is set.
+  for (const [key, value] of Object.entries({ GTM_VIEWER_PROTECTED: "1", GTM_CONNECTIONS_VERCEL_URL: `https://vercel.com/${teamSlug}/${project.name}/settings/environment-variables`, GTM_CONNECTIONS_ORIGIN: origin, GTM_CONNECTIONS_TEAM_ID: project.accountId, GTM_CONNECTIONS_ENABLED: "1" }))
     await setProduction(api, project.id, key, value, { secret: false });
   return { status: "deployment_required", projectId: project.id, workflowName: project.name, connectionsUrl: `${origin}/connections`,
     instruction: "Deploy the workflow runtime to Production (push to main), then open the Keys page through your normal Vercel session." };
@@ -80,8 +83,37 @@ export async function doctorHosted({ team, project: name }) {
   const api = ownerApi(team), project = await api("GET", `/v9/projects/${encodeURIComponent(name)}`);
   const problems = protectionProblems(project);
   const env = await safeEnvironment(api, project.id);
-  const missing = ["GTM_CONNECTIONS_VERCEL_TOKEN", "GTM_CONNECTIONS_VERCEL_URL", "GTM_CONNECTIONS_ORIGIN", "GTM_CONNECTIONS_TEAM_ID", "GTM_CONNECTIONS_ENABLED"]
+  if (project.previewDeploymentsDisabled !== true) problems.push("turn_off_preview_deployments");
+  const missing = ["GTM_VIEWER_PROTECTED", "GTM_CONNECTIONS_VERCEL_TOKEN", "GTM_CONNECTIONS_VERCEL_URL", "GTM_CONNECTIONS_ORIGIN", "GTM_CONNECTIONS_TEAM_ID", "GTM_CONNECTIONS_ENABLED"]
     .filter((key) => !env.some((row) => row.key === key && row.target?.includes("production")));
   return { status: problems.length ? problems[0] : missing.length ? "setup_needed" : "production_ready", workflowName: project.name, missing,
     connectionsUrl: `https://${project.name}.vercel.app/connections` };
+}
+
+const DATABASE_VARIABLE = /^(?:DATABASE_URL|POSTGRES_|PG)/;
+const localKey = (name) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) && !/^(?:GTM|VERCEL|NEXT|DATABASE|POSTGRES|PG|NEON|CRON|WORKFLOW|NODE|NPM)_?/i.test(name) && /(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)/i.test(name);
+/**
+ * `vercel link` in workflows/, where the Vercel app lives, so `vercel env pull`, `vercel curl` and `workflow inspect
+ * --backend vercel` work there. Before the first pull can happen: refuse when the Development environment holds a
+ * database (the Neon integration ticks Development by default), and add keys saved only in `.env.local` to
+ * Development, so a later pull brings them back instead of dropping them.
+ */
+export function linkWorkflows(workspace, { team, project }) {
+  const runtime = join(workspace, "workflows");
+  if (existsSync(join(runtime, ".vercel", "project.json"))) return { linked: "already" };
+  const cli = (args, input) => spawnSync("vercel", [...args, "--non-interactive", "--scope", team], { cwd: runtime, input, encoding: "utf8", stdio: "pipe", maxBuffer: 8 * 1024 * 1024 });
+  const listed = cli(["env", "ls", "development", "--project", project, "--format", "json"]);
+  requireThat(listed.status === 0, "vercel_command_failed", 503, "Sign in with `vercel login` as a member of the team, then run this again.");
+  const development = new Set(JSON.parse(listed.stdout.split("\n").filter((line) => !line.startsWith("<claude-code-hint")).join("\n")).envs.map((row) => row.key));
+  requireThat(![...development].some((name) => DATABASE_VARIABLE.test(name)), "production_database_in_development", 409,
+    "The project's Development environment holds a database. In Vercel, open the Neon integration's settings and untick Development for the production database, then run setup again. A Neon development branch connected to Development on purpose: run `vercel link` in workflows/ yourself.");
+  const file = join(runtime, ".env.local"), local = existsSync(file) ? parseEnv(readFileSync(file, "utf8")) : {};
+  const added = [];
+  for (const [name, value] of Object.entries(local)) {
+    if (!localKey(name) || development.has(name) || !value?.trim()) continue;
+    requireThat(cli(["env", "add", name, "development", "--project", project, "--no-sensitive", "--yes"], value).status === 0, "vercel_command_failed", 503);
+    added.push(name);
+  }
+  requireThat(cli(["link", "--yes", "--project", project]).status === 0, "vercel_link_failed", 503);
+  return { linked: "now", addedToDevelopment: added };
 }

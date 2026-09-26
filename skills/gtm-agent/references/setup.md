@@ -26,8 +26,7 @@
 | `GTM_NOTIFY_CHANNEL` | optional | | `--channel` |
 | `GTM_AGENT_MODEL`, `GTM_AGENT_REASONING` | optional | | `--model`, by hand |
 | `GTM_WORKFLOW_URL` | yes | | existing workflow binding |
-| `GTM_RUN_SECRET` | yes | yes | existing machine transport |
-| `CRON_SECRET` | | yes | existing workflow hosting |
+| `CRON_SECRET` | | yes | setup, a random value of its own (Vercel Cron sends it) |
 | `GTM_NOTIFY_SECRET` | yes | yes | existing notification transport |
 | `GTM_MODEL`, `GTM_REASONING` | | yes, optional | by hand |
 | `GTM_AGENT_URL` | | yes | existing notification binding |
