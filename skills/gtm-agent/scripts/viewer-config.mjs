@@ -51,6 +51,9 @@ export function prepareViewer({
     });
     setEnv(team, agentProject, "GTM_WORKFLOW_BYPASS_SECRET", secret);
   }
+  // Vercel Cron authenticates with CRON_SECRET: its own random value, unrelated to any other credential.
+  if (!envNames(team, workflowProject).has("CRON_SECRET"))
+    setEnv(team, workflowProject, "CRON_SECRET", randomBytes(32).toString("hex"));
   setEnv(team, agentProject, "GTM_WORKFLOW_GATE_REQUIRED", "1", {
     secret: false,
     force: true,

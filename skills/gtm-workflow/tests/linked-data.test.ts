@@ -9,7 +9,6 @@ import {
   renderData,
   type WorkflowData,
 } from "../templates/lib/data-api";
-import { signLink, verifyLink } from "../templates/lib/sign";
 
 const people = pgTable("network_people", {
   key: text("key").primaryKey(),
@@ -168,22 +167,6 @@ test("stored content and links are escaped in HTML", async () => {
   assert.ok(!html.includes("<script>"));
   assert.ok(html.includes("&lt;script&gt;"));
   assert.ok(!html.includes("Never display this"));
-});
-
-test("data tokens cannot be substituted with diagram or another workflow's tokens", () => {
-  process.env.GTM_RUN_SECRET = "fixture-secret-not-a-real-credential";
-  assert.equal(verifyLink("data:network", signLink("data:network")), true);
-  assert.equal(verifyLink("data:network", signLink("network")), false);
-  assert.equal(
-    verifyLink("data:network", signLink("data:another-network")),
-    false,
-  );
-  assert.equal(verifyLink("data:network", signLink("data:network", -1)), false);
-  assert.equal(verifyLink("data:network", null), false);
-  assert.equal(
-    verifyLink("data:network", `${Date.now() + 100000}.${"é".repeat(43)}`),
-    false,
-  );
 });
 
 test("row policies constrain table reads, relationship labels and related-record counts", async () => {

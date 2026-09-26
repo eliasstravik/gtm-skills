@@ -1,1 +1,4 @@
-{ "crons": [] }
+{
+  "crons": [],
+  "git": { "deploymentEnabled": { "**": false, "main": true } }
+}

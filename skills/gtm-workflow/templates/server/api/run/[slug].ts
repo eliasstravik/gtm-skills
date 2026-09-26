@@ -8,7 +8,8 @@ import { findWorkflow } from "../../../lib/workflow-registry";
 /**
  * Start a run. POST: input = { ...defaultInput, ...body }. Returns { id }. GET is Vercel Cron's form (input =
  * defaultInput, CRON_SECRET) and exists only on Vercel: locally a GET never starts anything, so no link or image on
- * another web page can start a run on this computer. Access: see lib/route-access.ts.
+ * another web page can start a run on this computer. Access: see lib/route-access.ts (from a laptop:
+ * `vercel curl /api/run/<slug> -- -X POST`).
  */
 export default defineHandler(async (event) => {
   const isGet = event.req.method === "GET";

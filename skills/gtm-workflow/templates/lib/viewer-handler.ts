@@ -25,7 +25,7 @@ import { activeLink, recoverLink, saveLink, shareUrl } from "./viewer-sharing";
 import { destinations } from "./viewer-destinations";
 import { db } from "./db";
 import { publicDisplay } from "./viewer-display";
-import { bearerOk } from "./sign";
+import { apiAccess } from "./route-access";
 import { DataInputError, type DataPage } from "./data-api";
 import { exportCsv } from "./viewer-csv";
 import { connectionsOrigin } from "./viewer-link";
@@ -45,13 +45,14 @@ const failures = new Map<string, { count: number; until: number }>();
 const registryVersion = fingerprint(registry);
 export async function viewerApi(req: Request, shared = false, service = false) {
   try {
-    if (service && (!process.env.VERCEL || !bearerOk(req)))
+    // Share links for the agent: hosted only, with Vercel's automation bypass (lib/route-access.ts).
+    if (service && (!process.env.VERCEL || !(await apiAccess(req, { agent: true }))))
       throw new ViewerError(
         401,
         "unauthorized",
         "Authenticated hosted service access required.",
       );
-    // The agent's bearer (service) and share tokens (shared) are their own credentials; everything else needs the owner.
+    // The agent's bypass (service) and share tokens (shared) are their own credentials; everything else needs the owner.
     const owner = async () => { if (!service) await privateAccess(req); };
     if (!shared) await owner();
     if (

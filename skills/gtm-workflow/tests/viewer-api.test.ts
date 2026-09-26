@@ -17,7 +17,7 @@ Object.assign(process.env, {
   VERCEL_ENV: "production",
   GTM_VIEWER_PROTECTED: "1",
   GTM_VIEWER_SHARE_ORIGIN: "https://share.example",
-  GTM_RUN_SECRET: "fixture-credential",
+  VERCEL_AUTOMATION_BYPASS_SECRET: "fixture-credential",
   GTM_VIEWER_LINK_KEY: "ab".repeat(32),
 });
 // The real lib/db.ts on a migrated test database; only the table registry and the workflow runtime are stand-ins.
@@ -65,7 +65,7 @@ const req = (op: string, token?: string, body?: unknown, extra = "") =>
         ...(token ? { "x-gtm-share-token": token } : {}),
         ...(body
           ? {
-              authorization: "Bearer fixture-credential",
+              "x-vercel-protection-bypass": "fixture-credential",
               "content-type": "application/json",
             }
           : {}),
