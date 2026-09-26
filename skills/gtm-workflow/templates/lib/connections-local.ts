@@ -94,6 +94,8 @@ export async function pullDevelopment() {
   const temporary = `.vercel/.env.pull.${randomUUID()}`;
   try {
     await vercel(["env", "pull", temporary, "--environment=development", "--yes"]);
+    // The CLI writes it with the default mode; owner-only before anything reads it.
+    await chmod(join(root(), temporary), 0o600);
     const pulled = parseEnv(await readFile(join(root(), temporary), "utf8"));
     for (const [name, value] of Object.entries(pulled).filter(([name]) => DATABASE_VARIABLE.test(name))) {
       if (!value || !/^postgres(?:ql)?:\/\//.test(value)) continue;
@@ -114,11 +116,11 @@ export async function changeLocalKey(input: LocalChange) {
     return { saved: true, store: "file" as const };
   }
   const development = await developmentNames();
-  // A pull replaces `.env.local` with Vercel's copy: anything saved only here goes up to Development first, so the
-  // pull below cannot lose it. System variables from an earlier pull are Vercel's own and never go up.
+  // A pull replaces `.env.local` with Vercel's copy: keys saved only here go up to Development first, so the pull below
+  // cannot lose them. Only keys: settings belong in `.env`, which no pull touches, and nothing else is published.
   const here = parseEnv(readEnvFile(".env.local"));
   for (const [name, value] of Object.entries(here))
-    if (!name.startsWith("VERCEL") && !development.has(name) && name !== input.variable && value?.trim())
+    if (providerVariable(name) && !development.has(name) && name !== input.variable && value?.trim())
       await vercel(["env", "add", name, "development", "--no-sensitive", "--yes"], value!);
   if (input.action === "disconnect") {
     if (development.has(input.variable)) await vercel(["env", "rm", input.variable, "development", "--yes"]);
