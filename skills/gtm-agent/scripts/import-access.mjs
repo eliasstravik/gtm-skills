@@ -40,7 +40,8 @@ try {
   const ident = (name) => owner.escapeIdentifier(name), literal = (text) => owner.escapeLiteral(text);
   const exists = (await owner.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [ROLE])).rowCount;
   await owner.query(`${exists ? "ALTER" : "CREATE"} ROLE ${ROLE} LOGIN PASSWORD ${literal(password)}`);
-  const superuser = (await owner.query("SELECT 1 FROM pg_auth_members m JOIN pg_roles r ON r.oid = m.roleid JOIN pg_roles u ON u.oid = m.member WHERE r.rolname = 'neon_superuser' AND u.rolname = $1", [ROLE])).rowCount;
+  // Direct or through another role.
+  const superuser = (await owner.query("SELECT 1 FROM pg_roles WHERE rolname = 'neon_superuser' AND pg_has_role($1, oid, 'MEMBER')", [ROLE])).rowCount;
   if (superuser) throw Error(`${ROLE} is a member of neon_superuser; drop it in the Neon console and run this again`);
   await owner.query(`
     GRANT CONNECT ON DATABASE ${ident(who.database)} TO ${ROLE};
