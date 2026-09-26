@@ -19,7 +19,7 @@ function missingUrl() {
   return new Error(
     process.env.VERCEL
       ? "No DATABASE_URL: connect Neon to this project through the Vercel integration"
-      : "No DATABASE_URL: start `npm run dev` or `npm run viewer` first",
+      : "No DATABASE_URL: start `npm run dev` first",
   );
 }
 // node-postgres emits "error" for idle clients whose connection drops; an unhandled one kills the process. Never log the URL.
