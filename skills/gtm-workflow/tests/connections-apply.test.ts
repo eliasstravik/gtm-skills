@@ -5,11 +5,10 @@ import { changeAndApplyConnection } from "../templates/lib/connections-managemen
 const id = "cd145659-2da3-40af-86af-49febc08e67d", projectId = "prj_test";
 const origin = "https://workflows.example.com";
 const serving = { id: "dpl_serving", readyState: "READY" };
-const managed = { id: "env_marker", key: "GTM_CONNECTIONS_MANAGED", type: "plain", target: ["production"], updatedAt: 1, value: JSON.stringify(["APOLLO_API_KEY"]) };
 function fixture({ latest = { uid: serving.id, state: "READY", meta: {} }, createFails = false, writeFails = false } : any = {}) {
   const writes: any[] = [];
   const api = async (method: string, path: string, body?: any): Promise<any> => {
-    if (method === "GET" && path.includes("/env")) return { envs: [{ id: "env_test", key: "APOLLO_API_KEY", target: ["production"], updatedAt: 1 }, managed] };
+    if (method === "GET" && path.includes("/env")) return { envs: [{ id: "env_test", key: "APOLLO_API_KEY", target: ["production"], updatedAt: 1 }] };
     if (method === "GET" && path.includes("/projects/")) return { id: projectId, name: "workflows", targets: { production: { id: "dpl_not_serving", readyState: "BUILDING" } }, secret: "never-return" };
     if (method === "GET" && path.includes("/aliases/")) return { projectId, deployment: serving };
     if (method === "GET" && path.includes("/deployments?")) return { deployments: [latest] };
@@ -21,13 +20,13 @@ function fixture({ latest = { uid: serving.id, state: "READY", meta: {} }, creat
   return { api, writes };
 }
 const change = () => ({ id, variable: "APOLLO_API_KEY", action: "replace", version: "env_test:1", value: "synthetic-key" });
-test("key changes rebuild serving code after saving, with no secrets in deployment metadata", async () => {
+test("key changes build the latest production commit after saving, with no secrets in deployment metadata", async () => {
   const { api, writes } = fixture();
   const input = change();
   assert.deepEqual((await changeAndApplyConnection(api, projectId, input, origin)).application, { state: "applying", id });
   assert.equal(input.value, undefined);
   assert.match(writes[0].path, /\/env\//);
-  assert.deepEqual(writes[1], { method: "POST", path: "/v13/deployments?forceNew=1", body: { name: "workflows", project: projectId, deploymentId: serving.id, target: "production", withLatestCommit: false, meta: { gtmConnectionsChange: id } } });
+  assert.deepEqual(writes[1], { method: "POST", path: "/v13/deployments?forceNew=1", body: { name: "workflows", project: projectId, deploymentId: serving.id, target: "production", withLatestCommit: true, meta: { gtmConnectionsChange: id } } });
 });
 test("add and delete apply automatically; renaming never touches deployments", async () => {
   for (const action of ["add", "disconnect"]) {
@@ -39,7 +38,7 @@ test("add and delete apply automatically; renaming never touches deployments", a
   let calls = 0;
   const result = await changeAndApplyConnection(async (method, path) => {
     calls++; assert.match(path, /\/env/);
-    return method === "GET" ? { envs: [{ id: "env_test", key: "APOLLO_API_KEY", target: ["production"], updatedAt: 1 }, managed] } : {};
+    return method === "GET" ? { envs: [{ id: "env_test", key: "APOLLO_API_KEY", target: ["production"], updatedAt: 1 }] } : {};
   }, projectId, { ...change(), value: undefined, label: "Apollo" }, origin);
   assert.equal(calls, 2); assert.equal(result.requiresDeployment, false); assert.equal(result.application, undefined);
 });
@@ -82,7 +81,7 @@ test("uncertain secret writes never start a deployment or resubmit automatically
 test("client input cannot select another project, source, or latest commit", async () => {
   const { api, writes } = fixture();
   await changeAndApplyConnection(api, projectId, { action: "apply", id, project: "attacker", deploymentId: "attacker", withLatestCommit: true }, origin);
-  assert.equal(writes[0].body.project, projectId); assert.equal(writes[0].body.deploymentId, serving.id); assert.equal(writes[0].body.withLatestCommit, false);
+  assert.equal(writes[0].body.project, projectId); assert.equal(writes[0].body.deploymentId, serving.id); assert.equal(writes[0].body.withLatestCommit, true);
   await assert.rejects(changeAndApplyConnection(api, projectId, { action: "apply", id: "invalid" }, origin), /invalid_change/);
 });
 

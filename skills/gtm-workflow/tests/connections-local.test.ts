@@ -2,7 +2,7 @@
 // login gets in, and nothing on another web site can change keys or start runs.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { editEnv, localKeyNames, savedKeyNames } from "../templates/lib/connections-local";
@@ -49,6 +49,18 @@ test("unlinked: the Keys page saves to .env.local, owner-only, and lists names, 
   assert.deepEqual(localKeyNames({}), []);
   await connectionsManagement(page("POST", {}, { action: "disconnect", variable: "APOLLO_API_KEY" }), []);
   assert.equal(await readFile(join(dir, ".env.local"), "utf8"), "# keep me\nGTM_VIEWER_TAILNET_OWNER=me@example.com\n");
+}));
+
+test("linked: the Keys page still writes .env.local only and never runs the Vercel CLI", () => inFolder(async (dir) => {
+  await mkdir(join(dir, ".vercel")); await writeFile(join(dir, ".vercel", "project.json"), "{}");
+  // A `vercel` on PATH that would leave a trace if the page ever ran it.
+  await mkdir(join(dir, "bin")); await writeFile(join(dir, "bin", "vercel"), `#!/bin/sh\ntouch ${join(dir, "ran")}\n`, { mode: 0o755 });
+  process.env.PATH = `${join(dir, "bin")}:${process.env.PATH}`;
+  const saved = await connectionsManagement(page("POST", {}, { action: "add", variable: "APOLLO_API_KEY", value: "sk-1" }), []);
+  assert.deepEqual(await saved.json(), { saved: true, store: "file", restartRequired: true });
+  assert.equal(await readFile(join(dir, ".env.local"), "utf8"), "APOLLO_API_KEY='sk-1'\n");
+  assert.equal((await (await connectionsManagement(page(), [])).json()).linked, true);
+  await assert.rejects(stat(join(dir, "ran")));
 }));
 
 test("another site, another host or a script without the page's origin cannot change keys", () => inFolder(async (dir) => {

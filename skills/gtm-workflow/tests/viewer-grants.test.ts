@@ -228,7 +228,7 @@ test("browser writes require matching Origin and CSRF cookie/header", async () =
 test("hosted viewer needs an owner session Vercel confirms, not just a request past Vercel", async () => {
   const origin = "https://gtm-acme.vercel.app", teamId = "team_acme";
   const saved = { ...process.env };
-  Object.assign(process.env, { VERCEL: "1", GTM_VIEWER_PROTECTED: "1", GTM_CONNECTIONS_ORIGIN: origin, GTM_CONNECTIONS_TEAM_ID: teamId });
+  Object.assign(process.env, { VERCEL: "1", GTM_VIEWER_PROTECTED: "1", VERCEL_PROJECT_PRODUCTION_URL: new URL(origin).host, GTM_CONNECTIONS_TEAM_ID: teamId });
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   const jwt = (claims: Record<string, unknown>) => `${encode({ alg: "none" })}.${encode(claims)}.signature`;
   const owner = jwt({ userId: "user_a", ownerId: teamId, aud: "gtm-acme.vercel.app", sub: "sso-protection" });
@@ -258,7 +258,7 @@ test("hosted viewer needs an owner session Vercel confirms, not just a request p
     );
     // A confirmed session is remembered briefly, so viewer polling does not probe Vercel on every request.
     await privateAccess(request({ cookie: `_vercel_jwt=${owner}` }), async () => { throw Error("not probed again"); });
-    delete process.env.GTM_CONNECTIONS_ORIGIN;
+    delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
     await assert.rejects(privateAccess(request({ cookie: `_vercel_jwt=${owner}` }), vercel), { code: "configuration" });
   } finally {
     for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];

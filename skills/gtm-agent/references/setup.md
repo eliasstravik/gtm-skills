@@ -32,7 +32,7 @@
 | `GTM_VIEWER_PROTECTED`, `GTM_VIEWER_SHARE_ORIGIN`, `GTM_VIEWER_LINK_KEY` | | yes | workflow setup |
 | `DATABASE_URL`, `DATABASE_URL_UNPOOLED` | never | yes | the Neon integration in Vercel, Production only; never by hand, and never on the share project |
 | `GTM_CONNECTIONS_VERCEL_TOKEN` | | yes | workflow setup: a project-scoped token, saved as a Production Secret |
-| `GTM_CONNECTIONS_ENABLED`, `GTM_CONNECTIONS_ORIGIN`, `GTM_CONNECTIONS_TEAM_ID`, `GTM_CONNECTIONS_VERCEL_URL` | | yes | workflow setup |
+| `GTM_CONNECTIONS_ENABLED`, `GTM_CONNECTIONS_TEAM_ID`, `GTM_CONNECTIONS_VERCEL_URL` | | yes | workflow setup |
 | Provider keys (`MONID_API_KEY`, …) | never | as needed | protected Production Connections form |
 | `AI_GATEWAY_API_KEY` | never | never | the deployed copies use the project's OIDC identity |
 

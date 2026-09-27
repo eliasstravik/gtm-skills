@@ -16,7 +16,7 @@ A workspace is an ordinary Vercel app: `workflows/` on a laptop is local, the Ve
 
 Link once: `vercel link` in `workflows/` (shared setup `--deploy` does it, after refusing a Development environment that holds the production database). Then, from `workflows/`:
 
-- Start a production run: `vercel curl /api/run/<slug> -- -X POST` (add `-H 'content-type: application/json' -d '{"maxRows":1}'` for a limited run).
+- Start a production run: `vercel curl /api/run/<slug> -- -X POST` (add `-H 'content-type: application/json' -d '{"maxRows":1}'` for a limited run). A workflow that already has a run pending or running answers 409 `{"error":"already_running","runningRunId":…}`, whoever started it (a schedule, a teammate, the Slack agent); wait for it or cancel it. Only one network enrichment runs per workspace at a time; a second one fails saying so.
 - Read production rows: `vercel curl /api/query -- -X POST -H 'content-type: application/json' -d '{"sql":"select key, score from example_scores limit 20"}'`.
 - A run's state: `vercel curl /api/runs/<id>`; runs: `npx workflow inspect runs --backend vercel`; logs: `vercel logs`.
 - Keys: `vercel env add <NAME> production` (or the deployed Keys page, or the dashboard); `vercel env pull` fills `.env.local` from Development as usual.

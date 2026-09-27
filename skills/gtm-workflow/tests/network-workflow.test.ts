@@ -58,8 +58,8 @@ function fakeEngine(options: Omit<Parameters<typeof runNetwork>[0], "input" | "e
     async startChunks(this: unknown, _workflowId: string, inputs: NetworkRunInput[]) {
       assertNoReceiver(this, "startChunks");
       started.push(...inputs);
-      // Children run concurrently, as separate runs would.
-      await Promise.all(inputs.map((input) => runNetwork({ ...options, input, engine })));
+      // Children run concurrently, as separate runs would; a child that fails does not fail the start.
+      await Promise.all(inputs.map((input) => runNetwork({ ...options, input, engine }).catch(() => undefined)));
       return inputs.map((_, i) => `child-${started.length - inputs.length + i}`);
     },
     awaitChunks(this: unknown, tokens: string[]) {
@@ -131,4 +131,34 @@ test("a list within one chunk runs in the parent alone, and a second run reuses 
   } finally {
     restore();
   }
+});
+
+test("a second network run fails in plain words while another holds the workspace's slot", async () => {
+  await testDatabase();
+  await db().insert(profileRuns).values({ id: "someone-else", workflow_id: "other", owner: "someone-else", lease_until: new Date(Date.now() + 60_000), state: "running", budget_micro: 1, input_json: [], created_at: new Date() });
+  const options = { workflow, workflowId: "network-uuid", apiKeyVariable: "TEST_BLITZ_KEY" };
+  const { engine } = fakeEngine(options);
+  await assert.rejects(runNetwork({ ...options, input: { provider: "blitz", rows: [{ profile_url: "https://www.linkedin.com/in/p1" }] }, engine }), /Another network run \(someone-else\) is already running/);
+  // Its lease runs out (its worker died): the next run cancels it and goes ahead.
+  await db().update(profileRuns).set({ lease_until: new Date(Date.now() - 1000) });
+  const calls: Call[] = [];
+  const restore = stubBlitz(calls);
+  process.env.TEST_BLITZ_KEY = "key";
+  try {
+    const summary = (await runNetwork({ ...options, input: { provider: "blitz", rows: [{ profile_url: "https://www.linkedin.com/in/p1" }], requestsPerSecond: 100_000 }, engine })) as Awaited<ReturnType<typeof runSummary>>;
+    assert.equal(summary.state, "complete");
+    assert.deepEqual((await db().select({ id: profileRuns.id, state: profileRuns.state }).from(profileRuns)).sort((a, b) => a.id.localeCompare(b.id)),
+      [{ id: "someone-else", state: "cancelled" }, { id: "wrun_fixture", state: "complete" }]);
+  } finally { restore(); }
+});
+
+test("a child that fails tells the parent, which stops and frees the slot instead of waiting forever", async () => {
+  await testDatabase();
+  delete process.env.TEST_BLITZ_KEY;
+  const rows = Array.from({ length: 10 }, (_, i) => ({ profile_url: `https://www.linkedin.com/in/p${i}` }));
+  const options = { workflow, workflowId: "network-uuid", apiKeyVariable: "TEST_BLITZ_KEY", chunkSize: 5, concurrency: 2 };
+  const { engine } = fakeEngine(options);
+  await assert.rejects(runNetwork({ ...options, input: { provider: "blitz", rows }, engine }), /Network run stopped: Set TEST_BLITZ_KEY/);
+  const [run] = await db().select().from(profileRuns);
+  assert.equal(run.state, "cancelled");
 });

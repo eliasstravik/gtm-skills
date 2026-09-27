@@ -1,21 +1,23 @@
-import { defineHook, getWorkflowMetadata, setAttributes } from "workflow";
+import { defineHook, getWorkflowMetadata, setAttributes, sleep } from "workflow";
 import { resumeHook, start } from "workflow/api";
 import { z } from "zod";
 import { db } from "../db";
 import { recordChildren } from "../rows";
-import { finishRun, runSummary, type RunLease } from "./ledger";
+import { cancelRun, finishRun, runSummary, type RunLease } from "./ledger";
 import { collectCompanies, enrichItems, prepareNetwork, DEFAULT_WORKERS, type NetworkInput, type NetworkPerson } from "./network";
 
 /** Plain steps: 100 items is far under the engine's 25,000-event cap and one chunk is one step. */
 export const NETWORK_CHUNK_SIZE = 100;
 /** Child runs at a time. With twelve workers each, four children offer 48 requests at once; the provider's pacing table is the real cap. */
 export const NETWORK_CONCURRENCY = 4;
+/** How long a wave of children may take. One chunk's lease is 30 minutes, so a wave still going after an hour has a child that died without reporting. */
+export const NETWORK_WAVE_TIMEOUT = "1h";
 
 type Phase = "people" | "companies";
 type Chunk = { phase: Phase; items: NetworkPerson[] | string[]; lease: RunLease; parent: string };
 /** A network workflow's input: the user's settings, plus `chunk` on a child that runNetwork started for one chunk of one phase. */
 export type NetworkRunInput = NetworkInput & { chunk?: Chunk };
-export type ChunkReport = { phase: Phase; count: number };
+export type ChunkReport = { phase: Phase; count: number; error?: string };
 export type RunNetworkOptions = {
   /** The workflow function itself; its engine id starts the children. */
   workflow: (input: never) => Promise<unknown>;
@@ -37,7 +39,7 @@ export type RunNetworkOptions = {
   };
 };
 
-const chunkHook = defineHook({ schema: z.object({ phase: z.enum(["people", "companies"]), count: z.number() }) });
+const chunkHook = defineHook({ schema: z.object({ phase: z.enum(["people", "companies"]), count: z.number(), error: z.string().optional() }) });
 
 /**
  * The whole of a network enrichment run, in workflow scope: import, people, company collection, companies, summary.
@@ -59,12 +61,18 @@ export async function runNetwork(o: RunNetworkOptions) {
   await setAttributes({ workflow: workflowSlug(), ...(input.chunk && { parent: input.chunk.parent.split(":chunk:")[0] as string, phase: input.chunk.phase }) });
   if (input.chunk) {
     const { chunk, ...settings } = input;
-    await enrichChunk(chunk.lease, chunk.phase, chunk.items, settings, o.apiKeyVariable, o.workers);
-    const result: ChunkReport = { phase: chunk.phase, count: chunk.items.length };
+    // The parent always hears back, failure included, so it never waits on a child that is gone.
+    let result: ChunkReport = { phase: chunk.phase, count: chunk.items.length };
+    try { await enrichChunk(chunk.lease, chunk.phase, chunk.items, settings, o.apiKeyVariable, o.workers); }
+    catch (error) { result = { ...result, error: error instanceof Error ? error.message : String(error) }; }
     await reportChunk(chunk.parent, result);
+    if (result.error) throw new Error(result.error);
     return result;
   }
   const prepared = await prepare(o.workflowId, workflowRunId, input);
+  // One network run per workspace. A second one fails in plain words instead of passing off the first run's summary as its own.
+  if (prepared.status === "already_running")
+    throw new Error(`Another network run (${prepared.runId}) is already running in this workspace; start this one when it finishes`);
   if (prepared.status !== "running") return summary(prepared.runId);
   const { lease } = prepared;
   const engineWorkflowId = (o.workflow as unknown as { workflowId?: string }).workflowId;
@@ -86,7 +94,14 @@ export async function runNetwork(o: RunNetworkOptions) {
         engineWorkflowId,
         waveChunks.map((chunk, j) => ({ ...input, rows: undefined, chunk: { phase: name, items: chunk, lease, parent: tokens[j] } })),
       );
-      await reports;
+      // Timeouts are a race against sleep(): timers do not exist in workflow scope.
+      const outcome = await Promise.race([reports, sleep(NETWORK_WAVE_TIMEOUT).then(() => "timeout" as const)]);
+      const failed = outcome === "timeout" ? `a chunk of ${name} did not report within ${NETWORK_WAVE_TIMEOUT}` : outcome.find((r) => r.error)?.error;
+      if (failed) {
+        // Frees the workspace's one network slot now; the ledger keeps what was bought, and a new run reuses it.
+        await release(lease.id);
+        throw new Error(`Network run stopped: ${failed}`);
+      }
     }
   };
   await phase("people", prepared.people);
@@ -120,6 +135,11 @@ async function finish(lease: RunLease) {
   "use step";
   await finishRun(db(), lease);
   return runSummary(db(), lease.id);
+}
+
+async function release(runId: string) {
+  "use step";
+  await cancelRun(db(), runId);
 }
 
 async function summary(runId: string) {

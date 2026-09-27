@@ -35,7 +35,7 @@ export function ownerApi(team) {
 }
 
 // Settings the scripts write and compare, as plain variables whose values Vercel returns; every other variable is names only.
-const SETTINGS = new Set(["GTM_VIEWER_PROTECTED", "GTM_CONNECTIONS_ENABLED", "GTM_CONNECTIONS_TEAM_ID", "GTM_CONNECTIONS_VERCEL_URL", "GTM_CONNECTIONS_ORIGIN",
+const SETTINGS = new Set(["GTM_VIEWER_PROTECTED", "GTM_CONNECTIONS_ENABLED", "GTM_CONNECTIONS_TEAM_ID", "GTM_CONNECTIONS_VERCEL_URL",
   "GTM_VIEWER_SHARE_ORIGIN", "GTM_VIEWER_PRIVATE_ORIGIN", "GTM_VIEWER_PRIVATE_PROJECT_ID", "GTM_AGENT_URL", "GTM_WORKFLOW_URL", "GTM_WORKFLOW_GATE_REQUIRED"]);
 /** A project's variables: names, targets, types and update times; values only for the plain settings above. */
 export async function safeEnvironment(api, projectId) {
@@ -89,7 +89,7 @@ export const settingsPatch = (project, wanted) => Object.fromEntries(Object.entr
 // Database variables in every form the Neon integration injects, and secrets that must never reach the public share project.
 export const DATABASE_VARIABLE = /^(?:DATABASE_URL|POSTGRES_|PG[A-Z])/;
 // Variables of earlier designs that nothing reads any more.
-const RETIRED = /^(?:GTM_RUN_SECRET|GTM_DATA_URL|GTM_RUNS_URL)$/;
+const RETIRED = /^(?:GTM_RUN_SECRET|GTM_DATA_URL|GTM_RUNS_URL|GTM_CONNECTIONS_ORIGIN|GTM_CONNECTIONS_MANAGED)$/;
 const PRIVATE_ONLY = /^(?:DATABASE_URL|POSTGRES_|PG[A-Z]|NEON_|CRON_SECRET$|GTM_GITHUB_TOKEN$|GTM_CONNECTIONS_VERCEL_TOKEN$|GTM_VIEWER_LINK_KEY$)/;
 
 /** The automation bypasses on a project; the one Vercel gives deployments as VERCEL_AUTOMATION_BYPASS_SECRET comes first. Secrets never leave this module. */
@@ -277,7 +277,7 @@ export async function setupHosted(workspace, { team, project: name, share: share
     changed = (await setProduction(api, runtime, env, "GTM_CONNECTIONS_VERCEL_TOKEN", grant.bearerToken, { secret: true })) || changed;
   }
   const teamSlug = team.startsWith("team_") ? (await api("GET", `/v2/teams/${runtime.accountId}`)).slug : team;
-  const settings = { GTM_VIEWER_PROTECTED: "1", GTM_CONNECTIONS_ENABLED: "1", GTM_CONNECTIONS_TEAM_ID: runtime.accountId, GTM_CONNECTIONS_ORIGIN: origin,
+  const settings = { GTM_VIEWER_PROTECTED: "1", GTM_CONNECTIONS_ENABLED: "1", GTM_CONNECTIONS_TEAM_ID: runtime.accountId,
     GTM_CONNECTIONS_VERCEL_URL: `https://vercel.com/${teamSlug}/${runtime.name}/settings/environment-variables` };
 
   // The public share project: share links and the webhook relay. It trusts nothing but reaches the runtime through
@@ -365,11 +365,10 @@ export async function doctorHosted({ team, project: name, linked }) {
   add(hasProduction(env, "DATABASE_URL") && hasProduction(env, "DATABASE_URL_UNPOOLED"), "Neon connected to Production", `in workflows/, \`vercel integration add neon -e production --scope ${team}\``);
   add(!env.some((row) => DATABASE_VARIABLE.test(row.key) && !row.target.every((target) => target === "production")), "No database in Development or Preview",
     "in the Neon integration's settings for this project, leave only Production ticked");
-  for (const key of ["CRON_SECRET", "GTM_VIEWER_LINK_KEY", "GTM_CONNECTIONS_VERCEL_TOKEN", "GTM_VIEWER_PROTECTED", "GTM_CONNECTIONS_ENABLED", "GTM_CONNECTIONS_TEAM_ID", "GTM_CONNECTIONS_ORIGIN", "GTM_VIEWER_SHARE_ORIGIN"])
+  for (const key of ["CRON_SECRET", "GTM_VIEWER_LINK_KEY", "GTM_CONNECTIONS_VERCEL_TOKEN", "GTM_VIEWER_PROTECTED", "GTM_CONNECTIONS_ENABLED", "GTM_CONNECTIONS_TEAM_ID", "GTM_VIEWER_SHARE_ORIGIN"])
     add(hasProduction(env, key), `Production has ${key}`);
   const origin = await productionOrigin(api, runtime.id);
-  add(production(env, "GTM_CONNECTIONS_ORIGIN")[0]?.value === origin, `GTM_CONNECTIONS_ORIGIN is ${origin}`);
-  add(!env.some((row) => RETIRED.test(row.key)), "No retired variables (GTM_RUN_SECRET, GTM_DATA_URL, GTM_RUNS_URL)");
+  add(!env.some((row) => RETIRED.test(row.key)), "No retired variables (GTM_RUN_SECRET, GTM_DATA_URL, GTM_RUNS_URL, GTM_CONNECTIONS_ORIGIN, GTM_CONNECTIONS_MANAGED)");
   const share = await findShare(api, runtime, `${runtime.name}-share`);
   let shareFirewall = { status: "no_share_project" };
   add(share, "A share project exists");

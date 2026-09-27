@@ -1,16 +1,16 @@
 import { entryFor } from "./viewer-reader";
 import { configuredNames } from "./connections-contract";
 import { localKeyNames } from "./connections-local";
+import { productionOrigin } from "./connections-access";
 export function connectionsOrigin(req?: Request) {
   if (process.env.GTM_VIEWER_MODE === "share") return undefined;
   // Local: the Keys page on this same server. Absolute only for /api/link callers, which need a whole address; the page
   // itself gets the relative path.
   if (!process.env.VERCEL) return req ? new URL("/connections", req.url).href : "/connections";
   try {
-    const value = process.env.GTM_CONNECTIONS_ORIGIN, url = new URL(value!);
-    if (url.origin !== value || url.username || url.password) return undefined;
-    if (process.env.VERCEL ? url.protocol !== "https:" : url.protocol !== "http:" || url.hostname !== "127.0.0.1") return undefined;
-    return process.env.VERCEL && process.env.GTM_CONNECTIONS_ENABLED === "1" ? `${url.origin}/connections` : url.origin;
+    const origin = productionOrigin();
+    if (!origin) return undefined;
+    return process.env.GTM_CONNECTIONS_ENABLED === "1" ? `${origin}/connections` : origin;
   } catch { return undefined; }
 }
 /** Where a webhook sender posts: the public share project relays signed events to the private runtime. Null until sharing is set up. */
