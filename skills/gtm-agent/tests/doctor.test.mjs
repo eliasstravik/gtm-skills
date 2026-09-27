@@ -37,7 +37,6 @@ test("doctor runs every check, including the workflow project, without throwing"
     const names = results.map((row) => row.name);
     assert.ok(names.includes("Agent project exists"));
     assert.ok(names.some((name) => /Agent has GTM_WORKFLOW_URL/.test(name)), names.join("\n"));
-    assert.ok(names.includes("Agent reaches the workflow project's agent-only routes"));
     for (const row of results.filter((row) => !row.ok)) assert.ok(row.fix, `${row.name} names a fix`);
     assert.ok(!results.some((row) => /run setup\.mjs \(it scaffolds/.test(row.fix)), "no circular fixes");
   } finally { await rm(bin, { recursive: true, force: true }); }

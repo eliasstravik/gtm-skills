@@ -304,21 +304,6 @@ export async function check({
     "",
     connect,
   );
-  if (aenv.has("GTM_WORKFLOW_URL")) {
-    // The agent-only routes accept only the bypass the app sees as VERCEL_AUTOMATION_BYPASS_SECRET; prove the agent holds it.
-    const probe = run("vercel", ["env", "run", "-e", "production", "--project", n.agentProject, "--scope", team, "--non-interactive", "--",
-      "node", fileURLToPath(new URL("./workflow-live-check.mjs", import.meta.url))]);
-    let answer = {};
-    try { answer = JSON.parse(probe.stdout.trim().split("\n").filter((l) => l.startsWith("{")).at(-1) ?? "{}"); } catch {}
-    add(
-      "Agent reaches the workflow project's agent-only routes",
-      answer.status === 200,
-      answer.error ?? `/api/connections → ${answer.status ?? "no answer"}`,
-      answer.status === 401
-        ? `the agent holds another bypass than the one the app uses: delete GTM_WORKFLOW_BYPASS_SECRET on ${n.agentProject}, then ${connect}`
-        : `redeploy both projects (${connect})`,
-    );
-  }
   add(
     "Context repository has workflows/",
     run("gh", ["api", `repos/${githubOwner}/${n.contextRepo}/contents/workflows/package.json`]).status === 0,

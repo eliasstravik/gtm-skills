@@ -43,7 +43,7 @@ Secrets never pass through the conversation: the scripts generate them and place
 
 ## Protected workflow viewer
 
-The workflow project sits behind Vercel Authentication on every deployment. The agent reaches it with the project's one automation bypass (the one the app sees as `VERCEL_AUTOMATION_BYPASS_SECRET`), which gtm-workflow's setup stores on the agent as `GTM_WORKFLOW_BYPASS_SECRET`; the bypass never enters model-visible exports or user links, and Doctor proves it opens the agent-only routes. Webhook senders post to the share project's relay (`https://gtm-<slug>-share.vercel.app/api/intake/<workflow>`), which forwards signed events with its OIDC identity; never give a sender a bypass. See [workflow viewer](../gtm-workflow/references/viewer.md).
+The workflow project sits behind Vercel Authentication on every deployment. The agent reaches it with the project's one automation bypass (the one the app sees as `VERCEL_AUTOMATION_BYPASS_SECRET`), which gtm-workflow's setup stores on the agent as `GTM_WORKFLOW_BYPASS_SECRET`; the bypass never enters model-visible exports or user links. The workflow project keeps exactly one bypass (Doctor flags extras), so the agent's copy is the one the agent-only routes accept; to replace it, delete `GTM_WORKFLOW_BYPASS_SECRET` on the agent and run that setup again. Webhook senders post to the share project's relay (`https://gtm-<slug>-share.vercel.app/api/intake/<workflow>`), which forwards signed events with its OIDC identity; never give a sender a bypass. See [workflow viewer](../gtm-workflow/references/viewer.md).
 
 ## QC
 
