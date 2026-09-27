@@ -65,7 +65,7 @@ Done: 3 companies scored; 0 failed; cost $0.03.
 
 Created Score inbound accounts.
 
-Runs happen on the hosted copy, which needs a Vercel project connected to the Acme repository once; after that every save deploys by itself. To connect it, a teammate with the GitHub and Vercel CLIs signed in says to their coding agent: "connect the workflow project for Acme". That creates the project and its database and wires this agent to it; nothing to paste anywhere.
+Runs happen on the hosted copy, which needs a Vercel project connected to the Acme repository once; after that every save deploys by itself. To take it live, a teammate with the GitHub and Vercel CLIs signed in says to their coding agent: "take the Acme workflows live and connect the agent". That creates the project and its database and wires this agent to it; nothing to paste anywhere.
 
 After setup, request a run.
 
@@ -210,7 +210,7 @@ Done: 35 companies scored; 1 failed (Northfield’s site could not be reached); 
 
 **Human:** Put Score inbound accounts on a weekly schedule, hosted, Monday mornings.
 
-**Agent:** Adding the Monday 08:00 UTC schedule now. Hosting needs a Vercel project connected to the gtm-acme repository once; after that every save deploys by itself. Request "connect the workflow project for Acme" to create the project and its database, connect the workflow credentials, and verify the live deployment.
+**Agent:** Adding the Monday 08:00 UTC schedule now. Hosting needs a Vercel project connected to the gtm-acme repository once; after that every save deploys by itself. Say "take the Acme workflows live" to create the project and its database, set its secrets and deploy it; the schedule runs from the first deployment.
 
 Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 

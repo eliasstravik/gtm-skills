@@ -17,7 +17,7 @@ node scripts/setup.mjs --local --workspace /path/to/gtm-acme --json
 node scripts/doctor.mjs --workspace /path/to/gtm-acme --target local --json
 ```
 
-Setup can create an empty workspace with zero workflows. It adds the workspace root's `.gitignore` and CI file (`.github/workflows/check.yml`) from `root/` when missing, and Doctor lists them under `rootFiles` when missing or different. It installs the runtime, prepares the local database and builds the viewer. It needs no account and starts nothing. Doctor exits 0 when ready and 2 when something needs doing, and says what.
+Setup can create an empty workspace with zero workflows. It adds the workspace root's `.gitignore` and CI file (`.github/workflows/check.yml`) from `root/` when missing, and keeps `vercel.json` in line with the template (its `crons` are the workspace's). It installs the runtime (again when the lockfile changed), prepares the local database and builds the viewer; every step converges on its own, so running it again repairs a half-finished run. It needs no account and starts nothing. Doctor lists `problems`, each with its fix (exit 2), or none (exit 0): an outdated runtime, template drift in the root files or `vercel.json`, retired settings left in `workflows/.env`, and, when linked, a production database in Vercel's Development environment.
 
 `npm run dev` loads `.env` and then `.env.local` (the shell wins over both), like any Vercel app, and removes every `VERCEL_*` variable a pull wrote except `VERCEL_OIDC_TOKEN`, so the local server always knows it is local. The Keys page is on the same server: `http://127.0.0.1:3939/connections` by default, or the tailnet address in tailnet mode. Give the user that address. A saved change applies the next time `npm run dev` starts; the page says so.
 
@@ -29,17 +29,11 @@ Keys in the shell or in `.env` still reach runs; the page lists only what is in 
 
 Every owner page of the viewer and the Keys page carries an environment badge next to its title: an amber **Local** on this computer (with a thin amber rule along the top edge) and a blue **Production** on Vercel. Share links never show it.
 
-## Production setup without an agent
+## Production setup
 
-Use the existing workflow project with Vercel Authentication protecting all deployments. Run from the installed skill directory:
+Going live is shared setup `--deploy`, which [Deploy](deploy.md) describes step by step; the agent is optional. Among its steps it saves a project-scoped Vercel API token as the Production Secret `GTM_CONNECTIONS_VERCEL_TOKEN` and the settings the production Keys page reads: `GTM_VIEWER_PROTECTED`, `GTM_CONNECTIONS_ENABLED`, `GTM_CONNECTIONS_TEAM_ID`, `GTM_CONNECTIONS_ORIGIN` (the project's production address) and `GTM_CONNECTIONS_VERCEL_URL` (the dashboard URL, by team slug and project name). Then open `/connections` through the normal private Workflows URL. Local provider keys stay local.
 
-```sh
-node scripts/setup.mjs --deploy --workspace /path/to/gtm-acme --team acme --workflow-project gtm-acme --json
-```
-
-Setup creates no projects, databases, identity applications or integrations. It saves a project-scoped Vercel API token as the Production Secret `GTM_CONNECTIONS_VERCEL_TOKEN` and nonsecret bindings: `GTM_CONNECTIONS_ENABLED`, `GTM_CONNECTIONS_TEAM_ID`, `GTM_CONNECTIONS_ORIGIN`, and `GTM_CONNECTIONS_VERCEL_URL`. The dashboard URL uses the team slug and project name, not their internal IDs. Deploy the current runtime, then open `/connections` through the normal private Workflows URL. Local provider keys stay local.
-
-Vercel CLI OAuth sessions may reject token creation. In that case, use the signed-in Vercel account's Tokens page, select the team and **only the workflow project**, create the token, and save it directly as that project's Production Secret `GTM_CONNECTIONS_VERCEL_TOKEN`. Resume setup. Never use an account-wide or team-wide runtime token, and never paste a token in chat, arguments or source files.
+Vercel CLI OAuth sessions may reject token creation. In that case setup stops and says so: use the signed-in Vercel account's Tokens page, select the team and **only the workflow project**, create the token, and save it directly as that project's Production Secret `GTM_CONNECTIONS_VERCEL_TOKEN`, then run setup again. Never use an account-wide or team-wide runtime token, and never paste a token in chat, arguments or source files.
 
 Anyone admitted through a native private Vercel browser session may manage connections, including Viewers. There is no additional login, registration or administrator list. The hosted agent lists key names through `GET /api/connections` with Vercel's automation bypass. Automation bypasses, workload identity and workflow share grants cannot authorize connection management. Deployment-wide Vercel share links must be removed before enabling this feature.
 
@@ -47,7 +41,7 @@ The application checks the native session cookie's expected shape, then sends on
 
 The project-scoped API token lives in the workflow runtime. Code deployed to that project is trusted with this token, just as it is trusted with provider credentials. Review authored code before deploying it. Keep the share companion isolated and exclude connection management from its build.
 
-Setup reports `deployment_required` (exit 2) until the runtime is deployed. Doctor (`--target production`, with `--team` and `--workflow-project` or a linked `workflows/`) reports `production_ready` (exit 0) when Vercel Authentication protects all deployments, the Keys page settings are present and the share rate limits match; otherwise the first problem, with exit 2. Configuration is not live readiness: verify signed-in access on the serving deployment after upgrades.
+Doctor (`--target production`, with `--team` and `--workflow-project` or a linked `workflows/`) reports `production_ready` (exit 0), or `needs_fixing` with every problem and its fix (exit 2). Configuration is not live readiness: verify signed-in access on the serving deployment after upgrades.
 
 ## Inventory and changes
 

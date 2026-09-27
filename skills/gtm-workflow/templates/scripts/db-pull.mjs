@@ -58,7 +58,7 @@ function productionUrl() {
   const file = join(cwd, "data", "neon.json");
   if (!existsSync(file)) throw new LocalDatabaseError("No Neon project saved for this workspace: run the gtm-workflow skill's setup with --deploy once, from a computer signed in to neonctl.");
   const neon = JSON.parse(readFileSync(file, "utf8"));
-  const result = run("neonctl", ["connection-string", "--project-id", neon.projectId, "--org-id", neon.orgId]);
+  const result = run("neonctl", ["connection-string", "--project-id", neon.projectId, "--org-id", neon.orgId, "--role-name", "neondb_owner"]);
   if (result.status !== 0) throw new LocalDatabaseError("neonctl could not give the production connection: sign in with `neonctl auth`, then try again.");
   const url = result.stdout.trim();
   if (neon.endpoint && endpointOf(url) !== neon.endpoint) throw new LocalDatabaseError("neonctl answered for another endpoint than the one setup saved; run setup --deploy again.");

@@ -118,6 +118,13 @@ function isPostgres(pid) {
     : spawnSync("ps", ["-p", String(pid), "-o", "comm="], { encoding: "utf8" });
   return result.status !== 0 || /postgres/i.test(result.stdout ?? "");
 }
+// Launchers are Node processes. After a crash and a reboot the recorded pid can belong to anything else.
+function isNode(pid) {
+  const result = process.platform === "win32"
+    ? spawnSync("tasklist", ["/FI", `PID eq ${pid}`, "/FO", "CSV", "/NH"], { encoding: "utf8" })
+    : spawnSync("ps", ["-p", String(pid), "-o", "comm="], { encoding: "utf8" });
+  return result.status !== 0 || /node/i.test(result.stdout ?? "");
+}
 // A pid of 0 or less is never a process: signal 0 to pid 0 tests the caller's own process group and always succeeds.
 const recordedPid = (file, missing = 0) => { try { const pid = Number(readFileSync(file, "utf8").trim()); return Number.isInteger(pid) && pid > 0 ? pid : 0; } catch (error) { return error.code === "ENOENT" ? missing : 0; } };
 
@@ -135,7 +142,7 @@ export function claimLauncher(file) {
 }
 function claimed(file) {
   const mine = `${file}.${process.pid}.claim`, aside = `${file}.${process.pid}.stale`, takeover = `${file}.takeover`;
-  const live = (owner) => owner > 0 && owner !== process.pid && alive(owner);
+  const live = (owner) => owner > 0 && owner !== process.pid && alive(owner) && isNode(owner);
   writeFileSync(mine, String(process.pid));
   try {
     for (let attempt = 0; attempt < 3; attempt++) {
