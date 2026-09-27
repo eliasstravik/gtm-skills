@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { RUNTIME_SETTINGS, SHARE_SETTINGS, bypassSummary, settingsPatch, shareTrust, workflowProject } from "../scripts/hosted.mjs";
+import { RUNTIME_SETTINGS, SHARE_SETTINGS, bypassSummary, computePatch, computeProblems, settingsPatch, shareTrust, workflowProject } from "../scripts/hosted.mjs";
 import { mergeVercelJson } from "../scripts/setup.mjs";
 
 test("the runtime builds every push to main, never previews, and is protected everywhere", () => {
@@ -33,6 +33,18 @@ test("bypass summary counts automation bypasses and finds the env-var one, witho
   const project = { protectionBypass: { a: { scope: "automation-bypass", isEnvVar: false, createdAt: 2 }, b: { scope: "automation-bypass", isEnvVar: true, createdAt: 1 }, c: { scope: "shareable-link" } } };
   assert.deepEqual(bypassSummary(project), { count: 2, envVar: true });
   assert.deepEqual(bypassSummary({}), { count: 0, envVar: false });
+});
+
+test("Neon computes are pinned at 0.25 CU and sleep when idle", () => {
+  assert.deepEqual(computePatch({ autoscaling_limit_min_cu: 0.25, autoscaling_limit_max_cu: 0.25, suspend_timeout_seconds: 0 }), {});
+  assert.deepEqual(computePatch({ autoscaling_limit_min_cu: 0.25, autoscaling_limit_max_cu: 0.25, suspend_timeout_seconds: 300 }), {});
+  assert.deepEqual(computePatch({ autoscaling_limit_min_cu: 0.25, autoscaling_limit_max_cu: 8, suspend_timeout_seconds: 0 }), { autoscaling_limit_max_cu: 0.25 });
+  assert.deepEqual(computePatch({ autoscaling_limit_min_cu: 1, autoscaling_limit_max_cu: 0.25, suspend_timeout_seconds: -1 }), { autoscaling_limit_min_cu: 0.25, suspend_timeout_seconds: 0 });
+  const small = { autoscaling_limit_min_cu: 0.25, autoscaling_limit_max_cu: 0.25, suspend_timeout_seconds: 0 };
+  assert.deepEqual(computeProblems({ default_endpoint_settings: small }, [{ id: "ep-a", ...small }]), []);
+  // A live compute keeps its own limits when only the default changed, so both are checked.
+  assert.deepEqual(computeProblems({ default_endpoint_settings: { ...small, autoscaling_limit_max_cu: 8 } }, [{ id: "ep-a", ...small }, { id: "ep-b", ...small, suspend_timeout_seconds: -1 }]),
+    ["the default for new computes", "compute ep-b"]);
 });
 
 test("the project defaults to the workspace folder name, and a link wins over it", async () => {
