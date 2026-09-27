@@ -34,10 +34,10 @@ export async function setupLocal(workspace) {
       return !/(?:^|\/)(?:node_modules|\.output|\.nitro|\.vercel|data|\.env(?:\.[^/]+)?)(?:\/|$)/.test(path) && !/public\/(?:viewer|connections)-assets/.test(path);
     } });
     await writeFile(join(runtime, "workflows/index.ts"), "export const workflows = {};\n");
+    await rm(join(runtime, "env.example"), { force: true });
   }
-  // Each scaffold step converges on its own, so a run after one that died half-way finishes the job.
+  // A scaffold that died half-way is finished on the next run.
   if (existsSync(join(runtime, "gitignore"))) await rename(join(runtime, "gitignore"), join(runtime, ".gitignore"));
-  await rm(join(runtime, "env.example"), { force: true });
   await mergeVercelJson(runtime);
   // CI and the root ignore file sit outside workflows/; missing ones are added on every setup, existing ones are kept.
   await writeRootFiles(workspace);
