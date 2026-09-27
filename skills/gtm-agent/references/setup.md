@@ -8,7 +8,7 @@
 2. Workspace repository `gtm-<slug>`, private, empty. The agent's first approved save scaffolds it; nothing is written here except the workflow runtime (step 9).
 3. Agent repository `gtm-agent-<slug>`, a private clone of `eliasstravik/gtm-agent` with remote `origin` (the copy) and `template` (the source, for Upgrade). Checkout at `~/.gtm/.agents/<slug>/`.
 4. Vercel project `gtm-agent-<slug>`, framework `eve`, Node 24, preview deployments off (they would fail without the production-only variables), git-connected to the agent repository, so every push to `main` deploys.
-5. Agent variables: `GTM_WORKSPACE_REPOSITORY` (`<owner>/gtm-<slug>`), `GTM_GITHUB_TOKEN` (`gh auth token`; commits are authored as that user), optional `GTM_NOTIFY_CHANNEL` and `GTM_AGENT_MODEL`.
+5. Agent variables: `GTM_WORKSPACE_REPOSITORY` (`<owner>/gtm-<slug>`), `GTM_GITHUB_TOKEN` (`gh auth token`; commits are authored as that user; replace it with a fine-grained token limited to the workspace repository, Contents read and write, and Redeploy; the host adds it only to git requests for that repository), optional `GTM_NOTIFY_CHANNEL` and `GTM_AGENT_MODEL`.
 6. Slack connector `slack/gtm-agent-<slug>` through `vercel connect create slack`: one browser trip creates the Slack app and installs it; the full bot profile is configured by `configure-slack.mjs` and synchronized with Slack as described in [Slack configuration](slack.md). Events forwarded to `/eve/v1/slack` on the agent project; `SLACK_CONNECTOR` set to the connector's uid.
 7. First agent deployment from git; the production address is read back.
 8. Unless `--no-workflows`, delegate to `gtm-workflow/scripts/setup.mjs --deploy` for the existing protected workflow project. The shared implementation prepares the local runtime and configures Connections on that project. It creates no additional hosted resources and reports when deployment or token setup is still needed. Standalone users call it directly without an agent.
@@ -31,9 +31,7 @@
 | `GTM_MODEL`, `GTM_REASONING` | | yes, optional | by hand |
 | `GTM_AGENT_URL` | | yes | existing notification binding |
 | `GTM_WORKFLOW_BYPASS_SECRET`, `GTM_WORKFLOW_GATE_REQUIRED` | yes | | staged gate access; host-only injection |
-| `GTM_NEON_IMPORT_URL` | optional | | `scripts/import-access.mjs`: the no-delete import role's connection, sensitive; host-only injection as `Neon-Connection-String` |
 | `GTM_VIEWER_PROTECTED`, `GTM_VIEWER_SHARE_ORIGIN` | | yes | set only after native protection and companion verification |
-| `GTM_DATA_URL` | | optional | by hand, only to name the database's page |
 | `DATABASE_URL`, `DATABASE_URL_UNPOOLED` | never | yes | the Neon integration in Vercel, Production only; never by hand, and never on the share project |
 | `GTM_CONNECTIONS_VERCEL_TOKEN` | | yes | project-scoped token, saved as a Production Secret |
 | `GTM_CONNECTIONS_ENABLED`, `GTM_CONNECTIONS_ORIGIN`, `GTM_CONNECTIONS_TEAM_ID` | | yes | Connections setup |

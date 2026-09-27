@@ -15,7 +15,8 @@ import { callMcpTool } from "../templates/lib/mcp";
 import { runRows } from "../templates/lib/rows";
 import { startLookup, pollLookup } from "../templates/lib/profiles/provider";
 import { beginRun } from "../templates/lib/profiles/ledger";
-import { mergePackage } from "../scripts/upgrade-package.mjs";
+import { compareVersions, mergePackage } from "../scripts/upgrade-package.mjs";
+import { localEnvironment } from "../templates/scripts/local-launch.mjs";
 
 async function listen(server: Server) {
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -76,6 +77,37 @@ test("package upgrade adds new commands, merges dependencies, and sends changed 
   assert.equal(result.package.dependencies.customer, "keep");
   assert.deepEqual(result.package.extra, { keep: true });
   assert.equal(old.dependencies.workflow, "old");
+});
+
+test("package upgrade refuses a template older than the workspace", () => {
+  const pkg = (version: string) => ({ version, scripts: {}, dependencies: {}, devDependencies: {} });
+  assert.throws(() => mergePackage(pkg("0.2.1"), pkg("0.2.0")), /never downgrade/);
+  assert.throws(() => mergePackage(pkg("0.10.0"), pkg("0.9.9")), /never downgrade/);
+  assert.equal(mergePackage(pkg("0.2.0"), pkg("0.2.0")).package.version, "0.2.0");
+  assert.equal(mergePackage(pkg("0.1.63"), pkg("0.2.0")).package.version, "0.2.0");
+  assert.equal(compareVersions("1.0.0", "0.99.99"), 1);
+});
+
+test("npm run dev never loads production wiring from .env files, and says so", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gtm-env-"));
+  try {
+    await writeFile(join(dir, ".env"), "GTM_MODEL=a\nGTM_RUN_SECRET=old\nGTM_AGENT_URL=https://agent.example\nGTM_NOTIFY_SECRET=n\n");
+    await writeFile(join(dir, ".env.local"), "APOLLO_API_KEY=k\nGTM_WORKFLOW_URL=https://prod.example\n");
+    const warnings: string[] = [];
+    const env = localEnvironment(dir, { SHELL_ONLY: "1" }, (line: string) => warnings.push(line));
+    assert.equal(env.GTM_MODEL, "a");
+    assert.equal(env.APOLLO_API_KEY, "k");
+    assert.equal(env.SHELL_ONLY, "1");
+    for (const name of ["GTM_RUN_SECRET", "GTM_AGENT_URL", "GTM_NOTIFY_SECRET", "GTM_WORKFLOW_URL"]) assert.equal(env[name], undefined, name);
+    assert.equal(warnings.length, 2);
+    assert.match(warnings[0], /workflows\/\.env: /);
+    for (const name of ["GTM_RUN_SECRET", "GTM_AGENT_URL", "GTM_NOTIFY_SECRET"]) assert.ok(warnings[0].includes(name), name);
+    assert.match(warnings[1], /workflows\/\.env\.local: GTM_WORKFLOW_URL/);
+    // A value from the shell is the caller's own choice (a local notify listener, say) and stays.
+    assert.equal(localEnvironment(dir, { GTM_AGENT_URL: "http://127.0.0.1:9" }, () => {}).GTM_AGENT_URL, "http://127.0.0.1:9");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test("local config supplies missing defaults and keeps explicit overrides, including zero", () => {

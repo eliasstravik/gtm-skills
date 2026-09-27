@@ -2,7 +2,7 @@
 
 ## Upgrade startup commands
 
-After copying template-owned runtime files, run `node <skill>/scripts/upgrade-package.mjs /path/to/workflows` to preview the package merge, then add `--write` to apply it. It updates template dependencies and recognized stock startup commands, adds missing commands, and preserves user-added dependencies and customized scripts. Review each name in `review` and incorporate required build/migration steps into that command while preserving its custom behavior. Keep custom ports and explicit timeout overrides. Previous runtimes containing `scripts/gtm.ts` need a separate migration.
+After copying template-owned runtime files, run `node <skill>/scripts/upgrade-package.mjs /path/to/workflows` to preview the package merge, then add `--write` to apply it. It refuses, before anything is copied, when the template is older than the workspace's `package.json` version: an older skill copy never takes a workspace back. It updates template dependencies and recognized stock startup commands, adds missing commands, and preserves user-added dependencies and customized scripts. Review each name in `review` and incorporate required build/migration steps into that command while preserving its custom behavior. Keep custom ports and explicit timeout overrides. Previous runtimes containing `scripts/gtm.ts` need a separate migration.
 
 Copy template-owned files by path. Preserve extra user-authored files in those directories. Keep workflows, data, environment files, schedules, and custom tables intact. Install dependencies after the merge as the Upgrade procedure specifies.
 
