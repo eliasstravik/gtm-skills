@@ -132,16 +132,15 @@ vercel(["link", "--yes", "--project", n.agentProject, "--team", team], {
   cwd: agentDir,
 });
 let ap = project(team, n.agentProject);
+// Through the API: `vercel git connect` sees the checkout's two remotes (origin and template), asks which to use, and
+// in non-interactive mode quietly answers no.
 if (ap.link?.repo !== n.agentRepo) {
-  vercel(["git", "connect", `https://github.com/${agentRepo}`], {
-    team,
-    cwd: agentDir,
-  });
+  api(team, "POST", `/v9/projects/${ap.id}/link`, { type: "github", repo: agentRepo }, { allowFail: true });
   ap = project(team, n.agentProject);
 }
 if (ap.link?.repo !== n.agentRepo)
   fail(
-    `Could not connect ${n.agentProject} to ${agentRepo}. Install the Vercel GitHub app for ${githubOwner} (Vercel → Settings → Git) and run again.`,
+    `Could not connect ${n.agentProject} to ${agentRepo}. Give Vercel access to it: on GitHub, open Settings > Applications > Vercel > Configure for ${githubOwner}, add ${n.agentRepo} under Repository access (or choose All repositories) and Save, then run again.`,
   );
 // Previews are useless for a Slack agent and fail without the production-only variables, so they are off.
 if (
