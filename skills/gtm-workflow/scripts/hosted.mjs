@@ -5,7 +5,8 @@
 // (after a fix, or on a live workspace) does only what is missing. Doctor checks the same list without changing it.
 import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { applyShareFirewall, shareFirewallDrift } from "./share-firewall.mjs";
 
@@ -186,11 +187,20 @@ function linkWorkflows(workspace, project, env) {
   return "now";
 }
 
-/** Neon through the Vercel marketplace, Production only, from the linked workflows/. Null when it needs the owner (terms, plan). */
+/**
+ * Neon through the Vercel marketplace, Production only, for the linked project. Null when it needs the owner (terms, plan).
+ * It runs in a scratch folder holding only the link, because `vercel integration add` also runs `npx skills add` for the
+ * product's agent skills in its working directory, which would drop `.agents/`, `.claude/` and links in `skills/` into workflows/.
+ */
 async function ensureDatabase(api, workspace, project) {
   if (hasProduction(await safeEnvironment(api, project.id), "DATABASE_URL")) return "present";
-  exec("vercel", ["integration", "add", "neon", "--name", project.name, "-e", "production", "-m", "region=iad1", "-m", "auth=false", "--no-env-pull", "--non-interactive", "--scope", project.team],
-    { cwd: join(workspace, "workflows") });
+  const scratch = mkdtempSync(join(tmpdir(), "gtm-neon-"));
+  try {
+    mkdirSync(join(scratch, ".vercel"));
+    copyFileSync(join(workspace, "workflows", ".vercel", "project.json"), join(scratch, ".vercel", "project.json"));
+    exec("vercel", ["integration", "add", "neon", "--name", project.name, "-e", "production", "-m", "region=iad1", "-m", "auth=false", "--no-env-pull", "--non-interactive", "--scope", project.team],
+      { cwd: scratch });
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
   return hasProduction(await safeEnvironment(api, project.id), "DATABASE_URL") ? "added" : null;
 }
 
@@ -275,11 +285,13 @@ export async function setupHosted(workspace, { team, project: name, share: share
   // Secrets are made once and never rotated by setup; the Keys page's project token is created and stored in one go (if
   // storing fails, the next run makes another and the unused one can be revoked under Account Settings > Tokens).
   for (const [key, bytes] of [["CRON_SECRET", 32], ["GTM_VIEWER_LINK_KEY", 32]]) changed = (await setProduction(api, runtime, env, key, random(bytes), { secret: true })) || changed;
-  if (!hasProduction(env, "GTM_CONNECTIONS_VERCEL_TOKEN")) {
+  // A `vercel login` session cannot make tokens; then go-live finishes without the Keys page and asks for the token last.
+  let keysToken;
+  if (!hasProduction(env, "GTM_CONNECTIONS_VERCEL_TOKEN")) try {
     const grant = await api("POST", "/v3/user/tokens", { name: `Keys page for ${runtime.name}`, projectId: runtime.id });
     requireThat(typeof grant.bearerToken === "string" && grant.bearerToken.length > 0 && grant.token?.projectId === runtime.id, "project_token_creation_failed", 503);
     changed = (await setProduction(api, runtime, env, "GTM_CONNECTIONS_VERCEL_TOKEN", grant.bearerToken, { secret: true })) || changed;
-  }
+  } catch (error) { if (error.code !== "project_token_dashboard_required") throw error; keysToken = error.instruction; }
   const teamSlug = team.startsWith("team_") ? (await api("GET", `/v2/teams/${runtime.accountId}`)).slug : team;
   const settings = { GTM_VIEWER_PROTECTED: "1", GTM_CONNECTIONS_ENABLED: "1", GTM_CONNECTIONS_TEAM_ID: runtime.accountId,
     GTM_CONNECTIONS_VERCEL_URL: `https://vercel.com/${teamSlug}/${runtime.name}/settings/environment-variables` };
@@ -344,9 +356,10 @@ export async function setupHosted(workspace, { team, project: name, share: share
   steps.deploy = waits.length ? Object.fromEntries(waits.map(([project], index) => [project.name, states[index]])) : "current";
   const building = states.includes("building");
   steps.neon = building ? { status: "after_deploy" } : saveNeonProject(workspace);
-  return { status: building ? "deploying" : "production_ready", project: runtime.name, projectId: runtime.id, origin, keysUrl: `${origin}/connections`, share: share.name,
+  return { status: keysToken ? "needs_you" : building ? "deploying" : "production_ready", project: runtime.name, projectId: runtime.id, origin, keysUrl: `${origin}/connections`, share: share.name,
     ...(bypass.extra ? { warning: `${runtime.name} has ${bypass.extra + 1} automation bypass secrets; only the first is used. Revoke the others under Settings > Deployment Protection.` } : {}),
-    steps, ...(building ? { instruction: "The production build is still running; run setup --deploy again in a few minutes to confirm it." } : {}) };
+    steps, ...(keysToken ? { instruction: `Production is set up except the Keys page. ${keysToken}` }
+      : building ? { instruction: "The production build is still running; run setup --deploy again in a few minutes to confirm it." } : {}) };
 }
 
 /**
@@ -371,7 +384,9 @@ export async function doctorHosted({ team, project: name, linked }) {
   add(hasProduction(env, "DATABASE_URL") && hasProduction(env, "DATABASE_URL_UNPOOLED"), "Neon connected to Production", `in workflows/, \`vercel integration add neon -e production --scope ${team}\``);
   add(!env.some((row) => DATABASE_VARIABLE.test(row.key) && !row.target.every((target) => target === "production")), "No database in Development or Preview",
     "in the Neon integration's settings for this project, leave only Production ticked");
-  for (const key of ["CRON_SECRET", "GTM_VIEWER_LINK_KEY", "GTM_CONNECTIONS_VERCEL_TOKEN", "GTM_VIEWER_PROTECTED", "GTM_CONNECTIONS_ENABLED", "GTM_CONNECTIONS_TEAM_ID", "GTM_VIEWER_SHARE_ORIGIN"])
+  add(hasProduction(env, "GTM_CONNECTIONS_VERCEL_TOKEN"), "Production has GTM_CONNECTIONS_VERCEL_TOKEN (the Keys page)",
+    `on vercel.com, Account Settings > Tokens, create a token for this team limited to ${runtime.name}; save it with \`vercel env add GTM_CONNECTIONS_VERCEL_TOKEN production --sensitive\` in workflows/, then run setup --deploy`);
+  for (const key of ["CRON_SECRET", "GTM_VIEWER_LINK_KEY", "GTM_VIEWER_PROTECTED", "GTM_CONNECTIONS_ENABLED", "GTM_CONNECTIONS_TEAM_ID", "GTM_VIEWER_SHARE_ORIGIN"])
     add(hasProduction(env, key), `Production has ${key}`);
   const origin = await productionOrigin(api, runtime.id);
   add(!env.some((row) => RETIRED.test(row.key)), "No retired variables (GTM_RUN_SECRET, GTM_DATA_URL, GTM_RUNS_URL, GTM_CONNECTIONS_ORIGIN, GTM_CONNECTIONS_MANAGED)");
