@@ -8,7 +8,7 @@ Contents: [Deploy](#deploy) · [Deploy, asked from the hosted agent](#deploy-ask
 
 **Human:** Get gtm-agent running for Acme in Slack.
 
-**Agent:** Setting up GTM Agent for Acme on the selected Vercel team now: the agent, its Slack app, the workspace repository, and a workflow project with its database; about five minutes. Two manual steps remain: the Slack install page, and, adding the Neon database to the workflow project in Vercel (accepting Neon's marketplace terms if this team has not used it before).
+**Agent:** Setting up GTM Agent for Acme on the selected Vercel team now: the agent, its Slack app, the workspace repository, and a workflow project with its database; about ten minutes. Two browser steps may remain: the Slack install page, and, only if this team has never used Neon, accepting Neon's terms.
 
 Open the Slack installation page: choose the Acme workspace and approve the app. The setup then synchronizes the selected permissions and events in Vercel and Slack and verifies the installed permissions.
 
@@ -28,7 +28,7 @@ Workflow notifications need a channel: supply its id from the bottom of the chan
 
 **Human:** Connect the workflow project.
 
-**Agent:** That's done from a computer, not from here: a teammate with the GitHub and Vercel CLIs signed in tells their coding agent "connect the workflow project for Acme", and it creates the project and its database and connects the agent to it. Nothing to paste anywhere.
+**Agent:** That's done from a computer, not from here: a teammate with the GitHub and Vercel CLIs signed in tells their coding agent "take the Acme workflows live and connect the agent", and it creates the project and its database and connects this agent to it. Nothing to paste anywhere.
 
 ## Doctor
 
@@ -36,14 +36,9 @@ Workflow notifications need a channel: supply its id from the bottom of the chan
 
 **Human:** Check the Acme deployment.
 
-**Agent:** Checked. Two things to fix: the Slack app doesn't receive direct messages (Slack lacks the `message.im` event and `im:history` permission; synchronizing its configuration and reapproving the app fixes this), and the workflow project builds on every push, workspace changes included (a project setting; the setting can be changed). Set the project setting now?
+**Agent:** Checked. Two things to fix: the Slack app doesn't receive direct messages (Slack lacks the `message.im` event and `im:history` permission; synchronizing its configuration and reapproving the app fixes this), and the workflow project skips builds for some pushes (an old project setting; workflow setup resets it). Fixing both now.
 
-1. Yes, set it (Recommended)
-2. Not now
-
-**Human:** 1
-
-**Agent:** Set. The Slack configuration is ready. Completing the authorized app reapproval and checking the saved manifest and installed permissions.
+**Agent:** Done. The workflow project builds every push again, and the Slack configuration is ready. Completing the authorized app reapproval and checking the saved manifest and installed permissions.
 
 ## Upgrade
 

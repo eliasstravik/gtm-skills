@@ -6,8 +6,7 @@
 //                  [--region iad1] [--no-workflows] [--slack-connector slack/existing] [--skip-slack]
 //
 // Exit 0: done. Exit 2: a human step is needed (the message says which); run again afterwards. Exit 1: failed.
-// Human steps: native account login, Slack installation, provider terms, and the
-// project-scoped Connections token setup and native Vercel browser verification.
+// Human steps: native account logins, the Slack installation, and Neon's terms the first time a team adds Neon.
 import { connectorPatch, connectorUrl } from "./slack-config.mjs";
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
@@ -41,7 +40,7 @@ import {
 } from "./lib.mjs";
 
 const a = parseArgs(process.argv.slice(2), {
-  flags: ["workflows", "skip-slack", "intake-protection-verified"],
+  flags: ["workflows", "skip-slack"],
 });
 if (!a.slug || !a.team)
   fail(
@@ -266,21 +265,24 @@ if (!withWorkflows || !project(team, n.agentProject)?.targets?.production) {
 const agentUrl = productionUrl(team, n.agentProject);
 ok(`Agent live at ${agentUrl}`);
 
-// 7. Workflow project, optional
+// 7. Workflow project, optional: shared gtm-workflow setup takes the workspace live (project, Neon, share project,
+// secrets, the first push of workflows/) and wires it to this agent. Exit 2 there is one step only a person can do.
 if (withWorkflows) {
   if (!existsSync(join(workspaceDir, ".git"))) {
     mkdirSync(gtmHome, { recursive: true });
     must("gh", ["repo", "clone", ctxRepo, workspaceDir]);
-  }
-  // Configure Connections on the existing workflow project through shared setup.
+  } else if (run("git", ["ls-remote", "--exit-code", "--heads", "origin", "main"], { cwd: workspaceDir }).status === 0)
+    must("git", ["pull", "-q", "--ff-only", "origin", "main"], { cwd: workspaceDir });
   const sharedSetup = join(dirname(skillDir), "gtm-workflow", "scripts", "setup.mjs");
   const code = await spawnStreaming(process.execPath, [sharedSetup, "--deploy", "--workspace", workspaceDir, "--team", team,
     "--github-owner", githubOwner, "--workflow-project", n.workflowProject, "--agent-project", n.agentProject,
-    "--agent-repository", agentRepo, ...(a["share-project"] ? ["--share-project", a["share-project"]] : []),
-    ...(a["intake-protection-verified"] ? ["--intake-protection-verified"] : []),
-    ...(a.verification ? ["--verification", a.verification] : [])]);
+    ...(a["share-project"] ? ["--share-project", a["share-project"]] : [])]);
+  if (code === 2) {
+    say("\nOne step above needs you. Do it, then run this script again.");
+    process.exit(2);
+  }
   if (code !== 0) process.exit(code);
-  ok("Connections configuration completed; verify the serving deployment in your browser");
+  ok("Workflow project live and connected to the agent");
 }
 
 // 8. Doctor

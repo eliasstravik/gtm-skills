@@ -1,8 +1,5 @@
 #!/usr/bin/env node
-import {
-  protectionHealthy,
-  shareConfigurationHealthy,
-} from "./viewer-config.mjs";
+import { doctorHosted } from "../../gtm-workflow/scripts/hosted.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
@@ -122,8 +119,6 @@ export async function check({
     "",
     "remove GTM_RUN_SECRET from the agent project",
   );
-  const notifyPair = ["GTM_NOTIFY_SECRET"].map((k) => aenv.has(k));
-  add("Agent has GTM_NOTIFY_SECRET", notifyPair[0], "", "run setup.mjs");
 
   // Slack connector
   const all = connectors(team);
@@ -284,154 +279,37 @@ export async function check({
     );
   }
 
-  // Workflow project
+  // Workflow project: its own production checks, then the wiring between it and this agent. Shared gtm-workflow setup
+  // --deploy with --agent-project makes and repairs all of it.
   const wp = project(team, n.workflowProject);
-  if (!wfPair[0] && !wp) {
-    add(
-      "Workflow project",
-      true,
-      "not connected (optional until the first workflow)",
-    );
+  if (!wp && !aenv.has("GTM_WORKFLOW_URL")) {
+    add("Workflow project", true, "not connected (optional until the first workflow)");
     return out;
   }
-  add("Workflow project exists", wp, n.workflowProject, "run setup.mjs");
+  const connect = `node <gtm-workflow skill>/scripts/setup.mjs --deploy --workspace ~/.gtm/${slug} --team ${team} --workflow-project ${n.workflowProject} --agent-project ${n.agentProject}`;
+  const hosted = await doctorHosted({ team, project: n.workflowProject });
+  for (const problem of hosted.problems)
+    add(problem.check, false, "", problem.fix.replace("run setup --deploy", connect));
   if (!wp) return out;
   add(
-    "Workflow project is git-connected to the context repository",
-    wp.link?.repo === n.contextRepo,
-    wp.link?.repo ?? "not connected",
-    "run setup.mjs",
-  );
-  const patch = {};
-  const want = {
-    rootDirectory: "workflows",
-    nodeVersion: "22.x",
-    autoExposeSystemEnvs: true,
-    commandForIgnoringBuildStep: "git diff --quiet HEAD^ HEAD -- .",
-    previewDeploymentsDisabled: true,
-  };
-  for (const [k, v] of Object.entries(want)) {
-    const okv = wp[k] === v;
-    if (!okv && fix) patch[k] = v;
-    add(
-      `Workflow project ${k} is ${JSON.stringify(v)}`,
-      okv || fix,
-      okv ? "" : `was ${JSON.stringify(wp[k])}`,
-      "run doctor.mjs --fix",
-    );
-  }
-  add(
-    "Workflow viewer uses Vercel Authentication on All Deployments",
-    protectionHealthy(wp),
+    "Agent has GTM_WORKFLOW_URL, GTM_WORKFLOW_BYPASS_SECRET and GTM_WORKFLOW_GATE_REQUIRED",
+    ["GTM_WORKFLOW_URL", "GTM_WORKFLOW_BYPASS_SECRET", "GTM_WORKFLOW_GATE_REQUIRED"].every((k) => aenv.has(k)),
     "",
-    "run the staged viewer setup after verifying agent, cron and intake access; Doctor never disables protection",
+    connect,
   );
-  add(
-    "Agent has deployment-gate credentials",
-    aenv.has("GTM_WORKFLOW_BYPASS_SECRET") &&
-      aenv.has("GTM_WORKFLOW_GATE_REQUIRED"),
-    "",
-    "run setup.mjs and deploy the upgraded agent before enabling protection",
-  );
-  const share = project(
-    team,
-    overrides["share-project"] || n.workflowProject + "-share",
-  );
-  add(
-    "Sharing project has production-only trust and the share build",
-    share && shareConfigurationHealthy(wp, share),
-    "",
-    "run setup.mjs",
-  );
-  if (share) {
-    const shareEnv = envNames(team, share.name);
-    add(
-      "Sharing project has no private runtime credentials",
-      ![...shareEnv].some((k) =>
-        // Database variables in every form the Neon integration injects.
-        /^(DATABASE_URL|PG|POSTGRES_|GTM_RUN_SECRET$|CRON_SECRET$|GTM_GITHUB_TOKEN$)/.test(k),
-      ),
-      "",
-      "remove private runtime credentials from the sharing project",
-    );
-    add(
-      "Sharing project has private origin and project identity",
-      shareEnv.has("GTM_VIEWER_PRIVATE_ORIGIN") &&
-        shareEnv.has("GTM_VIEWER_PRIVATE_PROJECT_ID"),
-      "",
-      "run setup.mjs",
-    );
-  }
-  if (
-    Object.values(wp.protectionBypass ?? {}).some(
-      (value) => value.scope !== "automation-bypass",
-    )
-  )
-    add(
-      "Deployment-wide sharing links require review",
-      false,
-      "These grant broader deployment access than workflow links",
-      "Review Vercel deployment share links and remove unwanted broad access",
-    );
-  add(
-    "Workflow project OIDC is on (AI Gateway needs no key)",
-    wp.oidcTokenConfig?.enabled !== false,
-    "",
-    "Vercel → project → Settings → Security → Secure Backend Access with OIDC",
-  );
-  if (Object.keys(patch).length)
-    api(team, "PATCH", `/v9/projects/${wp.id}`, patch);
   const wenv = envNames(team, n.workflowProject);
-  for (const k of [
-    "DATABASE_URL",
-    "DATABASE_URL_UNPOOLED",
-    "CRON_SECRET",
-    "GTM_MODEL",
-    "GTM_AGENT_URL",
-    "GTM_NOTIFY_SECRET",
-  ])
-    add(
-      `Workflow project has ${k}`,
-      wenv.has(k),
-      "",
-      k.startsWith("DATABASE_URL")
-        ? "add Neon to the workflow project through the Vercel integration, production only; never set this by hand"
-        : "run setup.mjs",
-    );
-  for (const key of ["GTM_VIEWER_PROTECTED", "GTM_VIEWER_SHARE_ORIGIN"])
-    add(`Workflow viewer has ${key}`, wenv.has(key), "", "run setup.mjs");
-  if (wenv.has("AI_GATEWAY_API_KEY"))
-    add(
-      "Workflow project still holds AI_GATEWAY_API_KEY",
-      true,
-      "unneeded since gtm-skills 0.1.24; remove it once a hosted run has succeeded without it",
-    );
+  add(
+    "Agent and workflow project share GTM_NOTIFY_SECRET, and the workflow project has GTM_AGENT_URL",
+    aenv.has("GTM_NOTIFY_SECRET") && wenv.has("GTM_NOTIFY_SECRET") && wenv.has("GTM_AGENT_URL"),
+    "",
+    connect,
+  );
   add(
     "Context repository has workflows/",
-    run("gh", [
-      "api",
-      `repos/${githubOwner}/${n.contextRepo}/contents/workflows/package.json`,
-    ]).status === 0,
+    run("gh", ["api", `repos/${githubOwner}/${n.contextRepo}/contents/workflows/package.json`]).status === 0,
     "",
-    "run setup.mjs (it scaffolds the runtime)",
+    connect,
   );
-  const wd = latestProductionDeployment(team, n.workflowProject);
-  add(
-    "Workflow project has a ready production deployment",
-    wd?.readyState === "READY" || wd?.state === "READY",
-    wd?.readyState ?? wd?.state ?? "none",
-    "run setup.mjs or push a change under workflows/",
-  );
-  const wurl = productionUrl(team, n.workflowProject);
-  if (wurl) {
-    const l = await http(`${wurl}/api/link/example-scores`);
-    add(
-      "Workflow routes encounter the native deployment gate",
-      [302, 401, 403].includes(l.status),
-      `${wurl}/api/link/example-scores → ${l.status}`,
-      "read the deployment's logs in Vercel",
-    );
-  }
   return out;
 }
 

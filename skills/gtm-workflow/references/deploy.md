@@ -1,10 +1,27 @@
 # Deploy
 
-The production Keys page uses an existing protected workflow project. Run the skill's `scripts/setup.mjs --workspace <path> --deploy --team <team> --workflow-project <existing-project>`. It configures project-scoped access and creates no additional projects or databases. See [Keys setup](connections.md) for the token setup and browser verification.
+Production is an ordinary Vercel project, `gtm-<ws>`, that deploys `workflows/` on every push to `main`. Taking a workspace live is one command, run from the installed skill directory on a computer with `git`, `gh` and `vercel` signed in (and `neonctl` for copy-down):
 
-Enter production keys in the deployed Keys page (the private viewer's Connections tab), the Vercel dashboard, or `vercel env add <NAME> production`. Nothing local ever writes production keys. Production changes save Vercel Secrets and take effect after the deployment the page starts.
+```sh
+node scripts/setup.mjs --deploy --workspace /path/to/gtm-acme --team acme [--workflow-project gtm-acme] [--agent-project gtm-agent-acme] --json
+```
 
-Ordinary authored workflow deployment is a push to the workspace repository's production branch. The project builds from `workflows/`; Connections deploys with that runtime. Preserve the existing isolated share project and its access restrictions.
+It does what a person would do with Vercel's own tools, in this order, skipping every step already done, so it is also the repair and safe to run on a live workspace:
+
+1. The local runtime (as `--local`).
+2. The GitHub repository: the workspace's `origin`, else a new private `<gh user>/<folder name>`.
+3. The Vercel project (default: the workspace folder's name), git-connected to that repository with root `workflows/`, Node 22, framework Nitro, previews off, no ignored build step (every push to `main` builds), Vercel Authentication on All Deployments.
+4. `vercel link` in `workflows/` (refused when Development already holds a database; a link to another project is never replaced).
+5. Neon: `vercel integration add neon -e production` ([Database](#database)). The first time a team adds Neon, Vercel wants its terms accepted in the browser: setup stops with exit 2 and says so; run it again afterwards.
+6. Secrets, each made once: `CRON_SECRET`, `GTM_VIEWER_LINK_KEY`, the Keys page's project-scoped token and settings; one automation bypass, the one deployments see as `VERCEL_AUTOMATION_BYPASS_SECRET` (extra ones are reported, never used); variables of earlier designs (`GTM_RUN_SECRET`, `GTM_DATA_URL`, `GTM_RUNS_URL`, `GTM_CONNECTIONS_ORIGIN`, `GTM_CONNECTIONS_MANAGED`) are deleted.
+7. The public share project `gtm-<ws>-share` (found by the runtime's trust first, so a rename keeps it), its production-to-production trust, both projects' addresses, and its [rate limits](#share-rate-limits).
+8. With `--agent-project`: the agent's `GTM_WORKFLOW_URL`, `GTM_WORKFLOW_BYPASS_SECRET` and `GTM_WORKFLOW_GATE_REQUIRED`, one `GTM_NOTIFY_SECRET` on both, `GTM_AGENT_URL` on the runtime; the agent is redeployed when any changed.
+9. The first push: when `workflows/` is not committed yet, commit it with the root `.gitignore` and `.github/` and push `main`. After that setup never commits.
+10. A production deployment of both projects (the push, or a redeploy of the latest `main` when variables changed since the last one), waited for; then the Neon project is saved for copy-down.
+
+Addresses come from each project's production domain, the same one the app sees as `VERCEL_PROJECT_PRODUCTION_URL`, never from its name. Result: `production_ready` (exit 0), `deploying` (exit 0; a build is still running, run it again later to confirm), or `needs_you` with the one step only a person can do (exit 2). Doctor: `node scripts/doctor.mjs --target production --workspace <path> --json` lists what Vercel does not show at a glance, each with its fix (exit 2 when anything is listed).
+
+Enter production keys in the deployed Keys page (the private viewer's Connections tab), the Vercel dashboard, or `vercel env add <NAME> production`. Nothing local ever writes production keys.
 
 ## Database
 
@@ -16,7 +33,7 @@ Function time: workflow steps run in the `/.well-known/workflow/v1/flow` functio
 
 ## Verify deployment
 
-When `GTM_WORKFLOW_URL` is present, Deploy checks readiness in code after the push: `git fetch`, then poll `GET /api/link/<slug>` on the deployed copy until `git merge-base --is-ancestor <newest commit touching workflows/> <commit>` holds for the `commit` it returns, bounded to a few minutes. Equality is not the test: a later commit outside `workflows/` can be the tip of the push, and Vercel skips its build. On timeout, report in plain words and name the Redeploy step. A host without local runs deploys before its first run.
+Every push to `main` builds. Deploy checks readiness in code after the push: poll `GET /api/link/<slug>` on the deployed copy (`vercel curl /api/link/<slug>` from a computer; the hosted agent's host adds the bypass) until `git merge-base --is-ancestor HEAD <commit>` holds for the `commit` it returns, bounded to a few minutes. On timeout, report in plain words; a failed build shows in `vercel inspect <url> --logs`. A host without local runs deploys before its first run.
 
 ## Rules
 
@@ -40,7 +57,7 @@ Names: the workspace's runtime project is `gtm-<ws>` (like its repository) and i
 
 After building or editing a workflow with an intake, tell the user in plain words:
 
-1. The URL to paste into the sender, from `intakeUrl`: `https://gtm-<ws>-share.vercel.app/api/intake/<slug>`. It carries no secret. If the link route has no `intakeUrl`, sharing is not set up yet; say so and run gtm-agent setup first.
+1. The URL to paste into the sender, from `intakeUrl`: `https://gtm-<ws>-share.vercel.app/api/intake/<slug>`. It carries no secret. If the link route has no `intakeUrl`, sharing is not set up yet; say so and run setup `--deploy`.
 2. The signing secret: the sender and the runtime must hold the same value under the intake's `secretEnv` (Cal.com: the webhook's "Secret" field, variable `CAL_WEBHOOK_SECRET`). Let the user make it and paste it themselves, never through the chat: in their own terminal `openssl rand -hex 32` (or any long random string), pasted into the sender's secret field and into Connections as a new secret named after `secretEnv`, saved for Production; then redeploy. Until the variable exists the runtime answers 503; a mismatch answers 401 "Bad signature".
 3. The sender's test ping should come back 200 (`ignored`) or 202; a 401 "Signed webhooks only" means the sender sends no signature, so its secret field is empty.
 
@@ -50,11 +67,11 @@ An intake always names `secretEnv` and `signature`; an unsigned intake would let
 
 The share project is public on purpose (share links, the share read API, the intake relay), so never turn on Deployment Protection for it. Its firewall rate-limits each IP address instead, from one definition, `templates/share-firewall.json`: `/api/intake/*` 120 a minute, `/api/viewer*` 300, everything else 300, answering 429 over the limit. Real use stays far below (an open share tab reads about 6 times a minute); a flood is cut off, and Vercel does not bill requests the firewall mitigates.
 
-- Hosted setup (`scripts/setup.mjs --deploy`) applies them to `gtm-<ws>-share` (or `--share-project`) and publishes, touching only rules named `GTM share: …`; the project owner's other rules stay. It is idempotent: a matching project is left alone, and a pending unpublished firewall draft stops it with `draft_pending` rather than publishing someone's half-made edit. Its result carries `shareFirewall` (`applied`, `current`, `draft_pending`, `no_share_project`, `failed`).
-- Doctor (`scripts/doctor.mjs --target production`) reports `shareFirewall`: `current`, or `missing`/`differs` with the rule names, and exits 2 on drift. Hosted setup repairs it. Upgrade reruns hosted setup, so changed limits in the template roll out with it.
+- Hosted setup (`scripts/setup.mjs --deploy`) applies them to the share project and publishes, touching only rules named `GTM share: …`; the project owner's other rules stay. It is idempotent: a matching project is left alone, and a pending unpublished firewall draft stops it with `draft_pending` rather than publishing someone's half-made edit. Its result carries `steps.share.firewall` (`applied`, `current`, `draft_pending`, `failed`).
+- Doctor (`scripts/doctor.mjs --target production`) lists drift among its problems, and its `shareFirewall` field says `current`, or `missing`/`differs` with the rule names. Hosted setup repairs it. Upgrade reruns hosted setup, so changed limits in the template roll out with it.
 - Spend cap: both also report `spendCap`, the team's Spend Management budget (amount and whether it pauses projects), and warn when there is none or it only alerts. It is a team setting: never change it; tell the owner to add one under Settings > Billing > Spend Management with Pause on. Vercel publishes no API for it, so `unknown` means it could not be read, not that it is off. Marketplace charges such as Neon are outside it.
 - The private runtime `gtm-<ws>` needs no share rules: Vercel Authentication answers outsiders before any function runs.
 
-## Protected viewer rollout
+## Removing production
 
-Follow [viewer.md](viewer.md) for machine access, the share-only companion, immutable workflow identities and grant policy. Configure and deploy the upgraded agent before activating the native gate. Verify harmless Queue/resumption, cron and any signed intake under protection. Deploy the share-only project with `npm run build:share`, production-to-production trust, and only its private origin/project settings. Verify its fixed read proxy before setting `GTM_VIEWER_SHARE_ORIGIN` on the private runtime and redeploying to expose Share.
+Production is ordinary Vercel: to stop it, delete `gtm-<ws>` and `gtm-<ws>-share` in Vercel (Settings > Advanced) and remove the Neon database from the Storage tab; delete `workflows/.vercel` and `workflows/data/neon.json` locally. The workspace keeps working locally. Setup `--deploy` makes it all again, with a new, empty database.

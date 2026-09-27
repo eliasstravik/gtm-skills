@@ -14,7 +14,7 @@ A workspace is an ordinary Vercel app: `workflows/` on a laptop is local, the Ve
 
 ## From a laptop, with Vercel's own tools
 
-Link once: `vercel link` in `workflows/` (shared setup `--deploy` does it; it first refuses a Development environment that holds the production database and adds keys saved only in `.env.local` to Development). Then, from `workflows/`:
+Link once: `vercel link` in `workflows/` (shared setup `--deploy` does it, after refusing a Development environment that holds the production database). Then, from `workflows/`:
 
 - Start a production run: `vercel curl /api/run/<slug> -- -X POST` (add `-H 'content-type: application/json' -d '{"maxRows":1}'` for a limited run). A workflow that already has a run pending or running answers 409 `{"error":"already_running","runningRunId":…}`, whoever started it (a schedule, a teammate, the Slack agent); wait for it or cancel it. Only one network enrichment runs per workspace at a time; a second one fails saying so.
 - Read production rows: `vercel curl /api/query -- -X POST -H 'content-type: application/json' -d '{"sql":"select key, score from example_scores limit 20"}'`.
@@ -23,6 +23,24 @@ Link once: `vercel link` in `workflows/` (shared setup `--deploy` does it; it fi
 - The database: the Neon console, from the project's Storage tab. Copy it down with `npm run db:pull`; a power user's Neon development branch goes in `DATABASE_URL` locally (see [local database](local.md#local-database)).
 
 `vercel curl` is in beta; if it breaks, plain `curl` with `-H "x-vercel-protection-bypass: <secret>"` (Project Settings > Deployment Protection > Protection Bypass for Automation) does the same.
+
+## Starting points
+
+- **Local only:** shared setup `--local`, then `npm run dev`. No accounts.
+- **Going live** (now, or any time later): shared setup `--deploy` ([Deploy](deploy.md)). It is the same command whether the workspace was local first, already on GitHub, or made by gtm-agent setup; run again, it only repairs what is missing.
+- **Slack agent first:** gtm-agent setup ends by running shared setup `--deploy --agent-project …`. Connecting an agent to a live workspace later is the same command with `--agent-project`.
+- **A teammate or a second computer joins** with no setup command, like any Vercel app:
+
+  ```sh
+  git clone https://github.com/<owner>/gtm-<ws> && cd gtm-<ws>/workflows
+  npm ci
+  vercel link --yes --project gtm-<ws> --scope <team>
+  vercel env pull
+  npm run dev
+  ```
+
+  Their local database starts empty (`npm run db:pull` copies production down, after `setup --deploy` once on that computer for the Neon project). Settings that are not keys (`GTM_AGENT_BACKEND`, tailnet mode) live in each computer's own `workflows/.env`.
+- **Removing production:** see [Deploy](deploy.md#removing-production).
 
 ## Who can do what in production
 
