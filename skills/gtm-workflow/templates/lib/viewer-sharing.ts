@@ -6,7 +6,7 @@ import {
   randomUUID,
 } from "node:crypto";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
-import { writeTransaction, type Executor } from "./db";
+import { lockNames, writeTransaction, type Executor } from "./db";
 import { gtmViewerGrants } from "./schema/viewer-grants";
 import type { DataPolicy, View } from "./viewer-contract";
 import {
@@ -131,9 +131,10 @@ export async function saveLink(
   options: { views?: unknown; policy?: unknown; save?: unknown },
   policy?: DataPolicy,
 ) {
-  // One writer at a time, so two owners saving at once see each other's link; the unique index on the one active
-  // link per workflow is the backstop, not a process-local lock.
+  // One writer at a time per workflow link, so two owners saving at once see each other's link and one owner's
+  // removal of a view is never undone by another's save; the unique index on the one active link is the backstop.
   return writeTransaction(client, async (tx) => {
+    await lockNames(tx, [`share:${scope.workspace}:${scope.environment}:${scope.workflowId}`]);
     const current = await activeLink(tx, scope);
     if (current && options.save !== true) {
       const grant = decodeGrant(current);

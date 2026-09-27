@@ -248,11 +248,16 @@ export async function ensureLocalDatabase(workflowsDir, { create = true } = {}) 
 /** The Neon endpoint id in a connection URL's host (`ep-x-1` from `ep-x-1-pooler.<region>.aws.neon.tech`). */
 export const endpointOf = (url) => new URL(url).hostname.split(".")[0].replace(/-pooler$/, "");
 
+/** A Neon host (`ep-x-1[-pooler].<region>.aws.neon.tech`): the kind of database `vercel env pull` brings down. */
+export const neonHost = (url) => /\.neon\.tech$/i.test(new URL(url).hostname);
+
 /**
  * The production guard. The production build writes one marker row naming its own endpoint (scripts/migrate.mjs);
- * a database is production only when that row is there and names the host being connected to. A Neon branch copied
- * or reset from production carries the row under another host, so a development branch passes. No marker table
- * means "not production". A database that cannot be reached is an error, never a pass.
+ * a database is production when that row is there and names the host being connected to. A Neon branch copied or
+ * reset from production carries the row under another host, so a development branch passes. A Neon database with no
+ * marker at all counts as production: before the first production build nothing proves a pulled URL is not
+ * production's own. Another database with no marker (your own Postgres) is not production. A database that cannot be
+ * reached is an error, never a pass.
  */
 export async function isProductionDatabase(url) {
   const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: 10000 });
@@ -260,9 +265,9 @@ export async function isProductionDatabase(url) {
   await client.connect();
   try {
     const { rows } = await client.query("SELECT endpoint FROM gtm.environment WHERE name = 'production'");
-    return rows.some((row) => row.endpoint === endpointOf(url));
+    return rows.length === 0 ? neonHost(url) : rows.some((row) => row.endpoint === endpointOf(url));
   } catch (error) {
-    if (["42P01", "3F000"].includes(error.code)) return false; // no table, no schema
+    if (["42P01", "3F000"].includes(error.code)) return neonHost(url); // no table, no schema
     throw error;
   } finally { await client.end().catch(() => {}); }
 }

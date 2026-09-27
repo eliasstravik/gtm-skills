@@ -35,7 +35,7 @@ test("hosted inventory recognizes request identity without an API key or token e
   assert.deepEqual(row.usage, [{ workflowId: "qualify", title: "Qualify", provider: "TypeSafe" }]);
   assert.ok(!JSON.stringify(body).includes(token));
   assert.equal((await connectionsApi(new Request("https://private.example/api/connections"), workflows)).status, 401);
-  Object.assign(process.env, { GTM_CONNECTIONS_ENABLED: "1", GTM_VIEWER_PROTECTED: "1", GTM_CONNECTIONS_ORIGIN: "https://private.example", GTM_CONNECTIONS_TEAM_ID: "team_test", GTM_CONNECTIONS_VERCEL_TOKEN: "synthetic-management-token" });
+  Object.assign(process.env, { GTM_CONNECTIONS_ENABLED: "1", GTM_VIEWER_PROTECTED: "1", VERCEL_PROJECT_PRODUCTION_URL: "private.example", GTM_CONNECTIONS_TEAM_ID: "team_test", GTM_CONNECTIONS_VERCEL_TOKEN: "synthetic-management-token" });
   const fetcher = globalThis.fetch;
   t.after(() => { globalThis.fetch = fetcher; });
   globalThis.fetch = async (url, init) => {

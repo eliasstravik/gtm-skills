@@ -27,9 +27,7 @@ const messages = {
   invalid_key: "Enter a nonempty key on one line.",
   local_access_only: "Open the Keys page from this computer's viewer (or your own tailnet address).",
   csrf_denied: "Refresh this page and try again.",
-  vercel_cli_unavailable: "The Vercel CLI is not installed here. Install it (npm i -g vercel), sign in with `vercel login`, then save again.",
   vercel_request_denied: "Vercel refused the change. Check `vercel login` and that you can edit this project, then save again.",
-  production_database_in_development: "This project's Development environment on Vercel holds the production database. In Vercel, open the Neon integration's settings and untick Development for it, then save again. Your .env.local was not changed.",
 };
 const message = (code) => messages[code] ?? "Connections could not complete this request. Refresh or run Connections Doctor.";
 function EntryForm({ selection, inventory, close, updated, beginApply, failedApply }) {
@@ -187,7 +185,7 @@ function App() {
       </div>)}</div>
       {!inventory.connections.some((row) => row.platformIdentity || row.fields.some((field) => field.state !== "disconnected")) ? <p className="notice">No connections yet. Add an API key to get started.</p> : null}
       {localMode ? <p className="muted connection-store">{inventory.linked
-        ? "Saved to this project's Development environment on Vercel, then pulled into workflows/.env.local. Hand edits to .env.local are replaced by the next pull. Development variables are stored as plain values, not secrets."
+        ? "Saved in workflows/.env.local on this computer only. `vercel env pull` replaces this file with the project's Development variables."
         : "Saved in workflows/.env.local on this computer."} Changes apply the next time you start npm run dev.</p> : null}
       {restart ? <div className="notice" role="status"><p>Saved. Restart npm run dev to use it in runs.</p></div> : null}
       {selection ? <EntryForm key={`${selection.action}-${selection.field?.variable ?? selection.preset ?? "new"}`} selection={selection} inventory={inventory} close={closeEntry} updated={updated} beginApply={beginApply} failedApply={failedApply} /> : null}

@@ -23,25 +23,39 @@ export function clientTools() {
   return { major };
 }
 
+const SCHEMAS = ["gtm", "drizzle", "public"];
+
+/** Runs statements on `target` in one transaction. */
+async function onTarget(target, statements) {
+  const client = new pg.Client({ connectionString: target });
+  client.on("error", () => {});
+  await client.connect();
+  try { await client.query(`BEGIN; ${statements.join("; ")}; COMMIT`); } finally { await client.end(); }
+}
+
 /**
  * Dump `source` read-only (schemas public, gtm and drizzle, the migration journal included so local migrations stay a
- * no-op; share-link secrets excluded) and restore it over `target`'s data. Then settle what was in flight in production,
+ * no-op; share-link secrets excluded) and restore it in place of `target`'s data. Local data is set aside, not
+ * dropped, until the restore has succeeded, and comes back if it fails. Then settle what was in flight in production,
  * so local runs are never blocked by it and never settle production's provider jobs, and drop production's marker.
  * Returns the bytes transferred.
  */
 export async function pullDatabase({ source, target, dumpFile }) {
-  const dump = run("pg_dump", ["--format=custom", "--no-owner", "--no-acl", "--schema=public", "--schema=gtm", "--schema=drizzle",
+  // A dump that has to wait for a table (a migration running) gives up rather than queue behind it.
+  const dump = run("pg_dump", ["--format=custom", "--no-owner", "--no-acl", "--lock-wait-timeout=10s", "--schema=public", "--schema=gtm", "--schema=drizzle",
     "--exclude-table-data=gtm.gtm_viewer_grants", `--file=${dumpFile}`, source], { ...process.env, PGOPTIONS: "-c default_transaction_read_only=on" });
   if (dump.status !== 0) throw new LocalDatabaseError(`pg_dump failed: ${dump.stderr.trim().split("\n").pop()}`);
   const bytes = statSync(dumpFile).size;
-  const client = new pg.Client({ connectionString: target });
-  client.on("error", () => {});
-  await client.connect();
-  try {
-    await client.query("DROP SCHEMA IF EXISTS gtm CASCADE; DROP SCHEMA IF EXISTS drizzle CASCADE; DROP SCHEMA IF EXISTS public CASCADE");
-  } finally { await client.end(); }
-  const restore = run("pg_restore", ["--no-owner", "--no-acl", "--exit-on-error", `--dbname=${target}`, dumpFile]);
-  if (restore.status !== 0) throw new LocalDatabaseError(`pg_restore failed: ${restore.stderr.trim().split("\n").pop()}`);
+  const aside = (name) => `"${name}_before_pull"`;
+  await onTarget(target, [...SCHEMAS.map((name) => `DROP SCHEMA IF EXISTS ${aside(name)} CASCADE`),
+    ...SCHEMAS.map((name) => `DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = '${name}') THEN ALTER SCHEMA "${name}" RENAME TO ${aside(name)}; END IF; END $$`)]);
+  const restore = run("pg_restore", ["--no-owner", "--no-acl", "--exit-on-error", "--single-transaction", `--dbname=${target}`, dumpFile]);
+  if (restore.status !== 0) {
+    await onTarget(target, [...SCHEMAS.map((name) => `DROP SCHEMA IF EXISTS "${name}" CASCADE`),
+      ...SCHEMAS.map((name) => `DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = '${name}_before_pull') THEN ALTER SCHEMA ${aside(name)} RENAME TO "${name}"; END IF; END $$`)]);
+    throw new LocalDatabaseError(`pg_restore failed, local data is as it was: ${restore.stderr.trim().split("\n").pop()}`);
+  }
+  await onTarget(target, SCHEMAS.map((name) => `DROP SCHEMA IF EXISTS ${aside(name)} CASCADE`));
   const settle = new pg.Client({ connectionString: target });
   settle.on("error", () => {});
   await settle.connect();
@@ -58,7 +72,8 @@ function productionUrl() {
   const file = join(cwd, "data", "neon.json");
   if (!existsSync(file)) throw new LocalDatabaseError("No Neon project saved for this workspace: run the gtm-workflow skill's setup with --deploy once, from a computer signed in to neonctl.");
   const neon = JSON.parse(readFileSync(file, "utf8"));
-  const result = run("neonctl", ["connection-string", "--project-id", neon.projectId, "--org-id", neon.orgId]);
+  // The owner role by name: once another role exists (an import role, say) neonctl would ask which one.
+  const result = run("neonctl", ["connection-string", "--project-id", neon.projectId, "--org-id", neon.orgId, "--role-name", "neondb_owner"]);
   if (result.status !== 0) throw new LocalDatabaseError("neonctl could not give the production connection: sign in with `neonctl auth`, then try again.");
   const url = result.stdout.trim();
   if (neon.endpoint && endpointOf(url) !== neon.endpoint) throw new LocalDatabaseError("neonctl answered for another endpoint than the one setup saved; run setup --deploy again.");
@@ -83,11 +98,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     });
     const bytes = await pullDatabase({ source, target: database.url, dumpFile });
     console.log(`Copied production to the local database (a ${(bytes / 1024 / 1024).toFixed(1)} MB compressed dump; Neon counts the uncompressed rows as data transfer). Start npm run dev.`);
+    await rm(dumpFile, { force: true });
   } catch (error) {
+    // The dump stays in data/ when it was made: `pg_restore` can be run on it by hand.
     console.error(error?.name === "LocalDatabaseError" ? error.message : error);
     process.exitCode = 1;
   } finally {
-    await rm(dumpFile, { force: true });
     await database?.stop();
   }
 }

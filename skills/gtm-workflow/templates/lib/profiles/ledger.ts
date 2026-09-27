@@ -40,7 +40,7 @@ export async function renewLease(client: Executor, lease: RunLease) {
   const changed = await client.update(profileRuns).set({ lease_until: leaseEnd() }).where(owned(lease)).returning({ id: profileRuns.id });
   if (changed.length !== 1) throw new Error(NOT_OWNED);
 }
-/** A stale run must be explicitly resumed; a fresh run never steals its lock. */
+/** A stale run must be explicitly resumed; a fresh run never steals a live lease, and cancels an expired one. */
 export async function beginRun(
   client: Executor,
   options: {
@@ -57,13 +57,13 @@ export async function beginRun(
     // One name for every run start of the workspace: the single-flight rule is decided by reading, so starts are serial.
     await lockNames(tx, ["runs"]);
     const [active] = await tx.select({ id: profileRuns.id, owner: profileRuns.owner, lease_until: profileRuns.lease_until }).from(profileRuns).where(eq(profileRuns.state, "running"));
-    if (
-      active &&
-      (active.id !== options.id ||
-        (active.owner !== options.owner &&
-          active.lease_until.getTime() >= Date.now()))
-    )
+    // A live lease blocks; an expired one is a run whose worker is gone (a failed child, a lost parent), so a new run
+    // cancels it and goes ahead instead of waiting for someone to cancel it by hand.
+    const live = active && active.lease_until.getTime() >= Date.now();
+    if (active && live && (active.id !== options.id || active.owner !== options.owner))
       return { status: "already_running" as const, runId: active.id };
+    if (active && !live && active.id !== options.id)
+      await tx.update(profileRuns).set({ state: "cancelled" }).where(and(eq(profileRuns.id, active.id), eq(profileRuns.state, "running")));
     // input_json is read here alone, and used only to resume the saved list.
     const [existing] = await tx.select({ workflow_id: profileRuns.workflow_id, owner: profileRuns.owner, state: profileRuns.state, input_json: profileRuns.input_json }).from(profileRuns).where(eq(profileRuns.id, options.id));
     if (existing) {

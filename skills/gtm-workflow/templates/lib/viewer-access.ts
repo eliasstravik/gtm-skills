@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { ViewerError } from "./viewer-grants";
-import { ownerSession } from "./connections-access";
+import { ownerSession, productionOrigin } from "./connections-access";
 export const viewerHeaders = {
   "cache-control": "private, no-store",
   "referrer-policy": "no-referrer",
@@ -28,7 +28,7 @@ const CONFIRMED_MS = 60_000;
 /** A signed-in owner, as Vercel confirms it. Passing Vercel Authentication alone (an automation bypass, a trusted
  * OIDC caller such as the share project) is not an owner; those reach only bearer, share-token or signed routes. */
 export async function hostedOwner(req: Request, fetcher = fetch) {
-  const origin = process.env.GTM_CONNECTIONS_ORIGIN, teamId = process.env.GTM_CONNECTIONS_TEAM_ID;
+  const origin = productionOrigin(), teamId = process.env.GTM_CONNECTIONS_TEAM_ID;
   if (!origin || !teamId)
     throw new ViewerError(503, "configuration", "Run hosted setup before opening the private viewer.");
   const key = createHash("sha256").update(req.headers.get("cookie") ?? "").digest("base64url");
