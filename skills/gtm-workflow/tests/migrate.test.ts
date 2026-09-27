@@ -3,11 +3,12 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { pgTable, text } from "drizzle-orm/pg-core";
-import { migrate } from "../templates/scripts/migrate.mjs";
-import { isProductionDatabase } from "../templates/scripts/local-database.mjs";
+import { DESTRUCTIVE_OPT_IN, checkFolder, destructiveStatements, migrate } from "../templates/scripts/migrate.mjs";
+import { isProductionDatabase, neonHost } from "../templates/scripts/local-database.mjs";
 import { mergeTables } from "../templates/lib/tables";
 import { testDatabase } from "./db";
 import { readFileSync } from "node:fs";
+import pg from "pg";
 
 const runtime = process.env.GTM_TEST_RUNTIME!;
 const runtimeMigrations = (JSON.parse(readFileSync(join(runtime, "drizzle-runtime/meta/_journal.json"), "utf8")) as { entries: unknown[] }).entries.length;
@@ -80,4 +81,34 @@ test("only a production build marks its database, and the guard matches that end
     assert.equal(await isProductionDatabase(elsewhere.href), false);
     await database.query("DELETE FROM gtm.environment");
   } finally { await database.close(); }
+});
+
+test("a Neon URL with no production marker counts as production; a plain Postgres one does not", () => {
+  assert.equal(neonHost("postgresql://u:p@ep-cool-1-pooler.us-east-1.aws.neon.tech/neondb"), true);
+  assert.equal(neonHost("postgresql://u:p@127.0.0.1:5432/gtm"), false);
+});
+
+test("a migration older than the latest applied one fails instead of being skipped", { skip: process.env.GTM_TEST_SCRATCH === "1" }, async () => {
+  const database = await testDatabase();
+  const client = new pg.Client({ connectionString: database.unpooled });
+  await client.connect();
+  try {
+    await checkFolder(client, "drizzle", "gtm_workspace_migrations");
+    // Someone else's newer migration landed first: the journal's own entry is now behind it and not applied.
+    await client.query("UPDATE drizzle.gtm_workspace_migrations SET created_at = created_at + 1000, hash = 'theirs'");
+    await assert.rejects(checkFolder(client, "drizzle", "gtm_workspace_migrations"), /older than the latest applied migration/);
+    await assert.rejects(migrate(database.unpooled), /older than the latest applied migration/);
+  } finally { await client.end(); await database.close(); }
+});
+
+test("drops, renames, truncates and type changes are destructive; the shipped drop carries the opt-in", () => {
+  assert.deepEqual(destructiveStatements(`CREATE TABLE "a" ("k" text);--> statement-breakpoint
+ALTER TABLE "a" ADD COLUMN "b" text;
+ALTER TABLE "a" ALTER COLUMN "b" DROP NOT NULL;
+ALTER TABLE "a" DROP CONSTRAINT "c";
+INSERT INTO "a" VALUES ('DROP TABLE x; RENAME');
+-- DROP TABLE "a";`), []);
+  for (const statement of ['DROP TABLE "a"', 'ALTER TABLE "a" DROP COLUMN "b"', 'ALTER TABLE a DROP b', 'ALTER TABLE "a" RENAME COLUMN "b" TO "c"', 'ALTER TABLE "a" RENAME TO "z"', 'TRUNCATE "a"', 'ALTER TABLE "a" ALTER COLUMN "b" SET DATA TYPE integer'])
+    assert.deepEqual(destructiveStatements(`${statement};`), [statement], statement);
+  assert.ok(readFileSync(join(runtime, "drizzle-runtime/0003_drop_raw_responses.sql"), "utf8").includes(DESTRUCTIVE_OPT_IN));
 });

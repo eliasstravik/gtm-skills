@@ -1,3 +1,4 @@
+-- gtm: destructive (shipped in 0.1.62, after the code stopped writing raw_responses_json)
 -- One-time data move: every retained envelope keeps its metadata (provider, endpoint, mode, outcome, sections, times, cost)
 -- and loses its payload. provenance_json and section_status_json point at envelopes by hash and stay correct: the hashes are
 -- the keys of this object and are copied as they are. The payloads of ledgered lookups stay in gtm.profile_attempts.response_json.

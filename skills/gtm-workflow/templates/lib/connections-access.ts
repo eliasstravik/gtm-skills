@@ -11,11 +11,18 @@ export const connectionHeaders = {
   "cache-control": "private, no-store", "referrer-policy": "no-referrer",
   "x-content-type-options": "nosniff", "x-frame-options": "DENY",
 };
+/** The project's production address as Vercel reports it (its shortest production domain), so a suffixed name, a
+ * rename or a custom domain all work. Undefined off Vercel. */
+export function productionOrigin(env = process.env) {
+  const host = env.VERCEL_PROJECT_PRODUCTION_URL;
+  if (!host || !/^[a-z0-9.-]+(?::\d+)?$/i.test(host)) return undefined;
+  return `https://${host.toLowerCase()}`;
+}
 export function connectionConfiguration(env = process.env) {
   insist(env.VERCEL && env.VERCEL_ENV === "production" && env.GTM_VIEWER_MODE !== "share" &&
     env.GTM_VIEWER_PROTECTED === "1" && env.GTM_CONNECTIONS_ENABLED === "1", "connections_disabled", 503);
-  const origin = env.GTM_CONNECTIONS_ORIGIN;
-  insist(origin && new URL(origin).origin === origin && origin.startsWith("https://"), "connections_disabled", 503);
+  const origin = productionOrigin(env);
+  insist(origin, "connections_disabled", 503);
   insist(env.VERCEL_PROJECT_ID && env.GTM_CONNECTIONS_TEAM_ID && env.GTM_CONNECTIONS_VERCEL_TOKEN, "connections_disabled", 503);
   return { origin, projectId: env.VERCEL_PROJECT_ID, teamId: env.GTM_CONNECTIONS_TEAM_ID,
     token: env.GTM_CONNECTIONS_VERCEL_TOKEN };

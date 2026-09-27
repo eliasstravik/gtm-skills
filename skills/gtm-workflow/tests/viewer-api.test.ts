@@ -460,18 +460,18 @@ test("shared profile API scopes details, nested projections and both export form
   entry.sharePolicy.version = "unsupported";
   assert.equal((await viewerApi(req("data", token), true)).status, 403);
 });
-test("private link discovery exposes only the fixed Connections origin and share mode omits it", async () => {
+test("private link discovery exposes only the project's production origin and share mode omits it", async () => {
   const { viewerLink } = await import("../templates/lib/viewer-link");
   const request = new Request("https://private.example/api/link");
-  const previous = process.env.GTM_CONNECTIONS_ORIGIN;
+  const previous = process.env.VERCEL_PROJECT_PRODUCTION_URL;
   try {
-    process.env.GTM_CONNECTIONS_ORIGIN = "https://connections.example";
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "connections.example";
     assert.equal(viewerLink(request).connectionsUrl, "https://connections.example");
-    for (const value of ["http://connections.example", "https://connections.example/path", "https://user:pass@connections.example", "https://connections.example/#capability"]) {
-      process.env.GTM_CONNECTIONS_ORIGIN = value;
+    for (const value of ["", "connections.example/path", "user:pass@connections.example", "connections.example/#capability"]) {
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = value;
       assert.equal(viewerLink(request).connectionsUrl, undefined);
     }
-    process.env.GTM_CONNECTIONS_ORIGIN = "https://connections.example";
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "connections.example";
     process.env.GTM_VIEWER_MODE = "share";
     assert.equal(viewerLink(request).connectionsUrl, undefined);
     // Local: the Keys page on the same server, at whatever address it was asked on.
@@ -482,8 +482,8 @@ test("private link discovery exposes only the fixed Connections origin and share
     } finally { if (vercel !== undefined) process.env.VERCEL = vercel; }
   } finally {
     delete process.env.GTM_VIEWER_MODE;
-    if (previous === undefined) delete process.env.GTM_CONNECTIONS_ORIGIN;
-    else process.env.GTM_CONNECTIONS_ORIGIN = previous;
+    if (previous === undefined) delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    else process.env.VERCEL_PROJECT_PRODUCTION_URL = previous;
   }
 });
 test("links the browser follows are origin-relative, so the viewer works behind a trusted proxy", async () => {

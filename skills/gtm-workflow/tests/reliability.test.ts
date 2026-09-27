@@ -365,3 +365,45 @@ test("row failures persist actual fetch cause and workflow ID without copying re
   assert.equal(failureDetails(circular, { layer: "step" }).causes.length, 1);
   assert.ok(!rowFailure(circular).includes("secret-fixture"));
 });
+
+test("two answers to one approval at once: exactly one wins, and the record says what the run was told", async () => {
+  await testDatabase();
+  const { resumed, goneHooks } = await import("./reliability-fixture");
+  const { decideApproval } = await import("../templates/lib/approval-api");
+  const { upsert } = await import("../templates/lib/db");
+  const request = (token: string) => upsert("cache", [{ name: "approval", hash: token, created_at: new Date(), expires_at: new Date(Date.now() + 60_000),
+    value: { token, runId: "run-a", stage: "s", tool: "t", input: {}, requestedAt: new Date().toISOString(), decidedAt: null, approved: null, reason: null } }], ["name", "hash"]);
+  await request("tok");
+  const outcomes = await Promise.allSettled([decideApproval("run-a", "tok", true, null), decideApproval("run-a", "tok", false, "no")]);
+  assert.equal(outcomes.filter((o) => o.status === "fulfilled").length, 1);
+  const winner = (outcomes.find((o) => o.status === "fulfilled") as PromiseFulfilledResult<{ approved: boolean }>).value;
+  assert.deepEqual(resumed.filter((r) => r.token === "tok").map((r) => (r.payload as { approved: boolean }).approved), [winner.approved]);
+  const [row] = (await db().execute("SELECT value FROM gtm.cache WHERE name = 'approval' AND hash = 'tok'")).rows as { value: { approved: boolean } }[];
+  assert.equal(row.value.approved, winner.approved);
+  await assert.rejects(decideApproval("run-b", "tok", true, null), /No approval tok on run run-b/);
+  // A run that can no longer hear the answer: the claim is undone, so the request is still pending.
+  await request("gone"); goneHooks.add("gone");
+  await assert.rejects(decideApproval("run-a", "gone", true, null), /hook not found/);
+  const [pending] = (await db().execute("SELECT value FROM gtm.cache WHERE name = 'approval' AND hash = 'gone'")).rows as { value: { decidedAt: string | null } }[];
+  assert.equal(pending.value.decidedAt, null);
+});
+
+test("two deliveries of one webhook event at once start one run; a failed start lets the retry through", async () => {
+  await testDatabase();
+  const { admit, markStarted, releaseEvent } = await import("../templates/lib/intake-api");
+  const { createHmac } = await import("node:crypto");
+  process.env.TEST_INTAKE_SECRET = "s";
+  const intake = { secretEnv: "TEST_INTAKE_SECRET", signature: { header: "x-sig" }, eventId: (e: { id: string }) => e.id, toRow: (e: { id: string }) => ({ key: e.id }) };
+  const body = JSON.stringify({ id: "evt-1" });
+  const headers = new Headers({ "x-sig": createHmac("sha256", "s").update(body).digest("hex") });
+  const deliver = () => admit("hook", intake as never, body, headers);
+  const [a, b] = await Promise.all([deliver(), deliver()]);
+  assert.deepEqual([a, b].map((r) => r.reply.status).sort(), [200, 202]);
+  const admitted = (a.row ? a : b).eventId!;
+  await releaseEvent(admitted);
+  const retry = await deliver();
+  assert.equal(retry.reply.status, 202, "the start failed and released the event, so a redelivery starts it");
+  await markStarted(retry.eventId!, "run-1");
+  await releaseEvent(retry.eventId!);
+  assert.deepEqual((await deliver()).reply.body, { duplicate: true }, "a started event stays seen");
+});

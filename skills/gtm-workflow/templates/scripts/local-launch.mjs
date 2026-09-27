@@ -40,7 +40,7 @@ export async function launch(options = {}) {
     ? { url: env.DATABASE_URL, unpooled: env.DATABASE_URL_UNPOOLED || env.DATABASE_URL, async stop() {}, stopNow() {} }
     : await ensureLocalDatabase(cwd);
   try {
-    if (await isProductionDatabase(database.unpooled ?? database.url)) throw new LocalDatabaseError("DATABASE_URL points at the production database. Local work never runs against it: remove it from .env.local (in Vercel, untick Development for the production database in the Neon integration).");
+    if (await isProductionDatabase(database.unpooled ?? database.url)) throw new LocalDatabaseError("DATABASE_URL points at the production database, or at a Neon database with no production marker yet (before production's first build nothing proves it is not production's). Local work never runs against it: remove it from .env.local (in Vercel, untick Development for the production database in the Neon integration).");
     // Only DATABASE_URL and DATABASE_URL_UNPOOLED reach the app; PG* and POSTGRES_* from a pulled file never do.
     const runtime = databaseEnvironment(env, database.url, database.unpooled ?? database.url);
     const run = (args) => {

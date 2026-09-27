@@ -24,7 +24,10 @@ export async function connectionDeployment(api: Api, projectId: string, origin: 
     !id ? "idle" : latest?.state === "READY" && latest.uid === current.id ? "applied" : "failed";
   return { projectName: project.name, source: current.id, application: { state, ...(typeof id === "string" ? { id } : {}) } as Application };
 }
-/** Rebuild the serving production code with current project env; never pull a newer commit. */
+/**
+ * Rebuild production with the current project env from the latest commit of the production branch, as a push would:
+ * never the serving build's older commit, which could put back code (and a schema expectation) a newer push replaced.
+ */
 export async function applyConnections(api: Api, projectId: string, id: string, origin: string): Promise<Application> {
   applicationId(id);
   try {
@@ -34,7 +37,7 @@ export async function applyConnections(api: Api, projectId: string, id: string, 
     if (active.id === id && ["applying", "applied"].includes(active.state)) return active;
     const result = await api("POST", "/v13/deployments?forceNew=1", {
       name: deployment.projectName, project: projectId, deploymentId: deployment.source,
-      target: "production", withLatestCommit: false, meta: { gtmConnectionsChange: id },
+      target: "production", withLatestCommit: true, meta: { gtmConnectionsChange: id },
     });
     insist(typeof result.id === "string", "application_unavailable", 503);
     return { id, state: ["ERROR", "CANCELED"].includes(result.readyState) ? "failed" : "applying" };
