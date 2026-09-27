@@ -15,7 +15,7 @@ It does what a person would do with Vercel's own tools, in this order, skipping 
 5. Neon: `vercel integration add neon -e production` ([Database](#database)). The first time a team adds Neon, Vercel wants its terms accepted in the browser: setup stops with exit 2 and says so; run it again afterwards.
 6. Secrets, each made once: `CRON_SECRET`, `GTM_VIEWER_LINK_KEY`, the Keys page's project-scoped token and settings; one automation bypass, the one deployments see as `VERCEL_AUTOMATION_BYPASS_SECRET` (extra ones are reported, never used); variables of earlier designs (`GTM_RUN_SECRET`, `GTM_DATA_URL`, `GTM_RUNS_URL`, `GTM_CONNECTIONS_ORIGIN`, `GTM_CONNECTIONS_MANAGED`) are deleted.
 7. The public share project `gtm-<ws>-share` (found by the runtime's trust first, so a rename keeps it), its production-to-production trust, both projects' addresses, and its [rate limits](#share-rate-limits).
-8. With `--agent-project`: the agent's `GTM_WORKFLOW_URL`, `GTM_WORKFLOW_BYPASS_SECRET` and `GTM_WORKFLOW_GATE_REQUIRED`, one `GTM_NOTIFY_SECRET` on both, `GTM_AGENT_URL` on the runtime; the agent is redeployed when any changed.
+8. With `--agent-project`: the agent's `GTM_WORKFLOW_URL` and `GTM_WORKFLOW_BYPASS_SECRET`, one `GTM_NOTIFY_SECRET` on both, `GTM_AGENT_URL` on the runtime; the agent is redeployed when any changed.
 9. The first push: when `workflows/` is not committed yet, commit it with the root `.gitignore` and `.github/` and push `main`. After that setup never commits.
 10. A production deployment of both projects (the push, or a redeploy of the latest `main` when variables changed since the last one), waited for; then the Neon project is saved for copy-down.
 

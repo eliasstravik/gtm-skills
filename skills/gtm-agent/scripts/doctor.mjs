@@ -292,8 +292,8 @@ export async function check({
     add(problem.check, false, "", problem.fix.replace("run setup --deploy", connect));
   if (!wp) return out;
   add(
-    "Agent has GTM_WORKFLOW_URL, GTM_WORKFLOW_BYPASS_SECRET and GTM_WORKFLOW_GATE_REQUIRED",
-    ["GTM_WORKFLOW_URL", "GTM_WORKFLOW_BYPASS_SECRET", "GTM_WORKFLOW_GATE_REQUIRED"].every((k) => aenv.has(k)),
+    "Agent has GTM_WORKFLOW_URL and GTM_WORKFLOW_BYPASS_SECRET",
+    ["GTM_WORKFLOW_URL", "GTM_WORKFLOW_BYPASS_SECRET"].every((k) => aenv.has(k)),
     "",
     connect,
   );

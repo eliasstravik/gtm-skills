@@ -36,10 +36,10 @@ export function ownerApi(team) {
 
 // Settings the scripts write and compare, as plain variables whose values Vercel returns; every other variable is names only.
 const SETTINGS = new Set(["GTM_VIEWER_PROTECTED", "GTM_CONNECTIONS_ENABLED", "GTM_CONNECTIONS_TEAM_ID", "GTM_CONNECTIONS_VERCEL_URL",
-  "GTM_VIEWER_SHARE_ORIGIN", "GTM_VIEWER_PRIVATE_ORIGIN", "GTM_VIEWER_PRIVATE_PROJECT_ID", "GTM_AGENT_URL", "GTM_WORKFLOW_URL", "GTM_WORKFLOW_GATE_REQUIRED"]);
+  "GTM_VIEWER_SHARE_ORIGIN", "GTM_VIEWER_PRIVATE_ORIGIN", "GTM_VIEWER_PRIVATE_PROJECT_ID", "GTM_AGENT_URL", "GTM_WORKFLOW_URL"]);
 /** A project's variables: names, targets, types and update times; values only for the plain settings above. */
 export async function safeEnvironment(api, projectId) {
-  const result = await api("GET", `/v10/projects/${encodeURIComponent(projectId)}/env?decrypt=false`);
+  const result = await api("GET", `/v10/projects/${encodeURIComponent(projectId)}/env`);
   requireThat(Array.isArray(result?.envs) && !result.pagination?.next, "environment_inventory_incomplete", 503);
   return result.envs.map((row) => ({ id: row.id, key: row.key, target: row.target ?? [], type: row.type, updatedAt: row.updatedAt ?? row.createdAt ?? 0,
     ...(SETTINGS.has(row.key) && row.type === "plain" ? { value: row.value } : {}) }));
@@ -58,13 +58,17 @@ async function setProduction(api, project, env, key, value, { secret = false, re
   const [row] = rows;
   if (row && (!replace || (!secret && row.type === "plain" && row.value === value))) return false;
   if (row && !secret && row.type !== "plain") {
-    requireThat(exec("vercel", ["env", "rm", key, "production", "--project", project.name, "--yes", "--non-interactive", "--scope", project.team]).status === 0, "vercel_command_failed", 503);
+    removeVariable(project, key, "production");
     await api("POST", `/v10/projects/${project.id}/env`, { key, value, target: ["production"], type: "plain" });
   } else if (row) await api("PATCH", `/v9/projects/${project.id}/env/${row.id}`, { value, target: ["production"], type: secret ? "sensitive" : "plain" });
   else await api("POST", `/v10/projects/${project.id}/env`, { key, value, target: ["production"], type: secret ? "sensitive" : "plain" });
   return true;
 }
 
+function removeVariable(project, key, target) {
+  const result = exec("vercel", ["env", "rm", key, ...(target ? [target] : []), "--project", project.name, "--yes", "--non-interactive", "--scope", project.team]);
+  requireThat(result.status === 0 || /env_not_found/.test(result.stderr + result.stdout), "vercel_command_failed", 503, `vercel env rm ${key} on ${project.name}: ${clean(result.stderr).split("\n").at(-1)?.slice(0, 200)}`);
+}
 /** The address Vercel serves production at, the same one the app sees as VERCEL_PROJECT_PRODUCTION_URL: the shortest custom domain, else the shortest vercel.app one. */
 export async function productionOrigin(api, projectId) {
   const domains = ((await api("GET", `/v9/projects/${encodeURIComponent(projectId)}/domains`))?.domains ?? [])
@@ -143,19 +147,20 @@ function publishRuntime(workspace) {
   return { pushed: true, sha: git(workspace, ["rev-parse", "HEAD"]).stdout.trim() };
 }
 
+const githubAccess = (org, repo) => `Give Vercel access to the GitHub repository ${org}/${repo}: on GitHub, open the Vercel app's settings for ${org} (Settings > Applications > Vercel > Configure), add ${repo} under Repository access (or choose All repositories) and Save, then run setup --deploy again.`;
 /** The project, created git-connected when missing; its settings and git connection repaired when they differ. */
 async function ensureProject(api, team, name, { org, repo }, wanted, create = {}) {
   let project = await api("GET", `/v9/projects/${encodeURIComponent(name)}`), created = !project;
   if (!project) {
     project = await api("POST", "/v11/projects", { name, framework: "nitro", rootDirectory: "workflows", ...create, gitRepository: { type: "github", repo: `${org}/${repo}` } })
-      .catch((error) => { throw new SetupError("vercel_project_failed", 409, `Vercel could not make ${name} connected to ${org}/${repo}. Give the Vercel GitHub app access to that repository (github.com/settings/installations), then run setup again. (${error.instruction ?? error.message})`); });
+      .catch(() => { throw new SetupError("github_access_needed", 409, githubAccess(org, repo)); });
     project = await api("GET", `/v9/projects/${project.id}`);
   }
   requireThat(project?.id && project.accountId, "vercel_project_failed", 503);
   if (project.link?.org !== org || project.link?.repo !== repo) {
     requireThat(!project.link?.repo, "connected_to_other_repository", 409, `${name} deploys from ${project.link?.org}/${project.link?.repo}, not ${org}/${repo}. Change it under the project's Settings > Git, or pass --workflow-project, then run setup again.`);
     await api("POST", `/v9/projects/${project.id}/link`, { type: "github", repo: `${org}/${repo}` })
-      .catch(() => { throw new SetupError("git_connect_failed", 409, `Give the Vercel GitHub app access to ${org}/${repo} (github.com/settings/installations), then run setup again.`); });
+      .catch(() => { throw new SetupError("github_access_needed", 409, githubAccess(org, repo)); });
   }
   const patch = settingsPatch(project, wanted);
   if (Object.keys(patch).length) await api("PATCH", `/v9/projects/${project.id}`, patch);
@@ -249,10 +254,9 @@ export async function setupHosted(workspace, { team, project: name, share: share
   const published = publishRuntime(workspace);
   steps.push = published.pushed ? published.sha : "already";
   // The Vercel GitHub app often has access to selected repositories only; a new repository must be added there by hand.
-  const found = (await api("GET", `/v1/integrations/search-repo?query=${encodeURIComponent(repository.repo)}`))?.repos ?? [];
-  if (!found.some((row) => row.namespace === repository.org && row.name === repository.repo)) return { status: "needs_you", steps,
-    instruction: `Give Vercel access to the GitHub repository ${repository.org}/${repository.repo}: on GitHub, Settings > Applications > Vercel > Configure > Repository access, add ${repository.repo} (or choose All repositories) and Save, then run setup --deploy again.` };
-  const runtime = await ensureProject(api, team, name, repository, RUNTIME_SETTINGS);
+  let runtime;
+  try { runtime = await ensureProject(api, team, name, repository, RUNTIME_SETTINGS); }
+  catch (error) { if (error.code === "github_access_needed") return { status: "needs_you", steps, instruction: error.instruction }; throw error; }
   requireThat(!Object.values(runtime.protectionBypass ?? {}).some((row) => row.scope !== "automation-bypass"), "remove_deployment_share_links_first", 409,
     "The project has deployment share links, which open every deployment. Remove them under Settings > Deployment Protection, then run setup again.");
   let env = await safeEnvironment(api, runtime.id), changed = false;
@@ -307,7 +311,9 @@ export async function setupHosted(workspace, { team, project: name, share: share
     Object.assign(agent, { team });
     const agentEnv = await safeEnvironment(api, agent.id);
     let agentChanged = false;
-    for (const [key, value] of Object.entries({ GTM_WORKFLOW_URL: origin, GTM_WORKFLOW_GATE_REQUIRED: "1" })) agentChanged = (await setProduction(api, agent, agentEnv, key, value)) || agentChanged;
+    agentChanged = (await setProduction(api, agent, agentEnv, "GTM_WORKFLOW_URL", origin)) || agentChanged;
+    // No agent code reads GTM_WORKFLOW_GATE_REQUIRED any more.
+    if (hasProduction(agentEnv, "GTM_WORKFLOW_GATE_REQUIRED")) { removeVariable(agent, "GTM_WORKFLOW_GATE_REQUIRED"); agentChanged = true; }
     agentChanged = (await setProduction(api, agent, agentEnv, "GTM_WORKFLOW_BYPASS_SECRET", bypass.secret, { secret: true, replace: bypass.changed })) || agentChanged;
     if (!hasProduction(agentEnv, "GTM_NOTIFY_SECRET") || !hasProduction(env, "GTM_NOTIFY_SECRET")) {
       const secret = random(32);
@@ -321,7 +327,7 @@ export async function setupHosted(workspace, { team, project: name, share: share
   }
   for (const [key, value] of Object.entries(settings)) if (value) changed = (await setProduction(api, runtime, env, key, value)) || changed;
   for (const key of new Set(env.filter((row) => RETIRED.test(row.key)).map((row) => row.key))) {
-    requireThat(exec("vercel", ["env", "rm", key, "--project", runtime.name, "--yes", "--non-interactive", "--scope", team]).status === 0, "vercel_command_failed", 503);
+    removeVariable({ ...runtime, team }, key);
     changed = true;
   }
 

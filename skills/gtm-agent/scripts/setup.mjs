@@ -160,13 +160,19 @@ ok(`Vercel project ${n.agentProject} is connected to ${agentRepo}`);
 const aenv = envNames(team, n.agentProject);
 if (!aenv.has("GTM_WORKSPACE_REPOSITORY"))
   setEnv(team, n.agentProject, "GTM_WORKSPACE_REPOSITORY", ctxRepo);
-if (!aenv.has("GTM_GITHUB_TOKEN"))
-  setEnv(
-    team,
-    n.agentProject,
-    "GTM_GITHUB_TOKEN",
-    must("gh", ["auth", "token"]).trim(),
-  );
+// The agent's GitHub token is a fine-grained one limited to the workspace repository (Contents read and write), never
+// the CLI's own login, which reaches every repository the user can write. It comes from GTM_GITHUB_TOKEN in the shell
+// that runs setup, so it never passes through a conversation or a command line.
+if (!aenv.has("GTM_GITHUB_TOKEN")) {
+  const token = process.env.GTM_GITHUB_TOKEN?.trim();
+  if (!token?.startsWith("github_pat_")) {
+    say(
+      `\nThe agent needs a GitHub token limited to ${ctxRepo}. Create a fine-grained token at https://github.com/settings/personal-access-tokens/new: resource owner ${githubOwner}, Repository access "Only select repositories" → ${n.contextRepo}, Permissions → Contents: Read and write. Then, in your own terminal, run this script again with the token in the environment: GTM_GITHUB_TOKEN=<token> node ${process.argv[1]} ${process.argv.slice(2).join(" ")}${token ? "\n(The token given is not a fine-grained one: those start with github_pat_.)" : ""}`,
+    );
+    process.exit(2);
+  }
+  setEnv(team, n.agentProject, "GTM_GITHUB_TOKEN", token);
+}
 if (a.channel && !aenv.has("GTM_NOTIFY_CHANNEL"))
   setEnv(team, n.agentProject, "GTM_NOTIFY_CHANNEL", a.channel, {
     secret: false,
