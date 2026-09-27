@@ -66,7 +66,7 @@ try {
   requireThat(values.workspace, "workspace_required", 400, "Pass --workspace <path to the workspace>.");
   const workspace = resolve(values.workspace);
   const target = workflowProject(workspace, { team: values.team, project: values["workflow-project"] });
-  const result = values.target === "production" ? { ...(await doctorHosted(target)), spendCap: teamSpendCap({ team: target.team }) } : await local(workspace, target);
+  const result = values.target === "production" ? { ...(await doctorHosted({ ...target, workspace })), spendCap: teamSpendCap({ team: target.team }) } : await local(workspace, target);
   console.log(JSON.stringify(result));
   process.exitCode = result.problems.length ? 2 : 0;
 } catch (error) { console.error(JSON.stringify(safeError(error))); process.exitCode = 1; }

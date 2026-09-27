@@ -356,9 +356,11 @@ export async function setupHosted(workspace, { team, project: name, share: share
   steps.deploy = waits.length ? Object.fromEntries(waits.map(([project], index) => [project.name, states[index]])) : "current";
   const building = states.includes("building");
   steps.neon = building ? { status: "after_deploy" } : saveNeonProject(workspace);
-  return { status: keysToken ? "needs_you" : building ? "deploying" : "production_ready", project: runtime.name, projectId: runtime.id, origin, keysUrl: `${origin}/connections`, share: share.name,
+  // What only the owner can finish: the Keys page's token, and a database Neon would not shrink.
+  const left = [keysToken && `Production is set up except the Keys page. ${keysToken}`, steps.neon.compute?.status === "not_sized" && steps.neon.compute.instruction].filter(Boolean);
+  return { status: left.length ? "needs_you" : building ? "deploying" : "production_ready", project: runtime.name, projectId: runtime.id, origin, keysUrl: `${origin}/connections`, share: share.name,
     ...(bypass.extra ? { warning: `${runtime.name} has ${bypass.extra + 1} automation bypass secrets; only the first is used. Revoke the others under Settings > Deployment Protection.` } : {}),
-    steps, ...(keysToken ? { instruction: `Production is set up except the Keys page. ${keysToken}` }
+    steps, ...(left.length ? { instruction: left.join(" ") }
       : building ? { instruction: "The production build is still running; run setup --deploy again in a few minutes to confirm it." } : {}) };
 }
 
@@ -366,7 +368,7 @@ export async function setupHosted(workspace, { team, project: name, share: share
  * What production needs that the Vercel dashboard does not show at a glance, each with its fix. `problems` is empty
  * when ready. Reads only.
  */
-export async function doctorHosted({ team, project: name, linked }) {
+export async function doctorHosted({ team, project: name, linked, workspace }) {
   requireThat(team && name, "workflow_project_required", 409, "Pass --team and --workflow-project, or run setup --deploy first.");
   const api = ownerApi(team), runtime = await api("GET", `/v9/projects/${encodeURIComponent(name)}`);
   const setup = "run setup --deploy";
@@ -405,7 +407,13 @@ export async function doctorHosted({ team, project: name, linked }) {
     add(await deploymentCurrent(api, share, shareEnv), `${share.name} is deployed with its current variables`);
   }
   add(await deploymentCurrent(api, runtime, env), `${runtime.name} is deployed with its current variables`);
-  return { status: problems.length ? "needs_fixing" : "production_ready", project: runtime.name, origin, keysUrl: `${origin}/connections`, problems, shareFirewall };
+  // The database's size, through the Neon project setup saved; without it (or neonctl) it cannot be read, not a problem.
+  const saved = workspace && existsSync(join(workspace, "workflows", "data", "neon.json")) ? JSON.parse(readFileSync(join(workspace, "workflows", "data", "neon.json"), "utf8")) : null;
+  const compute = saved?.projectId ? readCompute(saved.projectId) : null;
+  const oversized = compute ? computeProblems(compute.project, compute.endpoints) : [];
+  add(!oversized.length, `The Neon database is at 0.25 CU with scale to zero (${oversized.join(", ") || "all"})`, "run setup --deploy, which sets it");
+  const neonCompute = compute ? { status: oversized.length ? "oversized" : "smallest" } : { status: "unknown", instruction: "Run setup --deploy with neonctl signed in." };
+  return { status: problems.length ? "needs_fixing" : "production_ready", project: runtime.name, origin, keysUrl: `${origin}/connections`, problems, shareFirewall, neonCompute };
 }
 
 /** Runs a CLI and returns its JSON output, or null when it fails. */
@@ -434,8 +442,46 @@ export function saveNeonProject(workspace) {
       const neon = { orgId: org.id, projectId: project.id, endpoint };
       mkdirSync(join(runtime, "data"), { recursive: true });
       writeFileSync(join(runtime, "data", "neon.json"), JSON.stringify(neon, null, 2) + "\n");
-      return { status: "saved", ...neon };
+      return { status: "saved", ...neon, compute: sizeNeon(project.id) };
     }
   }
   return { status: "neon_project_not_found", endpoint, instruction: "Sign in with `neonctl auth` as a member of the Neon organization Vercel made for this team, then run setup --deploy again." };
+}
+
+// Every workspace database runs on Neon's smallest compute and sleeps when idle, both the computes it has and any made
+// later (the project default). The integration offers no size option, so setup sets it through the owner's neonctl.
+// `suspend_timeout_seconds` 0 is Neon's default (5 minutes idle); -1 keeps the compute awake.
+export const NEON_COMPUTE = { autoscaling_limit_min_cu: 0.25, autoscaling_limit_max_cu: 0.25 };
+/** The fields of one compute's settings that differ from the smallest size with scale to zero; empty when it meets it. */
+export const computePatch = (settings) => ({
+  ...Object.fromEntries(Object.entries(NEON_COMPUTE).filter(([key, value]) => settings?.[key] !== value)),
+  ...(settings?.suspend_timeout_seconds >= 0 ? {} : { suspend_timeout_seconds: 0 }),
+});
+/** What in a Neon project is above 0.25 CU or never sleeps, one line each. */
+export const computeProblems = (project, endpoints) => [
+  ...(Object.keys(computePatch(project?.default_endpoint_settings)).length ? ["the default for new computes"] : []),
+  ...endpoints.filter((row) => Object.keys(computePatch(row)).length).map((row) => `compute ${row.id}`),
+];
+const readCompute = (projectId) => {
+  const project = json("neonctl", ["api", `/projects/${projectId}`])?.project;
+  const endpoints = json("neonctl", ["api", `/projects/${projectId}/endpoints`])?.endpoints;
+  return project && Array.isArray(endpoints) ? { project, endpoints } : null;
+};
+
+/** Pins the project default and every compute at 0.25 CU with scale to zero, then reads them back to confirm. */
+export function sizeNeon(projectId) {
+  const before = readCompute(projectId);
+  if (!before) return { status: "unknown" };
+  const defaults = computePatch(before.project.default_endpoint_settings);
+  // A live compute keeps its own limits when only the project default changes, so each is patched too.
+  const patches = [
+    ...(Object.keys(defaults).length ? [[`/projects/${projectId}`, { project: { default_endpoint_settings: { ...before.project.default_endpoint_settings, ...defaults } } }]] : []),
+    ...before.endpoints.map((row) => [`/projects/${projectId}/endpoints/${row.id}`, { endpoint: computePatch(row) }]).filter(([, body]) => Object.keys(body.endpoint).length),
+  ];
+  if (!patches.length) return { status: "smallest" };
+  for (const [path, body] of patches) exec("neonctl", ["api", path, "-X", "PATCH", "-d", JSON.stringify(body)]);
+  const after = readCompute(projectId);
+  const left = after ? computeProblems(after.project, after.endpoints) : ["unknown"];
+  return left.length ? { status: "not_sized", left, instruction: `Neon project ${projectId}: set ${left.join(" and ")} to 0.25 CU minimum and maximum with scale to zero (Neon console, Compute), then run doctor.` }
+    : { status: "sized" };
 }
