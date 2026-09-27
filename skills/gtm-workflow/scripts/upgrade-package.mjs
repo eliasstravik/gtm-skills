@@ -9,7 +9,20 @@ const stock = { dev: /^node scripts\/local-launch\.mjs dev$/ };
 // Stock commands the template dropped; a customized one stays and is listed for review.
 const retired = { viewer: /^node scripts\/local-launch\.mjs viewer$/ };
 
+/** -1, 0 or 1 for two x.y.z versions; anything unparsable counts as 0.0.0. */
+export function compareVersions(a, b) {
+  const parts = (v) => (/^\d+\.\d+\.\d+/.test(v ?? "") ? v.split(".").slice(0, 3).map((n) => parseInt(n, 10)) : [0, 0, 0]);
+  const [x, y] = [parts(a), parts(b)];
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1;
+  return 0;
+}
+
 export function mergePackage(current, template) {
+  // An older skill copy (a Slack agent on an older pin, say) must never take a newer workspace back.
+  if (compareVersions(template.version, current.version) < 0)
+    throw new Error(
+      `The installed template is ${template.version} and this workspace is on ${current.version}: update the skills before upgrading, never downgrade`,
+    );
   const scripts = { ...current.scripts };
   const review = [];
   for (const [name, pattern] of Object.entries(retired)) if (pattern.test(scripts[name] ?? "")) delete scripts[name];

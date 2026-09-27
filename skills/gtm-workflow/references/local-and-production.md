@@ -10,7 +10,7 @@ A workspace is an ordinary Vercel app: `workflows/` on a laptop is local, the Ve
 | Who gets in | this computer, or the owner's tailnet login | Vercel Authentication on every deployment |
 | Previews | none | none: `main` only (`vercel.json` `git.deploymentEnabled`, project setting off) |
 | Schedules | never fire; run by hand with `curl -X POST http://127.0.0.1:3939/api/run/<slug>` | Vercel Cron from `vercel.json` |
-| Data | separate; `npm run db:pull` copies production down on request | written only by production and merge-only imports ([imports](imports.md)) |
+| Data | separate; `npm run db:pull` copies production down on request | written only by production runs; a CSV import is one ([imports](imports.md)) |
 
 ## From a laptop, with Vercel's own tools
 

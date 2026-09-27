@@ -1,41 +1,21 @@
-# Importing rows into production
+# Importing a CSV into production
 
-Data goes up only as a merge-only import with Neon's own tools: rows are inserted or updated by key, never deleted, and there is no import endpoint or upload button in the app. Imports target only this workspace's own database (never another project in the same Neon organization) and usually a result table in `public` or the runtime's `gtm.companies` and `gtm.people`. Say the row count and the target table before running one; report rows inserted and updated after.
+A CSV import is a run. Start the workflow that owns the target table with the file's rows as `rows`: the workflow resolves identities, applies its caps and freshness, and saves its own results, exactly as for any other run. There is no import endpoint, no upload button and no direct database access for imports. Say the row count and the workflow before starting; report the run's totals after.
 
-## From a laptop (the owner's own Neon login)
+## The rows
 
-Every `neonctl` call passes the organization and project that setup `--deploy` saved in `workflows/data/neon.json` (never an interactive org prompt). One transaction: the CSV goes into a temporary table shaped like the target, then merges by key.
+Each CSV line becomes one row object with a `key` (the workflow's own key: a company domain, a LinkedIn URL, whatever its `defaultInput` rows use) plus any columns the workflow reads from its input rows. Read the workflow file first to see which fields its steps use; drop the rest. Rows with the same key are one row. A key the table already holds fresh is skipped as usual; pass the workflow's own `refresh` input, when it has one, to redo it.
 
-```sh
-cd workflows
-ORG=$(node -p 'require("./data/neon.json").orgId'); PROJECT=$(node -p 'require("./data/neon.json").projectId')
-psql "$(neonctl connection-string --org-id "$ORG" --project-id "$PROJECT")" -v ON_ERROR_STOP=1 <<'SQL'
-BEGIN;
-CREATE TEMP TABLE incoming (LIKE public.example_scores INCLUDING DEFAULTS) ON COMMIT DROP;
-\copy incoming (key, score, reason, updated_at) FROM 'scores.csv' WITH (FORMAT csv, HEADER true)
-INSERT INTO public.example_scores AS t (key, score, reason, updated_at)
-SELECT key, score, reason, updated_at FROM incoming
-ON CONFLICT (key) DO UPDATE SET score = excluded.score, reason = excluded.reason, updated_at = excluded.updated_at
-RETURNING (xmax = 0) AS inserted;
-COMMIT;
-SQL
-```
+## Starting it
 
-The `RETURNING` lines count inserts (`t`) and updates (`f`). Name only the columns the CSV has; a column left out keeps its value on update. Never `DELETE`, `TRUNCATE` or change the schema; schema changes are migrations and go up with `git push`. Never print the connection string.
+The run's input is the workflow's `defaultInput` with the body merged over it, so `{ "rows": [...] }` replaces the default rows and keeps the caps. Above the workflow's chunk size the run fans out into child runs by itself.
 
-## From the Slack agent (no credential in its sandbox)
+- From the Slack agent: `POST $GTM_WORKFLOW_URL/api/run/<slug>` with `{ "rows": [...] }`; the host adds the credential.
+- From a laptop: `vercel curl /api/run/<slug> -- -X POST -H 'content-type: application/json' --data @rows.json` in `workflows/`.
+- Locally: `POST http://127.0.0.1:3939/api/run/<slug>` while `npm run dev` runs.
 
-The agent's host adds `Neon-Connection-String` to requests to this workspace's database address (`GTM_NEON_SQL_URL`, exported to the sandbox without any secret). The connection belongs to a role that can only `SELECT`, `INSERT` and `UPDATE` the workflow tables and `gtm.companies`/`gtm.people`; Postgres itself refuses a delete. Send the CSV rows as one JSON parameter, in batches of at most 500 rows and 1 MB:
+One request carries at most about 4 MB of JSON; split a bigger file into several runs, one after the other. The reply is `{ id }`; follow it with `GET /api/runs/<id>` as for any run. A workflow that is already running answers that it is; wait for that run to finish, then start the import.
 
-```sh
-curl -sS -X POST "$GTM_NEON_SQL_URL" -H 'content-type: application/json' --data @- <<'JSON'
-{ "query": "INSERT INTO public.example_scores AS t SELECT * FROM json_populate_recordset(null::public.example_scores, $1) ON CONFLICT (key) DO UPDATE SET score = excluded.score, reason = excluded.reason, updated_at = excluded.updated_at RETURNING (xmax = 0) AS inserted",
-  "params": ["[{\"key\":\"acme.com\",\"score\":80,\"reason\":\"fits\",\"updated_at\":\"2026-09-26T00:00:00Z\",\"cost_usd\":0}]"] }
-JSON
-```
+## Rows no workflow produces
 
-`json_populate_recordset` fills every column the JSON names and leaves the rest null, so each object carries every NOT NULL column (`key`, `updated_at`, `cost_usd` on a result table), and `DO UPDATE SET` names only the columns the file supplies. Read the target's columns first (`select column_name, data_type, is_nullable from information_schema.columns where table_schema = 'public' and table_name = '<table>'`). The reply's `rows` hold one `inserted` flag per row. A `permission denied` answer means the statement tried something the import role cannot do; do not look for a way around it.
-
-## Setting up the agent's import role (once per workspace)
-
-`node <gtm-agent skill>/scripts/import-access.mjs --workspace <path> --team <team> --agent-project <gtm-agent-…>` runs, as the database owner and through the owner's `neonctl` login, plain SQL that creates the role (a role made with `neonctl`, the Console or the Neon API would join `neon_superuser` and could delete everywhere), grants `SELECT, INSERT, UPDATE` on the `public` tables with default privileges for tables later migrations add, and on `gtm.companies` and `gtm.people`, stores the role's connection string as the sensitive `GTM_NEON_IMPORT_URL` on the agent project, then checks through Neon's HTTP endpoint that an insert and an update work and a delete and a truncate are refused, including on a table created after the grants. Redeploy the agent afterwards.
+A CSV whose columns no workflow computes (a list of accounts from a CRM export to keep as-is, say) needs a workflow that takes those rows and saves them: create one with gtm-workflow Create whose step returns the row's own columns (`costUsd: 0`, no paid calls), then import through it as above. Its table is an ordinary result table.

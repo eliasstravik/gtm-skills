@@ -10,16 +10,25 @@ import { LocalDatabaseError, databaseEnvironment, ensureLocalDatabase, isProduct
 
 const cwd = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
+const PRODUCTION_ONLY = ["GTM_AGENT_URL", "GTM_NOTIFY_SECRET", "GTM_WORKFLOW_URL", "GTM_RUN_SECRET"];
+
 /**
  * The environment a local process gets: the shell over `.env.local` over `.env`, as Vercel's own tools order them.
  * `vercel env pull` writes Vercel's system variables into `.env.local` (VERCEL=1, VERCEL_ENV, empty VERCEL_GIT_*, …);
  * the template reads `VERCEL` as "running on Vercel", so every VERCEL_* goes except the OIDC token the AI Gateway uses.
  */
-export function localEnvironment(dir = cwd, shell = process.env) {
+export function localEnvironment(dir = cwd, shell = process.env, warn = console.warn) {
   const files = {};
   for (const name of [".env", ".env.local"]) {
-    try { Object.assign(files, parseEnv(readFileSync(join(dir, name), "utf8"))); }
-    catch (error) { if (error.code !== "ENOENT") throw error; }
+    let values;
+    try { values = parseEnv(readFileSync(join(dir, name), "utf8")); }
+    catch (error) { if (error.code !== "ENOENT") throw error; continue; }
+    // Production's wiring and retired names from older setups: a local run would post to real Slack through the
+    // production agent, so they are never loaded, and never silently.
+    const dropped = Object.keys(values).filter((key) => PRODUCTION_ONLY.includes(key));
+    if (dropped.length) warn(`Not loaded from workflows/${name}: ${dropped.join(", ")} (production only or retired; delete them from the file)`);
+    for (const key of dropped) delete values[key];
+    Object.assign(files, values);
   }
   const merged = { ...files, ...shell };
   for (const name of Object.keys(merged)) if (name.startsWith("VERCEL") && name !== "VERCEL_OIDC_TOKEN") delete merged[name];
