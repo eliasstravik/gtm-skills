@@ -200,7 +200,7 @@ caption {
 .section-heading {
   justify-content: space-between;
 }
-/* Local or Production, next to the page title: Geist's amber and blue badges. A local page also gets a thin amber rule
+/* Local or Production, next to the page title: Geist's amber and green badges. A local page also gets a thin amber rule
    along the top edge, so the two viewers never look alike. */
 .environment-title {
   display: flex;
@@ -209,7 +209,7 @@ caption {
   min-width: 0;
 }
 .environment-badge {
-  --badge: light-dark(#0068d6, #52a8ff);
+  --badge: light-dark(#107d32, #62c073);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -449,19 +449,43 @@ td {
 .diagram-pane {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* What the whole workflow does, with its source action, above the canvas: node details open below it and never
+   cover the button. */
+.diagram-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.diagram-description {
+  margin: 0;
+  max-width: 80ch;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+.diagram-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+/* Kept rendered so screen readers announce "File path copied."; empty, it cancels its gap. */
+.diagram-actions [role="status"]:empty {
+  margin-left: -8px;
+}
+.diagram-body {
+  flex: 1;
+  min-height: 0;
   position: relative;
 }
 .diagram-canvas {
   width: 100%;
   height: 100%;
-}
-.diagram-actions {
-  position: absolute;
-  right: 20px;
-  top: 16px;
-  z-index: 4;
-  display: flex;
-  gap: 8px;
 }
 .business-node {
   width: 240px;
@@ -797,8 +821,9 @@ fieldset legend {
   .node-details {
     width: 100%;
   }
-  .diagram-actions {
-    right: 12px;
+  .diagram-summary {
+    flex-wrap: wrap;
+    padding: 12px;
   }
 }
 

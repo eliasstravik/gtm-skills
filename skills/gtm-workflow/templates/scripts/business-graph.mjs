@@ -81,3 +81,17 @@ export function validateBusinessGraph(graph, root = process.cwd()) {
     edges.add(edge.id);
   }
 }
+
+/** What the whole workflow does, shown above its diagram: about 280 characters, never more than 500. */
+export const DESCRIPTION_MAX = 500;
+export function validateDescription(entry) {
+  const text = typeof entry.description === "string" ? entry.description.trim() : "";
+  if (text.length > DESCRIPTION_MAX)
+    throw Error(
+      `The description of ${entry.slug} is ${text.length} characters; shorten viewer.description to at most ${DESCRIPTION_MAX} (about 280 reads best).`,
+    );
+  if (!text)
+    console.warn(
+      `Warning: ${entry.slug} has no viewer.description; add what the whole workflow does in about 280 characters.`,
+    );
+}

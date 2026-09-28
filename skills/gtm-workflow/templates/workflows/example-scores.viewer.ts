@@ -91,7 +91,7 @@ export const viewer = {
     ],
   },
   description:
-    "Read company websites and score their fit against the ICP.",
+    "Reads the homepage of each company you supply and scores its fit against your ideal customer profile from 0 to 100, with a short reason. Homepages are cached for seven days and scores for one, a run stops at 200 companies or $2, and a company that fails is recorded without stopping the rest.",
   stages: [
     {
       id: "prepare-input",

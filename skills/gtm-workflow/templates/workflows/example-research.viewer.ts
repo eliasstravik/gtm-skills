@@ -73,7 +73,8 @@ export const viewer = {
       },
     ],
   },
-  description: "Research company websites and save evidence-backed briefs.",
+  description:
+    "Sends an AI agent to read each company's website and write a short research brief that cites the pages it used as evidence. Briefs are reused for seven days, a run stops at 200 companies or $2, and a company that cannot be researched is recorded with its error while the rest carry on.",
   stages: [
     {
       id: "prepare-input",
