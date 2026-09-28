@@ -52,6 +52,10 @@ The agent returns a verdict with its reasons and writes nothing.
 - Build a saved workflow: "build a workflow that scores our inbound companies". The agent scaffolds `workflows/`, writes the workflow and its result table, opens a diagram at `http://localhost:3939/gtm/<slug>`, and states the cost before every run.
 - Run it from Slack, hosted on Vercel: with the GitHub and Vercel CLIs signed in, say "get gtm-agent running for Acme in Slack". The agent deploys [gtm-agent](https://github.com/eliasstravik/gtm-agent), its Slack app, and a workflow project with a database; you click Allow once in Slack. Then "put it on a weekly schedule, hosted" runs on that project.
 
+## Stay up to date
+
+The first time a GTM skill runs in a conversation, it checks whether a newer release is out and asks before installing it. After an update the agent checks the workspace and, when the workspace was made by an older release, explains what moving it forward involves and asks before doing it. A GTM Agent in Slack says when its skills are behind; "upgrade our GTM agent", said to your coding agent, updates it. To update by hand: `npx skills add eliasstravik/gtm-skills -g -y`.
+
 Something not working? [Open an issue](https://github.com/eliasstravik/gtm-skills/issues/new).
 
 ## Enrich a network

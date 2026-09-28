@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { doctorHosted } from "../../gtm-workflow/scripts/hosted.mjs";
+import { agentSkillsPin } from "../../gtm-workspace/scripts/check-update.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
@@ -26,6 +27,7 @@ import {
   REQUIRED_SCOPES,
   run,
   setEnv,
+  TEMPLATE_REPO,
   TRIGGER_PATH,
 } from "./lib.mjs";
 
@@ -78,6 +80,19 @@ export async function check({
     `${githubOwner}/${n.agentRepo}`,
     "run setup.mjs",
   );
+  if (agentRepo.status === 0) {
+    const pin = (repo) => {
+      const r = run("gh", ["api", `repos/${repo}/contents/package.json`, "-H", "Accept: application/vnd.github.raw"]);
+      try { return r.status === 0 ? agentSkillsPin(r.stdout) : null; } catch { return null; }
+    };
+    const [mine, theirs] = [pin(`${githubOwner}/${n.agentRepo}`), pin(TEMPLATE_REPO)];
+    add(
+      "Agent runs the latest GTM Skills release",
+      !mine || !theirs || mine === theirs,
+      mine && theirs ? `gtm-skills ${mine.slice(0, 7)}, template ${theirs.slice(0, 7)}` : "pin not readable",
+      'upgrade the agent (say "upgrade our GTM agent"; this skill\'s Upgrade)',
+    );
+  }
 
   // Agent project
   const ap = project(team, n.agentProject);

@@ -1,6 +1,8 @@
 ---
 name: gtm-workspace
 description: Triggers when a user asks to create, set up, import, open, check, repair, or share a GTM workspace for an organization, or to add, change, or remove its members or company facts, with phrasings like "set up a GTM workspace for Acme", "add Priya to the team", "check the workspace", or "share the Acme workspace". Owns the workspace repository, the organization record, members, and workspace health, and hosts the standards every other gtm skill links to. Not for ICPs, personas, prospect fit checks, or saved workflows, which belong to gtm-icp, gtm-persona, gtm-qualify-prospects, and gtm-workflow.
+metadata:
+  version: "0.2.0"
 ---
 
 # GTM Workspace
@@ -25,7 +27,7 @@ The user approves every change through the host's write permission; the agent pr
 
 ## Procedure
 
-Talk by the six rules in [interaction](references/interaction.md); reproduce [the dialogues](references/interactions.md).
+The first gtm skill used in a conversation checks once for a newer release, as [updates](references/updates.md) says. Talk by the six rules in [interaction](references/interaction.md); reproduce [the dialogues](references/interactions.md).
 
 | Job | Do |
 | --- | --- |

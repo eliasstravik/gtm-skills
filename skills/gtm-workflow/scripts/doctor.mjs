@@ -4,7 +4,7 @@
 // workflows/.env, and a Vercel link keeps production's database out of Development. --target production: the list in
 // scripts/hosted.mjs doctorHosted. Exit 0 when ready, 2 when something needs doing, 1 when the check itself failed.
 import { parseArgs } from "node:util";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -12,6 +12,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseEnv } from "node:util";
 import { rootFileDrift } from "./root-files.mjs";
+import { compareVersions } from "./upgrade-package.mjs";
 import { teamSpendCap } from "./share-firewall.mjs";
 import { DATABASE_VARIABLE, doctorHosted, requireThat, safeError, workflowProject } from "./hosted.mjs";
 
@@ -34,6 +35,14 @@ async function productionInDevelopment(runtime) {
   } finally { await rm(folder, { recursive: true, force: true }); }
 }
 
+/** What an older workspace needs before the installed skills can run it, or null. Kinds: gtm-workspace references/updates.md. */
+export function migrationFor(runtime, mine, theirs) {
+  if (existsSync(join(runtime, "scripts", "gtm.ts"))) return { kind: "previous_runtime", from: mine, to: theirs };
+  if (existsSync(join(runtime, "db", "tables", "cache.ts"))) return { kind: "earlier_database", from: mine, to: theirs };
+  if (!mine || !theirs || mine === theirs) return null;
+  return { kind: compareVersions(mine, theirs) < 0 ? "template" : "skills_behind", from: mine, to: theirs };
+}
+
 async function local(workspace, target) {
   const runtime = join(workspace, "workflows"), problems = [];
   const add = (ok, check, fix) => { if (!ok) problems.push({ check, fix }); };
@@ -44,7 +53,9 @@ async function local(workspace, target) {
   add(existsSync(join(runtime, ".gitignore")), "workflows/.gitignore exists", setup);
   const version = (path) => { try { return JSON.parse(readFileSync(path, "utf8")).version; } catch { return null; } };
   const [mine, theirs] = [version(join(runtime, "package.json")), version(join(templates, "package.json"))];
-  add(!mine || mine === theirs, `Runtime version ${mine} matches the installed skill's ${theirs}`, "upgrade the workflow runtime (the gtm-workflow skill's Upgrade)");
+  const migration = migrationFor(runtime, mine, theirs);
+  add(!migration, `Runtime version ${mine} matches the installed skill's ${theirs}`, migration?.kind === "skills_behind"
+    ? "update the skills first (gtm-workspace references/updates.md)" : "migrate the workspace (gtm-workspace references/updates.md#migrate)");
   const vercelJson = (path) => { try { const { crons, ...rest } = JSON.parse(readFileSync(path, "utf8")); return JSON.stringify(rest); } catch { return null; } };
   add(vercelJson(join(runtime, "vercel.json")) === vercelJson(join(templates, "vercel.json")), "vercel.json matches the template (crons aside)", setup);
   for (const file of await rootFileDrift(workspace)) add(false, `${file.path} ${file.status === "missing" ? "exists" : "matches the template"}`, file.status === "missing" ? setup : `copy it from the skill's root/ folder, keeping steps you added`);
@@ -58,10 +69,10 @@ async function local(workspace, target) {
   const copyDown = !existsSync(join(runtime, "data", "neon.json")) ? { status: "unavailable", instruction: "Run setup --deploy with neonctl signed in." }
     : !(major >= 18) ? { status: "unavailable", instruction: "Install Postgres 18 client tools: `brew install libpq`, then add $(brew --prefix libpq)/bin to PATH." }
     : { status: "available" };
-  return { status: problems.length ? "needs_fixing" : "local_ready", workspace, linked: Boolean(target.linked), problems, copyDown };
+  return { status: problems.length ? "needs_fixing" : "local_ready", workspace, linked: Boolean(target.linked), problems, migration, copyDown };
 }
 
-try {
+if (process.argv[1] && realpathSync(resolve(process.argv[1])) === fileURLToPath(import.meta.url)) try {
   const { values } = parseArgs({ options: { workspace: { type: "string" }, target: { type: "string", default: "local" }, team: { type: "string" }, "workflow-project": { type: "string" }, json: { type: "boolean" } } });
   requireThat(values.workspace, "workspace_required", 400, "Pass --workspace <path to the workspace>.");
   const workspace = resolve(values.workspace);
