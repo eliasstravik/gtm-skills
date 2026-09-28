@@ -59,7 +59,7 @@ Neon bills three things: the time the compute is awake, the storage used, and da
 
 ## Tables
 
-A new or changed table: add or edit `db/tables/<name>.ts` with `pgTable`, register it in `db/tables/index.ts`, run `npm run db:generate -- --name <name>` (it needs no database), and restart the dev server, because migrations run only in `dev` and in the production `build`. Every result table starts with `key`, `updated_at`, `cost_usd`, `error`. Use `text`, `integer`, `doublePrecision` for money, `boolean` for flags, `jsonb` for `*_json` columns and `timestamp("…", { withTimezone: true })` for times, which are read and written as `Date`.
+A new or changed table: add or edit `db/tables/<name>.ts` with `pgTable`, register it in `db/tables/index.ts`, run `npm run db:generate -- --name <name>` (it needs no database), and a running `npm run dev` applies the new migration to the local database within seconds (`scripts/migrate-watch.mjs`); it logs `[gtm] Migrations applied`, or why not. Otherwise migrations run when `npm run dev` starts and in the production `build`. Every result table starts with `key`, `updated_at`, `cost_usd`, `error`. Use `text`, `integer`, `doublePrecision` for money, `boolean` for flags, `jsonb` for `*_json` columns and `timestamp("…", { withTimezone: true })` for times, which are read and written as `Date`.
 
 `db/tables/` holds the workspace's result tables only. The runtime's own tables (`cache`, `people`, `companies`, `profile_identifiers`, `profile_runs`, `profile_work`, `profile_attempts`, `profile_inputs`, `gtm_viewer_grants`) are defined in `lib/schema/`, live in schema `gtm` and are migrated from `drizzle-runtime/`, which upgrades replace. Their names are reserved: a workspace table that uses one is refused when the app loads.
 
