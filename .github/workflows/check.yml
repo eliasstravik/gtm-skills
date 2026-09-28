@@ -29,6 +29,8 @@ jobs:
       - run: node --test skills/gtm-workflow/tests/hosted.test.mjs
       - run: node skills/gtm-workflow/tests/run.mjs skills/gtm-workflow/templates
       - run: node skills/gtm-workflow/tests/reliability-e2e.mjs skills/gtm-workflow/templates
+      - name: Verify a run whose start a dev-server reload lost resumes on its own
+        run: node skills/gtm-workflow/tests/run-recovery.mjs skills/gtm-workflow/templates
       - run: node skills/gtm-workflow/tests/authoring.mjs skills/gtm-workflow/templates
       - run: node skills/gtm-workflow/tests/empty-workspace.mjs skills/gtm-workflow/templates
       - name: Verify npm run dev stays local with a .env.local pulled from Vercel
