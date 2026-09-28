@@ -1,10 +1,10 @@
 // Going live: the pure parts of hosted setup and Doctor, and the template-owned vercel.json.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { RUNTIME_SETTINGS, SHARE_SETTINGS, bypassSummary, computePatch, computeProblems, settingsPatch, shareTrust, workflowProject } from "../scripts/hosted.mjs";
+import { RUNTIME_SETTINGS, SHARE_SETTINGS, bypassSummary, computePatch, computeProblems, localAgentBackend, settingsPatch, shareTrust, workflowProject } from "../scripts/hosted.mjs";
 import { mergeVercelJson } from "../scripts/setup.mjs";
 
 test("the runtime builds every push to main, never previews, and is protected everywhere", () => {
@@ -68,4 +68,16 @@ test("vercel.json is template-owned except crons", async () => {
     assert.deepEqual(merged.git, { deploymentEnabled: { "**": false, main: true } });
     assert.equal(await mergeVercelJson(runtime), false);
   } finally { await rm(runtime, { recursive: true, force: true }); }
+});
+
+test("go-live carries the local agent subscription up, only claude or codex", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "gtm-backend-"));
+  try {
+    assert.equal(localAgentBackend(dir), null);
+    await mkdir(join(dir, "workflows"));
+    for (const [line, expected] of [["GTM_AGENT_BACKEND=claude", "claude"], ["GTM_AGENT_BACKEND= Codex ", "codex"], ["GTM_AGENT_BACKEND=", null], ["GTM_AGENT_BACKEND=gateway", null], ["GTM_MODEL=x", null]]) {
+      await writeFile(join(dir, "workflows", ".env"), `# settings\n${line}\n`);
+      assert.equal(localAgentBackend(dir), expected, line);
+    }
+  } finally { await rm(dir, { recursive: true, force: true }); }
 });

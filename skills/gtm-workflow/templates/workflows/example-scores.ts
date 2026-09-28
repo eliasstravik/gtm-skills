@@ -11,6 +11,7 @@ import { generateObject } from "ai";
 import { z } from "zod";
 import { cached } from "../lib/cache";
 import { readIcp } from "../lib/criteria";
+import { gtmModel } from "../lib/models";
 import { runRows, type Row, type RowsInput } from "../lib/rows";
 
 export const diagram = `flowchart TB
@@ -18,7 +19,7 @@ export const diagram = `flowchart TB
   subgraph loop [For each company]
     direction TB
     fetchHomepage["Fetch the homepage<br/><small>company site · free</small>"]
-    scoreCompany["Score against the ICP<br/><small>AI Gateway · gpt-6-luna · about $0.01 per row</small>"]:::ai
+    scoreCompany["Score against the ICP<br/><small>AI Gateway · default model · about $0.01 per row</small>"]:::ai
     saveScore["Save the score<br/><small>table example_scores</small>"]:::save
     fetchHomepage --> scoreCompany --> saveScore
   end
@@ -88,7 +89,7 @@ const scorePrompt = (domain: string, page: string, criteria: string) => `Score h
 /** AI step through AI Gateway. Gateway cost arrives later, so cost_usd is the declared estimate. */
 async function scoreCompany(domain: string, page: string, criteria: string) {
   "use step";
-  const { object } = await generateObject({ model: process.env.GTM_MODEL ?? "openai/gpt-6-luna", schema: Score, prompt: scorePrompt(domain, page, criteria) });
+  const { object } = await generateObject({ model: gtmModel(), schema: Score, prompt: scorePrompt(domain, page, criteria) });
   return { value: object, costUsd: ESTIMATE_USD };
 }
 scoreCompany.maxRetries = 0;

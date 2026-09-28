@@ -9,6 +9,7 @@ import { approvalHook, recordApproval } from "./approval";
 import { runAgentCli, type CliBackend } from "./cli";
 import { callMcpTool, listMcpTools, type McpServer } from "./mcp";
 import { canNotify, notify, type SlackTarget } from "./notify";
+import { gtmModel } from "./models";
 import { fetchPage } from "./web";
 
 /**
@@ -17,8 +18,9 @@ import { fetchPage } from "./web";
  * Call runAgent() from workflow scope, never inside a "use step" function. Every model call and every tool call
  * then runs as its own step: retried by the engine's rules, resumed after a crash, and visible in the run's trace.
  * The backend is chosen per run from the environment: GTM_AGENT_BACKEND in .env on a personal computer puts the
- * stage on the author's Claude Code or Codex subscription; the hosted copy, where no such variable exists, runs it
- * through AI Gateway. The same workflow file runs in both places without edits.
+ * stage on the author's Claude Code or Codex subscription; the hosted copy always runs it through AI Gateway, on the
+ * same family's cheapest model unless GTM_MODEL says otherwise (lib/models.ts). The same workflow file runs in both
+ * places without edits.
  * The config is the whole authoring surface: model and reasoning, instructions and skills, tools (hosted MCP
  * servers, web search and page fetch, your own step-backed tools), human approval per tool, live streaming, caps on
  * steps, spend, and time, and the schema of the answer. Everything else WorkflowAgent accepts passes through `agent`
@@ -64,7 +66,7 @@ export type AgentOptions<T = string> = {
   schema?: z.ZodType<T>;
   /** Charged when the Gateway reports no cost; the per-row estimate runRows uses for its caps. */
   estimateUsd: number;
-  /** AI Gateway model id; defaults to GTM_MODEL on the project. */
+  /** AI Gateway model id; defaults to gtmModel() from lib/models.ts: GTM_MODEL, else the default that follows GTM_AGENT_BACKEND. */
   model?: string;
   /** Reasoning effort; defaults to GTM_REASONING on the project, else high. */
   reasoning?: Reasoning;
@@ -113,7 +115,7 @@ export async function runAgent<T = string>(o: AgentOptions<T>): Promise<AgentRes
   const method = (o.skills ?? []).map(readSkill);
   const backend = chooseBackend(o);
   if (backend !== "gateway") return runOnCli(o, backend, [o.instructions, ...method].join("\n\n"), reasoning, durationMs(timeout));
-  const model = o.model ?? process.env.GTM_MODEL ?? "openai/gpt-6-luna";
+  const model = o.model ?? gtmModel();
   const tools = guardTools(o.name, await buildTools(o.tools, model), o.approve ?? [], o.notify);
   const output = o.schema ? Output.object<T>({ schema: jsonSchema<T>(sanitizeSchema(z.toJSONSchema(o.schema)) as never) }) : (Output.text() as unknown as ReturnType<typeof Output.object<T>>);
   const overBudget = (steps: StepResult<ToolSet>[]) => o.maxUsd != null && spentUsd(steps) >= o.maxUsd;
