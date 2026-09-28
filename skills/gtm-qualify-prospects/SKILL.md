@@ -1,6 +1,8 @@
 ---
 name: gtm-qualify-prospects
 description: Triggers when a user asks whether a named person or company, or a pasted list of them, fits the GTM workspace's personas or ICPs, with phrasings like "is this a fit", "check quillhr.com against our ICP", "score these leads", or "qualify this list". Owns in-conversation fit checks of supplied people or companies and writes nothing. Not for creating or editing ICPs or personas (gtm-icp, gtm-persona), the workspace itself (gtm-workspace), or recurring scoring of lists, which is a saved gtm-workflow.
+metadata:
+  version: "0.2.0"
 ---
 
 # GTM Qualify Prospects
@@ -23,7 +25,7 @@ The user supplies the entities and approves any paid lookup; the agent scores.
 
 ## Procedure
 
-Talk by the six rules in [interaction](../gtm-workspace/references/interaction.md); reproduce [the dialogues](references/interactions.md).
+The first gtm skill used in a conversation checks once for a newer release, as [updates](../gtm-workspace/references/updates.md) says. Talk by the six rules in [interaction](../gtm-workspace/references/interaction.md); reproduce [the dialogues](references/interactions.md).
 
 1. Sort the entities into people and companies; pick the persona or ICP to score against, asking with options when several fit and the request names none.
 2. Gather evidence from the request and free public pages.

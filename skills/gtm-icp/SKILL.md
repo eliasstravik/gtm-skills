@@ -1,6 +1,8 @@
 ---
 name: gtm-icp
 description: Triggers when a user asks to create, update, delete, or check an ideal customer profile, or ICP, in a GTM workspace, with phrasings like "create an ICP for lean B2B SaaS", "our ICP should require HubSpot", "delete the SaaS ICP", or "check the ICPs". Owns the ICP files and their 13 company criteria. Not for the workspace, its members, or the organization's own facts (gtm-workspace), personas (gtm-persona), checking a given company against an ICP (gtm-qualify-prospects), or workflows that score accounts on a schedule (gtm-workflow).
+metadata:
+  version: "0.2.0"
 ---
 
 # GTM ICP
@@ -23,7 +25,7 @@ The user approves every change through the host's write permission; the agent pr
 
 ## Procedure
 
-Talk by the six rules in [interaction](../gtm-workspace/references/interaction.md); reproduce [the dialogues](references/interactions.md).
+The first gtm skill used in a conversation checks once for a newer release, as [updates](../gtm-workspace/references/updates.md) says. Talk by the six rules in [interaction](../gtm-workspace/references/interaction.md); reproduce [the dialogues](references/interactions.md).
 
 | Job | Do |
 | --- | --- |
