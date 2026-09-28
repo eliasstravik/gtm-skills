@@ -26,7 +26,7 @@ export default function Workspace() {
         </nav>
       {dataView ? <>
         <div className="title-row"><div className="environment-title"><h1>Data</h1><EnvironmentBadge environment={state.data?.environment} /></div></div>
-        <Data destinations={state.data?.destinations} />
+        <Data destinations={state.data?.destinations} csrf={state.data?.csrf} />
       </> : <>
       <div className="title-row">
         <div className="environment-title">

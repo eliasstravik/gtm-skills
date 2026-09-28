@@ -47,12 +47,12 @@ export function destinations(entry?: Display) {
       : !hosted && source
         ? { path: source, label: "Copy file path" }
         : undefined,
+    // Locally the button starts Drizzle Studio on demand (op=openDatabase), unless an operator names a running one.
     database: database
-      ? {
-          url: database.href,
-          label: hosted ? "Open database" : "Open in Drizzle Studio",
-        }
-      : undefined,
+      ? { url: database.href, label: "Open database" }
+      : hosted
+        ? undefined
+        : { launch: true, label: "Open database" },
   };
 }
 // `npm run dev` serves the Workflow SDK's own run inspector at this path, reading the same local store.

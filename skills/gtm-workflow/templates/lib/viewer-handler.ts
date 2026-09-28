@@ -23,6 +23,7 @@ import {
 } from "./viewer-grants";
 import { activeLink, recoverLink, saveLink, shareUrl } from "./viewer-sharing";
 import { destinations } from "./viewer-destinations";
+import { openStudio } from "./local-studio";
 import { db } from "./db";
 import { publicDisplay } from "./viewer-display";
 import { apiAccess } from "./route-access";
@@ -107,7 +108,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
     }
     if (
       req.method !== "GET" &&
-      !["saveLink", "revokeGrant"].includes(operation)
+      !["saveLink", "revokeGrant", "openDatabase"].includes(operation)
     )
       throw new ViewerError(405, "method_denied", "Read-only endpoint.");
     if (shared && req.method !== "GET")
@@ -120,7 +121,20 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         registry: registryVersion,
         data: await dataVersion(db()),
       });
+    // Local only: the Open database button starts Drizzle Studio on this computer's database and returns its address.
+    if (operation === "openDatabase") {
+      if (process.env.VERCEL || recipient || req.method !== "POST")
+        throw new ViewerError(405, "method_denied", "Open the database from the local viewer.");
+      await requireMutation(req);
+      try {
+        return reply({ url: await openStudio() });
+      } catch (error) {
+        throw new ViewerError(503, "studio_unavailable", (error as Error).message);
+      }
+    }
     if (!shared && operation === "list") {
+      // The workspace pages post only to open the local database, so they get a CSRF token only locally.
+      const csrf = process.env.VERCEL ? undefined : csrfCookie();
       const workflows = registry.map(({ id, slug, title, description }) => ({
         id,
         slug,
@@ -134,7 +148,8 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         // Origin-relative: behind a trusted proxy the request URL names the loopback address, not the browser's.
         connectionsUrl: connectionsOrigin(),
         destinations: destinations(),
-      });
+        csrf: csrf?.value,
+      }, 200, csrf ? { "set-cookie": csrf.cookie } : {});
     }
     if (!url.searchParams.has("workflow") && ["data", "export"].includes(operation)) {
       if (recipient)

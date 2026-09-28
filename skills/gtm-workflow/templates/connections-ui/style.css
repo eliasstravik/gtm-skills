@@ -1,4 +1,3 @@
-.root-navigation { padding: 0; margin-bottom: 28px; }
 .connection-actions, .connection-footer { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .connection-list { margin-top: 24px; border-top: 1px solid var(--border); }
 .connection-row { display: grid; grid-template-columns: minmax(0, 1fr) 32px; gap: 24px; align-items: center; padding: 18px 12px; border-bottom: 1px solid var(--border); }

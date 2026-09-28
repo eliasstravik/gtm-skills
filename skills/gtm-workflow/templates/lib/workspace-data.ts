@@ -1,4 +1,8 @@
-import { sql, type SQL } from "drizzle-orm";
+import { getTableName, sql, type SQL } from "drizzle-orm";
+import { cache } from "./schema/cache";
+import { profileAttempts, profileInputs, profileRuns, profileWork, providerRateLimits } from "./schema/ledger";
+import { profileIdentifiers } from "./schema/profiles";
+import { gtmViewerGrants } from "./schema/viewer-grants";
 import { bigint, boolean, customType, doublePrecision, integer, jsonb, pgSchema, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { DataInputError, readData, type WorkflowData, type DataPage } from "./data-api";
 
@@ -19,23 +23,50 @@ function columnFor(name: string, type: string) {
   return text(name);
 }
 
+// Runtime bookkeeping: the provider cache, the lookup ledger and share grants. People and companies are records.
+const BOOKKEEPING = [cache, profileRuns, profileWork, profileAttempts, profileInputs, providerRateLimits, profileIdentifiers, gtmViewerGrants]
+  .map((table): string => getTableName(table));
+// Result tables of the template's example workflows.
+const EXAMPLES = ["example_scores", "example_research"];
+
 /**
  * Inspect the connected database at read time, independently of workflow registration: workspace tables (schema
  * public) and runtime tables (schema gtm). The migration journals live in schema drizzle and are not listed.
+ * The list shows what workflows wrote: runtime bookkeeping tables only with `internal=1`, and runtime records and
+ * example tables only once they hold rows. A table named in the URL is always listed.
  */
-export async function readWorkspaceData(client: Reader, url: URL): Promise<DataPage | { unavailable: string }> {
+export async function readWorkspaceData(client: Reader, url: URL): Promise<(DataPage & { hiddenTables: number }) | { unavailable: string }> {
   const catalog = await client.execute(
     sql`SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema IN ('public', 'gtm') AND table_type = 'BASE TABLE' ORDER BY lower(table_name), table_name, table_schema DESC`,
   );
   // Runtime names are reserved, so a plain name is unique; a hand-made public table of the same name keeps it.
   const taken = new Set(catalog.rows.filter((row) => row.table_schema === "public").map((row) => String(row.table_name)));
-  const tables = catalog.rows.map((row) => ({
+  const all = catalog.rows.map((row) => ({
     schema: String(row.table_schema),
     table: String(row.table_name),
     name: row.table_schema === "gtm" && taken.has(String(row.table_name)) ? `gtm.${row.table_name}` : String(row.table_name),
   }));
+  if (!all.length) return { unavailable: "No data tables yet." };
+  const internal = url.searchParams.get("internal") === "1";
+  const kind = (entry: (typeof all)[number]) =>
+    entry.schema === "gtm" && BOOKKEEPING.includes(entry.table) ? "internal"
+      : entry.schema === "gtm" && ["people", "companies"].includes(entry.table) ? "records"
+        : EXAMPLES.includes(entry.table) ? "example" : "workspace";
+  const candidates = all.filter((entry) => internal || kind(entry) !== "internal");
+  const filled = new Set<string>();
+  if (candidates.length) {
+    const probes = candidates.map((entry) =>
+      sql`SELECT ${entry.name} AS name WHERE EXISTS (SELECT 1 FROM ${sql.identifier(entry.schema)}.${sql.identifier(entry.table)})`);
+    for (const row of (await client.execute(sql.join(probes, sql` UNION ALL `))).rows) filled.add(String(row.name));
+  }
+  const requested = url.searchParams.get("table");
+  const tables = all.filter((entry) => entry.name === requested || internal ||
+    kind(entry) === "workspace" || (kind(entry) !== "internal" && filled.has(entry.name)));
   if (!tables.length) return { unavailable: "No data tables yet." };
-  const name = url.searchParams.get("table") ?? tables[0].name;
+  // Opens on the workspace's own results: a workflow table with rows, then any listed table with rows.
+  const opening = tables.find((entry) => kind(entry) === "workspace" && filled.has(entry.name))
+    ?? tables.find((entry) => filled.has(entry.name)) ?? tables.find((entry) => kind(entry) === "workspace") ?? tables[0];
+  const name = requested ?? opening.name;
   const found = tables.find((entry) => entry.name === name);
   if (!found) throw new DataInputError("Unknown data table");
   const columns = (await client.execute(
@@ -57,9 +88,9 @@ export async function readWorkspaceData(client: Reader, url: URL): Promise<DataP
   };
   const table = found.schema === "gtm" ? pgSchema("gtm").table(found.table, properties) : pgTable(found.table, properties);
   const result = await readData(config, { [name]: table }, client, url, { columns: identity });
-  return { ...result, tabs: tables.map((entry) => ({
+  return { ...result, hiddenTables: all.length - tables.length, tabs: tables.map((entry) => ({
     label: entry.name,
     current: entry.name === name,
-    href: `${url.pathname}?${new URLSearchParams({ table: entry.name })}`,
+    href: `${url.pathname}?${new URLSearchParams({ table: entry.name, ...(internal ? { internal: "1" } : {}) })}`,
   })) };
 }
