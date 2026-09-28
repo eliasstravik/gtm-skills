@@ -184,6 +184,15 @@ test("the pulse is fingerprints only, and its data fingerprint moves when a writ
     delete process.env.VERCEL_DEPLOYMENT_ID;
   }
 });
+test("release status is for the owner only, and says nothing where Vercel cannot be asked", async () => {
+  const release = (extra = "", shared = false) => viewerApi(new Request(`https://private.example/api/viewer?v=3&op=release${extra}`, { headers: { "x-gtm-viewer-project": "fixture" } }), shared);
+  // No Keys token in this fixture: no status, never a guess or an error.
+  const owner = await release();
+  assert.equal(owner.status, 200);
+  assert.deepEqual(await owner.json(), { version: 3, release: null });
+  assert.equal((await release("&preview=runs")).status, 403);
+  assert.notEqual((await release("", true)).status, 200);
+});
 test("browser mutation needs CSRF and both contract and environment identity must match", async () => {
   assert.equal(
     (await viewerApi(req("saveLink", undefined, { views: ["runs"] }))).status,

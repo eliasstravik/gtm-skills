@@ -32,6 +32,9 @@ import { exportCsv } from "./viewer-csv";
 import { connectionsOrigin } from "./viewer-link";
 import { readWorkspaceData } from "./workspace-data";
 import { dataVersion, fingerprint } from "./viewer-pulse";
+import { connectionConfiguration } from "./connections-access";
+import { connectionsVercel } from "./connections-management";
+import { releaseStatus, type Release } from "./connections-apply";
 const reply = (
   data: unknown,
   status = 200,
@@ -44,6 +47,19 @@ const reply = (
 const failures = new Map<string, { count: number; until: number }>();
 // A deploy or a local registry rebuild loads this module again, so computing it once is enough.
 const registryVersion = fingerprint(registry);
+/**
+ * Production only, and only where the Keys page may talk to Vercel: whether the newest change is live yet. Every open
+ * tab asks, so one answer serves this instance for a few seconds.
+ */
+let release: { at: number; value: Promise<Release | null> } | undefined;
+function currentRelease() {
+  if (release && Date.now() - release.at < 4000) return release.value;
+  let config: ReturnType<typeof connectionConfiguration>;
+  try { config = connectionConfiguration(); } catch { return Promise.resolve(null); }
+  const value = releaseStatus(connectionsVercel(config), config.projectId, config.origin).catch(() => null);
+  release = { at: Date.now(), value };
+  return value;
+}
 export async function viewerApi(req: Request, shared = false, service = false) {
   try {
     // Share links for the agent: hosted only, with Vercel's automation bypass (lib/route-access.ts).
@@ -132,6 +148,8 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         throw new ViewerError(503, "studio_unavailable", (error as Error).message);
       }
     }
+    if (!shared && !preview && operation === "release")
+      return reply({ release: await currentRelease() });
     if (!shared && operation === "list") {
       // The workspace pages post only to open the local database, so they get a CSRF token only locally.
       const csrf = process.env.VERCEL ? undefined : csrfCookie();

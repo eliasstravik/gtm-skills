@@ -238,6 +238,52 @@ caption {
 .environment-badge[data-environment="preview"] {
   --badge: var(--muted);
 }
+/* Whether the latest change is live on production (viewer/release.tsx): quiet when live, loud when not. */
+.release-status {
+  --release: light-dark(#107d32, #62c073);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--muted);
+}
+.release-status::before {
+  content: "";
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--release);
+}
+.release-status[data-state="updating"] {
+  --release: light-dark(#a35200, #ffb224);
+  color: var(--text);
+}
+.release-status[data-state="updating"]::before {
+  animation: release-pulse 1.4s ease-in-out infinite;
+}
+.release-status[data-state="failed"] {
+  --release: light-dark(#cb2a2f, #ff6166);
+  color: var(--release);
+}
+.release-status a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+@keyframes release-pulse {
+  50% { opacity: 0.25; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .release-status[data-state="updating"]::before { animation: none; }
+}
+@media (max-width: 640px) {
+  .release-status .release-more { display: none; }
+}
 :root[data-environment="local"] body::before {
   content: "";
   position: fixed;

@@ -46,3 +46,28 @@ export async function applyConnections(api: Api, projectId: string, id: string, 
     return { id, state: "failed" };
   }
 }
+export type Release = { state: "updating" | "live" | "failed"; since?: number; details?: string };
+/** A new build that is ready but not yet serving is still going live, for about this long. */
+const PROMOTION_MS = 2 * 60000;
+/**
+ * Whether production is serving the newest change, for the viewer's status next to the Production badge. Any
+ * production build counts: a saved key, a push, a redeploy from Vercel. A canceled build is no change; a failed one
+ * newer than what serves means the change never went live. Only the state, a time and Vercel's own page for the
+ * build leave this function.
+ */
+export async function releaseStatus(api: Api, projectId: string, origin: string, now = Date.now()): Promise<Release> {
+  const [result, alias] = await Promise.all([
+    api("GET", `/v6/deployments?projectId=${encodeURIComponent(projectId)}&target=production&limit=5`),
+    api("GET", `/v4/aliases/${encodeURIComponent(new URL(origin).hostname)}`),
+  ]);
+  insist(Array.isArray(result.deployments) && alias.projectId === projectId && typeof alias.deployment?.id === "string", "application_unavailable", 503);
+  const latest = result.deployments.find((d: any) => d?.state !== "CANCELED");
+  if (!latest || latest.uid === alias.deployment.id) return { state: "live" };
+  const since = typeof latest.created === "number" ? latest.created : undefined;
+  const details = typeof latest.inspectorUrl === "string" && latest.inspectorUrl.startsWith("https://vercel.com/") ? latest.inspectorUrl : undefined;
+  if (pending.has(latest.state) || (latest.state === "READY" && now - (latest.ready ?? since ?? 0) < PROMOTION_MS))
+    return { state: "updating", ...(since ? { since } : {}) };
+  // The list is newest first, so a failed build here is newer than the one serving: that change never went live.
+  if (latest.state === "ERROR") return { state: "failed", ...(since ? { since } : {}), ...(details ? { details } : {}) };
+  return { state: "live" };
+}

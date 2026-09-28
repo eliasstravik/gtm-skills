@@ -7,6 +7,7 @@ import Data from "./data";
 import Runs from "./runs";
 import Sharing from "./sharing";
 import { EnvironmentBadge } from "./environment";
+import { ReleaseStatus } from "./release";
 import "@fontsource-variable/geist/index.css";
 import "@fontsource-variable/geist-mono/index.css";
 import "./style.css";
@@ -39,6 +40,7 @@ function Workflow() {
               )}
               <h1>{meta.workflow.title}</h1>
               {!recipient && <EnvironmentBadge environment={meta.environment} />}
+              {!recipient && <ReleaseStatus environment={meta.environment} />}
             </div>
             {!recipient && meta.hosted && <Sharing meta={meta} />}
           </header>
