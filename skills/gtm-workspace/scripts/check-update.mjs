@@ -21,9 +21,12 @@ export function skillVersion(text) {
   return /^metadata:\s*\r?\n(?:[ \t]+.*\r?\n)*?[ \t]+version:\s*["']?(\d+\.\d+\.\d+)["']?\s*$/m.exec(front + "\n")?.[1] ?? null;
 }
 
-/** -1, 0 or 1 for two x.y.z versions; a missing one counts as 0.0.0. */
+/** Versions published by mistake and withdrawn, with the release they really are; never release these numbers again. */
+export const WITHDRAWN = { "0.3.0": "0.2.0" };
+
+/** -1, 0 or 1 for two x.y.z versions; a missing one counts as 0.0.0, a withdrawn one as the release it stands for. */
 export function compareVersions(a, b) {
-  const parts = (v) => (/^\d+\.\d+\.\d+/.test(v ?? "") ? v.split(".").slice(0, 3).map(Number) : [0, 0, 0]);
+  const parts = (v) => (v = WITHDRAWN[v] ?? v, /^\d+\.\d+\.\d+/.test(v ?? "") ? v.split(".").slice(0, 3).map(Number) : [0, 0, 0]);
   const [x, y] = [parts(a), parts(b)];
   for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1;
   return 0;

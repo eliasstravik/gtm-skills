@@ -31,4 +31,4 @@ When gtm-workflow's Doctor returns a `migration`, the workspace was made by an o
 
 ## Releasing
 
-A release changes `metadata.version` in all six SKILL.md files and `version` in `skills/gtm-workflow/templates/package.json` to the same number; the gtm-workspace tests fail when they differ. Users are offered the release once it is on `main`; the Slack agent offers it once the agent template pins it.
+A release changes `metadata.version` in all six SKILL.md files and `version` in `skills/gtm-workflow/templates/package.json` to the same number; the gtm-workspace tests fail when they differ. 0.3.0 was published by mistake and withdrawn: it counts as 0.2.0 (`WITHDRAWN` in `check-update.mjs` and gtm-workflow's `upgrade-package.mjs`), so installs and workspaces that say 0.3.0 are offered the next 0.2.x; never release 0.3.0 again, the next minor release is 0.4.0. Users are offered the release once it is on `main`; the Slack agent offers it once the agent template pins it.

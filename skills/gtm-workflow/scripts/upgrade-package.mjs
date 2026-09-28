@@ -9,9 +9,12 @@ const stock = { dev: /^node scripts\/local-launch\.mjs dev$/ };
 // Stock commands the template dropped; a customized one stays and is listed for review.
 const retired = { viewer: /^node scripts\/local-launch\.mjs viewer$/ };
 
-/** -1, 0 or 1 for two x.y.z versions; anything unparsable counts as 0.0.0. */
+/** Versions published by mistake and withdrawn, with the release they really are; never release these numbers again. */
+export const WITHDRAWN = { "0.3.0": "0.2.0" };
+
+/** -1, 0 or 1 for two x.y.z versions; anything unparsable counts as 0.0.0, a withdrawn one as the release it stands for. */
 export function compareVersions(a, b) {
-  const parts = (v) => (/^\d+\.\d+\.\d+/.test(v ?? "") ? v.split(".").slice(0, 3).map((n) => parseInt(n, 10)) : [0, 0, 0]);
+  const parts = (v) => (v = WITHDRAWN[v] ?? v, /^\d+\.\d+\.\d+/.test(v ?? "") ? v.split(".").slice(0, 3).map((n) => parseInt(n, 10)) : [0, 0, 0]);
   const [x, y] = [parts(a), parts(b)];
   for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1;
   return 0;
