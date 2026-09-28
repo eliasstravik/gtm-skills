@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyConnections, connectionDeployment } from "../templates/lib/connections-apply";
+import { applyConnections, connectionDeployment, releaseStatus } from "../templates/lib/connections-apply";
 import { changeAndApplyConnection } from "../templates/lib/connections-management";
 const id = "cd145659-2da3-40af-86af-49febc08e67d", projectId = "prj_test";
 const origin = "https://workflows.example.com";
@@ -90,4 +90,25 @@ test("an alias belonging to another project cannot select deployment source", as
   const scoped = (method: string, path: string, body?: unknown) => path.includes('/aliases/') ? Promise.resolve({ projectId: 'other', deployment: serving }) : api(method, path, body);
   assert.equal((await applyConnections(scoped, projectId, id, origin)).state, "failed");
   assert.equal(writes.length, 0);
+});
+
+test("the viewer's release status: building means updating, a newer failed build means failed, serving means live", async () => {
+  const now = 1_000_000_000;
+  const status = (deployments: any[], aliasProject = projectId) => releaseStatus(async (_method, path) =>
+    path.includes("/aliases/") ? { projectId: aliasProject, deployment: serving } : { deployments }, projectId, origin, now);
+  const build = (uid: string, state: string, extra: any = {}) => ({ uid, state, created: now - 30000, inspectorUrl: `https://vercel.com/team/p/${uid}`, meta: { secret: "never-return" }, ...extra });
+  assert.deepEqual(await status([build(serving.id, "READY")]), { state: "live" });
+  assert.deepEqual(await status([]), { state: "live" });
+  for (const state of ["QUEUED", "INITIALIZING", "BUILDING"])
+    assert.deepEqual(await status([build("dpl_new", state), build(serving.id, "READY")]), { state: "updating", since: now - 30000 });
+  // Built but not yet serving: still going live for a short while, then not this page's business.
+  assert.equal((await status([build("dpl_new", "READY", { ready: now - 10000 })])).state, "updating");
+  assert.equal((await status([build("dpl_new", "READY", { ready: now - 600000 })])).state, "live");
+  // A canceled build is no change; the one under it decides.
+  assert.equal((await status([build("dpl_x", "CANCELED"), build(serving.id, "READY")])).state, "live");
+  const failed = await status([build("dpl_bad", "ERROR"), build(serving.id, "READY")]);
+  assert.deepEqual(failed, { state: "failed", since: now - 30000, details: "https://vercel.com/team/p/dpl_bad" });
+  assert.ok(!JSON.stringify(failed).includes("never-return"));
+  assert.equal((await status([build("dpl_bad", "ERROR", { inspectorUrl: "https://evil.example/x" })])).details, undefined);
+  await assert.rejects(status([build(serving.id, "READY")], "other"), /application_unavailable/);
 });
