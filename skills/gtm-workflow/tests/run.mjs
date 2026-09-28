@@ -67,6 +67,7 @@ try {
     "inspection",
     "viewer-api",
     "web-url",
+    "duration",
     "reliability",
     "cli-mcp",
     "connections-management",

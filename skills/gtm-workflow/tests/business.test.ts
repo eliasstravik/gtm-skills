@@ -96,15 +96,13 @@ test("destinations use the deployed revision and reject credential-bearing or wr
   delete process.env.VERCEL_GIT_COMMIT_SHA;
   assert.equal(destinations(entry).source, undefined);
   delete process.env.VERCEL;
-  process.env.GTM_VIEWER_INSPECTOR_URL = "http://localhost:4200";
-  assert.equal(runDestination("wrun_" + "A".repeat(26)), undefined);
-  process.env.GTM_VIEWER_INSPECTOR_STORE = "local";
-  assert.deepEqual(destinations().runs, { url: "http://localhost:4200/", label: "Open in Workflow" });
-  assert.ok(
-    runDestination("wrun_" + "A".repeat(26))?.url.startsWith(
-      "http://localhost:4200/run/",
-    ),
-  );
+  // Locally every run opens in the run inspector that `npm run dev` serves on the same origin.
+  assert.deepEqual(destinations().runs, { url: "/_workflow", label: "Open in Workflow" });
+  assert.deepEqual(runDestination("wrun_" + "A".repeat(26)), {
+    url: "/_workflow/run/wrun_" + "A".repeat(26),
+    label: "Open in Workflow",
+  });
+  assert.equal(runDestination("wrun_../../api"), undefined);
   assert.equal(destinations(entry).source?.path, "workflows/enrich-network.ts");
 });
 test("revoking legacy links touches only the selected workflow and leaves business data intact", async () => {

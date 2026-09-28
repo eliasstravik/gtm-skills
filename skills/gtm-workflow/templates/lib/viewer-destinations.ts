@@ -55,22 +55,11 @@ export function destinations(entry?: Display) {
       : undefined,
   };
 }
+// `npm run dev` serves the Workflow SDK's own run inspector at this path, reading the same local store.
+const LOCAL_INSPECTOR = "/_workflow";
 export function runsDestination() {
-  if (!process.env.VERCEL) {
-    // Operator confirms the inspector uses the same local store. Do not point local runs at production.
-    if (process.env.GTM_VIEWER_INSPECTOR_STORE !== "local") return undefined;
-    const origin = safeUrl(
-      process.env.GTM_VIEWER_INSPECTOR_URL,
-      undefined,
-      true,
-    );
-    return origin
-      ? {
-          url: origin.href,
-          label: "Open in Workflow",
-        }
-      : undefined;
-  }
+  if (!process.env.VERCEL)
+    return { url: LOCAL_INSPECTOR, label: "Open in Workflow" };
   // An operator supplies the verified Vercel runs page including its environment selector.
   const base = safeUrl(process.env.GTM_VIEWER_VERCEL_RUNS_URL, ["vercel.com"]);
   if (!base || !/^\/[^/]+\/[^/]+\/workflows\/runs\/?$/.test(base.pathname))
@@ -81,9 +70,9 @@ export function runDestination(id: string) {
   if (!/^wrun_[A-Za-z0-9]{26}$/.test(id)) return undefined;
   const destination = runsDestination();
   if (!destination) return undefined;
+  if (!process.env.VERCEL)
+    return { ...destination, url: `${LOCAL_INSPECTOR}/run/${segment(id)}` };
   const url = new URL(destination.url);
-  url.pathname = process.env.VERCEL
-    ? `${url.pathname.replace(/\/$/, "")}/${segment(id)}`
-    : `/run/${segment(id)}`;
+  url.pathname = `${url.pathname.replace(/\/$/, "")}/${segment(id)}`;
   return { ...destination, url: url.href };
 }
