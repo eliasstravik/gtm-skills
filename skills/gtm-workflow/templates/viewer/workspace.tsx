@@ -3,7 +3,6 @@ import { href, navigate, query } from "./navigation";
 import { Search, State, useRead } from "./common";
 import Data from "./data";
 import { EnvironmentBadge } from "./environment";
-import { ReleaseStatus } from "./release";
 export default function Workspace() {
   const state = useRead("list"),
     search = query().get("q") ?? "";
@@ -26,14 +25,13 @@ export default function Workspace() {
           {state.data?.connectionsUrl && <a href={state.data.connectionsUrl}>Connections</a>}
         </nav>
       {dataView ? <>
-        <div className="title-row"><div className="environment-title"><h1>Data</h1><EnvironmentBadge environment={state.data?.environment} /><ReleaseStatus environment={state.data?.environment} /></div></div>
+        <div className="title-row"><div className="environment-title"><h1>Data</h1><EnvironmentBadge environment={state.data?.environment} /></div></div>
         <Data destinations={state.data?.destinations} csrf={state.data?.csrf} />
       </> : <>
       <div className="title-row">
         <div className="environment-title">
           <h1>Workflows</h1>
           <EnvironmentBadge environment={state.data?.environment} />
-          <ReleaseStatus environment={state.data?.environment} />
         </div>
         <Search
           label="Search workflows"

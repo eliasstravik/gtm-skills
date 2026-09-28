@@ -238,51 +238,38 @@ caption {
 .environment-badge[data-environment="preview"] {
   --badge: var(--muted);
 }
-/* Whether the latest change is live on production (viewer/release.tsx): quiet when live, loud when not. */
-.release-status {
-  --release: light-dark(#107d32, #62c073);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.3;
-  color: var(--muted);
+/* The Production badge also says whether the latest change is live (viewer/release.tsx): amber while it builds, red if it failed. */
+.environment-badge[data-state="updating"] {
+  --badge: light-dark(#a35200, #ffb224);
 }
-.release-status::before {
-  content: "";
-  flex-shrink: 0;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--release);
+.environment-badge[data-state="updating"]::before {
+  animation: badge-pulse 1.4s ease-in-out infinite;
 }
-.release-status[data-state="updating"] {
-  --release: light-dark(#a35200, #ffb224);
-  color: var(--text);
+.environment-badge[data-state="failed"] {
+  --badge: light-dark(#cb2a2f, #ff6166);
 }
-.release-status[data-state="updating"]::before {
-  animation: release-pulse 1.4s ease-in-out infinite;
+.environment-badge .badge-more {
+  color: color-mix(in srgb, var(--badge) 70%, var(--muted));
+  font-weight: 400;
 }
-.release-status[data-state="failed"] {
-  --release: light-dark(#cb2a2f, #ff6166);
-  color: var(--release);
+.environment-badge .badge-more::before {
+  content: "· ";
 }
-.release-status a {
+.environment-badge a {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-@keyframes release-pulse {
+@keyframes badge-pulse {
   50% { opacity: 0.25; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .release-status[data-state="updating"]::before { animation: none; }
+  .environment-badge[data-state="updating"]::before { animation: none; }
 }
+/* On a phone the state alone keeps the page title readable; the color and the tooltip still say it is production. */
 @media (max-width: 640px) {
-  .release-status .release-more { display: none; }
+  .environment-badge .badge-more,
+  .environment-badge .badge-name { display: none; }
 }
 :root[data-environment="local"] body::before {
   content: "";
