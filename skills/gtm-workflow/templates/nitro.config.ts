@@ -3,10 +3,11 @@ import "./lib/local-runtime";
 import type {} from "workflow/nitro";
 import vercelJson from "./vercel.json";
 import { viewerWatch } from "./scripts/viewer-watch.mjs";
+import { migrateWatch } from "./scripts/migrate-watch.mjs";
 const share = process.env.GTM_VIEWER_MODE === "share";
 export default defineConfig({
   serverDir: share ? "./share-server" : "./server",
-  modules: share ? [] : ["workflow/nitro", viewerWatch],
+  modules: share ? [] : ["workflow/nitro", viewerWatch, migrateWatch],
   ...(!share
     ? {
         workflow: { dirs: ["workflows", "lib"] },

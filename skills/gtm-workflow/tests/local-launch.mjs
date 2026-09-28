@@ -62,6 +62,26 @@ try {
   const keys = await get("/api/connection-management");
   assert.equal(keys.body.mode, "local");
   console.log("local launch stays local with a pulled .env.local");
+
+  // A table added while the server runs: `npm run db:generate` writes a migration, and the running server applies it,
+  // so the next run can use the table without a restart.
+  const query = (sql) => fetch(`${origin}/api/query`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ sql }) })
+    .then(async (response) => ({ status: response.status, text: await response.text() }));
+  assert.equal((await query("select count(*) from launch_probe")).status, 400);
+  const journalPath = join(dir, "drizzle/meta/_journal.json");
+  const journal = JSON.parse(await readFile(journalPath, "utf8"));
+  journal.entries.push({ idx: journal.entries.length, version: "7", when: Date.now(), tag: "0001_launch_probe", breakpoints: true });
+  // drizzle-kit writes the journal before the SQL file; the watcher has to cope with that order.
+  await writeFile(journalPath, JSON.stringify(journal, null, 2));
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  await writeFile(join(dir, "drizzle/0001_launch_probe.sql"), 'CREATE TABLE "launch_probe" (\n\t"key" text PRIMARY KEY NOT NULL\n);\n');
+  let created;
+  for (let attempt = 0; attempt < 60 && !created; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    created = (await query("select count(*) from launch_probe")).status === 200;
+  }
+  assert.ok(created, `a migration added while npm run dev runs was not applied:\n${output.slice(-2000)}`);
+  console.log("a table added while npm run dev runs is created without a restart");
 } finally {
   child.kill("SIGTERM");
   await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 30000))]);
