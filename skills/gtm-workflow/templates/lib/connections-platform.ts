@@ -6,3 +6,5 @@ export function gatewayPlatformIdentity(): boolean {
   try { return Boolean(getVercelOidcTokenSync()); }
   catch { return false; }
 }
+/** Whether Vercel's identity stands in for the AI Gateway key: hosted, the request's; locally, the token `vercel env pull` leaves in `.env.local`, which the AI SDK reads. */
+export const platformIdentity = () => process.env.VERCEL ? gatewayPlatformIdentity() : Boolean(process.env.VERCEL_OIDC_TOKEN?.trim());

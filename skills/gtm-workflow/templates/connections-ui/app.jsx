@@ -1,83 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ArrowPathIcon, EllipsisHorizontalIcon } from "@heroicons/react/16/solid";
+import { ArrowPathIcon, EllipsisHorizontalIcon, XCircleIcon } from "@heroicons/react/16/solid";
 import { initialize, request, localMode } from "./transport.mjs";
+import { EntryForm, message } from "./entry-form.jsx";
 import "@fontsource-variable/geist/index.css";
 import "../viewer/style.css";
 import "./style.css";
-const messages = {
-  private_browser_required: "Open this project's private Workflows URL and sign in through Vercel to manage connections.",
-  deployment_protection_required: "Vercel Deployment Protection must be enabled before connections can be managed.",
-  access_verification_unavailable: "Vercel access could not be checked. Refresh to try again.",
-  use_vercel_settings: "This key has shared or integration settings. Manage it in Vercel to preserve those settings.",
-  reopen_connections: "Open Connections from the trusted local command to continue.",
-  sign_in_required: "Sign in with Vercel to manage this project's connections.",
-  setup_needed: "Connections setup is not complete. Resume setup on the owner's computer.",
-  membership_denied: "This account does not have supported access to this project.",
-  installation_denied: "The project's integration needs attention. Run Connections Doctor.",
-  connection_changed: "This connection changed. Close this form and refresh before trying again.",
-  save_outcome_requires_review: "The save outcome is uncertain. Refresh and review its status before entering a replacement.",
-  vercel_unavailable: "Update status is temporarily unavailable. Refresh to try again.",
-  application_unavailable: "Updates are temporarily unavailable. Refresh and try again.",
-  operation_in_progress: "Another change is in progress. Refresh when it finishes.",
-  explicit_replacement_required: "The previous save is unresolved. Review its status and explicitly replace it.",
-  invalid_provider_variable: "Use letters, numbers and underscores, starting with a letter or underscore. System variables are reserved.",
-  invalid_label: "Enter a name of up to 256 characters on one line.",
-  replacement_key_required: "Enter a new key value to replace this connection.",
-  invalid_key: "Enter a nonempty key on one line.",
-  local_access_only: "Open the Keys page from this computer's viewer (or your own tailnet address).",
-  csrf_denied: "Refresh this page and try again.",
-  vercel_request_denied: "Vercel refused the change. Check `vercel login` and that you can edit this project, then save again.",
-};
-const message = (code) => messages[code] ?? "Connections could not complete this request. Refresh or run Connections Doctor.";
-function EntryForm({ selection, inventory, close, updated, beginApply, failedApply }) {
-  const dialog = useRef(null), form = useRef(null), password = useRef(null);
-  const [busy, setBusy] = useState(false), [error, setError] = useState("");
-  const deleting = selection.action === "disconnect", editing = Boolean(selection.field);
-  // Locally the key is all there is to edit, so an edit always takes a new value.
-  const needsKey = localMode || !editing || ["external", "unresolved", "unknown", "disconnected"].includes(selection.field?.state);
-  useEffect(() => {
-    dialog.current.showModal();
-    const clear = () => { if (password.current) password.current.value = ""; };
-    window.addEventListener("pagehide", clear);
-    return () => { clear(); window.removeEventListener("pagehide", clear); };
-  }, []);
-  function cancel() { if (!busy) { form.current?.reset(); close(); } }
-  async function submit(event) {
-    event.preventDefault(); setError(""); setBusy(true);
-    const data = new FormData(form.current), variable = selection.field?.variable ?? String(data.get("variable")).trim();
-    const existing = inventory.connections.flatMap((row) => row.fields).find((field) => field.variable === variable);
-    if (selection.action === "add" && existing && existing.state !== "disconnected") {
-      setError("This key already exists. Close this form and choose Edit."); setBusy(false); return;
-    }
-    const value = String(data.get("key") ?? "");
-    const body = { id: crypto.randomUUID(), variable, action: selection.action, version: selection.field?.version ?? existing?.version ?? "absent",
-      ...(deleting ? {} : { ...(localMode ? {} : { label: String(data.get("label")).trim() }), ...(value ? { value } : {}) }),
-      ...(data.get("supersede") ? { supersede: true } : {}),
-    };
-    const applies = inventory.mode === "production" && (deleting || !editing || Boolean(value));
-    if (applies) beginApply(body.id);
-    try { const result = await request("/api/connections", body); form.current?.reset(); updated(result, applies ? body.id : null); close(); }
-    catch (failure) { if (applies) failedApply(body.id, failure); setError(message(failure.message)); }
-    finally { body.value = undefined; setBusy(false); }
-  }
-  return <dialog ref={dialog} aria-labelledby="entry-title" className="connection-dialog" onCancel={(event) => { event.preventDefault(); cancel(); }}>
-    <form ref={form} onSubmit={submit} autoComplete="off">
-      <h2 id="entry-title">{deleting ? `Delete ${selection.row.name}?` : editing ? "Edit connection" : "Add connection"}</h2>
-      {deleting ? <>
-        <p>Workflows using this connection may stop working.</p>
-      </> : <div className="connection-fields">
-        {localMode ? null : <><label htmlFor="connection-label">Name</label><input id="connection-label" name="label" placeholder="Apollo" defaultValue={selection.field?.label ?? ""} maxLength={256} required autoFocus /></>}
-        <label htmlFor="variable">Key</label><input id="variable" name="variable" placeholder="APOLLO_API_KEY" defaultValue={selection.field?.variable ?? selection.preset ?? ""} disabled={editing} pattern="[A-Za-z_][A-Za-z0-9_]*" maxLength={256} required />
-        <label htmlFor="new-key">{editing ? "New API key value" : "API key value"}</label><input ref={password} id="new-key" name="key" type="password" placeholder={editing && !needsKey ? "Leave blank to keep the current key" : "your_apollo_api_key"} autoComplete="new-password" maxLength={8192} required={needsKey} />
-        {["unresolved", "write_attempted"].includes(selection.row?.change?.phase) ? <label><input name="supersede" type="checkbox" required />Replace the unresolved save with this new entry</label> : null}
-      </div>}
-      {error ? <p role="alert" className="error">{error}</p> : null}
-      <div className="dialog-actions"><button type="button" disabled={busy} onClick={cancel}>Cancel</button>
-        <button className={`connection-submit primary${deleting ? " danger" : ""}`} type="submit" disabled={busy} aria-busy={busy}>{busy ? <ArrowPathIcon aria-hidden="true" className="connection-icon connection-spinner" /> : null}{busy ? deleting ? "Deleting…" : "Saving…" : deleting ? "Delete connection" : "Save connection"}</button></div>
-    </form>
-  </dialog>;
-}
 const applicationStorage = "gtm-connections-application";
 function readPending() {
   try { const value = JSON.parse(localStorage.getItem(applicationStorage)); return typeof value?.id === "string" ? { id: value.id, state: "pending" } : null; } catch { return null; }
@@ -161,6 +89,9 @@ function App() {
     return () => { document.removeEventListener("click", dismissMenus); window.removeEventListener("pageshow", restore); window.removeEventListener("pagehide", hide); };
   }, []);
   const workflowsUrl = inventory?.workflowsUrl;
+  // A workflow's own Connections tab, where its keys are listed with whether each is set.
+  const workflowHref = (id) => { if (!workflowsUrl) return "#"; const url = new URL(workflowsUrl, location.origin); url.searchParams.set("workflow", id); url.searchParams.set("view", "connections"); return url.href; };
+  const workflowLinks = (list) => <>{list.slice(0, 3).map((workflow, index) => <React.Fragment key={workflow.id ?? workflow.workflowId}>{index ? ", " : ""}<a href={workflowHref(workflow.id ?? workflow.workflowId)}>{workflow.title}</a></React.Fragment>)}{list.length > 3 ? ` and ${list.length - 3} more` : ""}</>;
   return <main className="workspace">
     <nav className="tabs root-navigation" aria-label="Workspace"><a href={workflowsUrl ?? "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Workflows</a><a href={workflowsUrl ? (() => { const url = new URL(workflowsUrl, location.origin); url.searchParams.set("view", "data"); return url.href; })() : "#"} aria-disabled={!inventory} onClick={(event) => { if (!inventory) event.preventDefault(); }}>Data</a><a href="/connections" aria-current="page">Connections</a></nav>
     <div className="title-row"><div><div className="environment-title"><h1>Connections</h1><span className="environment-badge" data-environment={localMode ? "local" : "production"} title={localMode ? "Keys for runs on this computer" : "Keys for the deployed copy on Vercel"}>{localMode ? "Local" : "Production"}</span></div>{inventory?.workspaceName ? <p className="muted">{inventory.workspaceName}</p> : null}</div>
@@ -175,9 +106,20 @@ function App() {
         {application.state === "failed" ? <button type="button" disabled={retrying} onClick={retryApply}>{retrying ? "Retrying…" : "Retry"}</button> : null}
       </div> : null}
       {!inventory.canWrite ? <p className="notice">Read-only access. A project owner or member can change Production connections.</p> : null}
+      {inventory.missing?.length ? <section className="connection-missing" aria-labelledby="missing-title">
+        <h2 id="missing-title">Missing</h2>
+        <p className="muted">Workflows use these keys, but none is set {localMode ? "on this computer" : "in Production"}.</p>
+        <div className="connection-list">{inventory.missing.map((row) => <div className="connection-row" key={row.variable}>
+          <div className="connection-name"><h3><XCircleIcon aria-hidden="true" className="connection-icon connection-state-icon" data-state="missing" />{row.provider ?? row.variable}</h3>{row.provider ? <p className="muted connection-variable">{row.variable}</p> : null}
+            <p className="muted connection-usage">Needed by {workflowLinks(row.workflows)}</p></div>
+          {inventory.canWrite ? <button type="button" onClick={(event) => select(event, { action: "add", preset: row.variable, presetLabel: row.provider })} aria-label={`Add ${row.provider ?? row.variable}`}>Add</button> : null}
+        </div>)}</div>
+      </section> : null}
+      {inventory.missing?.length ? <h2 className="connection-saved-title">Saved</h2> : null}
       <div className="connection-list">{inventory.connections.filter((row) => row.platformIdentity || row.fields.some((field) => field.state !== "disconnected")).map((row) => <div className="connection-row" key={row.id}>
         <div className="connection-name"><h2>{row.name}</h2><p className="muted connection-variable">{row.fields.map((field) => field.variable).join(", ")}</p>
           {row.status && row.status !== "Saved" ? <p className="muted connection-status">{row.status}</p> : null}
+          {row.usage?.length ? <p className="muted connection-usage">Used by {workflowLinks(row.usage)}</p> : row.usageComplete ? <p className="muted connection-usage">Not used by any workflow</p> : null}
 </div>
         {inventory.canWrite && row.fields.length ? <details className="connection-menu"><summary className="icon-button" aria-label={`Actions for ${row.name}`} title="Connection actions"><EllipsisHorizontalIcon aria-hidden="true" className="connection-icon" /></summary><div>{row.fields.map((field) => <React.Fragment key={field.variable}>
           {field.editable ? <><button type="button" onClick={(event) => select(event, { action: "replace", row, field })}>Edit</button><button type="button" className="danger-text" onClick={(event) => select(event, { action: "disconnect", row, field })}>Delete</button></> : inventory.vercelUrl ? <a href={inventory.vercelUrl} target="_blank" rel="noopener noreferrer">Open in Vercel</a> : <span className="muted">Read only</span>}

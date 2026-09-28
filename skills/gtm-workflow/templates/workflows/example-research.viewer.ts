@@ -3,6 +3,7 @@ import type { WorkflowData } from "../lib/data-api";
 
 /** Authored description of the row helper and workflow-specific calls. It never drives execution. */
 export const viewer = {
+  connections: [{ connection: "AI_GATEWAY_API_KEY", provider: "AI Gateway" }],
   businessGraph: {
     nodes: [
       {
@@ -326,6 +327,7 @@ export const viewer = {
     relations: [],
   },
 } satisfies {
+  connections: import("../lib/connections-contract").ConnectionUsage[];
   id: string;
   description: string;
   stages: import("../lib/viewer-contract").Display["stages"];

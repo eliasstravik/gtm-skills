@@ -43,3 +43,39 @@
 .production-only { margin-top: 40px; }
 .production-only > p { margin-top: 4px; }
 .production-only .connection-row { grid-template-columns: minmax(0, 1fr) auto; }
+
+/* Keys workflows use but nobody has set, and which workflows use each key (the Keys page and a workflow's tab). */
+.connection-missing { margin-top: 24px; }
+.connection-missing > p { margin-top: 4px; }
+.connection-missing .connection-list { margin-top: 12px; }
+.connection-saved-title { margin-top: 40px; }
+.connection-saved-title + .connection-list { margin-top: 12px; }
+.connection-missing .connection-row { grid-template-columns: minmax(0, 1fr) auto; }
+.connection-name h3 { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; }
+.connection-usage { font-size: 12px; margin-top: 4px; }
+.connection-usage a { text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 2px; }
+.connection-usage a:hover { color: var(--text); text-decoration-color: currentColor; }
+.connection-state-icon[data-state="missing"] { fill: light-dark(#cb2a2f, #ff6166); }
+.connection-state { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+.connection-state .connection-icon { fill: currentColor; }
+.connection-state[data-state="set"], .connection-state[data-state="provided"] { color: light-dark(#107d32, #62c073); }
+.connection-state[data-state="saved"] { color: light-dark(#a35200, #ffb224); }
+.connection-state[data-state="missing"] { color: light-dark(#cb2a2f, #ff6166); }
+/* A workflow's Connections tab, on the same 24px edge as the other tabs. */
+.connections-tab { padding-bottom: 40px; }
+.connections-tab > .title-row { padding: 16px 24px 0; max-width: 1148px; min-height: 64px; }
+.connections-tab > :not(.title-row, dialog) { max-width: 1100px; margin-inline: 24px; }
+.connections-tab .connection-list { margin-top: 16px; }
+.connections-tab > .notice { padding: 24px 0 0; }
+.connection-usage-row { grid-template-columns: minmax(0, 1fr) auto 64px; }
+.connection-usage-row > button { justify-self: end; }
+@media (max-width: 640px) {
+  .connection-usage-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .connection-usage-row > .connection-state { grid-row: 2; grid-column: 1; }
+  .connection-usage-row > button { grid-row: 1 / span 2; grid-column: 2; }
+}
+/* How many keys a workflow uses that aren't set here, next to its Connections tab. */
+.tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9999px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: light-dark(#cb2a2f, #ff6166); background: color-mix(in srgb, light-dark(#cb2a2f, #ff6166) 12%, var(--bg)); }
+.connection-fields input:read-only:not([type="password"]) { color: var(--muted); background: var(--surface); }
+@media (max-width: 640px) { .connections-tab > .title-row > .button { align-self: flex-start; } }
+.connections-tab > .connections-hint { margin-top: 8px; }

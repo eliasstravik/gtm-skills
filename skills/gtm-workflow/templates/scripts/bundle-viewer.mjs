@@ -20,5 +20,10 @@ export async function bundleViewer({ share = false } = {}) {
     assetNames: "[name]-[hash]",
     chunkNames: "[name]-[hash]",
     define: { "process.env.NODE_ENV": '"production"' },
+    // The public share build carries no Connections code: a workflow's Connections tab is for owners only.
+    plugins: share ? [{ name: "no-connections", setup(build) {
+      build.onResolve({ filter: /^\.\/connections$/ }, () => ({ path: "connections", namespace: "no-connections" }));
+      build.onLoad({ filter: /.*/, namespace: "no-connections" }, () => ({ contents: "export default () => null;", loader: "js" }));
+    } }] : [],
   });
 }

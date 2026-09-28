@@ -14,6 +14,7 @@ export const entry = {
   slug: "network",
   title: "Network",
   description: "Find people in the network.",
+  connections: [{ connection: "FIXTURE_API_KEY", provider: "Fixture" }, { connection: "OTHER_TOKEN" }],
   businessGraph: {
     nodes: [
       {

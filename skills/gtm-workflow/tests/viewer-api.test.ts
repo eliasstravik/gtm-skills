@@ -515,3 +515,34 @@ test("links the browser follows are origin-relative, so the viewer works behind 
     assert.equal(response.headers.get("location"), location);
   }
 });
+test("a workflow's Connections tab lists its keys by name with whether each is set, for the owner only", async () => {
+  const vercel = process.env.VERCEL;
+  delete process.env.VERCEL;
+  process.env.FIXTURE_API_KEY = "fixture-secret-value";
+  delete process.env.OTHER_TOKEN;
+  try {
+    const local = (op: string) => new Request(`http://127.0.0.1:3939/api/viewer?v=3&op=${op}&workflow=stable`, { headers: { host: "127.0.0.1:3939" } });
+    const response = await viewerApi(local("connections"));
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.deepEqual(body.connections, [
+      { variable: "FIXTURE_API_KEY", provider: "Fixture", state: "set" },
+      { variable: "OTHER_TOKEN", state: "missing" },
+    ]);
+    assert.equal(body.declared, true);
+    assert.equal(body.canSet, true);
+    assert.equal(body.connectionsUrl, "/connections");
+    assert.ok(!JSON.stringify(body).includes("fixture-secret-value"));
+    assert.equal((await (await viewerApi(local("meta"))).json()).connectionsUnset, 1);
+  } finally {
+    process.env.VERCEL = vercel;
+    delete process.env.FIXTURE_API_KEY;
+  }
+  // Hosted without the Keys page: still listed, added in Vercel instead. Previews and share links never see it.
+  const hosted = (extra = "") => new Request(`https://private.example/api/viewer?v=3&op=connections&workflow=stable${extra}`, { headers: { host: "private.example", "x-gtm-viewer-project": "fixture" } });
+  const owner = await (await viewerApi(hosted())).json();
+  assert.equal(owner.canSet, false);
+  assert.equal(owner.connections[0].state, "missing");
+  assert.equal((await viewerApi(hosted("&preview=logic"))).status, 403);
+  assert.equal((await viewerApi(hosted(), true)).status, 404);
+});

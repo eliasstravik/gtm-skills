@@ -11,6 +11,8 @@ hostedOwnerCheck.check = async () => {};
 import { db } from "../templates/lib/db";
 import { testDatabase } from "./db";
 import { page } from "../templates/viewer/shell";
+import { connectionsManagement } from "../templates/lib/connections-management";
+import { keysPage } from "../templates/server/routes/connections.get";
 import registry, {
   entry,
   tables,
@@ -192,7 +194,7 @@ for (const port of process.env.GTM_VIEWER_FIXTURE_LOCAL === "1"
   createServer(async (incoming, outgoing) => {
     try {
       const url = new URL(incoming.url!, `http://127.0.0.1:${port}`);
-      if (url.pathname.startsWith("/viewer-assets/")) {
+      if (url.pathname.startsWith("/viewer-assets/") || url.pathname.startsWith("/connections-assets/")) {
         if (url.pathname.includes("..")) throw Error();
         const file = resolve(publicDir, "." + url.pathname);
         const content = await readFile(file);
@@ -209,6 +211,13 @@ for (const port of process.env.GTM_VIEWER_FIXTURE_LOCAL === "1"
         outgoing.end(content);
         return;
       }
+      // Locally the Keys page is on the same server (its keys go to `.env.local` in this process's folder).
+      if (port === 3944 && url.pathname === "/connections") {
+        const response = keysPage("local");
+        outgoing.writeHead(200, Object.fromEntries(response.headers));
+        outgoing.end(await response.text());
+        return;
+      }
       if (!url.pathname.startsWith("/api/")) {
         outgoing.setHeader("content-type", "text/html");
         outgoing.end(page);
@@ -219,14 +228,14 @@ for (const port of process.env.GTM_VIEWER_FIXTURE_LOCAL === "1"
       const body = Buffer.concat(chunks);
       const headers = new Headers(incoming.headers as any);
       if (port === 3943) headers.set("x-gtm-viewer-project", "fixture");
-      const response = await viewerApi(
-        new Request(url, {
-          method: incoming.method,
-          headers,
-          ...(body.length ? { body } : {}),
-        }),
-        port === 3943,
-      );
+      const request = new Request(url, {
+        method: incoming.method,
+        headers,
+        ...(body.length ? { body } : {}),
+      });
+      const response = port === 3944 && url.pathname.startsWith("/api/connection-management")
+        ? await connectionsManagement(request, registry, url.pathname.endsWith("/session") ? "session" : "inventory")
+        : await viewerApi(request, port === 3943);
       outgoing.writeHead(response.status, Object.fromEntries(response.headers));
       const reader = response.body!.getReader();
       for (;;) {

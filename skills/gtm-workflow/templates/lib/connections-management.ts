@@ -1,8 +1,8 @@
-import { connectionInventory, providerVariable, connectionLabel, credentialVariable, type ConnectionWorkflow } from "./connections-contract";
+import { connectionInventory, missingConnections, providerVariable, connectionLabel, credentialVariable, type ConnectionWorkflow } from "./connections-contract";
 import { connectionConfiguration, connectionHeaders, privateConnectionBrowser, ConnectionsError, insist } from "./connections-access";
 
 import { applyConnections, applicationId, connectionDeployment } from "./connections-apply";
-import { gatewayPlatformIdentity } from "./connections-platform";
+import { gatewayPlatformIdentity, platformIdentity } from "./connections-platform";
 import { changeLocalKey, linkedToVercel, savedKeyNames } from "./connections-local";
 import { privateAccess, viewerOrigin } from "./viewer-access";
 
@@ -106,6 +106,7 @@ async function localManagement(req: Request, workflows: ConnectionWorkflow[], op
   }
   const names = savedKeyNames();
   return Response.json({ mode: "local", canWrite: true, linked: linkedToVercel(), workflowsUrl: "/viewer",
+    missing: missingConnections(workflows, process.env, new Set(names), platformIdentity()),
     connections: connectionInventory(names, workflows).map((entry) => ({ ...entry, status: "Saved",
       fields: entry.fields.map((field) => ({ variable: field.variable, label: field.variable, version: "local", editable: true, state: "saved" })) })),
   }, { headers: connectionHeaders });
@@ -130,6 +131,7 @@ export async function connectionsManagement(req: Request, workflows: ConnectionW
     const application = await connectionDeployment(api, config.projectId, config.origin).then((result) => result.application).catch(() => ({ state: "unknown" }));
     return Response.json({ mode: "production", canWrite: true, application,
       workflowsUrl: `${config.origin}/viewer`, vercelUrl: environmentSettingsUrl(),
+      missing: missingConnections(workflows, process.env, new Set(rows.map((row) => row.variable)), gatewayPlatformIdentity()),
       connections: connectionInventory(rows.map((row) => row.variable), workflows, gatewayPlatformIdentity(), Object.fromEntries(rows.map((row) => [row.variable, row.comment]))).map((entry) => ({
         ...entry, status: entry.platformIdentity ? "Provided by Vercel" : "Saved",
         fields: entry.fields.map((field) => { const row = rows.find((row) => row.variable === field.variable)!;
