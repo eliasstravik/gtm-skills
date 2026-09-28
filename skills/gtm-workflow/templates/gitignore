@@ -10,3 +10,4 @@ data/
 
 public/viewer-assets/
 public/connections-assets/
+lib/criteria.generated.ts

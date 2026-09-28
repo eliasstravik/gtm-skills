@@ -85,9 +85,10 @@ export function workflowProject(workspace, { team, project } = {}) {
   return { team: team ?? linked?.orgId, project: project ?? linked?.projectId ?? basename(workspace), linked: linked?.projectId ?? null };
 }
 
-// What each project must look like. The runtime builds every push to main (no ignored build step), never previews,
+// What each project must look like. The runtime builds every push to main (no ignored build step, and not skipped when
+// only files outside workflows/ changed: workflows read the ICPs and personas baked in at build), never previews,
 // and sits behind Vercel Authentication on every deployment. The share project is the runtime's public companion.
-export const RUNTIME_SETTINGS = { framework: "nitro", rootDirectory: "workflows", nodeVersion: "22.x", autoExposeSystemEnvs: true, previewDeploymentsDisabled: true, commandForIgnoringBuildStep: null, ssoProtection: { deploymentType: "all" } };
+export const RUNTIME_SETTINGS = { framework: "nitro", rootDirectory: "workflows", nodeVersion: "22.x", autoExposeSystemEnvs: true, previewDeploymentsDisabled: true, commandForIgnoringBuildStep: null, enableAffectedProjectsDeployments: false, ssoProtection: { deploymentType: "all" } };
 export const SHARE_SETTINGS = { framework: "nitro", rootDirectory: "workflows", buildCommand: "npm run build:share", nodeVersion: "22.x", autoExposeSystemEnvs: true, previewDeploymentsDisabled: true, commandForIgnoringBuildStep: null, ssoProtection: null };
 const comparable = (key, value) => JSON.stringify(key === "ssoProtection" ? value?.deploymentType ?? null : value ?? null);
 export const settingsPatch = (project, wanted) => Object.fromEntries(Object.entries(wanted).filter(([key, value]) => comparable(key, project[key]) !== comparable(key, value)));

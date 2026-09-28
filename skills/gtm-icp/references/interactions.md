@@ -25,11 +25,11 @@ Created Small SaaS.
 
 ## Update
 
-**Setup:** Workspace Acme exists with the ICP Lean B2B SaaS. The workflow Score inbound accounts carries a copy of its criteria.
+**Setup:** Workspace Acme exists with the ICP Lean B2B SaaS. The workflow Score inbound accounts reads it.
 
 **Human:** Lean B2B SaaS should require HubSpot or Salesforce, and rule out agencies and consultancies.
 
-**Agent:** Setting Tech stack on Lean B2B SaaS to HubSpot or Salesforce and adding agencies and consultancies as disqualifiers. The workflow Score inbound accounts keeps its own copy of the earlier criteria until explicitly updated.
+**Agent:** Setting Tech stack on Lean B2B SaaS to HubSpot or Salesforce and adding agencies and consultancies as disqualifiers. Score inbound accounts uses the new criteria from its next run; companies it already scored keep their scores until they are rescored.
 
 Updated Lean B2B SaaS.
 
@@ -44,14 +44,14 @@ Updated Lean B2B SaaS.
 
 ## Delete
 
-**Setup:** Workspace Acme exists with the ICPs Lean B2B SaaS and Small SaaS. The workflow Score inbound accounts carries a copy of Lean B2B SaaS.
+**Setup:** Workspace Acme exists with the ICPs Lean B2B SaaS and Small SaaS. The workflow Score inbound accounts reads Lean B2B SaaS.
 
 **Human:** Delete the SaaS ICP.
 
 **Agent:** Two ICPs match.
 
-1. Small SaaS, not copied into any workflow (Recommended)
-2. Lean B2B SaaS, copied into the workflow Score inbound accounts
+1. Small SaaS, read by no workflow (Recommended)
+2. Lean B2B SaaS, read by the workflow Score inbound accounts
 
 **Human:** 1
 

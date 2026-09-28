@@ -10,6 +10,8 @@ import { mergeVercelJson } from "../scripts/setup.mjs";
 test("the runtime builds every push to main, never previews, and is protected everywhere", () => {
   assert.equal(RUNTIME_SETTINGS.commandForIgnoringBuildStep, null);
   assert.equal(RUNTIME_SETTINGS.previewDeploymentsDisabled, true);
+  // An edit to an ICP or persona only touches files outside workflows/; the runtime must still rebuild to bake it in.
+  assert.equal(RUNTIME_SETTINGS.enableAffectedProjectsDeployments, false);
   assert.deepEqual(RUNTIME_SETTINGS.ssoProtection, { deploymentType: "all" });
   assert.equal(SHARE_SETTINGS.ssoProtection, null);
   assert.equal(SHARE_SETTINGS.buildCommand, "npm run build:share");

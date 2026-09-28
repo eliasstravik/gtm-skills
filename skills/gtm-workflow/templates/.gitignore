@@ -9,3 +9,4 @@
 /data/
 /.env*
 !/.env.example
+/lib/criteria.generated.ts
