@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
+import { removeStudioShare } from "./studio-share.mjs";
 import { LocalDatabaseError, databaseEnvironment, ensureLocalDatabase, isProductionDatabase } from "./local-database.mjs";
 
 const cwd = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -67,11 +68,11 @@ export async function launch(options = {}) {
     const server = await (options.serve ?? nitroServer)({ cwd, port });
     console.log(JSON.stringify({ status: "runner_started", origin: `http://127.0.0.1:${port}` }));
     let closing;
-    const close = () => (closing ??= (async () => { await Promise.resolve(server.close()).catch(() => {}); await database.stop(); })());
+    const close = () => (closing ??= (async () => { removeStudioShare(cwd); await Promise.resolve(server.close()).catch(() => {}); await database.stop(); })());
     // `on`, not `once`: under `npm run dev` Ctrl+C arrives twice (from the terminal and forwarded by npm), and a second
     // signal with no listener left would kill the process half way through stopping the database. SIGHUP is a closed terminal.
     for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) process.on(signal, () => { close().then(() => process.exit(0), () => process.exit(1)); });
-    process.on("exit", () => database.stopNow?.());
+    process.on("exit", () => { removeStudioShare(cwd); database.stopNow?.(); });
     return { origin: `http://127.0.0.1:${port}`, close };
   } catch (error) { await database.stop(); throw error; }
 }

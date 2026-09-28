@@ -6,6 +6,7 @@ import {
   viewerHeaders,
   boundedJson,
   deploymentScope,
+  tailnetRequest,
 } from "./viewer-access";
 import {
   entryFor,
@@ -138,13 +139,14 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         registry: registryVersion,
         data: await dataVersion(db()),
       });
-    // Local only: the Open database button starts Drizzle Studio on this computer's database and returns its address.
+    // Local only: the Open database button starts Drizzle Studio on this computer's database and returns its address,
+    // shared with the owner over the tailnet when the button was pressed there.
     if (operation === "openDatabase") {
       if (process.env.VERCEL || recipient || req.method !== "POST")
         throw new ViewerError(405, "method_denied", "Open the database from the local viewer.");
       await requireMutation(req);
       try {
-        return reply({ url: await openStudio() });
+        return reply({ url: await openStudio(tailnetRequest(req)) });
       } catch (error) {
         throw new ViewerError(503, "studio_unavailable", (error as Error).message);
       }
