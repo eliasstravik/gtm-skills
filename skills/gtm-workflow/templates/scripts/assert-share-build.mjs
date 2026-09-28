@@ -18,6 +18,10 @@ async function inspect(dir) {
   }
 }
 await inspect(join(dir, "server"));
+// The page's own code too: no Keys page form or route in what a share link loads.
+for (const item of await readdir(join(dir, "public", "viewer-assets")))
+  if (item.endsWith(".js"))
+    assert.ok(!/connection-management/.test(await readFile(join(dir, "public", "viewer-assets", item), "utf8")), `Connections code in public/viewer-assets/${item}`);
 console.log(
   "Share server contains no workflow engine, database or administration credentials.",
 );

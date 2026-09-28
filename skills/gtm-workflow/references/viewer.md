@@ -2,7 +2,7 @@
 
 ## Open without execution
 
-Locally the viewer is part of `npm run dev`, on loopback (or the owner's tailnet address). Opening Workflows starts no workflows or providers. Workspace navigation is Workflows, Data, Connections. Workflows is a name-and-purpose list; a selected workflow has Diagram, Runs and Data. Runs lists metadata only. Detailed debugging and database administration use verified native destinations.
+Locally the viewer is part of `npm run dev`, on loopback (or the owner's tailnet address). Opening Workflows starts no workflows or providers. Workspace navigation is Workflows, Data, Connections. Workflows is a name-and-purpose list; a selected workflow has Diagram, Runs, Data and, for the owner only, Connections. Runs lists metadata only. Detailed debugging and database administration use verified native destinations.
 
 ## Live updates
 
@@ -107,3 +107,5 @@ The workspace Data page lists workspace tables, plus people, companies and the t
 ## Connections navigation
 
 Deployed private Workflows and Connections share the existing Workflows origin. Local Connections uses a separate trusted manager. Use the shared [Connections setup](connections.md) for either environment. The share build has no Connections navigation, routes, source, configuration, or connection metadata. Opening either private page never starts workflow execution.
+
+A workflow's Connections tab (`?view=connections`, `GET /api/viewer?op=connections`) lists the keys its `viewer.connections` declares, each marked Set, Provided by Vercel (the AI Gateway), Saved (saved but not in use until the next `npm run dev`, or until the production update is live) or Missing, by name only, never a value. A count of keys not in use yet sits next to the tab name. Missing keys are added right there with the Keys page's own form and route, or on the Keys page through All connections; hosted without the Keys page, in the project's environment variables on Vercel. Share links and previews never get the tab or its route. The Keys page lists under Missing each declared key set nowhere, with the workflows that need it and an Add button, and under each saved key the workflows that use it.

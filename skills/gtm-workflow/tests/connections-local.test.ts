@@ -165,3 +165,25 @@ test("production routes: past Vercel Authentication, never the share relay; agen
     assert.equal(await call(), false, "nothing is open before protection is verified");
   } finally { process.env = previous; }
 });
+
+test("the Keys page lists the keys workflows use but nobody saved, with the workflows that need them", () => inFolder(async (dir) => {
+  const workflows = [
+    { id: "w1", title: "Score", connections: [{ connection: "APOLLO_API_KEY", provider: "Apollo" }, { connection: "hunter" }] },
+    { id: "w2", title: "Research", connections: [{ connection: "APOLLO_API_KEY" }, { connection: "ai-gateway" }] },
+    { id: "w3", title: "Undeclared" },
+  ];
+  delete process.env.AI_GATEWAY_API_KEY; delete process.env.VERCEL_OIDC_TOKEN; delete process.env.HUNTER_API_KEY;
+  const list = await (await connectionsManagement(page(), workflows)).json();
+  assert.deepEqual(list.missing, [
+    { variable: "AI_GATEWAY_API_KEY", workflows: [{ id: "w2", title: "Research" }] },
+    { variable: "APOLLO_API_KEY", provider: "Apollo", workflows: [{ id: "w1", title: "Score" }, { id: "w2", title: "Research" }] },
+    { variable: "HUNTER_API_KEY", workflows: [{ id: "w1", title: "Score" }] },
+  ]);
+  // Saved in .env.local, or `vercel env pull` left Vercel's identity for the Gateway: no longer missing.
+  await writeFile(join(dir, ".env.local"), "APOLLO_API_KEY='sk-secret'\n");
+  process.env.VERCEL_OIDC_TOKEN = "oidc-secret";
+  const after = await (await connectionsManagement(page(), workflows)).json();
+  assert.deepEqual(after.missing.map((row: { variable: string }) => row.variable), ["HUNTER_API_KEY"]);
+  assert.deepEqual(after.connections[0].usage.map((use: { workflowId: string }) => use.workflowId), ["w1", "w2"]);
+  assert.ok(!/sk-secret|oidc-secret/.test(JSON.stringify(after)));
+}));

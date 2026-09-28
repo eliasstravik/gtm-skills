@@ -54,3 +54,41 @@ export function connectionInventory(names: string[], workflows: ConnectionWorkfl
     }))), usageComplete: workflows.every((workflow) => workflow.connections !== undefined) });
   return rows;
 }
+/** The AI Gateway's key. Hosted, and locally after `vercel env pull`, Vercel's own identity stands in for it. */
+export const GATEWAY_VARIABLE = "AI_GATEWAY_API_KEY";
+/** The exact variable a declaration names. Older declarations named a service (`apollo`) for `APOLLO_API_KEY`. */
+export function declaredVariable(connection: string) {
+  if (connection === "ai-gateway") return GATEWAY_VARIABLE;
+  const variable = /^[A-Z_][A-Z0-9_]*$/.test(connection) ? connection : `${connection.toUpperCase().replaceAll("-", "_")}_API_KEY`;
+  return providerVariable(variable) ? variable : undefined;
+}
+export type Declared = { variable: string; provider?: string; workflows: { id: string; title: string }[] };
+/** Each variable the workflows declare, once, with the workflows that use it: undeclared usage is unknown, never "none". */
+export function declaredConnections(workflows: ConnectionWorkflow[]) {
+  const found = new Map<string, Declared>();
+  for (const workflow of workflows)
+    for (const use of workflow.connections ?? []) {
+      const variable = declaredVariable(use.connection);
+      if (!variable) continue;
+      const entry = found.get(variable) ?? { variable, workflows: [] };
+      if (!entry.provider && use.provider) entry.provider = use.provider;
+      if (!entry.workflows.some((w) => w.id === workflow.id)) entry.workflows.push({ id: workflow.id, title: workflow.title });
+      found.set(variable, entry);
+    }
+  return [...found.values()].sort((a, b) => a.variable.localeCompare(b.variable));
+}
+/**
+ * Whether a key is usable where this server runs. set: this server has it. provided: Vercel's identity stands in (the
+ * AI Gateway only). saved: saved but not in use yet (locally until the next `npm run dev`, hosted until the update is
+ * live). missing: nowhere. Never a value.
+ */
+export type ConnectionState = "set" | "provided" | "saved" | "missing";
+export function connectionState(variable: string, env: Record<string, string | undefined>, saved: Set<string>, platformIdentity = false): ConnectionState {
+  if (env[variable]?.trim()) return "set";
+  if (variable === GATEWAY_VARIABLE && platformIdentity) return "provided";
+  return saved.has(variable) ? "saved" : "missing";
+}
+/** Declared keys usable nowhere yet, with the workflows that need them: the Keys page's "Missing" list. */
+export function missingConnections(workflows: ConnectionWorkflow[], env: Record<string, string | undefined>, saved: Set<string>, platformIdentity = false) {
+  return declaredConnections(workflows).filter((use) => connectionState(use.variable, env, saved, platformIdentity) === "missing");
+}

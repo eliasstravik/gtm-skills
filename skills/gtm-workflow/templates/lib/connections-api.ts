@@ -1,9 +1,9 @@
-import { CONNECTIONS_VERSION, configuredNames, connectionInventory, runtimeLabels, type ConnectionWorkflow } from "./connections-contract";
+import { CONNECTIONS_VERSION, configuredNames, connectionInventory, missingConnections, runtimeLabels, type ConnectionWorkflow } from "./connections-contract";
 import { connectionConfiguration } from "./connections-access";
 import { connectionMetadata, connectionsVercel } from "./connections-management";
 import { apiAccess } from "./route-access";
 import { localKeyNames } from "./connections-local";
-import { gatewayPlatformIdentity } from "./connections-platform";
+import { gatewayPlatformIdentity, platformIdentity } from "./connections-platform";
 const headers = { "cache-control": "private, no-store", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff" };
 export async function connectionsApi(req: Request, workflows: ConnectionWorkflow[]) {
   if (req.method !== "GET" || process.env.GTM_VIEWER_MODE === "share" || !(await apiAccess(req, { agent: Boolean(process.env.VERCEL) })))
@@ -26,5 +26,7 @@ export async function connectionsApi(req: Request, workflows: ConnectionWorkflow
     deploymentId: hosted ? process.env.VERCEL_DEPLOYMENT_ID ?? null : null,
     commit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
     connections: connectionInventory(names, workflows, gatewayPlatformIdentity(), labels),
+    // Declared by a workflow and set nowhere: what to add before those workflows can run.
+    missing: missingConnections(workflows, process.env, new Set(names), platformIdentity()),
   }, { headers });
 }

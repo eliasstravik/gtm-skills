@@ -139,3 +139,18 @@ test("adding and deleting write only the key itself", async () => {
   await changeConnection(api, config.projectId, { variable: "APOLLO_API_KEY", action: "disconnect", version: "env_new:1" });
   assert.deepEqual(writes.map((write) => write.method), ["DELETE"]);
 });
+test("declarations name exact variables; older service names still resolve; state is by name only", async () => {
+  const { declaredVariable, declaredConnections, connectionState } = await import("../templates/lib/connections-contract");
+  assert.equal(declaredVariable("HUBSPOT_PROD_KEY"), "HUBSPOT_PROD_KEY");
+  assert.equal(declaredVariable("apollo"), "APOLLO_API_KEY");
+  assert.equal(declaredVariable("people-data-labs"), "PEOPLE_DATA_LABS_API_KEY");
+  assert.equal(declaredVariable("ai-gateway"), "AI_GATEWAY_API_KEY");
+  // A reserved name is never checked or offered.
+  assert.equal(declaredVariable("DATABASE_URL"), undefined);
+  assert.deepEqual(declaredConnections([{ id: "a", title: "A", connections: [{ connection: "apollo" }, { connection: "APOLLO_API_KEY", provider: "Apollo" }] }]),
+    [{ variable: "APOLLO_API_KEY", provider: "Apollo", workflows: [{ id: "a", title: "A" }] }]);
+  assert.equal(connectionState("X_API_KEY", { X_API_KEY: "v" }, new Set()), "set");
+  assert.equal(connectionState("X_API_KEY", { X_API_KEY: " " }, new Set(["X_API_KEY"])), "saved");
+  assert.equal(connectionState("X_API_KEY", {}, new Set()), "missing");
+  assert.equal(connectionState("AI_GATEWAY_API_KEY", {}, new Set(), true), "provided");
+});

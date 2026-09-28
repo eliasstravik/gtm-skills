@@ -35,6 +35,7 @@ import { dataVersion, fingerprint } from "./viewer-pulse";
 import { connectionConfiguration } from "./connections-access";
 import { connectionsVercel } from "./connections-management";
 import { releaseStatus, type Release } from "./connections-apply";
+import { unsetConnections, workflowConnections } from "./connections-usage";
 const reply = (
   data: unknown,
   status = 200,
@@ -251,6 +252,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
               ? {
                   destinations: destinations(entry),
                   hosted: Boolean(process.env.VERCEL),
+                  connectionsUnset: unsetConnections(entry),
                   dataScope: entry.sharePolicy?.tables.map((t) => ({
                     name: t.name,
                     columns: t.columns,
@@ -264,6 +266,11 @@ export async function viewerApi(req: Request, shared = false, service = false) {
           csrf ? { "set-cookie": csrf.cookie } : {},
         );
       }
+      // Owner pages only: the keys this workflow declares and whether each is usable here, by name, never a value.
+      case "connections":
+        if (recipient)
+          throw new ViewerError(403, "view_denied", "Connections require private access.");
+        return reply(await workflowConnections(entry));
       case "runs":
         return reply(await readRuns(entry, url, recipient));
       case "data":

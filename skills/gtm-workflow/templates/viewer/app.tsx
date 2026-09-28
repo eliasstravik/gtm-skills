@@ -6,6 +6,7 @@ import Workspace from "./workspace";
 import Data from "./data";
 import Runs from "./runs";
 import Sharing from "./sharing";
+import Connections from "./connections";
 import { EnvironmentBadge } from "./environment";
 import { ReleaseStatus } from "./release";
 import "@fontsource-variable/geist/index.css";
@@ -62,8 +63,25 @@ function Workflow() {
                   {labels[v]}
                 </a>
               ))}
+            {!recipient && (
+              <a
+                href={href({ view: "connections", cursor: undefined, node: undefined, page: undefined, run: undefined })}
+                aria-current={view === "connections" ? "page" : undefined}
+              >
+                Connections
+                {meta.connectionsUnset > 0 && (
+                  <span className="tab-count" title={`${meta.connectionsUnset} not set here`}>
+                    <span className="sr-only">, </span>
+                    {meta.connectionsUnset}
+                    <span className="sr-only"> not set</span>
+                  </span>
+                )}
+              </a>
+            )}
           </nav>
-          {!meta.views.includes(view) ? (
+          {view === "connections" && !recipient ? (
+            <Connections environment={meta.environment} />
+          ) : !meta.views.includes(view) ? (
             <p className="notice">This view isn't shared.</p>
           ) : view === "data" ? (
             <Data destinations={meta.destinations} csrf={meta.csrf} />
