@@ -104,6 +104,11 @@ test("destinations use the deployed revision and reject credential-bearing or wr
   });
   assert.equal(runDestination("wrun_../../api"), undefined);
   assert.equal(destinations(entry).source?.path, "workflows/enrich-network.ts");
+  // Locally Open database starts Drizzle Studio on demand; a named running instance is linked instead.
+  assert.deepEqual(destinations().database, { launch: true, label: "Open database" });
+  process.env.GTM_VIEWER_DRIZZLE_URL = "https://local.drizzle.studio/?port=4984";
+  assert.deepEqual(destinations().database, { url: "https://local.drizzle.studio/?port=4984", label: "Open database" });
+  delete process.env.GTM_VIEWER_DRIZZLE_URL;
 });
 test("revoking legacy links touches only the selected workflow and leaves business data intact", async () => {
   await testDatabase();

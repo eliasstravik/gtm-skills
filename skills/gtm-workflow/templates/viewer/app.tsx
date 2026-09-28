@@ -64,7 +64,7 @@ function Workflow() {
           {!meta.views.includes(view) ? (
             <p className="notice">This view isn't shared.</p>
           ) : view === "data" ? (
-            <Data destinations={meta.destinations} />
+            <Data destinations={meta.destinations} csrf={meta.csrf} />
           ) : view === "runs" ? (
             <Runs destinations={meta.destinations} />
           ) : (

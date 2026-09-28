@@ -8,11 +8,28 @@ const command = (...args) => {
 };
 const evaluate = code => JSON.parse(command("eval", code));
 try {
+  // Workflows, Data and Connections share one layout: tabs and title never move when switching between them.
+  const place = 'JSON.stringify(["nav", "h1"].map(s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.left, r.top]; }))';
+  const places = ["/viewer", "/viewer?view=data", "/connections"].map((path) => {
+    command("open", `http://127.0.0.1:3942${path}`);
+    command("wait", "--fn", 'document.querySelector("h1") && !document.querySelector("[aria-busy=true]")');
+    command("wait", "--text", path.includes("data") ? "matching record" : path === "/viewer" ? "Enrich network" : "Connections");
+    return evaluate(place);
+  });
+  assert.ok(places.every((p) => p === places[0]), places.join(" "));
   command("open", "http://127.0.0.1:3942/viewer");
   command("wait", "--text", "Connections");
   assert.deepEqual(evaluate('[...document.querySelectorAll(".root-navigation a")].map(a=>a.textContent)'), ["Workflows", "Data", "Connections"]);
   command("click", '.root-navigation a[href="/viewer?view=data"]');
   command("wait", "--text", "matching records");
+  // The Data tab opens on workspace results; runtime bookkeeping such as the cache shows only when asked for.
+  const tables = () => evaluate('[...document.querySelector("[name=data-table]").options].map(o=>o.textContent)');
+  assert.ok(!tables().includes("cache"), tables().join());
+  assert.notEqual(evaluate('document.querySelector("[name=data-table]").selectedOptions[0].textContent'), "cache");
+  command("click", "button[aria-pressed=false]");
+  command("wait", "--fn", '[...document.querySelector("[name=data-table]").options].some(o=>o.textContent==="cache")');
+  command("click", "button[aria-pressed=true]");
+  command("wait", "--fn", '![...document.querySelector("[name=data-table]").options].some(o=>o.textContent==="cache")');
   const table = evaluate('[...document.querySelector("[name=data-table]").options].find(o=>o.textContent==="imported_contacts").value');
   command("select", "[name=data-table]", table);
   command("wait", "--text", "Ada Import");
@@ -33,5 +50,17 @@ try {
   command("open", "http://127.0.0.1:3942/viewer?workflow=stable&view=runs&preview=runs");
   command("wait", "--text", "Completed");
   assert.equal(evaluate('document.querySelector(".runs-pane .toolbar a")'), null);
-  console.log("Workspace navigation, unregistered data, search, columns, export and private Runs destination passed.");
+  // The name column comes first and stays at the left edge while the grid scrolls sideways.
+  command("set", "viewport", "900", "700");
+  command("open", "http://127.0.0.1:3942/viewer?workflow=stable&view=data&table=companies&columns=key,domain,description,industries,name,enrichment_status");
+  command("wait", "--text", "matching record");
+  assert.deepEqual(evaluate('[...document.querySelectorAll(".data-grid thead th")].slice(1,3).map(th=>th.textContent.trim())'), ["name", "domain"]);
+  assert.equal(evaluate('document.querySelector(".data-grid thead th:last-child").textContent.trim()'), "key", "key goes last once a name leads");
+  const pinnedLeft = () => evaluate('Math.round(document.querySelector(".data-grid tbody td.pinned").getBoundingClientRect().left)');
+  const before = pinnedLeft();
+  command("eval", 'document.querySelector(".table-scroll").scrollLeft = 400');
+  command("eval", "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
+  assert.ok(evaluate('document.querySelector(".table-scroll").scrollLeft') > 0, "the grid scrolls sideways");
+  assert.equal(pinnedLeft(), before, "the name column stays in view");
+  console.log("Workspace navigation, hidden runtime tables, pinned name column, unregistered data, search, columns, export and private Runs destination passed.");
 } finally { command("close"); }

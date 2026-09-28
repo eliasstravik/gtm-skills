@@ -4,6 +4,8 @@ import { closeDb, db } from "../templates/lib/db";
 import { testDatabase } from "./db";
 import { readWorkspaceData } from "../templates/lib/workspace-data";
 import { exportCsv } from "../templates/lib/viewer-csv";
+import { readData } from "../templates/lib/data-api";
+import { integer, pgTable, text } from "drizzle-orm/pg-core";
 
 // An unmigrated database: only what each test creates, reached as the app's plain role.
 async function database() {
@@ -75,14 +77,46 @@ test("discovers unregistered tables and supports search, sort, pagination, detai
   } finally { client.close(); }
 });
 
-test("runtime and workspace tables are listed together and the migration journals are not", async () => {
+test("the list opens on a workflow's results and keeps runtime bookkeeping out of sight until asked", async () => {
   await testDatabase();
-  const page = await readWorkspaceData(db(), new URL("http://localhost/data?table=people"));
+  const client = db();
+  await client.execute("CREATE TABLE public.signup_scores (key TEXT PRIMARY KEY, name TEXT, person_score INTEGER)");
+  await client.execute("CREATE TABLE public.unused_results (key TEXT PRIMARY KEY)");
+  await client.execute("INSERT INTO public.signup_scores VALUES ('a@x.io', 'Ada', 90)");
+  let page = await readWorkspaceData(client, new URL("http://localhost/data"));
   assert.ok(!("unavailable" in page));
-  const labels = page.tabs.map((t) => t.label);
-  assert.ok(["cache", "companies", "people", "example_scores", "profile_identifiers"].every((name) => labels.includes(name)));
+  // Bookkeeping (cache, ledger, grants) is hidden; people, companies and the examples show once they hold rows.
+  assert.deepEqual(page.tabs.map((t) => t.label), ["signup_scores", "unused_results"]);
+  assert.equal(page.tabs.find((t) => t.current)?.label, "signup_scores");
+  assert.ok(page.hiddenTables > 0);
+  assert.equal(page.pinned, "name");
+  await client.execute("INSERT INTO public.example_scores (key, updated_at) VALUES ('acme.com', now())");
+  page = await readWorkspaceData(client, new URL("http://localhost/data"));
+  assert.ok(!("unavailable" in page));
+  assert.deepEqual(page.tabs.map((t) => t.label), ["example_scores", "signup_scores", "unused_results"]);
+  assert.equal(page.tabs.find((t) => t.current)?.label, "signup_scores", "a workflow's own table comes before the examples");
+  // Asked for: every table, the migration journals still left out; a hidden table named in the URL still opens.
+  const all = await readWorkspaceData(client, new URL("http://localhost/data?internal=1"));
+  assert.ok(!("unavailable" in all));
+  const labels = all.tabs.map((t) => t.label);
+  assert.ok(["cache", "companies", "people", "example_scores", "profile_identifiers", "signup_scores"].every((name) => labels.includes(name)));
   assert.deepEqual(labels.filter((name) => /migrations/.test(name)), []);
-  assert.equal(page.total, 0);
+  assert.equal(all.hiddenTables, 0);
+  assert.ok(all.tabs.every((t) => new URL(t.href, "http://localhost").searchParams.get("internal") === "1"));
+  const cache = await readWorkspaceData(client, new URL("http://localhost/data?table=cache"));
+  assert.ok(!("unavailable" in cache));
+  assert.equal(cache.tabs.find((t) => t.current)?.label, "cache");
+  // A workflow view labelled by its internal key still names each record by its name column, which the grid pins.
+  const signupScores = pgTable("signup_scores", { key: text("key").primaryKey(), name: text("name"), person_score: integer("person_score") });
+  const scores = await readData(
+    { tables: [{ name: "signupScores", label: "Signup scores", labelColumn: "key", columns: ["key", "name", "person_score"] }] },
+    { signupScores }, client, new URL("http://localhost/api/viewer?workflow=w"));
+  assert.equal(scores.pinned, "name");
+  assert.deepEqual(scores.rows[0].map((cell) => Boolean(cell.href)), [false, true, false]);
+  const keyOnly = await readData(
+    { tables: [{ name: "signupScores", label: "Signup scores", labelColumn: "key", columns: ["key", "person_score"] }] },
+    { signupScores }, client, new URL("http://localhost/api/viewer?workflow=w"));
+  assert.equal(keyOnly.pinned, "key");
 });
 
 test("tables without a key, composite keys, generated columns and quoted identifiers remain browsable", async () => {

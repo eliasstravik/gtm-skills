@@ -173,14 +173,20 @@ caption {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+/* One shell for every page: tabs across the top and the title on the same 24px edge, so switching between Workflows,
+   Data and Connections never moves them. Lists keep a readable width from that edge; the Data grid takes the rest. */
 .workspace {
-  max-width: 1100px;
-  margin: auto;
-  padding: 40px 32px;
+  min-height: 100dvh;
+  padding-bottom: 40px;
 }
-/* Workspace tabs share the page's edge: flush in the padded Workflows list, on the 24px gutter in the full-width Data view. */
-.workspace > .root-navigation { padding: 0; margin-bottom: 28px; }
-.workflow > .title-row { padding: 20px 24px 8px; flex-shrink: 0; }
+.workspace > :not(nav, .title-row, dialog) {
+  max-width: 1100px;
+  margin-inline: 24px;
+}
+/* The same height with or without controls beside the title, so the title never shifts between pages. */
+.workspace > .title-row,
+.workflow > .title-row { padding: 20px 24px 8px; flex-shrink: 0; min-height: 64px; }
+.workspace > .title-row { max-width: 1148px; }
 .title-row,
 .section-heading,
 .breadcrumbs,
@@ -622,7 +628,28 @@ fieldset legend {
 }
 /* Row numbers are row headers: they scroll with their row, only column headers stay on top. */
 .data-grid tbody th {
-  position: static;
+  top: auto;
+}
+/* Row numbers and the name column stay at the left edge while the rest scrolls under them. */
+.data-grid .row-number,
+.data-grid .pinned {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg);
+}
+/* The grid's gutter is scroll padding; a shadow in the page colour keeps cells scrolled past from showing in it. */
+.data-grid .row-number {
+  box-shadow: -24px 0 0 var(--bg);
+}
+.data-grid .pinned {
+  left: 56px;
+  box-shadow: inset -1px 0 0 var(--border);
+}
+.data-grid thead .row-number,
+.data-grid thead .pinned {
+  z-index: 2;
+  background: var(--surface);
 }
 .data-grid th button {
   border: 0;
@@ -687,8 +714,8 @@ fieldset legend {
   font: inherit;
 }
 @media (max-width: 640px) {
-  .workspace {
-    padding: 24px 16px;
+  .workspace > :not(nav, .title-row, dialog) {
+    margin-inline: 12px;
   }
   .title-row {
     align-items: stretch;
@@ -703,6 +730,7 @@ fieldset legend {
   .tabs {
     padding: 0 12px;
   }
+  .workspace > .title-row,
   .workflow > .title-row {
     padding: 16px 12px 4px;
   }

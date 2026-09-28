@@ -5,6 +5,8 @@ import { api, Search, State, time, useRead } from "./common";
 import { webUrl } from "./web-url";
 import { ColumnChooser } from "./column-chooser";
 import { useRows } from "./rows";
+// Columns that carry a verdict: the grid shows them right after the name.
+const SCORE_COLUMN = /(^|_)(score|verdict|priority|tier|fit|grade|rating)$/i;
 const valueText = (value: unknown) =>
   value == null
     ? ""
@@ -92,7 +94,7 @@ function StructuredValue({ value }: { value: unknown }): React.ReactNode {
     );
   return <CellValue value={value} />;
 }
-export default function Data({ destinations }: any) {
+export default function Data({ destinations, csrf }: any) {
   const p = query();
   // What the rows depend on; paging parameters from older links are not part of it.
   const viewKey = new URLSearchParams(
@@ -118,6 +120,22 @@ export default function Data({ destinations }: any) {
     origin = useRef<HTMLElement | null>(null);
   const abort = useRef<AbortController | null>(null);
   const visible = d?.fields?.map((f: any) => f.id) ?? [];
+  // The name column stays in view while scrolling sideways; numbers and flags need less room than text.
+  const pinned = d?.pinned ? visible.indexOf(d.pinned) : -1;
+  // Display order, by column index: the name, then scores and verdicts, then the rest, and `key` last once a name
+  // leads. Sorting is stable, so each group keeps the authored order. Cells keep their index; only drawing reorders.
+  const rank = (column: number) => {
+    const id = d?.fields?.[column]?.id ?? "";
+    if (column === pinned) return 0;
+    if (SCORE_COLUMN.test(id)) return 1;
+    return id === "key" && pinned >= 0 ? 3 : 2;
+  };
+  const order: number[] = (d?.columns ?? [])
+    .map((_: string, j: number) => j)
+    .sort((a: number, b: number) => rank(a) - rank(b));
+  const width = (column: number) =>
+    widths[column] ??
+    (["number", "boolean"].includes(d?.fields?.[column]?.type) ? 120 : 220);
   /**
    * A cell's whole value. A list leaves JSON values in the database (`folded`), so opening or copying one reads that
    * single record's column, only for this record and only when asked.
@@ -189,6 +207,22 @@ export default function Data({ destinations }: any) {
         : {}),
     });
   };
+  // Local: start Drizzle Studio on this computer's database. The tab opens first, so no popup blocker stops it.
+  async function openDatabase() {
+    const tab = window.open("", "_blank");
+    setMessage("Opening the database…");
+    try {
+      const { url } = await api("openDatabase", {}, {}, csrf);
+      if (tab) {
+        tab.opener = null;
+        tab.location.href = url;
+      } else location.assign(url);
+      setMessage("");
+    } catch (error) {
+      tab?.close();
+      setMessage((error as Error).message);
+    }
+  }
   async function copy(value: unknown) {
     try {
       await navigator.clipboard.writeText(valueText(value));
@@ -261,13 +295,13 @@ export default function Data({ destinations }: any) {
     event.stopPropagation();
     const handle = event.currentTarget as HTMLElement,
       start = event.clientX,
-      width = widths[column] ?? 220;
+      initial = width(column);
     handle.focus();
     handle.setPointerCapture(event.pointerId);
     const move = (e: PointerEvent) =>
       setWidths((old) => ({
         ...old,
-        [column]: Math.max(100, Math.min(800, width + e.clientX - start)),
+        [column]: Math.max(100, Math.min(800, initial + e.clientX - start)),
       }));
     const end = () => {
       handle.removeEventListener("pointermove", move);
@@ -299,6 +333,20 @@ export default function Data({ destinations }: any) {
                   </option>
                 ))}
               </select>
+              {d.hiddenTables !== undefined && (d.hiddenTables > 0 || p.get("internal") === "1") && (
+                <button
+                  aria-pressed={p.get("internal") === "1"}
+                  onClick={() =>
+                    update({
+                      internal: p.get("internal") === "1" ? undefined : "1",
+                      table: undefined, q: undefined, field: undefined, operator: undefined,
+                      value: undefined, sort: undefined, order: undefined, columns: undefined,
+                    })
+                  }
+                >
+                  {p.get("internal") === "1" ? "Hide internal tables" : "Show all tables"}
+                </button>
+              )}
               <Search
                 label="Search data"
                 value={p.get("q") ?? ""}
@@ -366,7 +414,15 @@ export default function Data({ destinations }: any) {
                   Cancel export
                 </button>
               )}
-              {destinations?.database && (
+              {destinations?.database?.launch && (
+                <button
+                  title="Drizzle Studio on this computer's database, for full editing. This view is a preview."
+                  onClick={openDatabase}
+                >
+                  {destinations.database.label} ↗
+                </button>
+              )}
+              {destinations?.database?.url && (
                 <a
                   className="button"
                   target="_blank"
@@ -441,20 +497,18 @@ export default function Data({ destinations }: any) {
                   )[event.key];
                   if (delta) {
                     event.preventDefault();
+                    const at = order.indexOf(column) + delta[1];
                     focusCell(
                       Math.max(0, Math.min(list.total - 1, row + delta[0])),
-                      Math.max(
-                        0,
-                        Math.min(d.columns.length - 1, column + delta[1]),
-                      ),
+                      order[Math.max(0, Math.min(order.length - 1, at))],
                     );
                   }
                 }}
               >
                 <colgroup>
                   <col style={{ width: 56 }} />
-                  {d.columns.map((_: string, j: number) => (
-                    <col key={j} style={{ width: widths[j] ?? 220 }} />
+                  {order.map((j) => (
+                    <col key={j} style={{ width: width(j) }} />
                   ))}
                 </colgroup>
                 <thead>
@@ -462,10 +516,11 @@ export default function Data({ destinations }: any) {
                     <th className="row-number" aria-label="Row number">
                       #
                     </th>
-                    {d.columns.map((column: string, j: number) => (
+                    {order.map((j) => [d.columns[j], j] as const).map(([column, j]) => (
                       <th
                         key={j}
                         scope="col"
+                        className={j === pinned ? "pinned" : undefined}
                         aria-sort={
                           p.get("sort") === d.fields[j]?.id
                             ? p.get("order") === "desc"
@@ -501,7 +556,7 @@ export default function Data({ destinations }: any) {
                           role="separator"
                           aria-orientation="vertical"
                           aria-label={`Resize ${d.fields[j]?.label ?? column}`}
-                          aria-valuenow={widths[j] ?? 220}
+                          aria-valuenow={width(j)}
                           aria-valuemin={100}
                           aria-valuemax={800}
                           tabIndex={0}
@@ -517,7 +572,7 @@ export default function Data({ destinations }: any) {
                                   100,
                                   Math.min(
                                     800,
-                                    (old[j] ?? 220) +
+                                    width(j) +
                                       (e.key === "ArrowLeft" ? -20 : 20),
                                   ),
                                 ),
@@ -554,10 +609,11 @@ export default function Data({ destinations }: any) {
                       <th scope="row" className="row-number">
                         {i + 1}
                       </th>
-                      {record.cells.map((c, j) => (
+                      {order.map((j) => [record.cells[j], j] as const).map(([c, j]) => (
                         <td
                           key={j}
                           role="gridcell"
+                          className={j === pinned ? "pinned" : undefined}
                           data-row={i}
                           data-column={j}
                           tabIndex={
@@ -565,7 +621,7 @@ export default function Data({ destinations }: any) {
                               ? selected[0] === i && selected[1] === j
                                 ? 0
                                 : -1
-                              : i === 0 && j === 0
+                              : i === 0 && j === order[0]
                                 ? 0
                                 : -1
                           }

@@ -49,6 +49,8 @@ export type DataPage = {
   fields: { id: string; label: string; type: string }[];
   availableFields?: { id: string; label: string; type: string }[];
   keys: string[];
+  /** The field that names a record: the grid keeps it in view while scrolling sideways. */
+  pinned?: string;
 };
 
 const PAGE_SIZE = 25;
@@ -67,6 +69,16 @@ const has = (object: object, key: string) =>
   Object.prototype.hasOwnProperty.call(object, key);
 
 export class DataInputError extends Error {}
+
+const NAME_COLUMNS = ["full_name", "name", "company_name", "company", "domain", "email"];
+/**
+ * The column a person reads as a record's name: the authored label, unless that is the internal `key` and the table
+ * has a column that reads as a name.
+ */
+function nameColumn(table: WorkflowData["tables"][number]) {
+  if (table.labelColumn !== "key") return table.labelColumn;
+  return NAME_COLUMNS.find((c) => table.columns.includes(c)) ?? table.labelColumn;
+}
 
 function cellValue(
   value: unknown,
@@ -353,6 +365,7 @@ export async function readData(
     throw new DataInputError("Unavailable requested field");
   if (visible.some((c) => !listable.includes(c)))
     throw new DataInputError("Field is available on a single record only");
+  const name = nameColumn(selected);
   const props = [...new Set([...keyColumns, ...visible])];
   // Times leave SQL as ISO text in UTC, so no caller parses Postgres' own format. Key columns keep microseconds to match exactly.
   // A list folds JSON cells: a People row's roles alone are most of its bytes, and a grid shows a count until opened.
@@ -430,6 +443,7 @@ export async function readData(
         getTableColumns(registry[selected.name])[id].dataType,
     })),
     title: selected.label,
+    ...(visible.includes(name) ? { pinned: name } : {}),
     context,
     tabs: config.tables.map((v) => ({
       label: v.label,
@@ -446,7 +460,7 @@ export async function readData(
           ...(fold(c) && row[c] != null
             ? { value: null, folded: Number(row[c]) >= 0 ? { entries: Number(row[c]) } : {} }
             : { value: cellValue(row[c], c, selected.nested) }),
-          ...(c === selected.labelColumn
+          ...(c === name
             ? { href: href({ table: selected.name, key: recordKey(row) }) }
             : {}),
         }),
