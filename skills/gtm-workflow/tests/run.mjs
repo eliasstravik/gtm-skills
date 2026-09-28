@@ -68,6 +68,7 @@ try {
     "viewer-api",
     "web-url",
     "duration",
+    "local-studio",
     "models",
     "reliability",
     "cli-mcp",
