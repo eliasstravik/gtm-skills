@@ -1,6 +1,14 @@
 # Interactions: gtm-agent
 
-Contents: [Deploy](#deploy) · [Deploy, asked from the hosted agent](#deploy-asked-from-the-hosted-agent) · [Doctor](#doctor) · [Upgrade](#upgrade)
+Contents: [Readiness](#readiness) · [Deploy](#deploy) · [Deploy, asked from the hosted agent](#deploy-asked-from-the-hosted-agent) · [Doctor](#doctor) · [Upgrade](#upgrade)
+
+## Readiness
+
+**Setup:** A coding agent on a laptop where the GitHub CLI is signed in and the Vercel CLI is not. The user is trying the skills locally.
+
+**Human:** Can I set up the Slack GTM agent? What exactly would I need? Don't deploy or create anything.
+
+**Agent:** Not yet, one thing is missing on this computer: the Vercel CLI is not signed in (`vercel login`). GitHub is ready. Setup needs a Vercel Pro team, the Slack workspace where the bot will live, and about ten minutes. It creates the agent and its Slack app, a private workspace repository, and a workflow project with its database. Browser steps along the way: a fine-grained GitHub token for the workspace repository, approving the Slack app, and, the first time the team uses Neon, accepting Neon's terms. Nothing was created. Say "deploy it" when ready.
 
 ## Deploy
 
