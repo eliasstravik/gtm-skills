@@ -55,9 +55,9 @@ The owner deployment supplies these optional verified settings:
 - `GTM_VIEWER_REPOSITORY`: GitHub owner/repository. `GTM_VIEWER_REPOSITORY_ROOT`: runtime directory inside the repository, usually workflows. Source links require the exact `VERCEL_GIT_COMMIT_SHA`, or an explicitly provided `GTM_VIEWER_COMMIT`.
 - `GTM_VIEWER_VERCEL_RUNS_URL`: verified Vercel project runs page including its environment query. The resolver adds the selected run ID.
 - `GTM_VIEWER_DATABASE_URL`: the database's page on console.neon.tech or vercel.com. The link is shown only when this is set.
-- Local only: `GTM_VIEWER_INSPECTOR_URL` and `GTM_VIEWER_INSPECTOR_STORE=local`, only after confirming that inspector uses this runtime's local store. `GTM_VIEWER_DRIZZLE_URL` names the actual Drizzle instance.
+- Local only: runs open in the Workflow SDK's run inspector, which `npm run dev` serves at `/_workflow` on the same origin from the same local store (steps, inputs, outputs, errors). Nothing to configure. `GTM_VIEWER_DRIZZLE_URL` names the actual Drizzle instance.
 
-Runs includes a general Open in Vercel button, or Open in Workflow for a verified local inspector, even when the run list is empty. Each run also keeps its direct details link. Workspace and workflow Data both show the configured database action. Missing destinations omit the action. Local source falls back to Copy file path. Hosted/shared responses omit local paths; shared responses omit all owner destinations. Browsing never starts native tools.
+Runs includes a general Open in Vercel button, or Open in Workflow for the local `/_workflow` inspector, even when the run list is empty. Each run also keeps its direct details link. Workspace and workflow Data both show the configured database action. Missing destinations omit the action. Local source falls back to Copy file path. Hosted/shared responses omit local paths; shared responses omit all owner destinations. Browsing never starts native tools.
 
 ## Private access and sharing
 
