@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { query, href, navigate, shared } from "./navigation";
 import { useRead, State, Status, time } from "./common";
+import { duration } from "./duration";
 function Duration({ run }: any) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -15,19 +16,12 @@ function Duration({ run }: any) {
     (!run.completedAt && !["running", "pending"].includes(run.status))
   )
     return <>—</>;
-  const seconds = Math.max(
-    0,
-    Math.floor(
-      ((run.completedAt ? new Date(run.completedAt).getTime() : now) -
-        new Date(run.startedAt).getTime()) /
-        1000,
-    ),
-  );
   return (
     <>
-      {seconds < 60
-        ? `${seconds}s`
-        : `${Math.floor(seconds / 60)}m ${seconds % 60}s`}
+      {duration(
+        (run.completedAt ? new Date(run.completedAt).getTime() : now) -
+          new Date(run.startedAt).getTime(),
+      )}
     </>
   );
 }
