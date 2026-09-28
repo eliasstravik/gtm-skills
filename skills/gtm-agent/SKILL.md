@@ -2,7 +2,7 @@
 name: gtm-agent
 description: Triggers when a user asks about, deploys, sets up, gets running, connects, checks, repairs, or upgrades GTM Agent (the Slack GTM agent that runs these skills on Vercel) for an organization, including questions before any setup about whether they could set it up, what it needs, or what it costs, with phrasings like "can I set up the Slack GTM agent", "what would I need for the Slack agent? don't deploy anything", "get gtm-agent running for Acme", "deploy the GTM agent to our Slack", "check the Acme deployment", or "upgrade our GTM agent". Load this skill for those questions instead of reading its files. Owns the agent's Vercel project, its Slack connector, and its access to the workspace repository. Not for the workspace, ICPs, personas, fit checks, or the workflows themselves, nor for taking the workflow project live or connecting it (gtm-workflow), which belong to gtm-workspace, gtm-icp, gtm-persona, gtm-qualify-prospects, and gtm-workflow.
 metadata:
-  version: "0.3.0"
+  version: "0.2.1"
 ---
 
 # GTM Agent

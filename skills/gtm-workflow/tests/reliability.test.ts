@@ -86,6 +86,7 @@ test("package upgrade refuses a template older than the workspace", () => {
   assert.equal(mergePackage(pkg("0.2.0"), pkg("0.2.0")).package.version, "0.2.0");
   assert.equal(mergePackage(pkg("0.1.63"), pkg("0.2.0")).package.version, "0.2.0");
   assert.equal(compareVersions("1.0.0", "0.99.99"), 1);
+  assert.equal(mergePackage(pkg("0.3.0"), pkg("0.2.1")).package.version, "0.2.1", "the withdrawn 0.3.0 upgrades to 0.2.1");
 });
 
 test("npm run dev never loads production wiring from .env files, and says so", async () => {

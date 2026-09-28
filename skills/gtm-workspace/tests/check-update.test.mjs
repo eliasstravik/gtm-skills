@@ -43,6 +43,13 @@ test("reads metadata.version from frontmatter only", () => {
   assert.equal(compareVersions(null, "0.0.1"), -1);
 });
 
+test("the withdrawn 0.3.0 counts as 0.2.0, so it is offered 0.2.1", () => {
+  assert.equal(compareVersions("0.3.0", "0.2.1"), -1);
+  assert.equal(compareVersions("0.3.0", "0.2.0"), 0);
+  assert.deepEqual(decide({ installed: "0.3.0", latest: "0.2.1" }),
+    { status: "update_available", installed: "0.3.0", latest: "0.2.1", command: "npx skills add eliasstravik/gtm-skills -g -y" });
+});
+
 test("the installed version is the lowest gtm skill, so a half-updated install counts as old", async () => {
   const dir = await folder({
     "gtm-workspace/SKILL.md": skillMd("0.3.0"), "gtm-icp/SKILL.md": skillMd("0.2.0"), "other/SKILL.md": skillMd("0.0.1"),
@@ -115,7 +122,8 @@ test("Doctor names the migration an older workspace needs", async () => {
     assert.equal(migrationFor(join(dir, "a"), "0.2.0", "0.2.0"), null);
     assert.equal(migrationFor(join(dir, "a"), null, "0.2.0"), null, "no runtime yet is setup, not a migration");
     assert.deepEqual(migrationFor(join(dir, "a"), "0.1.63", "0.2.0"), { kind: "template", from: "0.1.63", to: "0.2.0" });
-    assert.deepEqual(migrationFor(join(dir, "a"), "0.3.0", "0.2.0"), { kind: "skills_behind", from: "0.3.0", to: "0.2.0" });
+    assert.deepEqual(migrationFor(join(dir, "a"), "0.4.0", "0.2.1"), { kind: "skills_behind", from: "0.4.0", to: "0.2.1" });
+    assert.deepEqual(migrationFor(join(dir, "a"), "0.3.0", "0.2.1"), { kind: "template", from: "0.3.0", to: "0.2.1" }, "the withdrawn 0.3.0 moves to 0.2.1");
     assert.equal(migrationFor(join(dir, "b"), "0.0.9", "0.2.0").kind, "previous_runtime");
     assert.equal(migrationFor(join(dir, "c"), "0.1.40", "0.2.0").kind, "earlier_database");
     const guide = await readFile(join(skills, "gtm-workspace/references/updates.md"), "utf8");
