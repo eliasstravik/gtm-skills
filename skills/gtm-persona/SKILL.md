@@ -2,7 +2,7 @@
 name: gtm-persona
 description: Triggers when a user asks to create, update, delete, or check a buyer or stakeholder persona in a GTM workspace, with phrasings like "create a persona for revenue leaders", "the persona should speak English", "delete the CMO persona", or "check the personas". Owns the persona files and their 11 person criteria. Not for the workspace or its members (gtm-workspace), ICPs (gtm-icp), checking a given person against a persona (gtm-qualify-prospects), or workflows that score people on a schedule (gtm-workflow).
 metadata:
-  version: "0.2.1"
+  version: "0.2.2"
 ---
 
 # GTM Persona
