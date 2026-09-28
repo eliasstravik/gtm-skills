@@ -1,14 +1,16 @@
 /**
  * Score example companies
  *
- * Checks three example companies against the inlined ICP criteria and saves a score you can sort by.
+ * Checks three example companies against an ICP and saves a score you can sort by.
  *
- * Demo and reference implementation of every convention: rows from defaultInput, a free cached step,
- * one AI step with an explicit backend, caps, freshness, and the diagram. It ships with no cron entry.
+ * Demo and reference implementation of every convention: the ICP read from its file when the run starts, rows from
+ * defaultInput, a free cached step, one AI step with an explicit backend, caps, freshness, and the diagram. It ships
+ * with no cron entry.
  */
 import { generateObject } from "ai";
 import { z } from "zod";
 import { cached } from "../lib/cache";
+import { readIcp } from "../lib/criteria";
 import { runRows, type Row, type RowsInput } from "../lib/rows";
 
 export const diagram = `flowchart TB
@@ -22,8 +24,11 @@ export const diagram = `flowchart TB
   end
   loop --> done([Stops after 200 rows or $2; more than 100 rows run as child runs])`;
 
-/** Copied from the ICP at Create and refreshed by Update; the first line names the source. */
-export const criteria = `ICP: Lean B2B SaaS
+/**
+ * Stand-in criteria so the demo runs in a workspace with no ICP yet; `{ icp: "<slug>" }` in the input scores against
+ * `icps/<slug>/ICP.md` instead. A real workflow always reads its ICP or persona with readIcp or readPersona, never a copy.
+ */
+const EXAMPLE_CRITERIA = `# Lean B2B SaaS (example)
 - Business types: B2B
 - Industries: Software
 - Revenue streams: Subscriptions
@@ -37,16 +42,18 @@ const ESTIMATE_USD = 0.01;
 const FRESH_FOR_MS = 24 * 60 * 60 * 1000;
 
 /** The cron input; a POST body is merged over it, so `{ maxRows: 1 }` is the limited run. */
-export const defaultInput: RowsInput & { rows: Row[] } = {
+export const defaultInput: RowsInput & { rows: Row[]; icp?: string } = {
   rows: [{ key: "vercel.com" }, { key: "linear.app" }, { key: "notion.so" }],
 };
 
 export async function exampleScores(input: typeof defaultInput) {
   "use workflow";
+  // Read once per run, as a step: an edit to the ICP file reaches the next run, and each run records what it scored against.
+  const criteria = input.icp ? (await readIcp(input.icp)).text : EXAMPLE_CRITERIA;
   return runRows({
     rows: input.rows ?? defaultInput.rows,
     table: "exampleScores",
-    step: scoreRow,
+    step: (row) => scoreRow(row, criteria),
     maxRows: input.maxRows ?? MAX_ROWS,
     maxSpendUsd: input.maxSpendUsd ?? MAX_SPEND_USD,
     estimateUsd: ESTIMATE_USD,
@@ -57,9 +64,9 @@ export async function exampleScores(input: typeof defaultInput) {
 }
 
 /** Workflow scope: awaits the steps in sequence and returns the columns plus the summed cost. */
-async function scoreRow(row: Row) {
+async function scoreRow(row: Row, criteria: string) {
   const page = await fetchHomepage(row.key);
-  const scored = await scoreCompany(row.key, page.value);
+  const scored = await scoreCompany(row.key, page.value, criteria);
   return { score: scored.value.score, reason: scored.value.reason, costUsd: page.costUsd + scored.costUsd };
 }
 
@@ -76,12 +83,12 @@ async function fetchHomepage(domain: string) {
 }
 
 const Score = z.object({ score: z.number().int().min(0).max(100), reason: z.string() });
-const scorePrompt = (domain: string, page: string) => `Score how well ${domain} fits these criteria from 0 to 100 and give a one-sentence reason.\n\n${criteria}\n\nHomepage text:\n${page}`;
+const scorePrompt = (domain: string, page: string, criteria: string) => `Score how well ${domain} fits these criteria from 0 to 100 and give a one-sentence reason.\n\n${criteria}\n\nHomepage text:\n${page}`;
 
 /** AI step through AI Gateway. Gateway cost arrives later, so cost_usd is the declared estimate. */
-async function scoreCompany(domain: string, page: string) {
+async function scoreCompany(domain: string, page: string, criteria: string) {
   "use step";
-  const { object } = await generateObject({ model: process.env.GTM_MODEL ?? "openai/gpt-6-luna", schema: Score, prompt: scorePrompt(domain, page) });
+  const { object } = await generateObject({ model: process.env.GTM_MODEL ?? "openai/gpt-6-luna", schema: Score, prompt: scorePrompt(domain, page, criteria) });
   return { value: object, costUsd: ESTIMATE_USD };
 }
 scoreCompany.maxRetries = 0;

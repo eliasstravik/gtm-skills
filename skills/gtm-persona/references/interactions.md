@@ -56,13 +56,13 @@ Updated Revenue Leader.
 
 **Human:** 1
 
-**Agent:** Delete persona Marketing Lead? This removes its saved definition. No workflow carries a copy of it.
+**Agent:** Delete persona Marketing Lead? This removes its saved definition. No workflow reads it.
 
 Options: Yes; No.
 
 **Human:** Yes.
 
-**Agent:** Removing the persona Marketing Lead (Head of Marketing or CMO; marketing function; US or UK). No workflow carries a copy of it.
+**Agent:** Removing the persona Marketing Lead (Head of Marketing or CMO; marketing function; US or UK). No workflow reads it.
 
 Deleted Marketing Lead. It stays in the workspace's history; request restoration when needed.
 

@@ -15,7 +15,7 @@ This skill owns `icps/<slug>/ICP.md` in the workspace found by [the contract](..
 
 ## Inputs
 
-Criteria from the user or sources the user supplies; the existing ICPs, for the near-duplicate check; the names of ICPs copied into `workflows/workflows/*.ts`, for the copy notice.
+Criteria from the user or sources the user supplies; the existing ICPs, for the near-duplicate check; the workflows that read this ICP (`readIcp("<slug>")` in `workflows/workflows/*.ts`), for the workflow notice.
 
 ## Roles
 
@@ -28,8 +28,8 @@ Talk by the six rules in [interaction](../gtm-workspace/references/interaction.m
 | Job | Do |
 | --- | --- |
 | Create | When an existing ICP overlaps the request, offer Update first. Otherwise copy `templates/ICP.md` to `icps/<slug>/ICP.md`, fill only the criteria the user gave, leave the rest `Unknown`, and say the rest stays Unknown because criteria are never borrowed from the company record. Omit `## Company signals` and `## Disqualifiers` when empty. |
-| Update | Change the named criteria, signals, or disqualifiers. When a workflow file names this ICP, say that workflow keeps its own copy of the criteria until it is updated. |
-| Delete | When several ICPs match, ask which; say whether a workflow carries a copy, which keeps running. Remove `icps/<slug>/`; close with what disappeared and that it stays in the workspace's history. |
+| Update | Change the named criteria, signals, or disqualifiers. When a workflow reads this ICP, say its next run uses the change (a deployed copy once this push has deployed) and rows it already scored keep their scores until they are rescored. |
+| Delete | When several ICPs match, ask which; say whether a workflow reads it: that workflow's runs fail until it names another ICP. Remove `icps/<slug>/`; close with what disappeared and that it stays in the workspace's history. |
 | Doctor | Flag an ICP with no account-matchable criterion (every field `Unknown`), a placeholder husk, a missing H1, or a folder name that is not its slug; offer the fixes as options; rewrite what the user accepts. `Unknown` in Description and Domain is normal. |
 
 Every save: one sentence on what will change, pull first when `origin/main` exists, edit through the host's write path, commit on `main` with a plain-language message, push when a remote exists, verify the commit (and that it reached `origin/main` when a remote exists), close with what was created, changed, or deleted.

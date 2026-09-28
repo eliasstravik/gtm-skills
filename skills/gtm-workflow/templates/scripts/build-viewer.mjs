@@ -6,8 +6,11 @@ import { createHash } from "node:crypto";
 import { registrySource } from "./viewer-registry.mjs";
 import { validateBusinessGraph } from "./business-graph.mjs";
 import { validateDataSharing } from "../lib/viewer-policy-validation.mjs";
+import { writeCriteriaSnapshot } from "./criteria-snapshot.mjs";
 const out = "node_modules/.gtm-viewer";
 await mkdir(out, { recursive: true });
+// Before compiling: lib/criteria.ts imports the baked ICPs and personas.
+await writeCriteriaSnapshot();
 // Compilation only. No server, migration, schedule registration or authored module evaluation.
 class ViewerBuilder extends BaseBuilder {
   constructor() {

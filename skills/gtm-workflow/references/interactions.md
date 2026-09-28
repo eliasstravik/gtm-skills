@@ -172,7 +172,7 @@ Done: Priya Nair, Head of Revenue Operations at Quill HR, London; matched. The a
 5. Delete it
 6. Create another workflow
 
-**Human:** Update it: use the current Lean B2B SaaS criteria, and also save each company's headcount.
+**Human:** Update it: also save each company's headcount.
 
 **Agent:** Where should the headcount come from?
 
@@ -181,7 +181,7 @@ Done: Priya Nair, Head of Revenue Operations at Quill HR, London; matched. The a
 
 **Human:** 1
 
-**Agent:** Updating now: the current Lean B2B SaaS criteria, plus a headcount column read from the page it already fetches.
+**Agent:** Updating now: a headcount column read from the page it already fetches.
 
 Updated Score inbound accounts.
 [Open GTM Workflows](http://127.0.0.1:3939/viewer?workflow=example-score-inbound-accounts)
@@ -216,7 +216,7 @@ Updated Score inbound accounts: scheduled Mondays at 08:00 UTC.
 
 **Human:** Done.
 
-**Agent:** Live: Score inbound accounts runs every Monday at 08:00 UTC on Vercel. It keeps its own copy of the criteria until the workflow is updated.
+**Agent:** Live: Score inbound accounts runs every Monday at 08:00 UTC on Vercel. It reads Lean B2B SaaS from the workspace, so an ICP edit reaches it with the push that saves the edit.
 [Open GTM Workflows](https://gtm-acme.vercel.app/viewer?workflow=example-score-inbound-accounts)
 
 **Files:**

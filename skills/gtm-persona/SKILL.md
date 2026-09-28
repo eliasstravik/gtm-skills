@@ -15,7 +15,7 @@ This skill owns `personas/<slug>/PERSONA.md` in the workspace found by [the cont
 
 ## Inputs
 
-Criteria from the user or sources the user supplies; the existing personas, for the near-duplicate check; the names of personas copied into `workflows/workflows/*.ts`, for the copy notice.
+Criteria from the user or sources the user supplies; the existing personas, for the near-duplicate check; the workflows that read this persona (`readPersona("<slug>")` in `workflows/workflows/*.ts`), for the workflow notice.
 
 ## Roles
 
@@ -28,8 +28,8 @@ Talk by the six rules in [interaction](../gtm-workspace/references/interaction.m
 | Job | Do |
 | --- | --- |
 | Create | When an existing persona overlaps the request, offer Update first. When the titles that define the persona are unstated, ask with options. Copy `templates/PERSONA.md` to `personas/<slug>/PERSONA.md`, fill only the criteria the user gave, leave the rest `Unknown`, and say the rest stays Unknown because criteria are never borrowed from the company record or members. Omit `## Person signals` and `## Disqualifiers` when empty. |
-| Update | Change the named criteria, signals, or disqualifiers. When a workflow file names this persona, say that workflow keeps its own copy of the criteria until it is updated. |
-| Delete | When no persona has the given name, offer the closest matches as options. Say whether a workflow carries a copy, which keeps running. Remove `personas/<slug>/`; close with what disappeared and that it stays in the workspace's history. |
+| Update | Change the named criteria, signals, or disqualifiers. When a workflow reads this persona, say its next run uses the change (a deployed copy once this push has deployed) and rows it already scored keep their scores until they are rescored. |
+| Delete | When no persona has the given name, offer the closest matches as options. Say whether a workflow reads it: that workflow's runs fail until it names another persona. Remove `personas/<slug>/`; close with what disappeared and that it stays in the workspace's history. |
 | Doctor | Flag a persona with no person-matchable criterion (every field `Unknown`), a placeholder husk, a missing H1, or a folder name that is not its slug; offer the fixes as options; rewrite what the user accepts. |
 
 Every save: one sentence on what will change, pull first when `origin/main` exists, edit through the host's write path, commit on `main` with a plain-language message, push when a remote exists, verify the commit (and that it reached `origin/main` when a remote exists), close with what was created, changed, or deleted.

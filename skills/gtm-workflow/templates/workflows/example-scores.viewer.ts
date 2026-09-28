@@ -30,7 +30,7 @@ export const viewer = {
         label: "Score against the ICP",
         kind: "action",
         explanation:
-          "Compare the homepage with the saved ideal customer profile and produce a score from 0 to 100 with a reason.",
+          "Compare the homepage with the ideal customer profile, read from its file when the run starts, and produce a score from 0 to 100 with a reason.",
         details: {
           provider: "AI Gateway",
           notes: "Process at most 200 companies within the $2 run budget.",
@@ -91,7 +91,7 @@ export const viewer = {
     ],
   },
   description:
-    "Read company websites and score their fit against the saved criteria.",
+    "Read company websites and score their fit against the ICP.",
   stages: [
     {
       id: "prepare-input",
@@ -104,7 +104,7 @@ export const viewer = {
       id: "process-record",
       title: "Score companies",
       description:
-        "Read company websites and score their fit against the saved criteria.",
+        "Read company websites and score their fit against the ICP.",
       nodes: ["action_0", "action_1"],
     },
     {

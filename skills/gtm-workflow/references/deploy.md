@@ -47,7 +47,7 @@ Every push to `main` builds. Deploy checks readiness in code after the push: pol
 - Reaching people from a run: set `GTM_AGENT_URL` (the GTM agent's production URL) and `GTM_NOTIFY_SECRET` (a long random string, the same value on the agent project, which also needs `GTM_NOTIFY_CHANNEL`) on the workflow project; the link route then lists nothing for them, since they are not keys, so the agent checks `notify` readiness by reading the run's first notification outcome.
 - Inbound webhooks: see [Inbound webhooks](#inbound-webhooks).
 - The local database and the hosted one are separate: a local run after a hosted one may re-spend on rows the hosted copy already did; the agent says so when that happens.
-- The deployed copy keeps its inlined criteria until the next Update is pushed.
+- ICPs and personas: the build bakes `icps/` and `personas/` into `lib/criteria.generated.ts`, which `readIcp` and `readPersona` read on the deployed copy, so an edit reaches it with the deployment its push makes. The runtime project has `enableAffectedProjectsDeployments` off for that reason: a push that only changes files outside `workflows/` still rebuilds it.
 
 Unverified items and their fallbacks are listed under "Unverified until first deploy" in [local.md](local.md).
 
