@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { mkdir, rm } from "node:fs/promises";
+import { copyFile, mkdir, rm } from "node:fs/promises";
 export async function bundleViewer({ share = false } = {}) {
   await rm("public/connections-assets", { recursive: true, force: true });
   if (!share) await build({ entryPoints: ["connections-ui/app.jsx"], outdir: "public/connections-assets", bundle: true, minify: true,
@@ -7,6 +7,7 @@ export async function bundleViewer({ share = false } = {}) {
     define: { "process.env.NODE_ENV": '"production"' } });
   await rm("public/viewer-assets", { recursive: true, force: true });
   await mkdir("public/viewer-assets", { recursive: true });
+  await copyFile("viewer/favicon.svg", "public/viewer-assets/favicon.svg");
   return build({
     entryPoints: ["viewer/app.tsx"],
     outdir: "public/viewer-assets",

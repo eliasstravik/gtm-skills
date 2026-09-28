@@ -40,6 +40,15 @@ businessGraph: {
 
 Use only branches and outputs that exist in the authored code. Read the workflow and any business-relevant helpers; do not generate the graph by hiding compiler nodes and reconnecting edges. Stable node IDs survive label changes. Kinds are input, action, decision and output. Every node needs a label and explanation; decision edges need meaningful labels. Optional owner details have only provider, caching and notes. Optional source paths must reference existing TypeScript files under workflows or lib, with valid line numbers.
 
+## Write the workflow description
+
+Create, Update and Upgrade also write `viewer.description` next to `viewer.businessGraph`: plain language for a business reader saying what the whole workflow does, what it reads and saves, and its notable limits (caching, caps, what happens on failure). Aim for about 280 characters; 500 is the hard maximum and the build fails above it. Rewrite it whenever a change makes it untrue. The Diagram tab shows it above the diagram, the workflow list shows its first line, and share links show it too, so it names no secrets, keys or internal hosts. Without it the page falls back to the doc comment's summary paragraph and the build warns.
+
+```ts
+description:
+  "Reads the homepage of each company you supply and scores its fit against your ideal customer profile from 0 to 100, with a short reason. Homepages are cached for seven days and scores for one, a run stops at 200 companies or $2, and a company that fails is recorded without stopping the rest.",
+```
+
 Run `node scripts/build-viewer.mjs` before reporting Create, Update or Upgrade complete. It validates the graph and sources without importing execution code. Missing metadata fails the build. Review business truth against code separately; validation cannot prove it. Shared projections include business labels, edges and explanations only. The viewer never falls back to compiler graphs. Existing compiler metadata may still support execution tooling but does not control the diagram.
 
 ## Workspace data

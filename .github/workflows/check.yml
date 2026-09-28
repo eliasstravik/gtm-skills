@@ -55,6 +55,7 @@ jobs:
           done
           node skills/gtm-workflow/tests/columns-browser-check.mjs /tmp/gtm-columns
           node skills/gtm-workflow/tests/workspace-browser-check.mjs
+          node skills/gtm-workflow/tests/diagram-browser-check.mjs
       - run: node node_modules/typescript/bin/tsc --noEmit
         working-directory: skills/gtm-workflow/templates
       - run: npm run build:share

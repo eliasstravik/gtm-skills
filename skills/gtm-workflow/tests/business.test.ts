@@ -5,13 +5,23 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { closeDb, db } from "../templates/lib/db";
 import { testDatabase } from "./db";
-import { validateBusinessGraph } from "../templates/scripts/business-graph.mjs";
+import {
+  validateBusinessGraph,
+  validateDescription,
+} from "../templates/scripts/business-graph.mjs";
 import {
   destinations,
   runDestination,
 } from "../templates/lib/viewer-destinations";
 import { revokeLegacyLinks } from "../templates/lib/viewer-grants";
 after(closeDb);
+test("a workflow description may be at most 500 characters", () => {
+  validateDescription({ slug: "ok", description: "a".repeat(500) });
+  assert.throws(
+    () => validateDescription({ slug: "long", description: "a".repeat(501) }),
+    /long is 501 characters/,
+  );
+});
 test("business graphs require meaningful branches and valid source references", () => {
   const root = mkdtempSync(join(tmpdir(), "business-graph-"));
   mkdirSync(join(root, "workflows"));

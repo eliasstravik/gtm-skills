@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { createHash } from "node:crypto";
 import { registrySource } from "./viewer-registry.mjs";
-import { validateBusinessGraph } from "./business-graph.mjs";
+import { validateBusinessGraph, validateDescription } from "./business-graph.mjs";
 import { validateDataSharing } from "../lib/viewer-policy-validation.mjs";
 import { writeCriteriaSnapshot } from "./criteria-snapshot.mjs";
 const out = "node_modules/.gtm-viewer";
@@ -60,6 +60,7 @@ const stepIds = new Set(
 );
 const registry = registrySource().map((entry) => {
   validateBusinessGraph(entry.businessGraph);
+  validateDescription(entry);
   validateDataSharing(entry);
   const compiled =
     manifest.workflows[`workflows/${entry.source}.ts`]?.[entry.exportName];

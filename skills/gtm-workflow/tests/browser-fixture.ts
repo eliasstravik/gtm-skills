@@ -65,8 +65,9 @@ Object.assign(entry, {
     ],
   },
   title: "Enrich network",
+  source: "enrich-network",
   description:
-    "Enrich people and their current employers from network identities.",
+    "Enrich people and their current employers from network identities. Each person's current role and profile come from person enrichment, reused when recently enriched, and each employer found is enriched as a company; people and companies are saved together so the Data tab can link them.",
 });
 for (let i = 1; i < 50; i++)
   registry.push({
@@ -184,6 +185,8 @@ if (process.env.GTM_VIEWER_FIXTURE_WORKSPACE === "1") {
     GTM_CONNECTIONS_ENABLED: "1",
     GTM_VIEWER_VERCEL_RUNS_URL: "https://vercel.com/acme/workflows/workflows/runs?environment=production",
     GTM_VIEWER_DATABASE_URL: "https://console.neon.tech/app/projects/acme",
+    GTM_VIEWER_REPOSITORY: "acme/gtm-acme",
+    GTM_VIEWER_COMMIT: "0123456789abcdef0123456789abcdef01234567",
   });
 }
 for (const port of process.env.GTM_VIEWER_FIXTURE_LOCAL === "1"
@@ -203,6 +206,7 @@ for (const port of process.env.GTM_VIEWER_FIXTURE_LOCAL === "1"
               ".js": "text/javascript",
               ".css": "text/css",
               ".woff2": "font/woff2",
+              ".svg": "image/svg+xml",
             } as any
           )[extname(file)] ?? "application/octet-stream",
         );
