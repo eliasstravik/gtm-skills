@@ -44,6 +44,8 @@ const templateScripts = {
     build.onResolve({ filter: /templates\/scripts\/[a-z-]+\.mjs$/ }, (args) => ({ path: pathToFileURL(join(runtime, "scripts", args.path.split("/").pop())).href, external: true }));
   },
 };
+// Suites bundle lib/, and lib/criteria.ts imports the file every build writes first; write it the same way.
+await (await import(pathToFileURL(join(runtime, "scripts/criteria-snapshot.mjs")))).writeCriteriaSnapshot(runtime);
 const dir = await mkdtemp(join(tmpdir(), "gtm-data-tests-"));
 try {
   await symlink(join(runtime, "node_modules"), join(dir, "node_modules"), process.platform === "win32" ? "junction" : "dir");
