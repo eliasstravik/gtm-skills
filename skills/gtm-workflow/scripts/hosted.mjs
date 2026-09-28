@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
+import { parseEnv } from "node:util";
 import { applyShareFirewall, shareFirewallDrift } from "./share-firewall.mjs";
 
 export class SetupError extends Error {
@@ -37,7 +38,7 @@ export function ownerApi(team) {
 
 // Settings the scripts write and compare, as plain variables whose values Vercel returns; every other variable is names only.
 const SETTINGS = new Set(["GTM_VIEWER_PROTECTED", "GTM_CONNECTIONS_ENABLED", "GTM_CONNECTIONS_TEAM_ID", "GTM_CONNECTIONS_VERCEL_URL",
-  "GTM_VIEWER_SHARE_ORIGIN", "GTM_VIEWER_PRIVATE_ORIGIN", "GTM_VIEWER_PRIVATE_PROJECT_ID", "GTM_AGENT_URL", "GTM_WORKFLOW_URL"]);
+  "GTM_VIEWER_SHARE_ORIGIN", "GTM_VIEWER_PRIVATE_ORIGIN", "GTM_VIEWER_PRIVATE_PROJECT_ID", "GTM_AGENT_URL", "GTM_WORKFLOW_URL", "GTM_AGENT_BACKEND"]);
 /** A project's variables: names, targets, types and update times; values only for the plain settings above. */
 export async function safeEnvironment(api, projectId) {
   const result = await api("GET", `/v10/projects/${encodeURIComponent(projectId)}/env`);
@@ -76,6 +77,16 @@ export async function productionOrigin(api, projectId) {
     .filter((row) => !row.redirect && !row.gitBranch && !row.customEnvironmentId && row.verified !== false).map((row) => row.name)
     .sort((a, b) => a.endsWith(".vercel.app") - b.endsWith(".vercel.app") || a.length - b.length);
   return domains[0] ? `https://${domains[0]}` : null;
+}
+
+/**
+ * The subscription this computer runs agent stages on (`GTM_AGENT_BACKEND` in workflows/.env), or null. Go-live copies
+ * it to Production, where it picks the default Gateway model only (lib/models.ts): claude -> Claude Haiku, codex -> GPT-6 Luna.
+ */
+export function localAgentBackend(workspace) {
+  const file = join(workspace, "workflows", ".env");
+  const value = existsSync(file) ? parseEnv(readFileSync(file, "utf8")).GTM_AGENT_BACKEND?.trim().toLowerCase() : undefined;
+  return value === "claude" || value === "codex" ? value : null;
 }
 
 /** The Vercel project this workspace's `workflows/` is linked to, or the one named on the command line, else `gtm-<ws>` (the folder name). */
@@ -296,6 +307,9 @@ export async function setupHosted(workspace, { team, project: name, share: share
   const teamSlug = team.startsWith("team_") ? (await api("GET", `/v2/teams/${runtime.accountId}`)).slug : team;
   const settings = { GTM_VIEWER_PROTECTED: "1", GTM_CONNECTIONS_ENABLED: "1", GTM_CONNECTIONS_TEAM_ID: runtime.accountId,
     GTM_CONNECTIONS_VERCEL_URL: `https://vercel.com/${teamSlug}/${runtime.name}/settings/environment-variables` };
+  // The deployed default model follows the local subscription; a computer without one leaves Production as it is.
+  const backend = localAgentBackend(workspace);
+  if (backend) settings.GTM_AGENT_BACKEND = backend;
 
   // The public share project: share links and the webhook relay. It trusts nothing but reaches the runtime through
   // production-to-production trust, and holds only the runtime's address and id.
