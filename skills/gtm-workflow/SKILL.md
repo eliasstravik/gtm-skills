@@ -2,7 +2,7 @@
 name: gtm-workflow
 description: Triggers when a user asks to build, create, update, run, test, schedule, deploy, host, upgrade, inspect, open the inspection UI, or delete a saved GTM workflow, its result table, runs, or diagram in a GTM workspace, with phrasings like "build a workflow that scores our inbound companies", "run Score inbound accounts", "put it on a weekly schedule, hosted", "enrich my network, connections, or followers and their companies", "upgrade the workflow runtime", "take our workflows live on Vercel", "connect the workflow project", "set up keys", or "share this workflow's data". Owns the workflows folder, which holds workflow code, tables, runs, schedules, diagrams, keys and share links, and the Vercel project it deploys to, including connecting a GTM agent to it. Not for the workspace, ICPs, or personas themselves (gtm-workspace, gtm-icp, gtm-persona), or one-off fit checks that are not saved (gtm-qualify-prospects).
 metadata:
-  version: "0.2.1"
+  version: "0.2.2"
 ---
 
 # GTM Workflow
