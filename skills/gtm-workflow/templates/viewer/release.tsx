@@ -13,11 +13,11 @@ const watched = () => {
 };
 
 /**
- * Whether a change (a saved key, a push, a redeploy) is live yet on the hosted viewer. Checks every 15 seconds, every
- * 5 while an update builds; the pulse reloads the page once the new deployment serves. Production owner pages only:
- * locally a saved key applies on this computer and there is nothing to deploy.
+ * Whether a change (a saved key, a push, a redeploy) is live yet on the hosted viewer, for the Production badge to show.
+ * Checks every 15 seconds, every 5 while an update builds; the pulse reloads the page once the new deployment serves.
+ * Production owner pages only: locally a saved key applies on this computer and there is nothing to deploy.
  */
-export function ReleaseStatus({ environment }: { environment?: string }) {
+export function useRelease(environment?: string): (Release & { justLive: boolean }) | null {
   const enabled = environment === "production" && !shared && !query().has("preview");
   const [release, setRelease] = useState<Release | null>(null);
   const [justLive, setJustLive] = useState(false);
@@ -52,27 +52,5 @@ export function ReleaseStatus({ environment }: { environment?: string }) {
     const timer = setTimeout(() => setJustLive(false), 8000);
     return () => clearTimeout(timer);
   }, [justLive]);
-  if (!enabled || !release) return null;
-  if (release.state === "updating")
-    return (
-      <span className="release-status" data-state="updating" role="status" title="Your change goes live in about a minute">
-        Updating…<span className="release-more"> your change goes live in about a minute</span>
-      </span>
-    );
-  if (release.state === "failed")
-    return (
-      <span className="release-status" data-state="failed" role="alert" title="Your last change isn't live">
-        Update failed<span className="release-more">, your last change isn't live</span>
-        {release.details && (
-          <a href={release.details} target="_blank" rel="noreferrer">
-            Details
-          </a>
-        )}
-      </span>
-    );
-  return (
-    <span className="release-status" data-state="live" role="status" title="Production runs your latest change">
-      {justLive ? "Your change is live" : "Live"}
-    </span>
-  );
+  return enabled && release ? { ...release, justLive } : null;
 }
