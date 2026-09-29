@@ -58,10 +58,11 @@ Say "build a workflow that scores our inbound companies". The agent writes the w
 
 ## How the skills fit together
 
-Each skill owns one part of the workspace and hands off to the others. Install `gtm-workspace` in every case; the rest depend on it.
+Each skill owns one part of the workspace and hands off to the others. Install `gtm-workspace` in every case; the rest depend on it. Not sure where to begin? Say "how do I get started" or run `/gtm-get-started`.
 
 | Skill | Owns |
 | --- | --- |
+| `gtm-get-started` | Where to begin: looks at the workspace and names the one next skill to use |
 | `gtm-workspace` | The workspace itself: the organization record, members, and workspace health |
 | `gtm-icp` | Ideal customer profiles: the companies the organization sells to |
 | `gtm-persona` | Personas: the people the organization sells to |
