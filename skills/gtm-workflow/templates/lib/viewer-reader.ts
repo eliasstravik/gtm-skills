@@ -1,4 +1,5 @@
 import { getWorld } from "workflow/runtime";
+import { getTableColumns, getTableName } from "drizzle-orm";
 import { db } from "./db";
 import { tables } from "./tables";
 import { readData, type WorkflowData } from "./data-api";
@@ -10,6 +11,8 @@ import type { Display, DataPolicy, View } from "./viewer-contract";
 import registryJson from "#viewer-registry";
 export type Entry = Display & {
   data: WorkflowData | null;
+  /** The tables the workflow's runRows calls write, recorded by the build when it authors no `data`. */
+  resultTables?: string[];
   sharePolicy: DataPolicy | null;
 };
 // The build validates this generated registry. JSON type inference adds `undefined` properties when a
@@ -142,10 +145,28 @@ export async function readRuns(entry: Entry, url: URL, shared = false) {
   }
   return { data, cursor: next, hasMore };
 }
+/**
+ * A workflow without authored Data still shows its own result tables to the owner, every column, as workspace Data
+ * does. Share links never reach them: sharing needs an authored `data` and `viewer.sharePolicy`.
+ */
+function resultData(entry: Entry): WorkflowData | null {
+  const names = (entry.resultTables ?? []).filter((name) => (tables as Record<string, any>)[name]);
+  if (!names.length) return null;
+  return {
+    tables: names.map((name) => {
+      const table = (tables as Record<string, any>)[name];
+      const columns = Object.keys(getTableColumns(table));
+      const label = getTableName(table).replaceAll("_", " ");
+      return { name, label: label[0].toUpperCase() + label.slice(1), labelColumn: "key", columns, searchableColumns: columns };
+    }),
+    relations: [],
+  };
+}
 export async function readBusinessData(entry: Entry, url: URL, shared = false) {
-  if (!entry.data)
+  const data = entry.data ?? (shared ? null : resultData(entry));
+  if (!data)
     return { unavailable: "No business data is registered for this workflow." };
-  const config = structuredClone(entry.data);
+  const config = structuredClone(data);
   if (shared) {
     if (!currentPolicy(entry))
       throw new ViewerError(

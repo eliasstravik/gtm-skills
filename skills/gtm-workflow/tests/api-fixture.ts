@@ -7,6 +7,7 @@ export const tables: Record<string, any> = {
     name: text(),
     secret: text(),
   }),
+  scores: pgTable("fixture_scores", { key: text().primaryKey(), score: text() }),
 };
 export const listChildren = async () => [];
 export const entry = {
@@ -64,7 +65,18 @@ export const entry = {
     relations: [],
   },
 };
-export default [entry];
+// Authors no Data: the build recorded the table its runRows call writes, plus a name the table registry lacks.
+export const resultOnly = {
+  ...entry,
+  id: "result-only",
+  slug: "scores",
+  title: "Scores",
+  workflowName: "scores",
+  data: null,
+  sharePolicy: null,
+  resultTables: ["scores", "missing"],
+};
+export default [entry, resultOnly];
 export const runId = "wrun_" + "A".repeat(26);
 export const run = {
   runId,

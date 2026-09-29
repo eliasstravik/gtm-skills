@@ -55,7 +55,7 @@ Run `node scripts/build-viewer.mjs` before reporting Create, Update or Upgrade c
 
 ## Workspace data
 
-The private workspace Data tab discovers all application tables in the connected database, workflow result tables (schema `public`) and runtime tables (schema `gtm`), including tables absent from the workflow and Drizzle registries. It uses the same table chooser, search, filters, sorting, columns, cell details and CSV/JSON exports as workflow Data. Tables need no standard `key` column: a record is identified by its primary key, else by all its columns. Discovery and browsing are read-only. Workflow Data and public links retain their authored table, column and row restrictions. Workspace Data has no public sharing scope.
+The private workspace Data tab discovers all application tables in the connected database, workflow result tables (schema `public`) and runtime tables (schema `gtm`), including tables absent from the workflow and Drizzle registries. It uses the same table chooser, search, filters, sorting, columns, cell details and CSV/JSON exports as workflow Data. Tables need no standard `key` column: a record is identified by its primary key, else by all its columns. Discovery and browsing are read-only. Workflow Data and public links retain their authored table, column and row restrictions. Workspace Data has no public sharing scope. A workflow with no authored `data` shows its owner the result tables its `runRows` calls name (every column); Data sharing for it stays off until `data` and `viewer.sharePolicy` are authored.
 
 `GET /api/link` returns its verified `dataUrl`. Use this destination when asked to browse workspace-wide data.
 

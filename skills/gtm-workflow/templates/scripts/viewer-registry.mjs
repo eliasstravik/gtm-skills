@@ -185,6 +185,8 @@ export function registrySource(register = false) {
       source: source.replace(/^\.\//, ""),
       exportName,
       data: props.data ? readLiteral(props.data, file) : null,
+      // Without authored Data, the private viewer shows the tables the workflow's runRows calls write.
+      ...(props.data ? {} : { resultTables: resultTables(content) }),
       sharePolicy: viewer.sharePolicy ?? null,
       ...(viewer.connections === undefined ? {} : { connections: validateConnections(viewer.connections) }),
       ...(viewer.businessGraph ? { businessGraph: viewer.businessGraph } : {}),
@@ -206,6 +208,20 @@ export function registrySource(register = false) {
     }
   }
   return entries;
+}
+export function resultTables(content) {
+  const names = new Set();
+  for (const call of content.matchAll(/\brunRows\s*\(/g)) {
+    // The call's own arguments, up to its closing parenthesis, so a later `table:` elsewhere never counts.
+    let depth = 0, end = call.index + call[0].length - 1;
+    for (; end < content.length; end++) {
+      if (content[end] === "(") depth++;
+      else if (content[end] === ")" && --depth === 0) break;
+    }
+    const table = content.slice(call.index, end).match(/\btable\s*:\s*["'`]([A-Za-z_$][\w$]*)["'`]/);
+    if (table) names.add(table[1]);
+  }
+  return [...names];
 }
 function validateConnections(value) {
   if (!Array.isArray(value) || value.length > 100) throw Error("Invalid declared connections");
