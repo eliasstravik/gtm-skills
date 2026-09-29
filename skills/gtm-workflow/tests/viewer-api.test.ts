@@ -8,6 +8,7 @@ import { csrfCookie, hostedOwnerCheck } from "../templates/lib/viewer-access";
 // Stands in for a signed-in owner; viewer-grants.test.ts covers the real check.
 hostedOwnerCheck.check = async () => {};
 import { runId, entry, fixtureRuns, run } from "./api-fixture";
+import { resultTables } from "../templates/scripts/viewer-registry.mjs";
 import runtimeIndex from "../templates/server/routes/index.get";
 import workflowRoute from "../templates/server/routes/gtm/[slug].get";
 import dataRoute from "../templates/server/routes/gtm/[slug]/data.get";
@@ -545,4 +546,49 @@ test("a workflow's Connections tab lists its keys by name with whether each is s
   assert.equal(owner.connections[0].state, "missing");
   assert.equal((await viewerApi(hosted("&preview=logic"))).status, 403);
   assert.equal((await viewerApi(hosted(), true)).status, 404);
+});
+
+test("a workflow without authored Data shows its result tables to the owner only", async () => {
+  const request = (op: string, token?: string, body?: unknown) =>
+    new Request(
+      req(op, token, body).url.replace("workflow=stable", "workflow=result-only"),
+      req(op, token, body),
+    );
+  await client.execute("CREATE TABLE fixture_scores (key TEXT PRIMARY KEY, score TEXT)");
+  await client.execute("INSERT INTO fixture_scores VALUES ('acme', 'Good')");
+  const data = await (await viewerApi(request("data"))).json();
+  assert.deepEqual(data.tabs.map((t: any) => t.label), ["Fixture scores"]);
+  assert.deepEqual(data.keys, ["acme"]);
+  assert.deepEqual(data.fields.map((f: any) => f.id), ["key", "score"]);
+  const current = await (await viewerApi(request("grants"))).json();
+  assert.notEqual(
+    (await viewerApi(request("saveLink", undefined, { views: ["data"], policy: current.policy }), false, true)).status,
+    200,
+  );
+  const created = await (
+    await viewerApi(request("saveLink", undefined, { views: ["logic"], policy: current.policy }), false, true)
+  ).json();
+  const token = new URLSearchParams(new URL(created.url).hash.slice(1)).get("token")!;
+  assert.equal((await viewerApi(request("data", token), true)).status, 403);
+});
+
+test("the build finds the result tables a workflow's runRows calls write", () => {
+  const source = `
+    export async function a(input) {
+      "use workflow";
+      return runRows({ rows, table: "linkedinPersonaScores", step: (row) => score(row) });
+    }
+    export async function b() {
+      "use workflow";
+      await runRows({
+        rows: [],
+        step: async (row) => { const x = 1; return x; },
+        table: 'otherScores',
+      });
+      return runRows({ rows, table: "linkedinPersonaScores" });
+    }
+    const unrelated = { table: "notARunRowsTable" };
+  `;
+  assert.deepEqual(resultTables(source), ["linkedinPersonaScores", "otherScores"]);
+  assert.deepEqual(resultTables(`runRows({ rows, table: name }); const x = { table: "later" };`), []);
 });
