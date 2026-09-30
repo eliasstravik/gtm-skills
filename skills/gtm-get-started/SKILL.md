@@ -1,8 +1,8 @@
 ---
 name: gtm-get-started
-description: Triggers when someone new to GTM Skills asks where to begin, with phrasings like "how do I get started", "what do I do first", "where do I begin with gtm", or /gtm-get-started. Looks at what the workspace already has and names the one next gtm skill to use, then stops; writes nothing. Not for requests that already name a job (a workspace, ICP, persona, fit check, workflow, or the Slack agent), which go straight to that gtm skill.
+description: Triggers when someone new to GTM Skills asks where to begin, with phrasings like "how do I get started", "what do I do first", "where do I begin with gtm", or /gtm-get-started. Looks at what the workspace already has and takes the user through each missing step, handing it to its gtm skill in the same conversation. Not for requests that already name a job (a workspace, ICP, persona, fit check, workflow, or the Slack agent), which go straight to that gtm skill.
 metadata:
-  version: "0.2.4"
+  version: "0.2.5"
 ---
 
 # GTM Get Started
@@ -13,7 +13,7 @@ Apply this skill when a request asks where to start or what to do next with GTM 
 
 ## Scope
 
-A router only: it reads the workspace, names one next step, and stops. It never does another gtm skill's job and never writes a file.
+A guide: it reads the workspace, finds the next step, and hands that step to the gtm skill that owns it in the same conversation, then checks again. It never writes a file itself; every write is the owning skill's job.
 
 ## Inputs
 
@@ -21,35 +21,36 @@ The request; the workspace found by the discovery order in [the contract](../gtm
 
 ## Roles
 
-The user picks the goal when the foundations are done; the agent reads and routes.
+The user answers the owning skill's questions and picks the goal when the foundations are done; the agent reads, hands off, and carries on.
 
 ## Procedure
 
 The first gtm skill used in a conversation checks once for a newer release, as [updates](../gtm-workspace/references/updates.md) says. Talk by the six rules in [interaction](../gtm-workspace/references/interaction.md); reproduce [the dialogues](references/interactions.md).
 
-1. Take the first row whose check holds and give its step:
+1. Take the first row whose check holds:
 
-| Check | Next step |
+| Check | Hand off to |
 | --- | --- |
-| No workspace found | `/gtm-workspace`: set up the organization's workspace |
-| No ICP | `/gtm-icp`: describe the companies to sell to |
-| No persona | `/gtm-persona`: describe the people to sell to |
-| All three exist | Ask **What next?** with **Check a company or person now (Recommended)** → `/gtm-qualify-prospects`, **Check them on a schedule** → `/gtm-workflow`, **Use it in Slack** → `/gtm-agent` |
+| No workspace found | gtm-workspace, Create: the organization's workspace |
+| No ICP | gtm-icp, Create: the companies to sell to |
+| No persona | gtm-persona, Create: the people to sell to |
+| All three exist | Ask **What next?** with **Check a company or person now (Recommended)** → gtm-qualify-prospects, **Check them on a schedule** → gtm-workflow, **Use it in Slack** → gtm-agent |
 
-2. Reply in at most two sentences: what is already in place, then the one step, with a phrase to say or the slash command. Stop.
+2. Say in one sentence what is already in place and what comes next, then hand off: load that skill (the host's skill tool, such as Skill, or read its `SKILL.md`) and follow its procedure for that job now. Never tell the user to say a phrase or run a slash command to start it. Ask only what the owning skill needs, such as the company name when the request names none.
+3. When the owning skill closes its save, go back to step 1 and continue. After the user's pick in the last row, that skill's job is the rest of the conversation.
 
 ## Outputs
 
-One reply naming one next step; no files.
+The missing foundations made by their own skills in one conversation, then the chosen skill's job; get-started itself writes no files.
 
 ## Exceptions
 
-Requires the `gtm-workspace` skill installed alongside this one; when `../gtm-workspace/SKILL.md` is missing, give its install command, `npx skills add eliasstravik/gtm-skills -g -y`, as the one step. Several workspaces match and none is named: ask which, as the contract says. On the hosted Slack agent (`GTM_AGENT_HOSTED` is `1`), drop the Slack option. A workspace that looks broken (no `ORG.md`, unreadable files): the step is "check the workspace" (`/gtm-workspace`).
+Requires the `gtm-workspace` skill installed alongside this one; when `../gtm-workspace/SKILL.md` is missing, run `npx skills add eliasstravik/gtm-skills -g -y`, then read the installed `SKILL.md` and continue. Several workspaces match and none is named: ask which, as the contract says. On the hosted Slack agent (`GTM_AGENT_HOSTED` is `1`), drop the Slack option. A workspace that looks broken (no `ORG.md`, unreadable files): hand off to gtm-workspace, Doctor. The user stops or changes course mid-way: follow the user; the next "how do I get started" picks up from what exists.
 
 ## QC
 
-- Exactly one next step, or one question whose every choice names one skill.
-- No file changed; no other skill's job started.
+- Each step handed to its owning skill in the same conversation; no reply asks the user to say a phrase or run a command to start it.
+- No file changed except by the owning skill's own save.
 
 ## References
 

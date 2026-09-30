@@ -15,7 +15,7 @@ npx skills add eliasstravik/gtm-skills -g
 
 This installs every GTM skill globally, so each host finds them. `gtm-workspace` is required; the other skills depend on it.
 
-Not sure what to do next at any point? Say "how do I get started", or run `/gtm-get-started`. The agent looks at what the workspace already has and names the one next step.
+Not sure what to do next at any point? Say "how do I get started", or run `/gtm-get-started`. The agent looks at what the workspace already has and goes straight into the next step, then the one after.
 
 ## Set up the workspace
 

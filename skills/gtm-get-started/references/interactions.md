@@ -8,9 +8,15 @@ Contents: [Nothing yet](#nothing-yet) · [Halfway](#halfway) · [Foundations don
 
 **Human:** How do I get started?
 
-**Agent:** No GTM workspace yet, so that comes first. Say "set up a GTM workspace for Acme", or run /gtm-workspace.
+**Agent:** No GTM workspace yet, so that comes first. Name the company it is for.
 
-**Files:** none
+**Human:** Acme
+
+**Agent:** (gtm-workspace, Create, continues from here: where the workspace lives, then Acme's company facts.) Created the Acme workspace. Next, describe the companies to sell to.
+
+**Agent:** (gtm-icp, Create, continues from here.)
+
+**Files:** only those the workspace and ICP skills save
 
 ## Halfway
 
@@ -18,9 +24,11 @@ Contents: [Nothing yet](#nothing-yet) · [Halfway](#halfway) · [Foundations don
 
 **Human:** What do I do next?
 
-**Agent:** Acme has a workspace and one ICP, Lean B2B SaaS. Next, describe the people to sell to: say "create a persona for revenue leaders", or run /gtm-persona.
+**Agent:** Acme has a workspace and one ICP, Lean B2B SaaS. Next, describe the people to sell to, such as revenue leaders.
 
-**Files:** none
+**Agent:** (gtm-persona, Create, continues from here; once saved, the choice in Foundations done follows.)
+
+**Files:** only those the persona skill saves
 
 ## Foundations done
 
@@ -35,6 +43,8 @@ Contents: [Nothing yet](#nothing-yet) · [Halfway](#halfway) · [Foundations don
 
 **Human:** 1
 
-**Agent:** Paste a company or person and ask "is this a fit?", or run /gtm-qualify-prospects.
+**Agent:** Paste a company or person to check against Lean B2B SaaS and Revenue Leader.
+
+**Agent:** (gtm-qualify-prospects continues from here.)
 
 **Files:** none
