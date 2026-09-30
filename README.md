@@ -62,7 +62,7 @@ Each skill owns one part of the workspace and hands off to the others. Install `
 
 | Skill | Owns |
 | --- | --- |
-| `gtm-get-started` | Where to begin: looks at the workspace and names the one next skill to use |
+| `gtm-get-started` | Where to begin: looks at the workspace and walks through each missing step with the skill that owns it |
 | `gtm-workspace` | The workspace itself: the organization record, members, and workspace health |
 | `gtm-icp` | Ideal customer profiles: the companies the organization sells to |
 | `gtm-persona` | Personas: the people the organization sells to |
