@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { href, navigate, query } from "./navigation";
 import { api, Search, State, useRead } from "./common";
 import Data from "./data";
+import Runs from "./runs";
 import { EnvironmentBadge } from "./environment";
 import type { Folder, FolderState } from "../lib/workflow-folders";
 
@@ -23,7 +24,7 @@ export function folderOptions(folders: Folder[]) {
 type Edit = { action: "create" | "rename" | "move" | "delete" | "assign"; id?: string; workflowId?: string; name: string; parentId: string };
 export default function Workspace() {
   const state = useRead("list"), search = query().get("q") ?? "";
-  const dataView = query().get("view") === "data";
+  const dataView = query().get("view") === "data", runsView = query().get("view") === "runs";
   const selected = query().get("folder") ?? "root";
   const folders: FolderState = state.data?.folders ?? { revision: 0, folders: [], assignments: {} };
   const current = folders.folders.find((f) => f.id === selected);
@@ -50,15 +51,19 @@ export default function Workspace() {
     } catch (e) { setError(`${(e as Error).message} Close this dialog and reopen it after reloading.`); state.retry(); }
     finally { setBusy(false); }
   };
-  return <main className={dataView ? "workflow" : "workspace"}>
+  return <main className={dataView || runsView ? "workflow" : "workspace"}>
     <nav className="tabs root-navigation" aria-label="Workspace">
-      <a href="/viewer" aria-current={!dataView ? "page" : undefined}>Workflows</a>
+      <a href="/viewer" aria-current={!dataView && !runsView ? "page" : undefined}>Workflows</a>
+      <a href="/viewer?view=runs" aria-current={runsView ? "page" : undefined}>Runs</a>
       <a href="/viewer?view=data" aria-current={dataView ? "page" : undefined}>Data</a>
       {state.data?.connectionsUrl && <a href={state.data.connectionsUrl}>Connections</a>}
     </nav>
     {dataView ? <>
       <div className="title-row"><div className="environment-title"><h1>Data</h1><EnvironmentBadge environment={state.data?.environment} /></div></div>
       <Data destinations={state.data?.destinations} csrf={state.data?.csrf} />
+    </> : runsView ? <>
+      <div className="title-row"><div className="environment-title"><h1>Runs</h1><EnvironmentBadge environment={state.data?.environment} /></div></div>
+      <Runs workspace destinations={state.data?.destinations} />
     </> : <>
       <div className="title-row"><div className="environment-title"><h1>Workflows</h1><EnvironmentBadge environment={state.data?.environment} /></div>
         <Search label="Search workflows" value={search} onChange={(q) => navigate(href({ q: q || undefined }), true)} />
