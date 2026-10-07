@@ -65,7 +65,7 @@ export default function Runs({ destinations }: any) {
           <option value="week">Past week</option>
           <option value="month">Past month</option>
         </select>
-        <button onClick={state.retry}>Refresh</button>
+        <button type="button" data-refresh-op={state.refreshOp} onClick={state.retry}>Refresh</button>
         {!recipient && destinations?.runs && (
           <a className="button" href={destinations.runs.url}
             target="_blank" rel="noopener noreferrer">

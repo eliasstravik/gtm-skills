@@ -77,7 +77,18 @@ try {
   await browser("press", "Space");
   await evalBrowser(`await p.settle(); await p.advance(0);
     check(p.calls.workspaceRuns === p.beforeKeyboard.workspaceRuns + 1 && p.calls.runs === p.beforeKeyboard.runs + 1, "keyboard Refresh after idle reads its target once and wakes the other view");
-    return "PASS keyboard Refresh; all bounded polling checks passed";`);
+    p.jump(30 * 60000); await p.advance(0); p.beforeWorkflowRefresh = { ...p.calls };
+    return "PASS keyboard Refresh";`);
+  const workflowPosition = JSON.parse((await browser("eval", '(() => { const r = document.querySelector("#refresh-workflow").getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()')).stdout);
+  await browser("mouse", "move", String(Math.round(workflowPosition.x)), String(Math.round(workflowPosition.y)));
+  await browser("mouse", "down");
+  await evalBrowser(`await p.settle(); await p.advance(0);
+    check(p.calls.runs === p.beforeWorkflowRefresh.runs && p.calls.workspaceRuns === p.beforeWorkflowRefresh.workspaceRuns + 1, "per-workflow marker excludes its own target without guessing the root URL or button text");
+    return "PASS per-workflow held press: marker chooses target despite root URL and different label";`);
+  await browser("mouse", "up");
+  await evalBrowser(`await p.settle(); await p.advance(0);
+    check(p.calls.runs === p.beforeWorkflowRefresh.runs + 1 && p.calls.workspaceRuns === p.beforeWorkflowRefresh.workspaceRuns + 1, "per-workflow Refresh click reads its own target once");
+    return "PASS per-workflow explicit Refresh; all bounded polling checks passed";`);
 } finally {
   await browser("close").catch(() => {});
   if (server) await new Promise((r) => server.close(r));
