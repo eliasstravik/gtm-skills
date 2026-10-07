@@ -889,3 +889,20 @@ fieldset legend {
 .data-grid button.folded::before {
   content: "▸ ";
 }
+
+/* Persistent workspace folders. */
+.folder-layout { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); gap: 24px; }
+.folder-navigation { display: flex; flex-direction: column; gap: 12px; }
+.folder-navigation a[aria-current="page"] { font-weight: 700; }
+.folder-navigation label, .folder-dialog label { display: flex; flex-direction: column; gap: 6px; }
+.folder-navigation select { width: 100%; }
+.folder-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.folder-toolbar h2 { margin-right: auto; }
+.folder-row { display: block; padding: 14px 0; border-bottom: 1px solid var(--border, #ddd); overflow-wrap: anywhere; }
+.workflow-folder-row { display: flex; align-items: center; gap: 12px; }
+.workflow-folder-row .workflow-row { flex: 1; min-width: 0; }
+.folder-dialog { max-width: min(560px, 90vw); border-radius: 8px; padding: 24px; }
+.folder-dialog::backdrop { background: #0006; }
+.folder-dialog form { display: flex; flex-direction: column; gap: 16px; }
+.folder-dialog input, .folder-dialog select { max-width: 100%; padding: 8px; }
+@media (max-width: 640px) { .folder-layout { grid-template-columns: 1fr; } }
