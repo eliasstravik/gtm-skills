@@ -65,6 +65,14 @@ test("a preview build ignores database URLs; a local one uses DATABASE_URL, chec
 test("a workspace table may not take a runtime table's name", () => {
   assert.throws(() => mergeTables({ people: pgTable("my_people", { key: text("key").primaryKey() }) }), /reserved by the runtime/);
   assert.throws(() => mergeTables({ mine: pgTable("cache", { key: text("key").primaryKey() }) }), /cache is reserved by the runtime/);
+  for (const [registryName, sqlName] of [
+    ["workflowFolderScopes", "workflow_folder_scopes"],
+    ["workflowFolders", "workflow_folders"],
+    ["workflowFolderAssignments", "workflow_folder_assignments"],
+  ]) {
+    assert.throws(() => mergeTables({ [registryName]: pgTable("my_folders", { key: text("key").primaryKey() }) }), /reserved by the runtime/, registryName);
+    assert.throws(() => mergeTables({ mine: pgTable(sqlName, { key: text("key").primaryKey() }) }), /reserved by the runtime/, sqlName);
+  }
   assert.ok("mine" in mergeTables({ mine: pgTable("mine", { key: text("key").primaryKey() }) }));
 });
 

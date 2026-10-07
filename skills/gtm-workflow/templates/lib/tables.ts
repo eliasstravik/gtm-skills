@@ -5,9 +5,10 @@ import { cache } from "./schema/cache";
 import { profileAttempts, profileInputs, profileRuns, profileWork } from "./schema/ledger";
 import { companies, people, profileIdentifiers } from "./schema/profiles";
 import { gtmViewerGrants } from "./schema/viewer-grants";
+import { workflowFolderScopes, workflowFolders, workflowFolderAssignments } from "./schema/workflow-folders";
 
 /** Runtime tables: schema gtm, owned by the template, migrated from drizzle-runtime/. */
-export const runtimeTables = { cache, people, companies, profileIdentifiers, profileRuns, profileWork, profileAttempts, profileInputs, gtmViewerGrants };
+export const runtimeTables = { cache, people, companies, profileIdentifiers, profileRuns, profileWork, profileAttempts, profileInputs, gtmViewerGrants, workflowFolderScopes, workflowFolders, workflowFolderAssignments };
 
 /** A workspace table may not reuse a runtime table's registry name or SQL name. */
 export function mergeTables<W extends Record<string, PgTable>>(workspace: W) {
