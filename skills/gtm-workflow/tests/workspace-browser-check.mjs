@@ -8,7 +8,7 @@ const command = (...args) => {
 };
 const evaluate = code => JSON.parse(command("eval", code));
 try {
-  // Workflows, Data and Connections share one layout: tabs and title never move when switching between them.
+  // Workspace pages share one layout: tabs and title never move when switching between them.
   const place = 'JSON.stringify(["nav", "h1"].map(s => { const r = document.querySelector(s).getBoundingClientRect(); return [r.left, r.top]; }))';
   const places = ["/viewer", "/viewer?view=data", "/connections"].map((path) => {
     command("open", `http://127.0.0.1:3942${path}`);
@@ -19,7 +19,7 @@ try {
   assert.ok(places.every((p) => p === places[0]), places.join(" "));
   command("open", "http://127.0.0.1:3942/viewer");
   command("wait", "--text", "Connections");
-  assert.deepEqual(evaluate('[...document.querySelectorAll(".root-navigation a")].map(a=>a.textContent)'), ["Workflows", "Data", "Connections"]);
+  assert.deepEqual(evaluate('[...document.querySelectorAll(".root-navigation a")].map(a=>a.textContent)'), ["Workflows", "Runs", "Data", "Connections"]);
   command("click", '.root-navigation a[href="/viewer?view=data"]');
   command("wait", "--text", "matching records");
   // The Data tab opens on workspace results; runtime bookkeeping such as the cache shows only when asked for.
