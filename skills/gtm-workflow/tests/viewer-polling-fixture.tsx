@@ -41,7 +41,7 @@ const clock = {
 function Fixture() {
   const workspace = useRead("workspaceRuns"), workflow = useRead("runs");
   return <main><h1>Runs polling regression fixture</h1><button id="input">Genuine input</button>
-    <button id="refresh" onClick={workspace.retry}>Refresh workspace</button>
+    <section className="runs-pane" aria-label="Workspace Runs"><button id="refresh" onClick={workspace.retry}>Refresh</button></section>
     <output id="ready">{workspace.data && workflow.data ? "ready" : "loading"}</output></main>;
 }
 createRoot(document.getElementById("root")!).render(<Fixture />);

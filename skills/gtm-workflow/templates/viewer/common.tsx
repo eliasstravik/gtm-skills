@@ -59,7 +59,7 @@ let pulse: Pulse = {},
   lastInput = Date.now();
 const pulseListeners = new Set<() => void>();
 // Reads with their own timers must wake even when the pulse's fingerprints have not changed.
-const wakeListeners = new Set<() => void>();
+const wakeListeners = new Set<(refreshOp?: string) => void>();
 function setPulse(next: Pulse) {
   if ((["deployment", "registry", "data", "down"] as const).every((k) => next[k] === pulse[k])) return;
   pulse = next;
@@ -93,17 +93,27 @@ async function beat() {
 }
 function startPulse() {
   started = true;
-  const awake = (shown = false) => {
+  const awake = (shown = false, refreshOp?: string) => {
     if (document.hidden) return;
     const idle = Date.now() - lastInput >= IDLE_MS;
     lastInput = Date.now();
     if (idle || shown) {
       beat();
-      wakeListeners.forEach((fn) => fn());
+      wakeListeners.forEach((fn) => fn(refreshOp));
     }
   };
   for (const name of ["pointerdown", "keydown", "wheel", "touchstart"])
-    window.addEventListener(name, (event) => { if (event.isTrusted) awake(); }, { capture: true, passive: true });
+    window.addEventListener(name, (event) => {
+      if (!event.isTrusted) return;
+      const button = event.target instanceof Element ? event.target.closest(".runs-pane button") : null;
+      const activation = event.type === "touchstart" ||
+        (event.type === "pointerdown" && (event as PointerEvent).button === 0) ||
+        (event.type === "keydown" && ["Enter", " "].includes((event as KeyboardEvent).key));
+      // A held press may outlast the wake read. Let Refresh's click read its own target once; wake other views.
+      const refreshOp = activation && button?.textContent?.trim() === "Refresh"
+        ? query().has("workflow") ? "runs" : "workspaceRuns" : undefined;
+      awake(false, refreshOp);
+    }, { capture: true, passive: true });
   window.addEventListener("focus", () => awake(true));
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
@@ -223,8 +233,9 @@ export function useRead(op: string, enabled = true, extra?: () => Record<string,
     };
     // Hidden/idle run timers stop. Waking reads immediately without needing a changed fingerprint, but an
     // already in-flight read covers the wake too: don't queue a second request for focus + visibility + input.
-    const awake = () => {
+    const awake = (refreshOp?: string) => {
       if (document.hidden) { clearTimeout(timer); return; }
+      if (refreshOp === op) { clearTimeout(timer); return; }
       if ((runsView || failed || !at) && !busy) {
         clearTimeout(timer);
         // Coalesce focus/show/input in one turn; a Refresh click can replace this effect before it fires.
