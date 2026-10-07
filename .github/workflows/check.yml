@@ -28,6 +28,8 @@ jobs:
       - run: node --test skills/gtm-workflow/tests/share-firewall.test.mjs
       - run: node --test skills/gtm-workflow/tests/hosted.test.mjs
       - run: node skills/gtm-workflow/tests/run.mjs skills/gtm-workflow/templates
+      - name: Verify shared folders across two local consumers and the protected production service
+        run: node skills/gtm-workflow/tests/shared-folders-run.mjs skills/gtm-workflow/templates
       - run: node skills/gtm-workflow/tests/reliability-e2e.mjs skills/gtm-workflow/templates
       - name: Verify a run whose start a dev-server reload lost resumes on its own
         run: node skills/gtm-workflow/tests/run-recovery.mjs skills/gtm-workflow/templates
@@ -40,6 +42,8 @@ jobs:
         working-directory: skills/gtm-workflow/templates
       - run: npm install --global agent-browser@0.34.0
       - run: agent-browser install --with-deps
+      - name: Verify Runs idle pause, activity resume, and held Refresh deduplication
+        run: node skills/gtm-workflow/tests/viewer-polling-browser.mjs skills/gtm-workflow/templates
       - name: Verify an open viewer follows workflow, data and deployment changes
         run: node skills/gtm-workflow/tests/live-refresh.mjs skills/gtm-workflow/templates
       - name: Verify the Data grid scrolls 5,000 rows without pages and reads only rows near the screen

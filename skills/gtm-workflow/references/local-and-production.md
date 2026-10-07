@@ -1,6 +1,6 @@
 # Local and production
 
-A workspace is an ordinary Vercel app: `workflows/` on a laptop is local, the Vercel project `gtm-<ws>` is production. Code and schema go up only through `git push`. Local never writes production through app features.
+A workspace is an ordinary Vercel app: `workflows/` on a laptop is local, the Vercel project `gtm-<ws>` is production. Code and schema go up only through `git push`. Local workflow runs and result data never write production. A linked workspace shares folder organization metadata as described below.
 
 | | Local | Production |
 | --- | --- | --- |
@@ -11,6 +11,16 @@ A workspace is an ordinary Vercel app: `workflows/` on a laptop is local, the Ve
 | Previews | none | none: `main` only (`vercel.json` `git.deploymentEnabled`, project setting off) |
 | Schedules | never fire; run by hand with `curl -X POST http://127.0.0.1:3939/api/run/<slug>` | Vercel Cron from `vercel.json` |
 | Data | separate; `npm run db:pull` copies production down on request | written only by production runs; a CSV import is one ([imports](imports.md)) |
+
+## Viewer organization and runs
+
+Both environments use the same private viewer implementation: root Workflows, Runs, Data and Connections navigation, plus the existing per-workflow Diagram, Runs, Data and Connections tabs. Root Runs lists cross-workflow run metadata with the associated workflow; workflow, status, time and search filters narrow it. Per-workflow Runs remains scoped to the selected workflow. Opening or filtering the viewer starts nothing.
+
+For a linked workspace, workflow folders and placement have one authoritative store in production. The local viewer reads and changes that same organization through its protected server-side connection; workflow results and run histories still belong to their own environments. Folder nesting is recursive, not limited to one level. Root shows top-level organization, Unfiled shows workflows without a folder, and All shows the workspace-wide list. Create, rename and move folders, and move workflows between folders or back to root. Workflow placement uses stable `viewer.id` values; names and slugs may change without creating a new identity. Moves cannot create cycles. Delete only empty folders; a folder with child folders or assigned workflows is refused without deleting any workflows or runs.
+
+Linked local and production viewers share the folder tree and permanent-ID placements, not their workflow result databases or run stores. Folder changes require the production connection; when unavailable, show a clear unavailable state, never a separate writable local tree or a false empty organization. Purely local, unlinked workspaces retain a clearly local-only folder store. Local-only workflow IDs can be organized before deployment; a copy without that workflow preserves its placement and identifies it as unavailable in that copy rather than deleting it. Clear a missing workflow’s placement explicitly before deleting its folder. `db:pull` is not folder synchronization and retains its existing data-replacement approval. See [viewer](viewer.md#workflow-folders).
+
+Upgrade the runtime and apply its additive runtime migrations in each target environment before verifying folder persistence. Preserve workflow IDs, authored workflows, application tables, saved runs, credentials and existing grants. Verify root Runs and per-workflow Runs without starting a run, then verify folder nesting, moves, reload persistence and nonempty-delete refusal in each accessible environment. Record source revisions and distinguish implemented, installed, deployed and behaviorally verified; a deployment alone does not prove either feature works.
 
 ## From a laptop, with Vercel's own tools
 

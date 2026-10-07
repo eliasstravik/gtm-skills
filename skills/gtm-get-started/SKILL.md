@@ -2,7 +2,7 @@
 name: gtm-get-started
 description: Triggers when someone new to GTM Skills asks where to begin, with phrasings like "how do I get started", "what do I do first", "where do I begin with gtm", or /gtm-get-started. Looks at what the workspace already has and takes the user through each missing step, handing it to its gtm skill in the same conversation. Not for requests that already name a job (a workspace, ICP, persona, fit check, workflow, or the Slack agent), which go straight to that gtm skill.
 metadata:
-  version: "0.2.5"
+  version: "0.2.6"
 ---
 
 # GTM Get Started
