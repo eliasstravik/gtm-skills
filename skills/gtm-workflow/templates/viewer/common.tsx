@@ -172,7 +172,7 @@ export function useRead(op: string, enabled = true, extra?: () => Record<string,
         failed = false;
         delay = 3000;
         setState({ key, data, loading: false, at });
-        if (op === "runs")
+        if (op === "runs" || op === "workspaceRuns")
           next = data.data?.some((r: any) => ["pending", "running"].includes(r.status)) ? 3000 : 15000;
         clearTimeout(expiry);
         if (data.expiresAt)
@@ -211,7 +211,7 @@ export function useRead(op: string, enabled = true, extra?: () => Record<string,
     // Showing the tab again re-reads only what cannot wait for the pulse: runs, a view that failed, and one that
     // opened in a hidden tab and never read.
     const shown = () => {
-      if (!document.hidden && (op === "runs" || failed || !at)) read();
+      if (!document.hidden && (op === "runs" || op === "workspaceRuns" || failed || !at)) read();
     };
     read();
     document.addEventListener("visibilitychange", shown);

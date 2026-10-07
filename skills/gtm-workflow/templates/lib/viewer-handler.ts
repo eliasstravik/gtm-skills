@@ -16,6 +16,7 @@ import {
   currentPolicy,
   authorizeShare,
   readRuns,
+  readWorkspaceRuns,
   readBusinessData,
 } from "./viewer-reader";
 import {
@@ -196,6 +197,11 @@ export async function viewerApi(req: Request, shared = false, service = false) {
           throw new ViewerError(404, "data_unavailable", result.unavailable);
         return result;
       }, owner, req.signal);
+    }
+    if (operation === "workspaceRuns") {
+      if (recipient)
+        throw new ViewerError(403, "view_denied", "Workspace runs require private access.");
+      return reply(await readWorkspaceRuns(url));
     }
     const entry = entryFor(url.searchParams.get("workflow") ?? "");
     let grant;

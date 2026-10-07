@@ -99,6 +99,22 @@ test("browser owner and CSRF required; shared, preview, bypass/service denied", 
   assert.notEqual((await viewerApi(request(), false, true)).status, 200);
   delete process.env.VERCEL;
 });
+test("workspace Runs resolves before workflow lookup; shared/preview denied, authenticated service reads allowed", async () => {
+  Object.assign(process.env, { VERCEL: "1", VERCEL_PROJECT_ID: "fixture", VERCEL_ENV: "production", GTM_VIEWER_PROTECTED: "1", VERCEL_AUTOMATION_BYPASS_SECRET: "folder-suite-bypass" });
+  hostedOwnerCheck.check = async () => {};
+  const req = (extra = "", bypass = "") => new Request(`https://private.example/api/viewer?v=3&op=workspaceRuns${extra}`, { headers: { "x-gtm-viewer-project": "fixture", ...(bypass ? { "x-vercel-protection-bypass": bypass } : {}) } });
+  try {
+    assert.equal((await viewerApi(req("&workflow=not-registered"))).status, 200);
+    assert.equal((await viewerApi(req(), true)).status, 403);
+    assert.equal((await viewerApi(req("&preview=runs"))).status, 403);
+    assert.equal((await viewerApi(req(), false, true)).status, 401);
+    assert.equal((await viewerApi(req("", "folder-suite-bypass"), false, true)).status, 200);
+    assert.equal((await viewerApi(new Request("https://private.example/api/viewer?v=3&op=workspaceRuns", { method: "POST", body: "{}" }))).status, 405);
+  } finally {
+    delete process.env.VERCEL;
+    delete process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  }
+});
 test("additive migration is idempotent and preserves existing tables, data and assignments", async () => {
   await database.query("CREATE TABLE public.folder_preserve (id integer PRIMARY KEY, name text); INSERT INTO public.folder_preserve VALUES (1, 'keep')");
   const before = await readFolders(db(), scope);
