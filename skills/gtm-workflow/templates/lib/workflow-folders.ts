@@ -33,16 +33,16 @@ export async function readFolders(client: Executor, scope: FolderScope): Promise
     SELECT coalesce((SELECT revision FROM gtm.workflow_folder_scopes WHERE workspace = ${scope.workspace} AND environment = ${scope.environment}), 0)::int AS revision,
       (SELECT coalesce(jsonb_agg(jsonb_build_object('id', id, 'parentId', parent_id, 'name', name)), '[]'::jsonb)
        FROM (SELECT id, parent_id, name FROM gtm.workflow_folders WHERE workspace = ${scope.workspace} AND environment = ${scope.environment} ORDER BY name, id LIMIT 10001) f) AS folders,
-      (SELECT coalesce(jsonb_object_agg(workflow_id, folder_id), '{}'::jsonb) FROM gtm.workflow_folder_assignments WHERE workspace = ${scope.workspace} AND environment = ${scope.environment}) AS assignments`);
+      (SELECT coalesce(jsonb_object_agg(workflow_id, folder_id), '{}'::jsonb) FROM (SELECT workflow_id, folder_id FROM gtm.workflow_folder_assignments WHERE workspace = ${scope.workspace} AND environment = ${scope.environment} ORDER BY workflow_id LIMIT 10001) a) AS assignments`);
   const state = rows[0] as FolderState;
-  if (state.folders.length > 10000) fail(409, "folder_limit", "This workspace has too many folders to display safely.");
+  if (state.folders.length > 10000 || Object.keys(state.assignments).length > 10000) fail(409, "folder_limit", "This workspace has too many folders to display safely.");
   return state;
 }
 /** Scope-local writes serialise before checking the revision/tree, preventing concurrent cycles and lost moves.
- * authoritativeWorkflowIds must come from this store's server registry, never request input or a proxy client's
- * local registry. A shared production store must use the production registry even for local-origin requests.
+ * Shared mode retains every placement, including local-only workflow UUIDs. Only the dedicated authenticated
+ * metadata service enables delegation; browser handlers validate against their own registry first.
  */
-export async function mutateFolders(client: Executor, scope: FolderScope, body: Record<string, unknown>, authoritativeWorkflowIds: readonly string[]) {
+export async function mutateFolders(client: Executor, scope: FolderScope, body: Record<string, unknown>, authoritativeWorkflowIds: readonly string[], options: { shared?: boolean; delegated?: boolean } = {}) {
   if (!Number.isSafeInteger(body.revision) || Number(body.revision) < 0) fail(400, "invalid_revision", "Reload the folders before making changes.");
   return writeTransaction(client, async (tx) => {
     await lockNames(tx, [`workflow-folders:${JSON.stringify([scope.workspace, scope.environment])}`]);
@@ -65,14 +65,15 @@ export async function mutateFolders(client: Executor, scope: FolderScope, body: 
       } else await tx.execute(sql`UPDATE gtm.workflow_folders SET parent_id = ${parentId}, name = ${name} WHERE workspace = ${scope.workspace} AND environment = ${scope.environment} AND id = ${id}`);
     } else if (action === "delete") {
       const live = new Set(authoritativeWorkflowIds);
-      if (state.folders.some((f) => f.parentId === id) || Object.entries(state.assignments).some(([workflowId, folderId]) => folderId === id && live.has(workflowId)))
+      if (state.folders.some((f) => f.parentId === id) || Object.entries(state.assignments).some(([workflowId, folderId]) => folderId === id && (options.shared || live.has(workflowId))))
         fail(409, "folder_not_empty", "Move the workflows and child folders out first. Nothing was deleted.");
       // Only this explicitly deleted folder is cleaned. Live assignments and every other folder are untouched.
-      await tx.execute(sql`DELETE FROM gtm.workflow_folder_assignments WHERE workspace = ${scope.workspace} AND environment = ${scope.environment} AND folder_id = ${id} AND NOT (workflow_id = ANY(${sql.param([...live])}::uuid[]))`);
+      if (!options.shared) await tx.execute(sql`DELETE FROM gtm.workflow_folder_assignments WHERE workspace = ${scope.workspace} AND environment = ${scope.environment} AND folder_id = ${id} AND NOT (workflow_id = ANY(${sql.param([...live])}::uuid[]))`);
       await tx.execute(sql`DELETE FROM gtm.workflow_folders WHERE workspace = ${scope.workspace} AND environment = ${scope.environment} AND id = ${id}`);
     } else if (action === "assign") {
       const workflowId = folderId(body.workflowId);
-      if (!authoritativeWorkflowIds.includes(workflowId)) fail(404, "workflow_missing", "Choose a workflow in this workspace.");
+      if (!authoritativeWorkflowIds.includes(workflowId) && !options.delegated && !(options.shared && body.parentId === null && Object.hasOwn(state.assignments, workflowId))) fail(404, "workflow_missing", "Choose a workflow in this workspace.");
+      if (body.parentId !== null && !Object.hasOwn(state.assignments, workflowId) && Object.keys(state.assignments).length >= 10000) fail(409, "folder_limit", "This workspace has reached its placement limit.");
       const parentId = body.parentId === null ? null : folderId(body.parentId);
       validateParent(state.folders, null, parentId);
       if (parentId) await tx.execute(sql`INSERT INTO gtm.workflow_folder_assignments (workspace, environment, workflow_id, folder_id) VALUES (${scope.workspace}, ${scope.environment}, ${workflowId}, ${parentId}) ON CONFLICT (workspace, environment, workflow_id) DO UPDATE SET folder_id = excluded.folder_id`);
