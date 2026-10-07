@@ -1,6 +1,6 @@
 import { CONTRACT_VERSION } from "./viewer-contract";
-import { readFolders, mutateFolders } from "./workflow-folders";
-import { sql } from "drizzle-orm";
+import { readFolders } from "./workflow-folders";
+import { folderMetadata } from "./shared-folders";
 import {
   privateAccess,
   requireMutation,
@@ -137,11 +137,10 @@ export async function viewerApi(req: Request, shared = false, service = false) {
     // The page asks this every few seconds and reads again only what moved. A new deployment reloads the page, for
     // its assets; the registry covers workflows and their diagrams; data covers every table, row and share link.
     if (!shared && operation === "pulse") {
-      const scope = deploymentScope();
-      const { rows } = await db().execute(sql`SELECT revision FROM gtm.workflow_folder_scopes WHERE workspace = ${scope.workspace} AND environment = ${scope.environment}`);
+      const revision = await folderMetadata.read().then((state) => state.revision).catch(() => "unavailable");
       return reply({
         deployment: process.env.VERCEL_DEPLOYMENT_ID ?? null,
-        registry: `${registryVersion}:${rows[0]?.revision ?? 0}`,
+        registry: `${registryVersion}:${revision}`,
         data: await dataVersion(db()),
       });
     }
@@ -150,7 +149,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         throw new ViewerError(403, "view_denied", "Folder changes require the private owner viewer, not a preview or service.");
       if (req.method !== "POST") throw new ViewerError(405, "method_denied", "POST required.");
       await requireMutation(req);
-      return reply({ folders: await mutateFolders(db(), deploymentScope(), await boundedJson(req), registry.map((w) => w.id)) });
+      return reply({ folders: await folderMetadata.mutate(await boundedJson(req), registry.map((w) => w.id)) });
     }
     // Local only: the Open database button starts Drizzle Studio on this computer's database and returns its address,
     // shared with the owner over the tailnet when the button was pressed there.
@@ -174,10 +173,14 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         title,
         description,
       }));
+      // A folder transport outage never changes the local Runs/Data backend or invents a writable local tree.
+      const folderResult = await (service ? readFolders(db(), deploymentScope()) : folderMetadata.read())
+        .then((folders) => ({ folders, foldersUnavailable: null }))
+        .catch(() => ({ folders: null, foldersUnavailable: "Shared folders are unavailable. Connect to production to view or change placements. Workflows below are shown without folder organization." }));
       return reply({
         workflows,
-        folders: await readFolders(db(), deploymentScope()),
-        foldersEditable: !service && (!process.env.VERCEL || deploymentScope().environment === "production"),
+        ...folderResult,
+        foldersEditable: Boolean(folderResult.folders) && !service && (!process.env.VERCEL || deploymentScope().environment === "production"),
         environment: deploymentScope().environment,
         workspace: process.env.GTM_VIEWER_LABEL ?? "GTM workspace",
         // Origin-relative: behind a trusted proxy the request URL names the loopback address, not the browser's.

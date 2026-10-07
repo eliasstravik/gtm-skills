@@ -21,7 +21,18 @@ export function folderOptions(folders: Folder[]) {
   }
   return result;
 }
-type Edit = { action: "create" | "rename" | "move" | "delete" | "assign"; id?: string; workflowId?: string; name: string; parentId: string };
+/** Missing workflow placements remain visible metadata, never links to nonexistent workflows. */
+export function folderEntries(workflows: any[], folders: FolderState) {
+  const known = new Set(workflows.map((w) => w.id));
+  return [...workflows, ...Object.keys(folders.assignments).filter((id) => !known.has(id)).map((id) => ({ id, title: "Workflow unavailable in this copy", description: `Placement for ${id}. Clear it explicitly when it is no longer needed.`, unavailable: true }))];
+}
+export function FolderWorkflow({ workflow: w, editable, onMove }: { workflow: any; editable: boolean; onMove: () => void }) {
+  return <div className="workflow-folder-row">
+    {w.unavailable ? <div className="workflow-row"><h2>{w.title}</h2><p className="muted purpose">{w.description}</p></div> : <a className="workflow-row" href={`/viewer?workflow=${encodeURIComponent(w.id)}`}><h2>{w.title}</h2>{w.description && <p className="muted purpose">{w.description}</p>}</a>}
+    {editable && <button aria-label={w.unavailable ? `Clear placement ${w.id}` : `Move ${w.title}`} onClick={onMove}>{w.unavailable ? "Clear placement" : "Move"}</button>}
+  </div>;
+}
+type Edit = { action: "create" | "rename" | "move" | "delete" | "assign"; id?: string; workflowId?: string; name: string; parentId: string; unavailable?: boolean };
 export default function Workspace() {
   const state = useRead("list"), search = query().get("q") ?? "";
   const dataView = query().get("view") === "data", runsView = query().get("view") === "runs";
@@ -34,9 +45,10 @@ export default function Workspace() {
   useEffect(() => { if (edit && !dialog.current?.open) dialog.current?.showModal(); }, [edit]);
   const begin = (value: Edit) => { editRevision.current = folders.revision; setError(""); setEdit(value); };
   const close = () => { dialog.current?.close(); setEdit(null); };
-  const entries = (state.data?.workflows ?? []).filter((w: any) => {
+  const foldersUnavailable = state.data?.foldersUnavailable;
+  const entries = folderEntries(state.data?.workflows ?? [], folders).filter((w: any) => {
     const folder = folders.assignments[w.id];
-    return (selected === "all" || (selected === "root" || selected === "unfiled" ? !folder : folder === selected)) &&
+    return (foldersUnavailable || selected === "all" || (selected === "root" || selected === "unfiled" ? !folder : folder === selected)) &&
       `${w.title} ${w.description ?? ""}`.toLowerCase().includes(search.toLowerCase());
   }).sort((a: any, b: any) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
   const children = folders.folders.filter((f) => f.parentId === (current?.id ?? null));
@@ -45,7 +57,8 @@ export default function Workspace() {
     event.preventDefault(); if (!edit || busy) return;
     setBusy(true); setError("");
     try {
-      await api("folders", {}, { ...edit, parentId: edit.parentId || null, revision: editRevision.current }, state.data?.csrf);
+      const { unavailable: _placeholder, ...command } = edit;
+      await api("folders", {}, { ...command, parentId: edit.parentId || null, revision: editRevision.current }, state.data?.csrf);
       if (edit.action === "delete" && selected === edit.id) navigate(href({ folder: current?.parentId ?? undefined }));
       close(); state.retry();
     } catch (e) { setError(`${(e as Error).message} Close this dialog and reopen it after reloading.`); state.retry(); }
@@ -70,16 +83,17 @@ export default function Workspace() {
       </div>
       <State state={state} />
       {state.data && <div className="folder-layout">
-        <nav className="folder-navigation" aria-label="Workflow folders">
+        {!foldersUnavailable && <nav className="folder-navigation" aria-label="Workflow folders">
           <a href={href({ folder: undefined })} aria-current={selected === "root" ? "page" : undefined}>Root</a>
           <a href={href({ folder: "all" })} aria-current={selected === "all" ? "page" : undefined}>All workflows</a>
           <a href={href({ folder: "unfiled" })} aria-current={selected === "unfiled" ? "page" : undefined}>Unfiled</a>
           <label>Open folder<select value={current?.id ?? ""} onChange={(e) => navigate(href({ folder: e.target.value || undefined }))}>
             <option value="">Root</option>{options.map(({ folder, path }) => <option key={folder.id} value={folder.id}>{path}</option>)}
           </select></label>
-        </nav>
+        </nav>}
         <section className="folder-content" aria-label="Folder contents">
-          <div className="folder-toolbar"><h2>{current?.name ?? (selected === "all" ? "All workflows" : selected === "unfiled" ? "Unfiled" : "Root")}</h2>
+          {foldersUnavailable && <p role="alert" className="notice">{foldersUnavailable}</p>}
+          <div className="folder-toolbar"><h2>{foldersUnavailable ? "Workflows" : current?.name ?? (selected === "all" ? "All workflows" : selected === "unfiled" ? "Unfiled" : "Root")}</h2>
             {editable && <button onClick={() => begin({ action: "create", name: "", parentId: current?.id ?? "" })}>New folder</button>}
             {editable && current && <>
               <button onClick={() => begin({ action: "rename", id: current.id, name: current.name, parentId: current.parentId ?? "" })}>Rename</button>
@@ -88,12 +102,9 @@ export default function Workspace() {
             </>}
           </div>
           {current && <a href={href({ folder: current.parentId ?? undefined })}>↑ Parent folder</a>}
-          {!current && !["root", "all", "unfiled"].includes(selected) ? <p role="alert">This folder no longer exists. Choose Root.</p> : <>
+          {!foldersUnavailable && !current && !["root", "all", "unfiled"].includes(selected) ? <p role="alert">This folder no longer exists. Choose Root.</p> : <>
             {(selected === "root" || current) && children.map((f) => <a className="folder-row" key={f.id} href={href({ folder: f.id })}>▸ {f.name}</a>)}
-            <div className="workflow-list">{entries.map((w: any) => <div className="workflow-folder-row" key={w.id}>
-              <a className="workflow-row" href={`/viewer?workflow=${encodeURIComponent(w.id)}`}><h2>{w.title}</h2>{w.description && <p className="muted purpose">{w.description}</p>}</a>
-              {editable && <button aria-label={`Move ${w.title}`} onClick={() => begin({ action: "assign", workflowId: w.id, name: w.title, parentId: folders.assignments[w.id] ?? "" })}>Move</button>}
-            </div>)}
+            <div className="workflow-list">{entries.map((w: any) => <FolderWorkflow key={w.id} workflow={w} editable={editable} onMove={() => begin({ action: "assign", workflowId: w.id, name: w.title, parentId: w.unavailable ? "" : folders.assignments[w.id] ?? "", unavailable: w.unavailable })} />)}
             {!entries.length && <p className="notice">{search ? "No matching workflows" : "No workflows in this view."} {search && <button onClick={() => navigate(href({ q: undefined }))}>Clear search</button>}</p>}
             </div>
           </>}
@@ -102,8 +113,8 @@ export default function Workspace() {
     </>}
     <dialog ref={dialog} className="folder-dialog" aria-labelledby="folder-dialog-title" onCancel={(e) => { e.preventDefault(); if (!busy) close(); }}>
       {edit && <form onSubmit={save}>
-        <h2 id="folder-dialog-title">{edit.action === "assign" ? `Move ${edit.name}` : `${edit.action[0].toUpperCase()}${edit.action.slice(1)} folder`}</h2>
-        {edit.action === "delete" ? <p>Delete “{edit.name}”? Only empty folders can be deleted. Workflows and runs are never deleted.</p> : <>
+        <h2 id="folder-dialog-title">{edit.unavailable ? "Clear unavailable workflow placement" : edit.action === "assign" ? `Move ${edit.name}` : `${edit.action[0].toUpperCase()}${edit.action.slice(1)} folder`}</h2>
+        {edit.unavailable ? <p>Clear this placement only? No workflow, run or data will be deleted. This workflow may still exist in another copy.</p> : edit.action === "delete" ? <p>Delete “{edit.name}”? Only empty folders can be deleted. Workflows and runs are never deleted.</p> : <>
           {["create", "rename"].includes(edit.action) && <label>Name<input autoFocus required maxLength={120} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></label>}
           {edit.action !== "rename" && <label>Destination<select value={edit.parentId} onChange={(e) => setEdit({ ...edit, parentId: e.target.value })}>
             <option value="">Root (unfiled)</option>{options.filter(({ folder }) => {
