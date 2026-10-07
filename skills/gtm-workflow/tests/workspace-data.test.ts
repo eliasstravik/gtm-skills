@@ -85,7 +85,9 @@ test("the list opens on a workflow's results and keeps runtime bookkeeping out o
   await client.execute("INSERT INTO public.signup_scores VALUES ('a@x.io', 'Ada', 90)");
   let page = await readWorkspaceData(client, new URL("http://localhost/data"));
   assert.ok(!("unavailable" in page));
-  // Bookkeeping (cache, ledger, grants) is hidden; people, companies and the examples show once they hold rows.
+  // Bookkeeping (cache, ledger, grants, folders) is hidden; people, companies and examples show once they hold rows.
+  const folderTables = ["workflow_folder_assignments", "workflow_folder_scopes", "workflow_folders"];
+  assert.ok(folderTables.every((name) => !page.tabs.some((t) => t.label === name)), "folder bookkeeping stays hidden by default");
   assert.deepEqual(page.tabs.map((t) => t.label), ["signup_scores", "unused_results"]);
   assert.equal(page.tabs.find((t) => t.current)?.label, "signup_scores");
   assert.ok(page.hiddenTables > 0);
@@ -99,6 +101,7 @@ test("the list opens on a workflow's results and keeps runtime bookkeeping out o
   const all = await readWorkspaceData(client, new URL("http://localhost/data?internal=1"));
   assert.ok(!("unavailable" in all));
   const labels = all.tabs.map((t) => t.label);
+  assert.ok(folderTables.every((name) => labels.includes(name)), "internal=1 reveals all three folder bookkeeping tables");
   assert.ok(["cache", "companies", "people", "example_scores", "profile_identifiers", "signup_scores"].every((name) => labels.includes(name)));
   assert.deepEqual(labels.filter((name) => /migrations/.test(name)), []);
   assert.equal(all.hiddenTables, 0);
