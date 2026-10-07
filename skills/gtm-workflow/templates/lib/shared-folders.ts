@@ -1,3 +1,5 @@
+import { lstat } from "node:fs/promises";
+import { join } from "node:path";
 import { db, type Executor } from "./db";
 import { readFolders, mutateFolders, folderId, type FolderState, type FolderScope } from "./workflow-folders";
 import { deploymentScope } from "./viewer-access";
@@ -44,7 +46,38 @@ export function createSharedFolders(transport: (body?: Record<string, unknown>) 
     },
   };
 }
-const local = createSharedFolders(productionFolderTransport);
+/** First-use standalone folders need no account. Once a link is observed, losing it never selects a writable fallback. */
+export function createLocalFolders(options: {
+  linked: () => Promise<boolean>; remote: ReturnType<typeof createSharedFolders>;
+  readLocal: () => Promise<FolderState>;
+  mutateLocal: (body: Record<string, unknown>, ids: readonly string[]) => Promise<FolderState>;
+}) {
+  let sawLink = false;
+  const mode = async (): Promise<"shared" | "local-only"> => {
+    if (await options.linked()) { sawLink = true; return "shared"; }
+    if (sawLink) throw new ViewerError(503, "folders_unavailable", "The production project link is unavailable. Restore it before changing folders.");
+    return "local-only";
+  };
+  return {
+    mode,
+    async read() { return await mode() === "shared" ? options.remote.read() : options.readLocal(); },
+    async mutate(body: Record<string, unknown>, ids: readonly string[]) {
+      folderCommand(body);
+      return await mode() === "shared" ? options.remote.mutate(body, ids) : options.mutateLocal(body, ids);
+    },
+  };
+}
+export async function linkedWorkspace(runtime = process.cwd()) {
+  try { await lstat(join(runtime, ".vercel/project.json")); return true; }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw new ViewerError(503, "folders_unavailable", "The production project link could not be read.");
+    // A partial/damaged link is not evidence of a never-linked standalone workspace.
+    try { await lstat(join(runtime, ".vercel")); }
+    catch (parentError) { if ((parentError as NodeJS.ErrnoException).code === "ENOENT") return false; }
+    throw new ViewerError(503, "folders_unavailable", "The production project link is incomplete. Restore it before changing folders.");
+  }
+}
+const local = createLocalFolders({ linked: linkedWorkspace, remote: createSharedFolders(productionFolderTransport), readLocal: () => readFolders(db(), deploymentScope()), mutateLocal: (body, ids) => mutateFolders(db(), deploymentScope(), body, ids, { shared: true }) });
 function production() {
   const scope = deploymentScope();
   if (process.env.GTM_VIEWER_MODE === "share" || scope.environment !== "production") throw new ViewerError(503, "folders_unavailable", "Shared folders are available only through production.");
@@ -59,6 +92,7 @@ function productionCache(scope: FolderScope) {
 export function rememberProductionFolders(scope: FolderScope, state: FolderState) { productionCache(scope).invalidate(state); }
 /** Private viewer adapter. Tests can substitute these functions without network credentials. */
 export const folderMetadata = {
+  async mode(): Promise<"shared" | "local-only"> { return process.env.VERCEL ? (production(), "shared") : local.mode(); },
   async read(): Promise<FolderState> { return process.env.VERCEL ? productionCache(production()).read() : local.read(); },
   async mutate(body: Record<string, unknown>, workflowIds: readonly string[]) {
     folderCommand(body);

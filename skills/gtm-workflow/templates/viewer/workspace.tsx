@@ -82,6 +82,7 @@ export default function Workspace() {
         <Search label="Search workflows" value={search} onChange={(q) => navigate(href({ q: q || undefined }), true)} />
       </div>
       <State state={state} />
+      {state.data?.foldersMode === "local-only" && <p className="notice">Local-only folders. This standalone workspace is not linked to production; organization is saved on this computer only.</p>}
       {state.data && <div className="folder-layout">
         {!foldersUnavailable && <nav className="folder-navigation" aria-label="Workflow folders">
           <a href={href({ folder: undefined })} aria-current={selected === "root" ? "page" : undefined}>Root</a>
