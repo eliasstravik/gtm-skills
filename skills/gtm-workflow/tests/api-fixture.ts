@@ -126,7 +126,7 @@ export const getWorld = async () => ({
     list: async ({ workflowName, status, pagination }: any) => {
       const rows = fixtureRuns.filter(
         (r) =>
-          r.workflowName === workflowName && (!status || r.status === status),
+          (!workflowName || r.workflowName === workflowName) && (!status || r.status === status),
       );
       const offset = Number(pagination.cursor ?? 0);
       return {

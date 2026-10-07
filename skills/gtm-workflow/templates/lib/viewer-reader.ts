@@ -7,7 +7,7 @@ import { effectivePolicy } from "./viewer-policy";
 import { ViewerError, grants } from "./viewer-grants";
 import { deploymentScope } from "./viewer-access";
 import { runDestination } from "./viewer-destinations";
-import { workspaceRuns } from "./viewer-workspace-runs";
+import { workspaceRuns, workspaceRunWorkflow } from "./viewer-workspace-runs";
 import type { Display, DataPolicy, View } from "./viewer-contract";
 import registryJson from "#viewer-registry";
 export type Entry = Display & {
@@ -41,6 +41,12 @@ const safeRun = (r: any) => ({
 });
 function ownsRun(entry: Entry, run: any, shared: boolean) {
   const scope = deploymentScope();
+  if (!shared) {
+    // UUID association survives source/function renames; legacy names must identify one current workflow.
+    if (workspaceRunWorkflow(registry, scope, run)?.id !== entry.id)
+      throw new ViewerError(404, "run_not_found", "Run not found in this workflow.");
+    return;
+  }
   if (
     shared &&
     (run.attributes?.["gtm.viewer.workspace"] !== scope.workspace ||
@@ -93,7 +99,7 @@ export async function readRuns(entry: Entry, url: URL, shared = false) {
     week: 604800000,
     month: 2592000000,
   };
-  if (!(period in periods))
+  if (!Object.hasOwn(periods, period))
     throw new ViewerError(400, "invalid_period", "Invalid time filter.");
   const since = periods[period] ? Date.now() - periods[period] : 0;
   const status = url.searchParams.get("status") ?? undefined;
@@ -107,7 +113,8 @@ export async function readRuns(entry: Entry, url: URL, shared = false) {
   let hasMore = false;
   for (let scanned = 0; scanned < 8; scanned++) {
     const page = await world.runs.list({
-      workflowName: entry.workflowName,
+      // Owner history must include old names for this UUID. Shared history retains exact-name filtering.
+      ...(shared ? { workflowName: entry.workflowName } : {}),
       status: status as any,
       resolveData: "none",
       pagination: {

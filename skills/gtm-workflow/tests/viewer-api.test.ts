@@ -7,7 +7,8 @@ import { testDatabase } from "./db";
 import { csrfCookie, hostedOwnerCheck } from "../templates/lib/viewer-access";
 // Stands in for a signed-in owner; viewer-grants.test.ts covers the real check.
 hostedOwnerCheck.check = async () => {};
-import { runId, entry, fixtureRuns, run } from "./api-fixture";
+import { runId, entry, resultOnly, fixtureRuns, run } from "./api-fixture";
+import { readWorkspaceRuns } from "../templates/lib/viewer-reader";
 import { resultTables } from "../templates/scripts/viewer-registry.mjs";
 import runtimeIndex from "../templates/server/routes/index.get";
 import workflowRoute from "../templates/server/routes/gtm/[slug].get";
@@ -570,6 +571,87 @@ test("a workflow without authored Data shows its result tables to the owner only
   ).json();
   const token = new URLSearchParams(new URL(created.url).hash.slice(1)).get("token")!;
   assert.equal((await viewerApi(request("data", token), true)).status, 403);
+});
+
+test("owner workflow history follows renamed UUIDs; shares/previews remain exact and scoped", async () => {
+  const originals = [...fixtureRuns];
+  const runsUrl = process.env.GTM_VIEWER_VERCEL_RUNS_URL;
+  const row = (n: number, extra: any = {}) => ({ ...run, runId: "wrun_" + String(n).padStart(26, "0"), ...extra });
+  fixtureRuns.splice(0, fixtureRuns.length,
+    row(1, { workflowName: "old-network" }),
+    row(2),
+    row(3, { attributes: {} }),
+    row(4, { attributes: { ...run.attributes, "gtm.viewer.workspace": "other" } }),
+    row(5, { attributes: { ...run.attributes, "gtm.viewer.environment": "preview" } }),
+    row(6, { attributes: { ...run.attributes, "gtm.viewer.id": "removed" } }),
+    row(7, { attributes: { ...run.attributes, "gtm.viewer.parent": "parent" } }),
+    row(8, { workflowName: "old-network", attributes: {} }),
+    row(9, { attributes: { ...run.attributes, "gtm.viewer.workspace": "" } }),
+  );
+  let grantId: string | undefined;
+  try {
+    process.env.GTM_VIEWER_VERCEL_RUNS_URL = "https://vercel.com/team/project/workflows/runs?environment=production";
+    const response = await viewerApi(req("runs"));
+    assert.equal(response.status, 200);
+    const owner = await response.json();
+    assert.deepEqual(owner.data.map((r: any) => r.id), [1, 2, 3].map((n) => row(n).runId));
+    assert.equal(owner.data[0].destination.url, `https://vercel.com/team/project/workflows/runs/${row(1).runId}?environment=production`);
+    assert.ok(!JSON.stringify(owner).includes("PRIVATE"));
+    const root = await readWorkspaceRuns(new URL(req("runs").url));
+    assert.deepEqual(root.data.map((r: any) => r.id), owner.data.map((r: any) => r.id));
+    const current = await (await viewerApi(req("grants"))).json();
+    const created = await (await viewerApi(req("saveLink", undefined, { views: ["runs"], policy: current.policy, save: true }), false, true)).json();
+    grantId = created.grant.id;
+    const token = new URLSearchParams(new URL(created.url).hash.slice(1)).get("token")!;
+    for (const request of [req("runs", token), req("runs", undefined, undefined, "&preview=runs")]) {
+      const result = await viewerApi(request, request.headers.has("x-gtm-share-token"));
+      assert.equal(result.status, 200);
+      const shared = await result.json();
+      assert.deepEqual(shared.data.map((r: any) => r.id), [row(2).runId]);
+      assert.equal(shared.data[0].destination, undefined);
+      assert.ok(!JSON.stringify(shared).includes("PRIVATE"));
+    }
+  } finally {
+    if (grantId) await viewerApi(req("revokeGrant", undefined, { id: grantId }), false, true);
+    fixtureRuns.splice(0, fixtureRuns.length, ...originals);
+    if (runsUrl === undefined) delete process.env.GTM_VIEWER_VERCEL_RUNS_URL;
+    else process.env.GTM_VIEWER_VERCEL_RUNS_URL = runsUrl;
+  }
+});
+
+test("owner legacy history requires an unambiguous exact name, but UUIDs remain authoritative", async () => {
+  const originals = [...fixtureRuns], originalName = resultOnly.workflowName;
+  resultOnly.workflowName = entry.workflowName;
+  fixtureRuns.splice(0, fixtureRuns.length, { ...run, attributes: {} }, { ...run, runId: "wrun_" + "B".repeat(26) });
+  try {
+    const response = await viewerApi(req("runs"));
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.deepEqual(body.data.map((r: any) => r.id), ["wrun_" + "B".repeat(26)]);
+  } finally {
+    resultOnly.workflowName = originalName;
+    fixtureRuns.splice(0, fixtureRuns.length, ...originals);
+  }
+});
+
+test("renamed owner history preserves bounded scanning and continuation across unrelated runs", async () => {
+  const originals = [...fixtureRuns];
+  fixtureRuns.splice(0, fixtureRuns.length,
+    ...Array.from({ length: 210 }, (_, n) => ({ ...run, workflowName: "unrelated", runId: "wrun_" + String(n).padStart(26, "0"), attributes: { ...run.attributes, "gtm.viewer.id": "removed" } })),
+    { ...run, workflowName: "old-network" },
+  );
+  try {
+    const first = await (await viewerApi(req("runs"))).json();
+    assert.equal(first.data.length, 0);
+    assert.equal(first.hasMore, true);
+    assert.equal(first.cursor, "200");
+    const second = await (await viewerApi(req("runs", undefined, undefined, "&cursor=" + first.cursor))).json();
+    assert.deepEqual(second.data.map((r: any) => r.id), [runId]);
+    assert.equal(second.hasMore, false);
+    const latest = await (await viewerApi(req("runs", undefined, undefined, "&latest=1&cursor=210"))).json();
+    assert.deepEqual(latest.data.map((r: any) => r.id), [runId]);
+    assert.equal((await viewerApi(req("runs", undefined, undefined, "&period=toString"))).status, 400);
+  } finally { fixtureRuns.splice(0, fixtureRuns.length, ...originals); }
 });
 
 test("the build finds the result tables a workflow's runRows calls write", () => {
