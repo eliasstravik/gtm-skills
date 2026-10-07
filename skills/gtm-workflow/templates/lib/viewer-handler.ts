@@ -1,4 +1,6 @@
 import { CONTRACT_VERSION } from "./viewer-contract";
+import { readFolders, mutateFolders } from "./workflow-folders";
+import { sql } from "drizzle-orm";
 import {
   privateAccess,
   requireMutation,
@@ -126,19 +128,29 @@ export async function viewerApi(req: Request, shared = false, service = false) {
     }
     if (
       req.method !== "GET" &&
-      !["saveLink", "revokeGrant", "openDatabase"].includes(operation)
+      !["saveLink", "revokeGrant", "openDatabase", "folders"].includes(operation)
     )
       throw new ViewerError(405, "method_denied", "Read-only endpoint.");
     if (shared && req.method !== "GET")
       throw new ViewerError(405, "method_denied", "Read-only endpoint.");
     // The page asks this every few seconds and reads again only what moved. A new deployment reloads the page, for
     // its assets; the registry covers workflows and their diagrams; data covers every table, row and share link.
-    if (!shared && operation === "pulse")
+    if (!shared && operation === "pulse") {
+      const scope = deploymentScope();
+      const { rows } = await db().execute(sql`SELECT revision FROM gtm.workflow_folder_scopes WHERE workspace = ${scope.workspace} AND environment = ${scope.environment}`);
       return reply({
         deployment: process.env.VERCEL_DEPLOYMENT_ID ?? null,
-        registry: registryVersion,
+        registry: `${registryVersion}:${rows[0]?.revision ?? 0}`,
         data: await dataVersion(db()),
       });
+    }
+    if (operation === "folders") {
+      if (recipient || service || (process.env.VERCEL && deploymentScope().environment !== "production"))
+        throw new ViewerError(403, "view_denied", "Folder changes require the private owner viewer, not a preview or service.");
+      if (req.method !== "POST") throw new ViewerError(405, "method_denied", "POST required.");
+      await requireMutation(req);
+      return reply({ folders: await mutateFolders(db(), deploymentScope(), await boundedJson(req), registry.map((w) => w.id)) });
+    }
     // Local only: the Open database button starts Drizzle Studio on this computer's database and returns its address,
     // shared with the owner over the tailnet when the button was pressed there.
     if (operation === "openDatabase") {
@@ -154,8 +166,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
     if (!shared && !preview && operation === "release")
       return reply({ release: await currentRelease() });
     if (!shared && operation === "list") {
-      // The workspace pages post only to open the local database, so they get a CSRF token only locally.
-      const csrf = process.env.VERCEL ? undefined : csrfCookie();
+      const csrf = csrfCookie();
       const workflows = registry.map(({ id, slug, title, description }) => ({
         id,
         slug,
@@ -164,6 +175,8 @@ export async function viewerApi(req: Request, shared = false, service = false) {
       }));
       return reply({
         workflows,
+        folders: await readFolders(db(), deploymentScope()),
+        foldersEditable: !service && (!process.env.VERCEL || deploymentScope().environment === "production"),
         environment: deploymentScope().environment,
         workspace: process.env.GTM_VIEWER_LABEL ?? "GTM workspace",
         // Origin-relative: behind a trusted proxy the request URL names the loopback address, not the browser's.
