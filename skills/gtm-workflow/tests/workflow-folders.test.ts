@@ -61,6 +61,34 @@ test("scope boundaries and stale/concurrent mutations fail without partial chang
   await assert.rejects(mutateFolders(db(), target, { action: "create", parentId: null, name: state.folders[0].name.toUpperCase(), revision: state.revision }, [workflow]), /already exists/);
   await assert.rejects(mutateFolders(db(), target, { action: "assign", workflowId: randomUUID(), parentId: one.id, revision: state.revision }, [workflow]), /workspace/);
 });
+test("explicit folder deletion cleans removed workflow assignments only there, never live assignments", async () => {
+  const target = { ...scope, workspace: "removed-workflows" };
+  const liveId = randomUUID(), removedId = randomUUID(), otherRemovedId = randomUUID();
+  const mutate = async (body: Record<string, unknown>, registered = [liveId]) => mutateFolders(db(), target, { ...body, revision: (await readFolders(db(), target)).revision }, registered);
+  const first = (await mutate({ action: "create", name: "Delete me", parentId: null })).id!;
+  const other = (await mutate({ action: "create", name: "Keep me", parentId: null })).id!;
+  await mutate({ action: "assign", workflowId: removedId, parentId: first }, [liveId, removedId]);
+  await mutate({ action: "assign", workflowId: otherRemovedId, parentId: other }, [liveId, otherRemovedId]);
+  const child = (await mutate({ action: "create", name: "Child", parentId: first })).id!;
+  await assert.rejects(mutate({ action: "delete", id: first }), /Nothing was deleted/);
+  assert.equal((await readFolders(db(), target)).assignments[removedId], first);
+  await mutate({ action: "delete", id: child });
+  await mutate({ action: "assign", workflowId: liveId, parentId: first });
+  await assert.rejects(mutate({ action: "delete", id: first }), /Nothing was deleted/);
+  const refused = await readFolders(db(), target);
+  assert.equal(refused.assignments[liveId], first);
+  assert.equal(refused.assignments[removedId], first); // No premature cleanup on a refused delete.
+  await mutate({ action: "assign", workflowId: liveId, parentId: null });
+  await database.query("CREATE TABLE public.folder_deleted_workflow_data (id text PRIMARY KEY, value text)");
+  await database.query("INSERT INTO public.folder_deleted_workflow_data VALUES ($1, 'retain')", [removedId]);
+  await mutate({ action: "delete", id: first });
+  const deleted = await readFolders(db(), target);
+  assert.ok(!deleted.folders.some((f) => f.id === first));
+  assert.equal(deleted.assignments[removedId], undefined);
+  assert.equal(deleted.assignments[otherRemovedId], other);
+  assert.ok(deleted.folders.some((f) => f.id === other));
+  assert.equal((await database.query("SELECT value FROM public.folder_deleted_workflow_data WHERE id = $1", [removedId])).rows[0].value, "retain");
+});
 test("parallel opposing moves cannot form a cycle", async () => {
   const target = { ...scope, workspace: "concurrency" };
   const a = await mutateFolders(db(), target, { action: "create", parentId: null, name: "A", revision: 0 }, []);
