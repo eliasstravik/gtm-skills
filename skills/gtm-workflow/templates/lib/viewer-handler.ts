@@ -175,8 +175,8 @@ export async function viewerApi(req: Request, shared = false, service = false) {
       }));
       // A folder transport outage never changes the local Runs/Data backend or invents a writable local tree.
       const folderResult = await (service ? readFolders(db(), deploymentScope()) : folderMetadata.read())
-        .then((folders) => ({ folders, foldersUnavailable: null }))
-        .catch(() => ({ folders: null, foldersUnavailable: "Shared folders are unavailable. Connect to production to view or change placements. Workflows below are shown without folder organization." }));
+        .then(async (folders) => ({ folders, foldersUnavailable: null, foldersMode: service ? "shared" : await folderMetadata.mode() }))
+        .catch(() => ({ folders: null, foldersMode: null, foldersUnavailable: "Shared folders are unavailable. Connect to production to view or change placements. Workflows below are shown without folder organization." }));
       return reply({
         workflows,
         ...folderResult,

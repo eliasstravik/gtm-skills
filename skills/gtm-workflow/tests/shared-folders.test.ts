@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { randomUUID } from "node:crypto";
 import { createFolderTransport, folderState, type FolderTransportDependencies } from "../templates/lib/shared-folder-transport";
-import { createSharedFolders, folderCommand, folderMetadata } from "../templates/lib/shared-folders";
+import { createSharedFolders, createLocalFolders, linkedWorkspace, folderCommand, folderMetadata } from "../templates/lib/shared-folders";
 import { readFolders, mutateFolders } from "../templates/lib/workflow-folders";
 import { folderEntries, FolderWorkflow } from "../templates/viewer/workspace";
 import React from "react";
@@ -13,6 +13,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { privateAccess, requireMutation, boundedJson, csrfCookie } from "../templates/lib/viewer-access";
 import { viewerApi } from "../templates/lib/viewer-handler";
 import { sharedFolderService } from "../templates/lib/shared-folder-service";
+import { registry } from "../templates/lib/viewer-reader";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { closeDb, db } from "../templates/lib/db";
 import { ViewerError } from "../templates/lib/viewer-grants";
 import { testDatabase } from "./db";
@@ -63,6 +67,44 @@ async function consumer(store: ReturnType<typeof createSharedFolders>, ids: stri
   const url = `http://127.0.0.1:${(server.address() as any).port}`, token = csrfCookie();
   return { url, read: async () => (await fetch(url)).json(), change: async (body: any, headers: Record<string, string> = {}) => { const r = await fetch(url, { method: "POST", headers: { origin: url, "content-type": "application/json", cookie: `gtm_viewer_csrf=${token.value}`, "x-gtm-csrf": token.value, ...headers }, body: JSON.stringify(body) }); return { status: r.status, ...await r.json() }; }, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
 }
+test("unlinked first-use folders work without credentials; incomplete/linked/offline projects never select a local fallback", async () => {
+  const runtime = await mkdtemp(join(tmpdir(), "shared-folder-link-fixture-"));
+  const standaloneScope = { workspace: "standalone-first-use", environment: "local" };
+  let remoteCalls = 0, localWrites = 0;
+  const adapter = createLocalFolders({ linked: () => linkedWorkspace(runtime), remote: createSharedFolders(async () => { remoteCalls++; throw new ViewerError(503, "folders_unavailable", "Fixture offline"); }), readLocal: () => readFolders(db(), standaloneScope), mutateLocal: (body, ids) => { localWrites++; return mutateFolders(db(), standaloneScope, body, ids, { shared: true }); } });
+  try {
+    assert.equal(await adapter.mode(), "local-only");
+    assert.deepEqual(await adapter.read(), { revision: 0, folders: [], assignments: {} });
+    const local = await adapter.mutate({ action: "create", name: "First-use", parentId: null, revision: 0 }, []);
+    assert.equal(local.folders.length, 1); assert.equal(localWrites, 1); assert.equal(remoteCalls, 0);
+    await mkdir(join(runtime, ".vercel"));
+    await assert.rejects(adapter.read(), (e: any) => e.code === "folders_unavailable");
+    await writeFile(join(runtime, ".vercel/project.json"), JSON.stringify({ projectId: "prj_fixture", orgId: "team_fixture" }));
+    assert.equal(await adapter.mode(), "shared");
+    await assert.rejects(adapter.read(), (e: any) => e.status === 503);
+    await assert.rejects(adapter.mutate({ action: "create", name: "No fallback", parentId: null, revision: 1 }, []), (e: any) => e.status === 503);
+    assert.equal(localWrites, 1); assert.deepEqual(await readFolders(db(), standaloneScope), folderState(local));
+    assert.ok(remoteCalls >= 2);
+    await rm(join(runtime, ".vercel"), { recursive: true });
+    await assert.rejects(adapter.read(), (e: any) => e.code === "folders_unavailable"); // Observed link loss cannot silently re-enable local edits.
+    assert.equal(localWrites, 1);
+  } finally { await rm(runtime, { recursive: true, force: true }); }
+});
+test("empty unlinked workspace root stays usable and can create local-only folders without an account", async () => {
+  const original = { ...folderMetadata }, savedRegistry = registry.splice(0), savedWorkspace = process.env.GTM_VIEWER_WORKSPACE;
+  process.env.GTM_VIEWER_WORKSPACE = "empty-unlinked-workspace";
+  const adapter = createLocalFolders({ linked: async () => false, remote: createSharedFolders(async () => { throw new Error("Must not discover credentials for first use"); }), readLocal: () => readFolders(db(), { workspace: "empty-unlinked-workspace", environment: "local" }), mutateLocal: (body, ids) => mutateFolders(db(), { workspace: "empty-unlinked-workspace", environment: "local" }, body, ids, { shared: true }) });
+  Object.assign(folderMetadata, adapter);
+  try {
+    const initial = await viewerApi(new Request("http://localhost/api/viewer?v=3&op=list", { headers: { host: "localhost" } }));
+    assert.equal(initial.status, 200); const list = await initial.json();
+    assert.deepEqual(list.workflows, []); assert.deepEqual(list.folders, { revision: 0, folders: [], assignments: {} }); assert.equal(list.foldersMode, "local-only"); assert.equal(list.foldersEditable, true); assert.equal(list.foldersUnavailable, null);
+    const token = list.csrf;
+    const create = await viewerApi(new Request("http://localhost/api/viewer?v=3&op=folders", { method: "POST", headers: { host: "localhost", origin: "http://localhost", cookie: `gtm_viewer_csrf=${token}`, "x-gtm-csrf": token, "content-type": "application/json" }, body: JSON.stringify({ action: "create", name: "Empty workspace folder", parentId: null, revision: 0 }) }));
+    assert.equal(create.status, 200); assert.equal((await create.json()).folders.folders.length, 1);
+    assert.equal((await viewerApi(new Request("http://localhost/api/viewer?v=3&op=workspaceRuns", { headers: { host: "localhost" } }))).status, 200);
+  } finally { Object.assign(folderMetadata, original); registry.push(...savedRegistry); savedWorkspace === undefined ? delete process.env.GTM_VIEWER_WORKSPACE : process.env.GTM_VIEWER_WORKSPACE = savedWorkspace; }
+});
 test("transport resolves only the verified linked repo/root/team/production domain, caches existing credentials in memory", async () => {
   const d = deps(); let requests = 0;
   const transport = createFolderTransport({ ...d, fetch: async (...args) => { requests++; return d.fetch(...args); } });

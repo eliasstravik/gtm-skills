@@ -61,7 +61,7 @@ test("scope boundaries and stale/concurrent mutations fail without partial chang
   await assert.rejects(mutateFolders(db(), target, { action: "create", parentId: null, name: state.folders[0].name.toUpperCase(), revision: state.revision }, [workflow]), /already exists/);
   await assert.rejects(mutateFolders(db(), target, { action: "assign", workflowId: randomUUID(), parentId: one.id, revision: state.revision }, [workflow]), /workspace/);
 });
-test("explicit folder deletion cleans removed workflow assignments only there, never live assignments", async () => {
+test("folder deletion never cleans unknown placements; explicit unassign protects other copies and business data", async () => {
   const target = { ...scope, workspace: "removed-workflows" };
   const liveId = randomUUID(), removedId = randomUUID(), otherRemovedId = randomUUID();
   const mutate = async (body: Record<string, unknown>, registered = [liveId]) => mutateFolders(db(), target, { ...body, revision: (await readFolders(db(), target)).revision }, registered);
@@ -81,6 +81,9 @@ test("explicit folder deletion cleans removed workflow assignments only there, n
   await mutate({ action: "assign", workflowId: liveId, parentId: null });
   await database.query("CREATE TABLE public.folder_deleted_workflow_data (id text PRIMARY KEY, value text)");
   await database.query("INSERT INTO public.folder_deleted_workflow_data VALUES ($1, 'retain')", [removedId]);
+  await assert.rejects(mutate({ action: "delete", id: first }), /Nothing was deleted/);
+  assert.equal((await readFolders(db(), target)).assignments[removedId], first);
+  await mutate({ action: "assign", workflowId: removedId, parentId: null });
   await mutate({ action: "delete", id: first });
   const deleted = await readFolders(db(), target);
   assert.ok(!deleted.folders.some((f) => f.id === first));
@@ -116,7 +119,10 @@ test("browser owner and CSRF required; shared, preview, bypass/service denied", 
   assert.equal((await viewerApi(request("", {}, "GET"))).status, 405);
   assert.equal((await viewerApi(request())).status, 200);
   const listing = await viewerApi(new Request("http://localhost/api/viewer?v=3&op=list", { headers: { host: "localhost" } }));
-  assert.equal(listing.status, 200); assert.ok((await listing.json()).csrf);
+  assert.equal(listing.status, 200);
+  const standalone = await listing.json();
+  assert.ok(standalone.csrf); assert.equal(standalone.foldersMode, "local-only");
+  assert.equal(standalone.foldersEditable, true); assert.equal(standalone.folders.folders.length, 1);
   Object.assign(process.env, { VERCEL: "1", VERCEL_PROJECT_ID: "folder-test", VERCEL_ENV: "preview", GTM_VIEWER_PROTECTED: "1" });
   hostedOwnerCheck.check = async () => {};
   assert.equal((await viewerApi(request())).status, 403);

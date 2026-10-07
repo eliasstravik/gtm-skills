@@ -39,7 +39,7 @@ export async function readFolders(client: Executor, scope: FolderScope): Promise
   return state;
 }
 /** Scope-local writes serialise before checking the revision/tree, preventing concurrent cycles and lost moves.
- * Shared mode retains every placement, including local-only workflow UUIDs. Only the dedicated authenticated
+ * Every store retains every placement, including unknown workflow UUIDs. Only the dedicated authenticated
  * metadata service enables delegation; browser handlers validate against their own registry first.
  */
 export async function mutateFolders(client: Executor, scope: FolderScope, body: Record<string, unknown>, authoritativeWorkflowIds: readonly string[], options: { shared?: boolean; delegated?: boolean } = {}) {
@@ -64,15 +64,13 @@ export async function mutateFolders(client: Executor, scope: FolderScope, body: 
         await tx.execute(sql`INSERT INTO gtm.workflow_folders (workspace, environment, id, parent_id, name) VALUES (${scope.workspace}, ${scope.environment}, ${id}, ${parentId}, ${name})`);
       } else await tx.execute(sql`UPDATE gtm.workflow_folders SET parent_id = ${parentId}, name = ${name} WHERE workspace = ${scope.workspace} AND environment = ${scope.environment} AND id = ${id}`);
     } else if (action === "delete") {
-      const live = new Set(authoritativeWorkflowIds);
-      if (state.folders.some((f) => f.parentId === id) || Object.entries(state.assignments).some(([workflowId, folderId]) => folderId === id && (options.shared || live.has(workflowId))))
-        fail(409, "folder_not_empty", "Move the workflows and child folders out first. Nothing was deleted.");
-      // Only this explicitly deleted folder is cleaned. Live assignments and every other folder are untouched.
-      if (!options.shared) await tx.execute(sql`DELETE FROM gtm.workflow_folder_assignments WHERE workspace = ${scope.workspace} AND environment = ${scope.environment} AND folder_id = ${id} AND NOT (workflow_id = ANY(${sql.param([...live])}::uuid[]))`);
+      if (state.folders.some((f) => f.parentId === id) || Object.values(state.assignments).includes(id!))
+        fail(409, "folder_not_empty", "Move all placements and child folders out first. Nothing was deleted.");
+      // Unknown UUIDs may still live in another copy. Placement clearing is always explicit, never deletion cleanup.
       await tx.execute(sql`DELETE FROM gtm.workflow_folders WHERE workspace = ${scope.workspace} AND environment = ${scope.environment} AND id = ${id}`);
     } else if (action === "assign") {
       const workflowId = folderId(body.workflowId);
-      if (!authoritativeWorkflowIds.includes(workflowId) && !options.delegated && !(options.shared && body.parentId === null && Object.hasOwn(state.assignments, workflowId))) fail(404, "workflow_missing", "Choose a workflow in this workspace.");
+      if (!authoritativeWorkflowIds.includes(workflowId) && !options.delegated && !(body.parentId === null && Object.hasOwn(state.assignments, workflowId))) fail(404, "workflow_missing", "Choose a workflow in this workspace.");
       if (body.parentId !== null && !Object.hasOwn(state.assignments, workflowId) && Object.keys(state.assignments).length >= 10000) fail(409, "folder_limit", "This workspace has reached its placement limit.");
       const parentId = body.parentId === null ? null : folderId(body.parentId);
       validateParent(state.folders, null, parentId);
