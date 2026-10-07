@@ -7,6 +7,7 @@ import { effectivePolicy } from "./viewer-policy";
 import { ViewerError, grants } from "./viewer-grants";
 import { deploymentScope } from "./viewer-access";
 import { runDestination } from "./viewer-destinations";
+import { workspaceRuns } from "./viewer-workspace-runs";
 import type { Display, DataPolicy, View } from "./viewer-contract";
 import registryJson from "#viewer-registry";
 export type Entry = Display & {
@@ -144,6 +145,10 @@ export async function readRuns(entry: Entry, url: URL, shared = false) {
     if (data.length || !hasMore) break;
   }
   return { data, cursor: next, hasMore };
+}
+export async function readWorkspaceRuns(url: URL) {
+  const world = await getWorld();
+  return workspaceRuns((options) => world.runs.list(options), registry, deploymentScope(), url);
 }
 /**
  * A workflow without authored Data still shows its own result tables to the owner, every column, as workspace Data

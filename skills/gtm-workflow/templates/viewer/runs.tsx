@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { query, href, navigate, shared } from "./navigation";
-import { useRead, State, Status, time } from "./common";
+import { useRead, State, Status, time, Search } from "./common";
 import { duration } from "./duration";
 function Duration({ run }: any) {
   const [now, setNow] = useState(Date.now());
@@ -25,14 +25,29 @@ function Duration({ run }: any) {
     </>
   );
 }
-export default function Runs({ destinations }: any) {
-  const state = useRead("runs"),
+export default function Runs({ workspace = false, destinations }: any) {
+  const state = useRead(workspace ? "workspaceRuns" : "runs"),
     d = state.data,
     p = query(),
     recipient = shared || p.has("preview");
   return (
     <section className="pane runs-pane" aria-label="Runs">
       <div className="toolbar">
+        {workspace && (
+          <>
+            <select
+              name="filter-runs-by-workflow"
+              aria-label="Filter runs by workflow"
+              value={p.get("runsWorkflow") ?? ""}
+              onChange={(e) => navigate(href({ runsWorkflow: e.target.value || undefined, cursor: undefined }))}
+            >
+              <option value="">All workflows</option>
+              {(d?.workflows ?? []).map((w: any) => <option key={w.id} value={w.id}>{w.title}</option>)}
+            </select>
+            <Search value={p.get("q") ?? ""} label="Search runs"
+              onChange={(q) => navigate(href({ q: q || undefined, cursor: undefined }))} />
+          </>
+        )}
         <select
           name="filter-runs-by-status"
           aria-label="Filter runs by status"
@@ -80,6 +95,7 @@ export default function Runs({ destinations }: any) {
             <table>
               <thead>
                 <tr>
+                  {workspace && <th>Workflow</th>}
                   <th>Started</th>
                   <th>Status</th>
                   <th>Duration</th>
@@ -89,6 +105,14 @@ export default function Runs({ destinations }: any) {
               <tbody>
                 {d.data.map((r: any) => (
                   <tr key={r.id}>
+                    {workspace && (
+                      <td>
+                        <a href={href({ workflow: r.workflow.id, tab: undefined, view: "runs", runsWorkflow: undefined, q: undefined, status: undefined, period: undefined, cursor: undefined })}>
+                          {r.workflow.title}
+                        </a>
+                        <div className="muted">{r.id}</div>
+                      </td>
+                    )}
                     <td>
                       <time
                         tabIndex={0}
@@ -131,7 +155,7 @@ export default function Runs({ destinations }: any) {
               <p className="notice">
                 {d.hasMore
                   ? "No matching runs on these pages. Continue to older runs."
-                  : p.has("status") ||
+                  : p.has("runsWorkflow") || p.has("q") || p.has("status") ||
                       p.has("cursor") ||
                       (p.get("period") && p.get("period") !== "all")
                     ? "No matching runs."
