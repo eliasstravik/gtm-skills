@@ -41,13 +41,13 @@ function repositoryName(remote: string) {
   if (!match) throw unavailable();
   return match[1];
 }
-async function json(response: Response) {
+async function json(response: Response, limit = MAX_RESPONSE) {
   if (response.status >= 300 && response.status < 400) throw unavailable();
   const reader = response.body?.getReader();
   if (!reader) throw unavailable();
   const chunks: Uint8Array[] = []; let size = 0;
   try {
-    while (true) { const next = await reader.read(); if (next.done) break; size += next.value.length; if (size > MAX_RESPONSE) throw unavailable(); chunks.push(next.value); }
+    while (true) { const next = await reader.read(); if (next.done) break; size += next.value.length; if (size > limit) throw unavailable(); chunks.push(next.value); }
     return JSON.parse(Buffer.concat(chunks).toString());
   } finally { await reader.cancel(); }
 }
@@ -79,12 +79,12 @@ export function createFolderTransport(deps: FolderTransportDependencies) {
     if (!names.length) throw unavailable();
     return { origin: `https://${names[0]}`, bypass: bypasses[0][0] };
   }
-  return async (body?: Record<string, unknown>): Promise<FolderState> => {
+  async function request(body?: Record<string, unknown>, revisionOnly = false): Promise<FolderState | number> {
     try {
       if (!target || deps.now() - target.at >= 60000) target = { at: deps.now(), value: discover() };
       const { origin, bypass } = await target.value;
-      const response = await deps.fetch(`${origin}/api/workflow-folders`, { method: body ? "POST" : "GET", headers: { "x-vercel-protection-bypass": bypass, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: "error", signal: AbortSignal.timeout(8000) });
-      const data = await json(response);
+      const response = await deps.fetch(`${origin}/api/workflow-folders${revisionOnly ? "?revision=1" : ""}`, { method: body ? "POST" : "GET", headers: { "x-vercel-protection-bypass": bypass, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: "error", signal: AbortSignal.timeout(8000) });
+      const data = await json(response, revisionOnly ? 256 : MAX_RESPONSE);
       if (!response.ok) {
         // Never relay remote messages, headers, tokens or exception details. Only known business failures cross this boundary.
         const messages: Record<string, string> = { folder_conflict: "Folders changed in another tab. Reload and try again.", folder_cycle: "A folder cannot move inside itself or its descendants.", folder_not_empty: "Move all placements and child folders out first. Nothing was deleted.", folder_name_conflict: "A folder with that name already exists here.", folder_missing: "The folder no longer exists.", invalid_name: "Enter a valid folder name.", invalid_folder: "Choose a valid folder.", invalid_revision: "Reload the folders before making changes.", folder_limit: "The workspace folder limit was reached.", workflow_missing: "Choose a workflow in this workspace." };
@@ -92,13 +92,18 @@ export function createFolderTransport(deps: FolderTransportDependencies) {
         throw unavailable();
       }
       if (data.version !== 1) throw unavailable();
+      if (revisionOnly) {
+        if (!Number.isSafeInteger(data.revision) || data.revision < 0 || Object.keys(data).some((key) => !["version", "revision"].includes(key))) throw unavailable();
+        return data.revision;
+      }
       return folderState(data.folders);
     } catch (error) {
       if (error instanceof ViewerError && error.code !== "folders_unavailable") throw error;
       target = undefined;
       throw unavailable();
     }
-  };
+  }
+  return Object.assign((body?: Record<string, unknown>) => request(body) as Promise<FolderState>, { revision: () => request(undefined, true) as Promise<number> });
 }
 const runtime = resolve(process.cwd());
 const configDirectory = process.platform === "win32" ? join(process.env.APPDATA || homedir(), "com.vercel.cli") : process.platform === "darwin" ? join(homedir(), "Library/Application Support/com.vercel.cli") : join(process.env.XDG_DATA_HOME || join(homedir(), ".local/share"), "com.vercel.cli");
