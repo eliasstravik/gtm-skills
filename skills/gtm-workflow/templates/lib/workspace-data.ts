@@ -3,6 +3,7 @@ import { cache } from "./schema/cache";
 import { profileAttempts, profileInputs, profileRuns, profileWork, providerRateLimits } from "./schema/ledger";
 import { profileIdentifiers } from "./schema/profiles";
 import { gtmViewerGrants } from "./schema/viewer-grants";
+import { workflowFolderScopes, workflowFolders, workflowFolderAssignments } from "./schema/workflow-folders";
 import { bigint, boolean, customType, doublePrecision, integer, jsonb, pgSchema, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { DataInputError, readData, type WorkflowData, type DataPage } from "./data-api";
 
@@ -23,8 +24,8 @@ function columnFor(name: string, type: string) {
   return text(name);
 }
 
-// Runtime bookkeeping: the provider cache, the lookup ledger and share grants. People and companies are records.
-const BOOKKEEPING = [cache, profileRuns, profileWork, profileAttempts, profileInputs, providerRateLimits, profileIdentifiers, gtmViewerGrants]
+// Runtime bookkeeping: the provider cache, lookup ledger, share grants and folder organisation. People and companies are records.
+const BOOKKEEPING = [cache, profileRuns, profileWork, profileAttempts, profileInputs, providerRateLimits, profileIdentifiers, gtmViewerGrants, workflowFolderScopes, workflowFolders, workflowFolderAssignments]
   .map((table): string => getTableName(table));
 // Result tables of the template's example workflows.
 const EXAMPLES = ["example_scores", "example_research"];
