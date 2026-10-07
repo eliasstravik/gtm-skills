@@ -105,13 +105,13 @@ function startPulse() {
   for (const name of ["pointerdown", "keydown", "wheel", "touchstart"])
     window.addEventListener(name, (event) => {
       if (!event.isTrusted) return;
-      const button = event.target instanceof Element ? event.target.closest(".runs-pane button") : null;
+      const button = event.target instanceof Element ? event.target.closest("button[data-refresh-op]") : null;
       const activation = event.type === "touchstart" ||
         (event.type === "pointerdown" && (event as PointerEvent).button === 0) ||
         (event.type === "keydown" && ["Enter", " "].includes((event as KeyboardEvent).key));
       // A held press may outlast the wake read. Let Refresh's click read its own target once; wake other views.
-      const refreshOp = activation && button?.textContent?.trim() === "Refresh"
-        ? query().has("workflow") ? "runs" : "workspaceRuns" : undefined;
+      const targetOp = button?.getAttribute("data-refresh-op");
+      const refreshOp = activation && (targetOp === "runs" || targetOp === "workspaceRuns") ? targetOp : undefined;
       awake(false, refreshOp);
     }, { capture: true, passive: true });
   window.addEventListener("focus", () => awake(true));
@@ -265,6 +265,7 @@ export function useRead(op: string, enabled = true, extra?: () => Record<string,
   }, [cause]);
   return {
     ...(state.key === key && enabled ? state : { loading: enabled }),
+    refreshOp: op,
     retry: () => setRetry((n) => n + 1),
   };
 }
