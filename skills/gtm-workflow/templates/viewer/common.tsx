@@ -58,6 +58,8 @@ let pulse: Pulse = {},
   failures = 0,
   lastInput = Date.now();
 const pulseListeners = new Set<() => void>();
+// Reads with their own timers must wake even when the pulse's fingerprints have not changed.
+const wakeListeners = new Set<() => void>();
 function setPulse(next: Pulse) {
   if ((["deployment", "registry", "data", "down"] as const).every((k) => next[k] === pulse[k])) return;
   pulse = next;
@@ -71,7 +73,7 @@ function reloadWhenIdle() {
 }
 async function beat() {
   clearTimeout(pulseTimer);
-  if (beating || document.hidden || Date.now() - lastInput > IDLE_MS) return;
+  if (beating || document.hidden || Date.now() - lastInput >= IDLE_MS) return;
   beating = true;
   try {
     const next = await api("pulse");
@@ -91,15 +93,24 @@ async function beat() {
 }
 function startPulse() {
   started = true;
-  const awake = () => {
-    const idle = Date.now() - lastInput > IDLE_MS;
+  const awake = (shown = false) => {
+    if (document.hidden) return;
+    const idle = Date.now() - lastInput >= IDLE_MS;
     lastInput = Date.now();
-    if (idle) beat();
+    if (idle || shown) {
+      beat();
+      wakeListeners.forEach((fn) => fn());
+    }
   };
   for (const name of ["pointerdown", "keydown", "wheel", "touchstart"])
-    window.addEventListener(name, awake, { capture: true, passive: true });
-  window.addEventListener("focus", beat);
-  document.addEventListener("visibilitychange", beat);
+    window.addEventListener(name, (event) => { if (event.isTrusted) awake(); }, { capture: true, passive: true });
+  window.addEventListener("focus", () => awake(true));
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      clearTimeout(pulseTimer);
+      wakeListeners.forEach((fn) => fn());
+    } else awake(true);
+  });
   beat();
 }
 export function usePulse() {
@@ -157,8 +168,10 @@ export function useRead(op: string, enabled = true, extra?: () => Record<string,
         ? { ...old, loading: false }
         : { key, loading: true },
     );
-    const read = async () => {
-      if (controller.signal.aborted || document.hidden) return;
+    const runsView = op === "runs" || op === "workspaceRuns";
+    const read = async (explicit = false) => {
+      if (controller.signal.aborted || document.hidden ||
+        (runsView && !explicit && Date.now() - lastInput >= IDLE_MS)) return;
       // A change that lands during a read is read once that read is done.
       if (busy) return void (again = true);
       busy = true;
@@ -208,19 +221,25 @@ export function useRead(op: string, enabled = true, extra?: () => Record<string,
       clearTimeout(timer);
       timer = setTimeout(read, op === "data" ? Math.max(0, at + DATA_MS - Date.now()) : 0);
     };
-    // Showing the tab again re-reads only what cannot wait for the pulse: runs, a view that failed, and one that
-    // opened in a hidden tab and never read.
-    const shown = () => {
-      if (!document.hidden && (op === "runs" || op === "workspaceRuns" || failed || !at)) read();
+    // Hidden/idle run timers stop. Waking reads immediately without needing a changed fingerprint, but an
+    // already in-flight read covers the wake too: don't queue a second request for focus + visibility + input.
+    const awake = () => {
+      if (document.hidden) { clearTimeout(timer); return; }
+      if ((runsView || failed || !at) && !busy) {
+        clearTimeout(timer);
+        // Coalesce focus/show/input in one turn; a Refresh click can replace this effect before it fires.
+        timer = setTimeout(read, 0);
+      }
     };
-    read();
-    document.addEventListener("visibilitychange", shown);
+    wakeListeners.add(awake);
+    // Initial loads and a user's manual Refresh remain explicit reads, even after the idle cutoff.
+    read(true);
     return () => {
       controller.abort();
       clearTimeout(timer);
       clearTimeout(expiry);
       reread.current = undefined;
-      document.removeEventListener("visibilitychange", shown);
+      wakeListeners.delete(awake);
     };
   }, [op, enabled, key, retry]);
   useEffect(() => {

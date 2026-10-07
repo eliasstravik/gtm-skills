@@ -1,0 +1,71 @@
+// Bounded browser regression, real React hooks with a fake clock/API. Requires installed agent-browser.
+// node tests/viewer-polling-browser.mjs /path/to/installed/runtime
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { createServer } from "node:http";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+import { randomUUID } from "node:crypto";
+const here = dirname(fileURLToPath(import.meta.url)), runtime = resolve(process.argv[2] ?? join(here, "../templates"));
+const { build } = createRequire(join(runtime, "package.json"))("esbuild");
+const directory = await mkdtemp(join(tmpdir(), "gtm-polling-browser-"));
+const session = `runs-polling-${randomUUID()}`;
+const run = promisify(execFile);
+const browser = (...args) => run("agent-browser", ["--session", session, ...args], { timeout: 30000, maxBuffer: 1024 * 1024 });
+const evalBrowser = async (code) => {
+  const result = await browser("eval", "-b", Buffer.from(`(async () => { const p = window.polling; const check = (ok, message) => { if (!ok) throw new Error(message); }; ${code} })()`).toString("base64"));
+  console.log(result.stdout.trim());
+};
+let server;
+try {
+  await build({ entryPoints: [join(here, "viewer-polling-fixture.tsx")], outfile: join(directory, "fixture.js"), bundle: true, platform: "browser", format: "iife", tsconfigRaw: { compilerOptions: {} }, nodePaths: [join(runtime, "node_modules")], define: { "process.env.NODE_ENV": '"production"' } });
+  const script = await readFile(join(directory, "fixture.js"));
+  server = createServer((req, res) => {
+    res.setHeader("cache-control", "no-store");
+    res.setHeader("content-type", req.url === "/fixture.js" ? "application/javascript" : "text/html");
+    res.end(req.url === "/fixture.js" ? script : '<!doctype html><html lang="en"><title>Isolated polling regression</title><div id="root"></div><script src="/fixture.js"></script></html>');
+  });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  await browser("open", `http://127.0.0.1:${server.address().port}/viewer`);
+  await browser("wait", "--fn", 'document.querySelector("#ready")?.textContent === "ready"');
+  await evalBrowser(`await p.settle(); check(p.calls.workspaceRuns === 1 && p.calls.runs === 1, "one initial read per Runs view");
+    await p.advance(2999); check(p.calls.workspaceRuns === 1, "running waits 3s");
+    await p.advance(1); check(p.calls.workspaceRuns === 2 && p.calls.runs === 2, "both running views poll at 3s");
+    p.running(false); await p.advance(3000); const settled = p.calls.workspaceRuns;
+    await p.advance(14999); check(p.calls.workspaceRuns === settled, "settled waits 15s");
+    await p.advance(1); check(p.calls.workspaceRuns === settled + 1 && p.calls.runs === settled + 1, "both settled views poll at 15s");
+    p.beforeIdle = { ...p.calls }; p.jump(30 * 60000); await p.advance(60000);
+    check(JSON.stringify(p.calls) === JSON.stringify(p.beforeIdle), "no run or pulse requests at/after 30min idle");
+    window.dispatchEvent(new Event("pointerdown")); await p.advance(0);
+    check(p.calls.workspaceRuns === p.beforeIdle.workspaceRuns, "synthetic input cannot keep polling alive");
+    return "PASS initial, active/settled cadence, idle cutoff and synthetic-input guard";`);
+  await browser("click", "#input");
+  await evalBrowser(`await p.advance(0); check(p.calls.workspaceRuns === p.beforeIdle.workspaceRuns + 1 && p.calls.runs === p.beforeIdle.runs + 1, "genuine input resumes both even with unchanged fingerprints");
+    p.beforeHidden = { ...p.calls }; p.visibility(true); await p.advance(60000);
+    check(JSON.stringify(p.calls) === JSON.stringify(p.beforeHidden), "hidden views do not poll");
+    p.visibility(false); p.focus(); p.focus(); await p.advance(0);
+    check(p.calls.workspaceRuns === p.beforeHidden.workspaceRuns + 1 && p.calls.runs === p.beforeHidden.runs + 1, "show/focus coalesce into one read per view");
+    p.hold(true); p.beforeFlight = { ...p.calls }; p.focus(); await p.advance(0);
+    p.focus(); p.visibility(false); await p.advance(0);
+    check(p.calls.workspaceRuns === p.beforeFlight.workspaceRuns + 1 && p.calls.runs === p.beforeFlight.runs + 1, "in-flight wake does not duplicate requests");
+    p.hold(false); await p.release(); await p.advance(0);
+    check(p.calls.workspaceRuns === p.beforeFlight.workspaceRuns + 1, "no queued immediate second read after wake");
+    p.jump(30 * 60000); await p.advance(0); p.beforeRefresh = { ...p.calls };
+    return "PASS genuine input, hidden pause, show/focus resume, in-flight deduplication";`);
+  await browser("click", "#refresh");
+  await evalBrowser(`await p.settle(); await p.advance(0);
+    check(p.calls.workspaceRuns === p.beforeRefresh.workspaceRuns + 1, "manual Refresh after idle makes exactly one workspace request");
+    check(p.calls.runs === p.beforeRefresh.runs + 1, "Refresh input wakes the other Runs view once");
+    p.beforeActiveRefresh = { ...p.calls }; return "PASS explicit Refresh after idle";`);
+  await browser("click", "#refresh");
+  await evalBrowser(`await p.settle(); await p.advance(0);
+    check(p.calls.workspaceRuns === p.beforeActiveRefresh.workspaceRuns + 1 && p.calls.runs === p.beforeActiveRefresh.runs, "active Refresh only rereads its target once");
+    return "PASS active manual Refresh; all bounded polling checks passed";`);
+} finally {
+  await browser("close").catch(() => {});
+  if (server) await new Promise((r) => server.close(r));
+  await rm(directory, { recursive: true, force: true });
+}
