@@ -27,6 +27,13 @@ export function validateParent(folders: Folder[], id: string | null, parentId: s
     seen.add(current);
   }
 }
+/** Pulse reads one integer, independent of folder/assignment count; no tree aggregation or hydration. */
+export async function readFolderRevision(client: Executor, scope: FolderScope): Promise<number> {
+  const { rows } = await client.execute(sql`SELECT coalesce((SELECT revision FROM gtm.workflow_folder_scopes WHERE workspace = ${scope.workspace} AND environment = ${scope.environment}), 0)::int AS revision`);
+  const revision = Number(rows[0]?.revision ?? 0);
+  if (!Number.isSafeInteger(revision) || revision < 0) fail(503, "folders_unavailable", "Folder revision is unavailable.");
+  return revision;
+}
 /** One statement gives a consistent tree, assignments and optimistic revision; never returns partial trees. */
 export async function readFolders(client: Executor, scope: FolderScope): Promise<FolderState> {
   const { rows } = await client.execute(sql`

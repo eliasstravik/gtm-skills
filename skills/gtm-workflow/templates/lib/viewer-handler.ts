@@ -137,7 +137,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
     // The page asks this every few seconds and reads again only what moved. A new deployment reloads the page, for
     // its assets; the registry covers workflows and their diagrams; data covers every table, row and share link.
     if (!shared && operation === "pulse") {
-      const revision = await folderMetadata.read().then((state) => state.revision).catch(() => "unavailable");
+      const revision = await folderMetadata.revision().catch(() => "unavailable");
       return reply({
         deployment: process.env.VERCEL_DEPLOYMENT_ID ?? null,
         registry: `${registryVersion}:${revision}`,
@@ -166,7 +166,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
     if (!shared && !preview && operation === "release")
       return reply({ release: await currentRelease() });
     if (!shared && operation === "list") {
-      const csrf = csrfCookie();
+      const csrf = csrfCookie(req);
       const workflows = registry.map(({ id, slug, title, description }) => ({
         id,
         slug,
@@ -253,7 +253,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         });
       case "meta":
       case "workflow": {
-        const csrf = shared ? undefined : csrfCookie();
+        const csrf = shared ? undefined : csrfCookie(req);
         return reply(
           {
             workflow: publicDisplay(

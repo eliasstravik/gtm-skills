@@ -118,8 +118,16 @@ export function tailnetRequest(req: Request) {
 export function viewerOrigin(req: Request) {
   return tailnetRequest(req)?.origin ?? new URL(req.url).origin;
 }
-export function csrfCookie() {
-  const value = randomBytes(32).toString("base64url");
+/** Exactly one canonical nonce cookie: duplicate/path-ambiguous or malformed cookies never authenticate a mutation. */
+export function csrfNonce(req?: Request): string | undefined {
+  const cookies = (req?.headers.get("cookie") ?? "").split(";").map((cookie) => cookie.trim())
+    .filter((cookie) => cookie.split("=", 1)[0].trim() === "gtm_viewer_csrf");
+  if (cookies.length !== 1 || !/^gtm_viewer_csrf=[A-Za-z0-9_-]{43}$/.test(cookies[0])) return undefined;
+  return cookies[0].slice(16);
+}
+export function csrfCookie(req?: Request) {
+  // List and workflow/meta reads share the owner's browser cookie jar. Do not rotate another tab's valid nonce.
+  const value = csrfNonce(req) ?? randomBytes(32).toString("base64url");
   return {
     value,
     cookie: `gtm_viewer_csrf=${value}; Path=/; SameSite=Strict; HttpOnly${process.env.VERCEL ? "; Secure" : ""}`,
@@ -132,17 +140,12 @@ export async function requireMutation(req: Request) {
     req.headers.get("sec-fetch-site") === "cross-site"
   )
     throw new ViewerError(403, "csrf", "Open sharing from the private viewer.");
-  const cookie =
-    req.headers
-      .get("cookie")
-      ?.split(";")
-      .map((s) => s.trim())
-      .find((s) => s.startsWith("gtm_viewer_csrf="))
-      ?.slice(16) ?? "";
+  const cookie = csrfNonce(req) ?? "";
   const header = req.headers.get("x-gtm-csrf") ?? "";
   if (
     !/^[A-Za-z0-9_-]{43}$/.test(cookie) ||
     header.length !== cookie.length ||
+    !/^[A-Za-z0-9_-]{43}$/.test(header) ||
     !timingSafeEqual(Buffer.from(header), Buffer.from(cookie))
   )
     throw new ViewerError(
