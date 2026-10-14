@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { providerVariable } from "./connections-contract";
 import { insist } from "./connections-access";
 import type { Release } from "./connections-apply";
-import { LOADED_KEYS, fileKeys, keysFingerprint } from "./local-keys.mjs";
+import { LOADED_KEYS, fileKeys, keysFingerprint, reloadableKeys, shellKeyNames } from "./local-keys.mjs";
 
 /**
  * The local Keys page's store, like any Vercel app's: `workflows/.env.local`, plain text, gitignored. The page edits
@@ -73,6 +73,18 @@ export async function changeLocalKey(input: LocalChange) {
 /** Whether this server reloads itself when keys are saved: started by `npm run dev`, which records the keys it loaded. */
 export const reloadsOnSave = (env: Record<string, string | undefined> = process.env) => Boolean(env[LOADED_KEYS]);
 
+/**
+ * Saved keys the server does not use because the shell that started `npm run dev` supplies its own value, which wins
+ * over both files: saving or deleting one changes nothing until the app starts without it.
+ */
+export function shellKeptKeys(env: Record<string, string | undefined> = process.env) {
+  if (!reloadsOnSave(env)) return [];
+  const saved = fileKeys(root());
+  return shellKeyNames(env).filter((name) => saved[name] !== undefined && saved[name] !== env[name]);
+}
+/** Whether a save of this key is overruled by the shell's own value. */
+export const keptByShell = (name: string, env: Record<string, string | undefined> = process.env) => reloadsOnSave(env) && shellKeyNames(env).includes(name);
+
 /** A reload that has not happened by then never will: the badge says so rather than spin. */
 const RELOAD_MS = 60000;
 let behindSince: number | undefined;
@@ -83,7 +95,7 @@ let behindSince: number | undefined;
 export function localRelease(env: Record<string, string | undefined> = process.env, now = Date.now()): Release | null {
   if (!reloadsOnSave(env)) return null;
   let saved: string;
-  try { saved = keysFingerprint(fileKeys(root())); } catch { return null; }
+  try { saved = keysFingerprint(reloadableKeys(root(), shellKeyNames(env))); } catch { return null; }
   if (saved === env[LOADED_KEYS]) { behindSince = undefined; return { state: "live" }; }
   behindSince ??= now;
   return { state: now - behindSince < RELOAD_MS ? "updating" : "failed", since: behindSince };

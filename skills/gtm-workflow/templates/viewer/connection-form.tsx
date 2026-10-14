@@ -10,7 +10,7 @@ export default function ConnectionForm({ variable, provider, close, saved }: {
   variable: string;
   provider?: string;
   close: () => void;
-  saved: () => void;
+  saved: (result: any) => void;
 }) {
   const [inventory, setInventory] = useState<any>(null),
     [error, setError] = useState("");
@@ -42,5 +42,5 @@ export default function ConnectionForm({ variable, provider, close, saved }: {
   const selection = field && field.state !== "disconnected"
     ? { action: "replace", row, field }
     : { action: "add", preset: variable, presetLabel: provider };
-  return <EntryForm selection={selection} inventory={inventory} close={close} updated={() => saved()} />;
+  return <EntryForm selection={selection} inventory={inventory} close={close} updated={(result) => saved(result)} />;
 }

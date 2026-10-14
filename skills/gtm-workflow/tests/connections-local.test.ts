@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { editEnv, localKeyNames, localRelease, savedKeyNames } from "../templates/lib/connections-local";
-import { fileKeys, keysFingerprint } from "../templates/lib/local-keys.mjs";
+import { fileKeys, keysFingerprint, reloadableKeys } from "../templates/lib/local-keys.mjs";
 import { connectionsManagement } from "../templates/lib/connections-management";
 import { apiAccess } from "../templates/lib/route-access";
 import { privateAccess, requireMutation } from "../templates/lib/viewer-access";
@@ -86,6 +86,26 @@ test("under npm run dev a save reloads the server, and the release status says u
   process.env.GTM_LOCAL_KEYS = keysFingerprint({ APOLLO_API_KEY: "local", BLITZ_API_KEY: "sk-2" });
   assert.deepEqual(localRelease(), { state: "live" });
   assert.notEqual(process.env.GTM_LOCAL_KEYS, keysFingerprint({ APOLLO_API_KEY: "local", BLITZ_API_KEY: "sk-3" }));
+}));
+
+test("a key the shell that started npm run dev supplies: a save is kept, never reported as in use", () => inFolder(async (dir) => {
+  await writeFile(join(dir, ".env.local"), "APOLLO_API_KEY=local\n");
+  // The launcher's shell had MONID_API_KEY; the server runs with the shell's value, whatever the files say.
+  process.env.MONID_API_KEY = "sk-shell";
+  process.env.GTM_LOCAL_SHELL_KEYS = "MONID_API_KEY";
+  process.env.GTM_LOCAL_KEYS = keysFingerprint(reloadableKeys(dir, ["MONID_API_KEY"]));
+  assert.deepEqual(localRelease(), { state: "live" });
+  const saved = await connectionsManagement(page("POST", {}, { action: "add", variable: "MONID_API_KEY", value: "sk-saved" }), []);
+  // No reload is promised and none is pending: the badge never says the saved key is ready.
+  assert.deepEqual(await saved.json(), { saved: true, store: "file", shellKeeps: "MONID_API_KEY" });
+  assert.deepEqual(localRelease(), { state: "live" });
+  const list = await (await connectionsManagement(page(), [])).json();
+  assert.equal(list.connections.find((row: { id: string }) => row.id === "MONID_API_KEY").status, "Not in use: the workflows app was started with a different key");
+  assert.equal(list.connections.find((row: { id: string }) => row.id === "APOLLO_API_KEY").status, "Saved");
+  // Another key still reloads as usual.
+  const other = await connectionsManagement(page("POST", {}, { action: "add", variable: "BLITZ_API_KEY", value: "sk-b" }), []);
+  assert.deepEqual(await other.json(), { saved: true, store: "file", reloading: true });
+  assert.equal(localRelease()?.state, "updating");
 }));
 
 test("another site, another host or a script without the page's origin cannot change keys", () => inFolder(async (dir) => {

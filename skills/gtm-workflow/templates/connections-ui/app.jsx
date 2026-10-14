@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ArrowPathIcon, EllipsisHorizontalIcon, XCircleIcon } from "@heroicons/react/16/solid";
 import { initialize, request, localMode } from "./transport.mjs";
-import { EntryForm, message } from "./entry-form.jsx";
+import { EntryForm, message, shellKeptMessage } from "./entry-form.jsx";
 import { EnvironmentBadge } from "../viewer/environment";
 import { releaseStarted, useReleaseLive } from "../viewer/release";
 import "@fontsource-variable/geist/index.css";
@@ -18,6 +18,8 @@ function App() {
   const [pendingApply, setPendingApply] = useState(readPending), [retrying, setRetrying] = useState(false);
   // Local only, and only under a bare `nitro dev`: a saved change takes a restart. `npm run dev` reloads by itself.
   const [restart, setRestart] = useState(false);
+  // Local only: a key the shell that started `npm run dev` supplies; a save cannot replace it while the app runs.
+  const [shellKept, setShellKept] = useState("");
   useEffect(() => { document.documentElement.dataset.environment = localMode ? "local" : "production"; }, []);
   function rememberApply(value) {
     setPendingApply(value);
@@ -34,6 +36,7 @@ function App() {
   const applying = application?.state === "applying";
   async function updated(result, id) {
     if (result.restartRequired) setRestart(true);
+    setShellKept(result.shellKeeps ?? "");
     if (id) rememberApply({ id, state: "pending" });
     if (result.application) setInventory((current) => current ? { ...current, application: result.application } : current);
     try { await refresh(); } catch { setError("vercel_unavailable"); }
@@ -133,6 +136,7 @@ function App() {
       {localMode ? <p className="muted connection-store">{inventory.linked
         ? "Saved in workflows/.env.local on this computer only. `vercel env pull` replaces this file with the project's Development variables."
         : "Saved in workflows/.env.local on this computer."} {inventory.reloads ? "Your workflows start using a change a few seconds after you save it." : "Your workflows start using a change the next time the workflows app starts."}</p> : null}
+      {shellKept ? <div className="notice" role="status"><p>{shellKeptMessage(shellKept)}</p></div> : null}
       {restart ? <div className="notice" role="status"><p>Saved. Your workflows can use it once the workflows app restarts. Ask your agent to restart it.</p></div> : null}
       {selection ? <EntryForm key={`${selection.action}-${selection.field?.variable ?? selection.preset ?? "new"}`} selection={selection} inventory={inventory} close={closeEntry} updated={updated} beginApply={beginApply} failedApply={failedApply} /> : null}
     </> : null}

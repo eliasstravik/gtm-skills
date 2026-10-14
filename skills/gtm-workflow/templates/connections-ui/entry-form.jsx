@@ -31,6 +31,8 @@ const messages = {
   csrf_denied: "Refresh this page and try again.",
   vercel_request_denied: "Vercel refused the change. Check `vercel login` and that you can edit this project, then save again.",
 };
+/** Plain words for a save the shell's own key overrules (lib/connections-local.ts), shared with a workflow's Connections tab. */
+export const shellKeptMessage = (variable) => `Saved, but your workflows keep using the ${variable} this computer gave the workflows app when it started. Ask your agent to stop setting ${variable} when it starts the workflows app, then restart it.`;
 export const message = (code) => messages[code] ?? "Connections could not complete this request. Refresh or run Connections Doctor.";
 export function EntryForm({ selection, inventory, close, updated, beginApply = () => {}, failedApply = () => {} }) {
   const localMode = inventory.mode === "local";

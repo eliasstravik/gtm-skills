@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
 import { removeStudioShare } from "./studio-share.mjs";
 import { LocalDatabaseError, databaseEnvironment, ensureLocalDatabase, isProductionDatabase } from "./local-database.mjs";
-import { LOADED_KEYS, fileKeys, keysFingerprint } from "../lib/local-keys.mjs";
+import { LOADED_KEYS, SHELL_KEYS, keysFingerprint, providerVariable, reloadableKeys } from "../lib/local-keys.mjs";
 
 const cwd = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -65,8 +65,11 @@ export async function launch(options = {}) {
     if (!Number.isInteger(port) || port <= 0 || port > 65535) throw new LocalDatabaseError("Set GTM_RUNTIME_PORT to a port number");
     // The local queue's 15-minute transport timeout, and runs left in flight by a stop resume at the next start.
     Object.assign(runtime, { WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS: "900000", WORKFLOW_LOCAL_BODY_TIMEOUT_MS: "900000", WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS: "true" });
-    let keys = fileKeys(cwd);
+    // A key the shell supplies wins over both files, as at start: a reload never changes it, and the Keys page says so.
+    const pinned = Object.keys(shell).filter((name) => providerVariable(name)).sort();
+    let keys = reloadableKeys(cwd, pinned);
     runtime[LOADED_KEYS] = keysFingerprint(keys);
+    runtime[SHELL_KEYS] = pinned.join(",");
     for (const name of Object.keys(process.env)) delete process.env[name];
     Object.assign(process.env, runtime);
     const server = await (options.serve ?? nitroServer)({ cwd, port });
@@ -74,11 +77,10 @@ export async function launch(options = {}) {
     const watcher = watchKeys(cwd, () => {
       let next;
       // A file mid-edit by hand is read again at its next change.
-      try { next = fileKeys(cwd); } catch { return; }
+      try { next = reloadableKeys(cwd, pinned); } catch { return; }
       const fingerprint = keysFingerprint(next);
       if (fingerprint === process.env[LOADED_KEYS]) return;
       for (const name of new Set([...Object.keys(keys), ...Object.keys(next)])) {
-        if (name in shell) continue;
         if (name in next) process.env[name] = next[name];
         else delete process.env[name];
       }
@@ -100,7 +102,8 @@ export async function launch(options = {}) {
 /**
  * A saved key is used without a restart, as a production save redeploys: when `.env` or `.env.local` changes (the Keys
  * page, an agent, `vercel env pull`), the launcher takes the new keys into its own environment and starts a fresh
- * server worker from it, the way a saved code file does. The shell still wins; settings other than keys (the
+ * server worker from it, the way a saved code file does. A key the shell supplies still wins (`GTM_LOCAL_SHELL_KEYS` names
+ * them for the Keys page, which says a saved one is not in use); settings other than keys (the
  * database, the port, tailnet mode) still take a restart. Runs in flight resume on the new worker.
  */
 function watchKeys(dir, changed) {

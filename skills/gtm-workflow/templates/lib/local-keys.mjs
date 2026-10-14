@@ -31,6 +31,17 @@ export function fileKeys(dir) {
   return keys;
 }
 
+/** Set by the launcher to the names (never values) of the keys its shell supplied: those win over both files, always. */
+export const SHELL_KEYS = "GTM_LOCAL_SHELL_KEYS";
+export const shellKeyNames = (env) => (env[SHELL_KEYS] ?? "").split(",").filter(Boolean);
+
+/** The saved keys a reload can put in use: a key the shell supplies keeps the shell's value, at start and after. */
+export function reloadableKeys(dir, shellNames) {
+  const keys = fileKeys(dir);
+  for (const name of shellNames) delete keys[name];
+  return keys;
+}
+
 /** A one-way summary of keys and values, so the server can tell whether it runs with what is saved without holding a copy. */
 export function keysFingerprint(keys) {
   const hash = createHash("sha256");

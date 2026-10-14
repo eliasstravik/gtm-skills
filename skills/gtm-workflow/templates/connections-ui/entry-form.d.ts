@@ -8,3 +8,4 @@ export const EntryForm: ComponentType<{
   failedApply?: (id: string, failure: Error) => void;
 }>;
 export const message: (code: string) => string;
+export const shellKeptMessage: (variable: string) => string;

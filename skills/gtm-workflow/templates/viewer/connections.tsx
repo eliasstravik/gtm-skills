@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useRef, useState } from "react";
 import { CheckCircleIcon, ClockIcon, XCircleIcon } from "@heroicons/react/16/solid";
 import { State, useRead } from "./common";
 import { useReleaseLive } from "./release";
+import { shellKeptMessage } from "../connections-ui/entry-form.jsx";
 import "../connections-ui/style.css";
 const ConnectionForm = lazy(() => import("./connection-form"));
 
@@ -19,6 +20,8 @@ export default function Connections({ environment }: { environment?: string }) {
   // Locally a saved key is in use once the server has reloaded with it: read again then, so Saved turns Set.
   useReleaseLive(() => state.retry());
   const [adding, setAdding] = useState<Connection | null>(null);
+  // A key the shell that started `npm run dev` supplies: the save is kept, but that value stays in use.
+  const [kept, setKept] = useState("");
   const trigger = useRef<HTMLElement | null>(null);
   const label = (c: Connection) =>
     c.state === "set" ? "Set"
@@ -64,6 +67,7 @@ export default function Connections({ environment }: { environment?: string }) {
           {missing > 0 && !data.canSet && !data.vercelUrl && (
             <p className="muted connections-hint">Add missing keys in the project's environment variables on Vercel.</p>
           )}
+          {kept && <p className="notice" role="status">{shellKeptMessage(kept)}</p>}
           {!data.declared && (
             <p className="notice">Ask your agent to declare this workflow's connections, then they show here with whether each is set.</p>
           )}
@@ -108,7 +112,10 @@ export default function Connections({ environment }: { environment?: string }) {
                 variable={adding.variable}
                 provider={adding.provider}
                 close={close}
-                saved={() => state.retry()}
+                saved={(result) => {
+                  setKept(result?.shellKeeps ?? "");
+                  state.retry();
+                }}
               />
             </Suspense>
           )}
