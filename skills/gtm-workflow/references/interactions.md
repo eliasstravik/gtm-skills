@@ -282,6 +282,23 @@ Upgraded the runtime; the Workflows page now shows the two groups with each work
 - changed `workflows/package.json`
 - changed `workflows/package-lock.json`
 
+## Upgrade to nested pipelines
+
+**Setup:** Workspace Acme's runtime is 0.2.7. Its `groups.ts` has LinkedIn social (Monitor LinkedIn posts, Discover LinkedIn posts, Enrich LinkedIn interactors), and Monitor LinkedIn posts starts the other two; 0.2.8 is installed.
+
+**Human:** Upgrade the workflow runtime.
+
+**Agent:** Updating the runtime. Stages now show under the workflow that starts them, so Discover LinkedIn posts and Enrich LinkedIn interactors leave the LinkedIn social list and appear under Monitor LinkedIn posts. Workflows, runs, data and links stay unchanged.
+
+Upgraded the runtime; LinkedIn social now shows Monitor LinkedIn posts with its 2 stages.
+
+**Files:**
+
+- changed `workflows/workflows/groups.ts`
+- changed `workflows/viewer/workspace.tsx`
+- changed `workflows/package.json`
+- changed `workflows/package-lock.json`
+
 ## Regroup
 
 **Setup:** Workspace Acme has groups Outbound (Score inbound accounts, Enrich EMEA leads) and Inbound (Cal.com booking enrichment).

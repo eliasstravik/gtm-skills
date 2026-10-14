@@ -166,6 +166,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         title: entry.title,
         description: entry.description,
         trigger: entry.trigger ?? {},
+        ...(entry.parent ? { parent: entry.parent } : {}),
         tables: workflowTables(entry),
         providers: [...new Set((entry.connections ?? []).flatMap((c) => (c.provider ? [c.provider] : [])))],
       }));
@@ -265,6 +266,14 @@ export async function viewerApi(req: Request, shared = false, service = false) {
             // The workspace's organisation is the owner's: a share link never learns it.
             ...(!recipient && groupOf(entry.id)
               ? { group: { id: groupOf(entry.id)!.id, name: groupOf(entry.id)!.name } }
+              : {}),
+            // How it starts, with its starters by title, for the owner's Diagram: the Workflows list shows only names.
+            ...(!recipient
+              ? { trigger: { ...entry.trigger, ...(entry.trigger?.startedBy ? { startedBy: entry.trigger.startedBy.map((slug) => registry.find((e) => e.slug === slug)?.title ?? slug) } : {}) } }
+              : {}),
+            // A stage's breadcrumb names the pipeline that starts it.
+            ...(!recipient && entry.parent && registry.some((e) => e.id === entry.parent)
+              ? { parent: { id: entry.parent, title: registry.find((e) => e.id === entry.parent)!.title } }
               : {}),
             views: preview ?? grant?.views ?? ["logic", "runs", "data"],
             environment: deploymentScope().environment,

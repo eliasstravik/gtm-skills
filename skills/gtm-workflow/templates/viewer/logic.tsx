@@ -10,6 +10,7 @@ import {
   EdgeLabelRenderer,
 } from "@xyflow/react";
 import dagre from "@dagrejs/dagre";
+import { startsText } from "./groups";
 import "@xyflow/react/dist/style.css";
 import type { BusinessGraph } from "../lib/viewer-contract";
 function BusinessNode({ data }: any) {
@@ -51,7 +52,7 @@ function BusinessEdge({ id, data, label, markerEnd }: any) {
 const edgeTypes = { business: BusinessEdge };
 /** The whole diagram fits the canvas when it opens, never larger than life size. */
 const fit = { padding: 0.12, minZoom: 0.25, maxZoom: 1 };
-export default function Logic({ workflow, destinations }: any) {
+export default function Logic({ workflow, destinations, trigger }: any) {
   const graph: BusinessGraph | undefined = workflow.businessGraph;
   const [selected, setSelected] = useState<string | null>(null),
     [message, setMessage] = useState("");
@@ -96,9 +97,12 @@ export default function Logic({ workflow, destinations }: any) {
     <section className="diagram-pane" aria-label="Diagram">
       {(workflow.description || destinations?.source) && (
         <div className="diagram-summary">
-          {workflow.description && (
-            <p className="diagram-description">{workflow.description}</p>
-          )}
+          <div className="diagram-text">
+            {workflow.description && (
+              <p className="diagram-description">{workflow.description}</p>
+            )}
+            {trigger && <p className="diagram-trigger">Starts: {startsText(trigger)}</p>}
+          </div>
           <div className="diagram-actions">
             {destinations?.source?.url ? (
               <a
