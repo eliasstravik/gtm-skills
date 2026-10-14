@@ -46,7 +46,7 @@ export async function applyConnections(api: Api, projectId: string, id: string, 
     return { id, state: "failed" };
   }
 }
-export type Release = { state: "updating" | "live" | "failed"; since?: number; details?: string };
+export type Release = { state: "updating" | "live" | "failed"; since?: number; details?: string; change?: string };
 /** A new build that is ready but not yet serving is still going live, for about this long. */
 const PROMOTION_MS = 2 * 60000;
 /**
@@ -54,20 +54,41 @@ const PROMOTION_MS = 2 * 60000;
  * production build counts: a saved key, a push, a redeploy from Vercel. A canceled build is no change; a failed one
  * newer than what serves means the change never went live. Only the state, a time and Vercel's own page for the
  * build leave this function.
+ *
+ * `change` is the id a Keys page save gave its build (`meta.gtmConnectionsChange`, see applyConnections). Asked about
+ * one, the answer is about that build, never an older one's result: "updating" until Vercel lists it (it was accepted,
+ * so it is on its way, however long that takes), then its own outcome. A newer build since then decides instead, as
+ * for any change. Every such answer names the change, so a page knows it is about its own save.
  */
-export async function releaseStatus(api: Api, projectId: string, origin: string, now = Date.now()): Promise<Release> {
+export async function releaseStatus(api: Api, projectId: string, origin: string, now = Date.now(), change?: string): Promise<Release> {
   const [result, alias] = await Promise.all([
-    api("GET", `/v6/deployments?projectId=${encodeURIComponent(projectId)}&target=production&limit=5`),
+    api("GET", `/v6/deployments?projectId=${encodeURIComponent(projectId)}&target=production&limit=${change ? 20 : 5}`),
     api("GET", `/v4/aliases/${encodeURIComponent(new URL(origin).hostname)}`),
   ]);
   insist(Array.isArray(result.deployments) && alias.projectId === projectId && typeof alias.deployment?.id === "string", "application_unavailable", 503);
-  const latest = result.deployments.find((d: any) => d?.state !== "CANCELED");
-  if (!latest || latest.uid === alias.deployment.id) return { state: "live" };
-  const since = typeof latest.created === "number" ? latest.created : undefined;
-  const details = typeof latest.inspectorUrl === "string" && latest.inspectorUrl.startsWith("https://vercel.com/") ? latest.inspectorUrl : undefined;
-  if (pending.has(latest.state) || (latest.state === "READY" && now - (latest.ready ?? since ?? 0) < PROMOTION_MS))
-    return { state: "updating", ...(since ? { since } : {}) };
-  // The list is newest first, so a failed build here is newer than the one serving: that change never went live.
-  if (latest.state === "ERROR") return { state: "failed", ...(since ? { since } : {}), ...(details ? { details } : {}) };
-  return { state: "live" };
+  const deployments: any[] = result.deployments, serving = alias.deployment.id;
+  const facts = (build: any) => {
+    const since = typeof build.created === "number" ? build.created : undefined;
+    const details = typeof build.inspectorUrl === "string" && build.inspectorUrl.startsWith("https://vercel.com/") ? build.inspectorUrl : undefined;
+    return { since, details, going: pending.has(build.state) || (build.state === "READY" && now - (build.ready ?? since ?? 0) < PROMOTION_MS) };
+  };
+  const newest = (): Release => {
+    const latest = deployments.find((d) => d?.state !== "CANCELED");
+    if (!latest || latest.uid === serving) return { state: "live" };
+    const { since, details, going } = facts(latest);
+    if (going) return { state: "updating", ...(since ? { since } : {}) };
+    // The list is newest first, so a failed build here is newer than the one serving: that change never went live.
+    if (latest.state === "ERROR") return { state: "failed", ...(since ? { since } : {}), ...(details ? { details } : {}) };
+    return { state: "live" };
+  };
+  if (!change) return newest();
+  const index = deployments.findIndex((d) => d?.meta?.gtmConnectionsChange === change);
+  if (index < 0) return { state: "updating", change };
+  if (deployments.slice(0, index).some((d) => d?.state !== "CANCELED")) return { ...newest(), change };
+  const mine = deployments[index], { since, details, going } = facts(mine);
+  if (mine.uid === serving) return { state: "live", change };
+  if (going) return { state: "updating", change, ...(since ? { since } : {}) };
+  if (["ERROR", "CANCELED"].includes(mine.state)) return { state: "failed", change, ...(since ? { since } : {}), ...(details ? { details } : {}) };
+  // Built long ago and not serving (rolled back, say): what serves decides.
+  return { ...newest(), change };
 }

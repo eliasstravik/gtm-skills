@@ -58,13 +58,16 @@ const registryVersion = fingerprint([registry, groups]);
  * Production only, and only where the Keys page may talk to Vercel: whether the newest change is live yet. Every open
  * tab asks, so one answer serves this instance for a few seconds.
  */
-let release: { at: number; value: Promise<Release | null> } | undefined;
-function currentRelease() {
-  if (release && Date.now() - release.at < 4000) return release.value;
+const releases = new Map<string, { at: number; value: Promise<Release | null> }>();
+/** `change`: the build a Keys page save started, when the page asks about its own save (lib/connections-apply.ts). */
+function currentRelease(change?: string) {
+  const key = change ?? "", cached = releases.get(key);
+  if (cached && Date.now() - cached.at < 4000) return cached.value;
   let config: ReturnType<typeof connectionConfiguration>;
   try { config = connectionConfiguration(); } catch { return Promise.resolve(null); }
-  const value = releaseStatus(connectionsVercel(config), config.projectId, config.origin).catch(() => null);
-  release = { at: Date.now(), value };
+  const value = releaseStatus(connectionsVercel(config), config.projectId, config.origin, Date.now(), change).catch(() => null);
+  for (const [other, entry] of releases) if (Date.now() - entry.at >= 4000) releases.delete(other);
+  releases.set(key, { at: Date.now(), value });
   return value;
 }
 export async function viewerApi(req: Request, shared = false, service = false) {
@@ -156,8 +159,10 @@ export async function viewerApi(req: Request, shared = false, service = false) {
         throw new ViewerError(503, "studio_unavailable", (error as Error).message);
       }
     }
-    if (!shared && !preview && operation === "release")
-      return reply({ release: process.env.VERCEL ? await currentRelease() : localRelease() });
+    if (!shared && !preview && operation === "release") {
+      const change = url.searchParams.get("change") ?? "";
+      return reply({ release: process.env.VERCEL ? await currentRelease(/^[a-f0-9-]{36}$/.test(change) ? change : undefined) : localRelease() });
+    }
     if (!shared && operation === "list") {
       const csrf = csrfCookie(req);
       // Everything here comes from the build: no run history, no database read. Last runs are `summary`.

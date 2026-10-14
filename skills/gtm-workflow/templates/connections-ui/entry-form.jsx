@@ -67,7 +67,7 @@ export function EntryForm({ selection, inventory, close, updated, beginApply = (
     try {
       const result = await request("/api/connections", body);
       // Production rebuilds, or the local server reloads: every status badge turns amber now, not at its next check.
-      if (result.application?.state === "applying" || result.reloading) releaseStarted();
+      if (result.application?.state === "applying" || result.reloading) releaseStarted(result.application?.id);
       form.current?.reset(); updated(result, applies ? body.id : null); close();
     }
     catch (failure) { if (applies) failedApply(body.id, failure); setError(message(failure.message)); }

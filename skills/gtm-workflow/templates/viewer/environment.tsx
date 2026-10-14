@@ -9,8 +9,9 @@ const names: Record<string, string> = { local: "Local", production: "Production"
  */
 export function EnvironmentBadge({ environment, override }: { environment?: string; override?: "updating" | "failed" }) {
   const watched = useRelease(environment);
-  // A failed build's own answer keeps its Details link, and a build still going live is not failed yet.
-  const release = override && watched?.state !== "failed" && !(override === "failed" && watched?.state === "updating")
+  // The Keys page's own update in progress wins over anything older. A failed build's own answer keeps its Details
+  // link, and a build still going live is not failed yet.
+  const release = override === "updating" || (override === "failed" && !["failed", "updating"].includes(watched?.state ?? ""))
     ? { state: override, justLive: false, details: undefined }
     : watched;
   useEffect(() => {

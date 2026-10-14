@@ -42,10 +42,10 @@ try {
   assert.equal(evaluate("window.__keys.release.state"), "live", "before any check could have seen the build");
   shot("2-production-right-after-save");
   // Building, then serving: green again, saying so for a few seconds.
-  evaluate('window.__keys.release = { state: "updating" }; 1');
+  evaluate('window.__keys.build = { state: "updating" }; 1');
   command("wait", "6000");
   assert.equal(badge()[0], "updating");
-  evaluate('window.__keys.release = { state: "live" }; window.__keys.application = { ...window.__keys.application, state: "applied" }; localStorage.setItem("gtm-viewer-release-started", String(Date.now() - 60000)); document.dispatchEvent(new Event("visibilitychange")); 1');
+  evaluate('window.__keys.build = { state: "live" }; window.__keys.release = { state: "live" }; window.__keys.application = { ...window.__keys.application, state: "applied" }; document.dispatchEvent(new Event("visibilitychange")); 1');
   waitBadge("live");
   assert.deepEqual(badge(), ["live", "Production · Your change is live", green]);
   shot("3-production-live");
@@ -55,22 +55,45 @@ try {
   // A build that failed: red, with Vercel's page for it, and Retry.
   await add("BLITZ_API_KEY", "Blitz");
   waitBadge("updating", 2000);
-  evaluate('window.__keys.release = { state: "failed", details: "https://vercel.com/acme/workflows/build" }; window.__keys.application = { ...window.__keys.application, state: "failed" }; localStorage.setItem("gtm-viewer-release-started", String(Date.now() - 60000)); document.dispatchEvent(new Event("visibilitychange")); 1');
+  evaluate('window.__keys.build = window.__keys.release = { state: "failed", details: "https://vercel.com/acme/workflows/build" }; window.__keys.application = { ...window.__keys.application, state: "failed" }; document.dispatchEvent(new Event("visibilitychange")); 1');
   waitBadge("failed");
   assert.deepEqual(badge(), ["failed", "Production · Update failedDetails", red]);
   command("wait", "--text", "Couldn’t apply changes");
   shot("4-production-failed");
+  // A new save after that failure: the old build's failure is not this update's, amber until its own build says.
+  await add("SECOND_API_KEY", "Second");
+  waitBadge("updating", 2000);
+  command("wait", "7000");
+  assert.deepEqual(badge(), ["updating", "Production · Updating…live in about a minute", amber], "an older failed build never marks a new save failed");
+  assert.equal(evaluate('document.querySelectorAll(".environment-badge a").length'), 0);
+  evaluate('window.__keys.build = { state: "live" }; window.__keys.release = { state: "live" }; window.__keys.application = { ...window.__keys.application, state: "applied" }; document.dispatchEvent(new Event("visibilitychange")); 1');
+  waitBadge("live");
 
-  // Saved here, then straight to Workflows, Runs and Data: each badge is amber before its first check answers.
+  // Saved here, then Workflows, Runs and Data, while Vercel has not listed the build even half a minute later: each
+  // badge stays amber, never green on the older build that still serves.
   evaluate('window.__keys.release = { state: "live" }; window.__keys.application = { state: "idle" }; localStorage.removeItem("gtm-connections-application"); 1');
   await add("MONID_API_KEY", "Monid");
   waitBadge("updating", 2000);
+  evaluate('(s => localStorage.setItem("gtm-viewer-release-started", JSON.stringify({ ...s, at: Date.now() - 30000 })))(JSON.parse(localStorage.getItem("gtm-viewer-release-started"))); 1');
   for (const [path, text] of [["/viewer", "Enrich network"], ["/viewer?view=runs", "wrun_"], ["/viewer?view=data", "matching record"]]) {
     command("open", `http://127.0.0.1:3942${path}`);
     command("wait", "--text", text);
+    command("wait", "6000");
     assert.deepEqual(badge(), ["updating", "Production · Updating…live in about a minute", amber], path);
   }
   shot("5-production-workflows-right-after-save");
+  // Answers that are not about this save, the older build still serving or an older failure, never end it either.
+  const answer = (release) => evaluate(`(() => { const f = window.__fetch ??= window.fetch; window.fetch = (u, o) => String(u).includes("op=release") ? Promise.resolve(new Response(JSON.stringify({ version: 3, release: ${release} }), { headers: { "content-type": "application/json" } })) : f(u, o); document.dispatchEvent(new Event("visibilitychange")); return 1; })()`);
+  for (const release of ['{ state: "live" }', '{ state: "failed", details: "https://vercel.com/acme/workflows/old-build" }']) {
+    answer(release);
+    command("wait", "1500");
+    assert.deepEqual(badge(), ["updating", "Production · Updating…live in about a minute", amber], release);
+  }
+  // Its own build is live: green, on this page too.
+  evaluate('window.__changeId = JSON.parse(localStorage.getItem("gtm-viewer-release-started")).change; 1');
+  answer('{ state: "live", change: window.__changeId }');
+  waitBadge("live");
+  assert.equal(evaluate('localStorage.getItem("gtm-viewer-release-started")'), null, "settled once its build is live");
 
   // Local: the server reloads with the saved key in a few seconds, no restart, and the badge follows it.
   command("open", "http://127.0.0.1:3944/connections");

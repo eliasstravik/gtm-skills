@@ -45,7 +45,7 @@ function App() {
     setRetrying(true); setError("");
     const id = pendingApply?.id ?? application?.id ?? crypto.randomUUID();
     beginApply(id);
-    try { const result = await request("/api/connections", { action: "apply", id }); if (result.application?.state === "applying") releaseStarted(); await updated(result, id); }
+    try { const result = await request("/api/connections", { action: "apply", id }); if (result.application?.state === "applying") releaseStarted(result.application.id ?? id); await updated(result, id); }
     catch (failure) { rememberApply({ id, state: "pending" }); setError(failure.message); }
     finally { setRetrying(false); }
   }
