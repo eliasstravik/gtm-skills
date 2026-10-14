@@ -1,7 +1,7 @@
 // A realistic workspace for the Workflows page, modelled on a production one: twelve workflows, one six-workflow
 // LinkedIn pipeline whose monitor starts five stages, two webhooks with a stage, a weekly schedule, a failure, a run in
 // progress, a workflow never run and one in no group. GTM_VIEWER_FIXTURE_SHOWCASE=1 swaps it in for the default
-// fixture; the browser check and the design screenshots read it.
+// fixture, for design screenshots and trying the page by hand.
 import { pgTable, text } from "drizzle-orm/pg-core";
 import registry, { entry, fixtureRuns, run, tables } from "./api-fixture";
 import { fixtureGroups } from "./groups-fixture";
