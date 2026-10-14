@@ -20,35 +20,62 @@ try {
   command("open", "http://127.0.0.1:3942/viewer");
   command("wait", "--text", "Connections");
   assert.deepEqual(evaluate('[...document.querySelectorAll(".root-navigation a")].map(a=>a.textContent)'), ["Workflows", "Runs", "Data", "Connections"]);
-  // Groups from groups.ts in file order, then Other; each row says how it starts and how its last run went.
-  command("wait", "--fn", 'document.querySelectorAll(".last-run").length > 3');
-  assert.deepEqual(evaluate('[...document.querySelectorAll(".group-header h2")].map(h=>h.textContent.replace("›","").trim())'), ["Network", "Market research", "Other"]);
-  const markets = '[...document.querySelectorAll(".workflow-group")].find(s=>s.getAttribute("aria-label")==="Market research")';
-  assert.equal(evaluate(`${markets}.querySelectorAll(".workflow-row").length`), 3, "a group shows its first three workflows");
-  assert.equal(evaluate(`${markets}.querySelector(".more").textContent`), "+ 3 more");
-  assert.equal(evaluate(`${markets}.querySelector(".workflow-row .status").textContent`), "failed", "failing first in the preview");
-  assert.ok(evaluate('document.body.textContent.includes("Daily 07:00 UTC") && document.body.textContent.includes("Stage of Research market 01") && document.body.textContent.includes("Webhook")'));
-  // Each row names the tables its workflow reads or writes.
-  const network = '[...document.querySelectorAll(".workflow-row")].find(r=>r.querySelector("h3").textContent==="Enrich network")';
-  assert.deepEqual(evaluate(`[...${network}.querySelectorAll(".table-name")].map(t=>t.textContent)`), ["fixture_people", "fixture_companies"]);
-  command("click", '.chips button:nth-child(3)');
+  command("eval", "localStorage.clear()");
+  command("open", "http://127.0.0.1:3942/viewer");
+  // Groups from groups.ts in file order, then Ungrouped: one line per workflow with how it starts, its recent runs and
+  // its last run, and no table names.
+  command("wait", "--fn", 'document.querySelectorAll(".wf-history").length > 3');
+  assert.deepEqual(evaluate('[...document.querySelectorAll(".wf-group-name")].map(h=>h.textContent)'), ["Network", "Market research", "Ungrouped"]);
+  const markets = '.wf-group[aria-label="Market research"]';
+  const titles = (scope = "") => evaluate(`[...document.querySelectorAll('${scope} .wf-link')].map(a=>a.textContent)`);
+  // A pipeline starts closed: its stage is hidden under it, and the header still counts all six.
+  assert.deepEqual(titles(markets), ["Research market 01", "Research market 02", "Research market 04", "Research market 05", "Research market 06"]);
+  assert.equal(evaluate(`document.querySelector('${markets} .wf-count').textContent`), "6");
+  assert.equal(evaluate(`document.querySelector('${markets} .wf-group-state').textContent`), "2 failing");
+  assert.equal(evaluate(`document.querySelector('${markets} .wf-row .wf-stages').textContent`), "1 stage · 1 running", "a closed pipeline shows its stages' state");
+  assert.ok(evaluate('document.body.textContent.includes("Daily 07:00 UTC") && document.body.textContent.includes("Webhook")'));
+  assert.equal(evaluate('document.querySelectorAll(".table-name").length'), 0, "rows name no tables");
+  assert.equal(evaluate(`document.querySelectorAll('${markets} .wf-history span').length`), 50, "ten recent runs a row");
+  // Opening the pipeline shows its stage on the tree line under it, and the page remembers it.
+  command("click", 'button[aria-label="Show the stage of Research market 01"]');
+  command("wait", "--text", "Research market 03");
+  assert.deepEqual(evaluate(`[...document.querySelectorAll('${markets} .wf-row')].slice(0, 2).map(r=>r.dataset.depth)`), ["0", "1"]);
+  // A closed group keeps only its header.
+  command("click", `${markets} .wf-group-toggle`);
+  command("wait", "--fn", `!document.querySelector('${markets} .wf-rows')`);
+  command("reload");
+  command("wait", "--fn", 'document.querySelectorAll(".wf-history").length > 3');
+  assert.equal(evaluate(`document.querySelector('${markets} .wf-group-toggle').getAttribute("aria-expanded")`), "false", "a closed group stays closed");
+  command("click", `${markets} .wf-group-toggle`);
+  command("wait", "--text", "Research market 03");
+  // The Failing filter: only failed runs, each under its pipeline.
+  command("select", "[name=filter-workflows]", "failing");
   command("wait", "--fn", 'new URL(location.href).searchParams.get("filter") === "failing"');
-  assert.ok(evaluate('[...document.querySelectorAll(".workflow-row .status")].every(s=>s.textContent==="failed")'));
-  command("fill", '[aria-label="Search workflows, tables, providers…"]', "Research market 06");
-  command("wait", "--fn", 'document.querySelectorAll(".workflow-row").length === 1');
-  // A group's page: the workspace's tabs, narrowed to the group, under a breadcrumb.
+  assert.ok(evaluate('[...document.querySelectorAll(".wf-row:not(.wf-context) .wf-dot")].every(d=>d.classList.contains("wf-dot-failed"))'));
+  command("select", "[name=filter-workflows]", "all");
+  command("wait", "--fn", '!new URL(location.href).searchParams.has("filter")');
+  // Search reaches a stage in a closed pipeline and shows the pipeline above it, dimmed.
+  command("click", 'button[aria-label="Hide the stage of Research market 01"]');
+  command("fill", '[aria-label="Search workflows, tables, providers…"]', "Research market 03");
+  command("wait", "--fn", 'document.querySelectorAll(".wf-row").length === 2');
+  assert.deepEqual(titles(), ["Research market 01", "Research market 03"]);
+  assert.equal(evaluate('document.querySelector(".wf-row").classList.contains("wf-context")'), true);
+  // A group's page: the workspace's tabs, narrowed to the group, under a breadcrumb; its pipelines start open.
   command("open", "http://127.0.0.1:3942/viewer?group=markets");
   command("wait", "--text", "Research market 06");
   assert.deepEqual(evaluate('[...document.querySelectorAll("nav.tabs a")].map(a=>a.textContent.replace(/\\d+/,"").trim())'), ["Workflows", "Runs", "Data"]);
-  assert.equal(evaluate('document.querySelectorAll(".group-workflows .workflow-row").length'), 6);
-  assert.ok(evaluate('[...document.querySelectorAll(".group-workflows .workflow-row")].every(r=>r.querySelectorAll(".table-name").length > 0)'), "group rows name their tables");
+  assert.equal(evaluate('document.querySelectorAll(".group-workflows .wf-row").length'), 6);
   command("click", 'nav.tabs a[href$="view=runs"]');
   command("wait", "--text", "wrun_");
   assert.deepEqual(evaluate('[...document.querySelector("[name=filter-runs-by-workflow]").options].map(o=>o.textContent).length'), 7, "the workflow filter lists the group's six");
   command("open", "http://127.0.0.1:3942/viewer?workflow=workflow-2");
   command("wait", "--text", "Market research");
   assert.equal(evaluate('document.querySelector(".breadcrumbs a:nth-of-type(2)").getAttribute("href")'), "/viewer?group=markets");
-  // At phone width rows wrap instead of running off the edge.
+  // A stage's breadcrumb runs through its pipeline.
+  command("open", "http://127.0.0.1:3942/viewer?workflow=workflow-3");
+  command("wait", "--text", "Market research");
+  assert.deepEqual(evaluate('[...document.querySelectorAll(".breadcrumbs a")].map(a=>a.getAttribute("href"))'), ["/viewer", "/viewer?group=markets", "/viewer?workflow=workflow-1"]);
+  // At phone width rows take two lines instead of running off the edge.
   command("set", "viewport", "390", "844");
   command("open", "http://127.0.0.1:3942/viewer");
   command("wait", "--text", "Market research");
@@ -98,5 +125,5 @@ try {
   command("eval", "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
   assert.ok(evaluate('document.querySelector(".table-scroll").scrollLeft') > 0, "the grid scrolls sideways");
   assert.equal(pinnedLeft(), before, "the name column stays in view");
-  console.log("Workspace navigation, groups with last runs, chips and search, group pages, hidden runtime tables, pinned name column, unregistered data, search, columns, export and private Runs destination passed.");
+  console.log("Workspace navigation, groups and pipelines that open and close, recent runs, filters and search, group pages, stage breadcrumbs, hidden runtime tables, pinned name column, unregistered data, search, columns, export and private Runs destination passed.");
 } finally { command("close"); }

@@ -24,9 +24,10 @@ export type DataRelation = {
 };
 export type View = "logic" | "runs" | "data";
 /**
- * One group in `workflows/groups.ts`: workflows that belong together, usually because they share data or run as a
- * pipeline. `S` is the registry's slugs, so a misspelled or deleted workflow fails the type check and the build.
- * Order of `workflows` is the order on screen (pipeline order). A workflow is in at most one group.
+ * One group in `workflows/groups.ts`: a named set of workflows that belong together. `S` is the registry's slugs, so a
+ * misspelled or deleted workflow fails the type check and the build. `workflows` lists only workflows that stand on
+ * their own, in screen order; a stage (a workflow exactly one other starts) is never listed, it follows the workflow
+ * that starts it. A workflow is in at most one group.
  */
 export type WorkflowGroup<S extends string = string> = {
   id: string;
@@ -34,7 +35,7 @@ export type WorkflowGroup<S extends string = string> = {
   description?: string;
   workflows: readonly S[];
 };
-/** A group as the build resolves it: workflow slugs replaced by their permanent viewer IDs. */
+/** A group as the build resolves it: every member's permanent viewer ID, each listed workflow followed by its stages. */
 export type RegistryGroup = { id: string; name: string; description: string; workflows: string[] };
 /** How a workflow starts, derived at build from `vercel.json` crons, a registered `intake` and stage calls. */
 export type Trigger = { schedule?: string; webhook?: boolean; startedBy?: string[] };
@@ -80,6 +81,8 @@ export type Display = {
   }[];
   workflowName: string;
   trigger?: Trigger;
+  /** The viewer ID of the workflow that starts this one as a stage, when exactly one does: it shows nested under it. */
+  parent?: string;
   graph?: Graph;
   revision: string;
   /** Exact argument selectors disambiguate repeated call sites without inferring execution order. */

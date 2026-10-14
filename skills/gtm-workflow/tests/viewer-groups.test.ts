@@ -8,12 +8,12 @@ import { closeDb, db } from "../templates/lib/db";
 import { testDatabase } from "./db";
 import { hostedOwnerCheck } from "../templates/lib/viewer-access";
 import { lastRuns, nestStages, stageRunWorkflow, workspaceRuns } from "../templates/lib/viewer-workspace-runs";
-import { groupsSource, validateGroups } from "../templates/scripts/viewer-groups.mjs";
+import { groupsSource, stageParents, validateGroups, withStages } from "../templates/scripts/viewer-groups.mjs";
 import { registrySource } from "../templates/scripts/viewer-registry.mjs";
 import { foldersToGroups, readFolderState, renderGroups, suggestGroups } from "../templates/scripts/folders-to-groups.mjs";
 import { readFileSync } from "node:fs";
-import { ago, cronText, matches, passes, rollUp, sections, type ListedWorkflow } from "../templates/viewer/groups";
-import { fixtureRuns, run, runId } from "./api-fixture";
+import { ago, cronText, flatten, matches, passes, rollUp, sections, triggerText, type ListedWorkflow, type Node } from "../templates/viewer/groups";
+import { fixtureRuns, resultOnly, run, runId } from "./api-fixture";
 import { fixtureGroups } from "./groups-fixture";
 import type { Display } from "../templates/lib/viewer-contract";
 hostedOwnerCheck.check = async () => {};
@@ -58,6 +58,26 @@ test("groups resolve slugs to permanent IDs in file order; every mistake fails t
     [[{ id: "a", name: "A", description: "x".repeat(281), workflows: ["alpha"] }], /description/],
   ];
   for (const [value, message] of bad) assert.throws(() => validateGroups(value, registry), message);
+});
+
+test("a stage that one workflow starts follows it into its group, nested under it, and is never listed itself", () => {
+  const pipeline = [
+    { id: "uuid-m", slug: "monitor" }, { id: "uuid-d", slug: "discover", startedBy: ["monitor"] },
+    { id: "uuid-e", slug: "enrich", startedBy: ["monitor"] }, { id: "uuid-s", slug: "score", startedBy: ["enrich"] },
+    { id: "uuid-x", slug: "shared", startedBy: ["monitor", "digest"] }, { id: "uuid-g", slug: "digest" },
+    { id: "uuid-l1", slug: "loop-a", startedBy: ["loop-b"] }, { id: "uuid-l2", slug: "loop-b", startedBy: ["loop-a"] },
+    { id: "uuid-f", slug: "fan-out", startedBy: ["fan-out"] },
+  ];
+  // One starter makes a stage, also below another stage; several starters, a loop or starting itself does not.
+  assert.deepEqual([...stageParents(pipeline)], [["discover", "monitor"], ["enrich", "monitor"], ["score", "enrich"]]);
+  assert.deepEqual(withStages("monitor", pipeline), ["monitor", "discover", "enrich", "score"]);
+  // The build's trigger carries the same starters.
+  assert.deepEqual([...stageParents([{ slug: "a" }, { slug: "b", trigger: { startedBy: ["a"] } }])], [["b", "a"]]);
+  assert.deepEqual(validateGroups([{ id: "social", name: "Social", workflows: ["monitor", "shared"] }, { id: "loops", name: "Loops", workflows: ["loop-b", "loop-a"] }], pipeline),
+    [{ id: "social", name: "Social", description: "", workflows: ["uuid-m", "uuid-d", "uuid-e", "uuid-s", "uuid-x"] },
+      { id: "loops", name: "Loops", description: "", workflows: ["uuid-l2", "uuid-l1"] }]);
+  assert.throws(() => validateGroups([{ id: "social", name: "Social", workflows: ["monitor", "enrich"] }], pipeline),
+    /enrich is a stage of monitor and shows under it; remove enrich from the list/);
 });
 
 test("the build reads groups.ts without running it, and a workspace without one has no groups", async () => {
@@ -123,6 +143,13 @@ test("a workflow page names its group to the owner only", async () => {
   assert.equal((await (await api("op=meta&workflow=result-only")).json()).group, undefined);
   const preview = await (await api("op=meta&workflow=stable&preview=logic")).json();
   assert.equal(preview.group, undefined);
+  // A stage's page names the pipeline that starts it, to the owner only.
+  Object.assign(resultOnly, { parent: "stable" });
+  try {
+    assert.deepEqual((await (await api("op=meta&workflow=result-only")).json()).parent, { id: "stable", title: "Network" });
+    assert.equal((await (await api("op=meta&workflow=result-only&preview=logic")).json()).parent, undefined);
+    assert.equal((await (await api("op=list")).json()).workflows.find((w: any) => w.id === "result-only").parent, "stable");
+  } finally { delete (resultOnly as any).parent; }
 });
 
 test("a group's Data lists only its workflows' tables, empty or not; an unknown group is refused", async () => {
@@ -175,6 +202,8 @@ test("last runs read each workflow by its own name, so a busy workflow never hid
   assert.deepEqual(calls.map((c) => c.workflowName).sort(), ["wf-a", "wf-b", "wf-c"]);
   assert.ok(calls.every((c) => c.resolveData === "none"));
   assert.equal((result.a as any).id, "a-0");
+  assert.equal((result.a as any).recent.length, 10, "the history strip holds the newest ten");
+  assert.deepEqual((result.b as any).recent, ["failed"]);
   assert.equal((result.b as any).status, "failed");
   assert.deepEqual([(result.c as any).id, (result.c as any).stage], ["c-stage", true]);
   // A fan-out part carries its own workflow's ID: the parent run counts, the part does not.
@@ -214,24 +243,44 @@ test("a group filter on workspace runs refuses a workflow outside the group", as
 
 const listed = (id: string, extra: Partial<ListedWorkflow> = {}): ListedWorkflow =>
   ({ id, slug: id, title: id.toUpperCase(), description: "", trigger: {}, tables: [], providers: [], ...extra });
-test("the home page shows groups in file order, then Other, with computed chips and search", () => {
+test("the home page shows groups in file order, then Ungrouped, each a tree of pipelines, with filters and search", () => {
   const now = Date.parse("2026-10-14T12:00:00Z");
-  const workflows = [listed("a", { tables: ["people"] }), listed("b", { trigger: { schedule: "0 7 * * *" }, tables: ["people", "companies"] }), listed("c", { providers: ["Blitz"] }), listed("d")];
-  const groups = [{ id: "g", name: "Social", description: "", workflows: ["b", "a"] }];
-  const runs = { a: { id: "1", status: "failed", createdAt: new Date(now - 3600000).toISOString() }, b: null, c: "unknown" as const };
-  const all = sections(workflows, groups, () => true, runs);
-  assert.deepEqual(all.map((s) => [s.group?.id, s.workflows.map((w) => w.id)]), [["g", ["b", "a"]], [undefined, ["c", "d"]]]);
-  assert.deepEqual(sections(workflows, groups, () => true, runs, true)[0].workflows.map((w) => w.id), ["a", "b"], "failing first in the preview");
-  assert.deepEqual(sections(workflows, groups, (w) => w.id === "c", runs).map((s) => s.group?.id), [undefined]);
+  const workflows = [
+    listed("a", { tables: ["people"] }), listed("b", { trigger: { schedule: "0 7 * * *" }, tables: ["people", "companies"] }),
+    listed("c", { providers: ["Blitz"] }), listed("d"),
+    listed("s1", { parent: "b", trigger: { startedBy: ["b"] } }), listed("s2", { parent: "b", trigger: { startedBy: ["b"] } }),
+    listed("s3", { parent: "s2", trigger: { startedBy: ["s2"] } }), listed("u", { parent: "d", trigger: { startedBy: ["d"] } }),
+  ];
+  // The build lists every member, stages after the workflow that starts them.
+  const groups = [{ id: "g", name: "Social", description: "", workflows: ["b", "s1", "s2", "s3", "a"] }];
+  const runs = {
+    a: { id: "1", status: "failed", createdAt: new Date(now - 3600000).toISOString() }, b: null, c: "unknown" as const,
+    s3: { id: "2", status: "running", createdAt: new Date(now - 60000).toISOString() },
+  };
+  const shape = (nodes: Node[]): any[] => nodes.map((n) => n.stages.length ? [n.workflow.id, shape(n.stages)] : n.workflow.id);
+  const all = sections(workflows, groups);
+  assert.deepEqual(all.map((s) => [s.group?.id, shape(s.nodes)]), [["g", [["b", ["s1", ["s2", ["s3"]]]], "a"]], [undefined, ["c", ["d", ["u"]]]]]);
+  assert.deepEqual(all[0].members.map((w) => w.id), ["b", "s1", "s2", "s3", "a"]);
+  // A match deep in a pipeline keeps its pipeline, marked as context; a section with no match is left out.
+  const running = sections(workflows, groups, (w) => passes("running", w, runs, now));
+  assert.deepEqual(running.map((s) => shape(s.nodes)), [[["b", [["s2", ["s3"]]]]]]);
+  assert.deepEqual(flatten(running[0].nodes).map((w) => w.id), ["b", "s2", "s3"]);
+  assert.deepEqual([running[0].nodes[0].context, running[0].nodes[0].stages[0].stages[0].context], [true, undefined]);
+  assert.equal(running[0].members.length, 5, "the header still counts the whole group");
+  assert.deepEqual(sections(workflows, groups, (w) => w.id === "c").map((s) => s.group?.id), [undefined]);
   assert.deepEqual(workflows.filter((w) => passes("scheduled", w, runs, now)).map((w) => w.id), ["b"]);
   assert.deepEqual(workflows.filter((w) => passes("failing", w, runs, now)).map((w) => w.id), ["a"]);
-  assert.deepEqual(workflows.filter((w) => passes("week", w, runs, now)).map((w) => w.id), ["a"]);
+  assert.deepEqual(workflows.filter((w) => passes("week", w, runs, now)).map((w) => w.id), ["a", "s3"]);
   assert.ok(matches("social", workflows[1], groups[0]) && matches("blitz", workflows[2]) && matches("companies", workflows[1]));
   assert.ok(!matches("social", workflows[2]));
-  assert.equal(rollUp([workflows[0], workflows[1]], runs, now), "2 workflows · last run 1 h ago · 1 failing · 2 tables");
-  assert.equal(rollUp([workflows[3]], undefined, now), "1 workflow");
-  assert.equal(ago(now - 40 * 60000, now), "40 min ago");
+  assert.deepEqual(rollUp(all[0].members, runs), { failing: 1, running: 1, last: runs.s3 });
+  assert.deepEqual(rollUp([workflows[3]], undefined), { failing: 0, running: 0, last: undefined });
+  assert.deepEqual([40 * 60000, 5 * 3600000, 3 * 86400000, 10000].map((ms) => ago(now - ms, now)), ["40m ago", "5h ago", "3d ago", "just now"]);
   assert.deepEqual(["0 7 * * *", "30 6 * * 1", "0 9 * * 1-5", "*/15 * * * *"].map(cronText), ["Daily 07:00 UTC", "Mon 06:30 UTC", "Weekdays 09:00 UTC", "Cron */15 * * * *"]);
+  // How it starts: a nested stage needs no words, a workflow several start names them.
+  const titles = new Map([["b", "Bee"], ["d", "Dee"]]);
+  assert.deepEqual([workflows[0], workflows[1], workflows[4]].map((w) => triggerText(w, titles)), ["Manual", "Daily 07:00 UTC", ""]);
+  assert.equal(triggerText(listed("x", { trigger: { webhook: true, startedBy: ["b", "d"] } }), titles), "Webhook · Started by Bee, Dee");
 });
 
 const folderEntries = [
@@ -256,6 +305,9 @@ test("migration: each folder holding workflows becomes a group named by its path
   // What it proposes passes the build's own check.
   assert.equal(validateGroups(result.groups, folderEntries).length, 2);
   assert.deepEqual(foldersToGroups({ folders: [], assignments: {} }, folderEntries).groups, []);
+  // A stage in a folder is left out: it follows the workflow that starts it.
+  const staged = folderEntries.map((e) => e.slug === "score-emea" ? { ...e, startedBy: ["enrich-emea"] } : e);
+  assert.deepEqual(foldersToGroups(state, staged).groups[1].workflows, ["enrich-emea"]);
 });
 
 test("migration: the proposed file is the template's own format, and the template's file is its empty form", async () => {
@@ -293,7 +345,7 @@ test("without folders, groups come from the code: stages, a shared data definiti
     { id: "6", slug: "digest", title: "Digest" },
   ];
   assert.deepEqual(suggestGroups(entries), [
-    { id: "social-monitor", name: "Social monitor", workflows: ["monitor", "discover", "enrich"] },
+    { id: "social-monitor", name: "Social monitor", workflows: ["monitor"] },
     { id: "enrich-network", name: "Enrich network", workflows: ["network", "network-score"] },
   ]);
 });

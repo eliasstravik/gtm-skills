@@ -42,17 +42,17 @@ try {
   command("set", "media", "light");
   wait("Research market 49");
   assert.equal(
-    evaluate('document.querySelectorAll(".workflow-row").length'),
+    evaluate('document.querySelectorAll(".wf-row").length'),
     50,
   );
   shot("workflows");
   command("fill", "input[type=search]", "Enrich network");
   command("wait", "500");
   assert.equal(
-    evaluate('document.querySelectorAll(".workflow-row").length'),
+    evaluate('document.querySelectorAll(".wf-row").length'),
     1,
   );
-  command("click", ".workflow-row");
+  command("click", ".wf-link");
   wait("Employer found?");
   shot("diagram");
   command("click", ".react-flow__node[data-id=people]");

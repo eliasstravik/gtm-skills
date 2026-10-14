@@ -280,25 +280,6 @@ caption {
   background: light-dark(#f5a524, #ffb224);
   pointer-events: none;
 }
-.workflow-list {
-  margin-top: 24px;
-  border-top: 1px solid var(--border);
-}
-.workflow-row {
-  display: block;
-  padding: 18px 12px;
-  border-bottom: 1px solid var(--border);
-}
-.workflow-row:hover {
-  background: var(--surface);
-  text-decoration: none;
-}
-.purpose {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-top: 4px;
-}
 .workflow {
   height: 100dvh;
   display: flex;
@@ -327,6 +308,17 @@ caption {
 .breadcrumbs > a {
   color: var(--muted);
   white-space: nowrap;
+  /* A group and a stage's pipeline can have long names: each crumb gives way before the page's own title does. */
+  max-width: 24ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+}
+.breadcrumbs > a:first-child {
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .breadcrumbs > a { max-width: 12ch; }
 }
 .tabs {
   display: flex;
@@ -890,39 +882,150 @@ fieldset legend {
   content: "▸ ";
 }
 
-/* Workflows home and group pages: groups from workflows/groups.ts, each row with its trigger and last run. */
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-.chips button { border-radius: 9999px; display: inline-flex; align-items: center; gap: 6px; }
-.chips button[aria-pressed="true"] { background: var(--text); color: var(--bg); border-color: var(--text); }
-.chip-count { font-variant-numeric: tabular-nums; opacity: 0.7; }
-.workflow-group { margin-top: 28px; }
-.group-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
-.group-header h2 a { color: inherit; }
-.group-header p { font-size: 13px; }
-.workflow-group .workflow-list { margin-top: 10px; }
-.workflow-row { display: flex; align-items: center; gap: 8px 24px; }
-.workflow-row-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.workflow-row h3 { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
-.workflow-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.trigger { font-size: 12px; color: var(--muted); border: 1px solid var(--border); border-radius: 9999px; padding: 1px 8px; }
-.workflow-tables { display: inline-flex; flex-wrap: wrap; gap: 6px; }
-.table-name { font: 12px "Geist Mono Variable", ui-monospace, monospace; color: var(--muted); background: var(--surface); border-radius: 4px; padding: 1px 6px; overflow-wrap: anywhere; }
-.workflow-status { flex-shrink: 0; text-align: right; font-size: 13px; }
-.last-run { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 8px; align-items: center; }
-.more { display: inline-block; padding: 10px 12px; color: var(--muted); }
+
+/* The Workflows page and a group's Workflows tab: groups from workflows/groups.ts as collapsible sections, and in each
+   one line per workflow, a pipeline's stages on a tree line under it. Columns line up across every section: name,
+   recent runs, how it starts, last run. Colour is kept for what needs a look: a failure, a run in progress. */
+.wf-index {
+  --wf-ok: light-dark(#17a66a, #3fb979);
+  --wf-failed: light-dark(#cb2a2f, #ff6166);
+  --wf-running: light-dark(#0068d6, #52a8ff);
+  --wf-pending: light-dark(#a35200, #ffb224);
+  --wf-line: color-mix(in srgb, var(--muted) 38%, transparent);
+  margin-top: 4px;
+}
+.wf-controls { display: flex; align-items: center; gap: 8px; }
+.wf-controls input[type="search"] { width: 260px; }
+.wf-group + .wf-group { margin-top: 28px; }
+.wf-group-header { display: flex; align-items: center; gap: 2px; min-height: 40px; }
+.wf-group-header h2 { font-size: 14px; min-width: 0; }
+.wf-group-toggle {
+  display: flex; align-items: center; gap: 8px; max-width: 100%; min-height: 32px;
+  padding: 4px 8px 4px 10px; border: 0; border-radius: 6px; background: transparent; font-weight: 600; text-align: left;
+}
+.wf-group-toggle:hover { background: var(--hover); }
+.wf-group-toggle:disabled { opacity: 1; cursor: default; background: transparent; }
+.wf-group-toggle svg, .wf-toggle svg { width: 16px; height: 16px; flex-shrink: 0; color: var(--muted); transition: rotate 120ms ease; }
+.wf-group-toggle[aria-expanded="true"] svg, .wf-toggle[aria-expanded="true"] svg { rotate: 90deg; }
+.wf-group-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-count { color: var(--muted); font-weight: 400; font-size: 13px; font-variant-numeric: tabular-nums; }
+.wf-group-open {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 28px; height: 28px; border-radius: 6px; color: var(--muted);
+}
+.wf-group-open svg { width: 14px; height: 14px; }
+.wf-group-open:hover { color: var(--text); background: var(--hover); }
+.wf-group-state { margin-left: auto; padding: 0 8px 0 16px; font-size: 13px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wf-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+.wf-row {
+  --x: calc(38px + (var(--depth) - 1) * 24px);
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px 148px 112px;
+  align-items: center;
+  column-gap: 20px;
+  min-height: 44px;
+  padding: 0 8px 0 calc(8px + var(--depth) * 24px);
+  border-bottom: 1px solid var(--border);
+}
+.wf-row:hover { background: var(--surface); }
+.wf-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.wf-lead { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.wf-toggle {
+  position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; min-height: 0; padding: 0; border: 0; border-radius: 4px; background: transparent;
+}
+.wf-toggle:hover { background: var(--hover); }
+.wf-toggle:disabled { opacity: 1; background: transparent; }
+.wf-toggle:not(:disabled):hover svg { color: var(--text); }
+.wf-dot { position: relative; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--border); }
+.wf-dot-completed { background: var(--wf-ok); }
+.wf-dot-failed { background: var(--wf-failed); }
+.wf-dot-running { background: var(--wf-running); }
+.wf-dot-pending { background: var(--wf-pending); }
+.wf-dot-cancelled { background: var(--muted); }
+.wf-dot-never { background: transparent; box-shadow: inset 0 0 0 1.5px var(--wf-line); }
+.wf-dot-running::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--wf-running);
+  animation: wf-pulse 1.6s ease-out infinite;
+}
+@keyframes wf-pulse { to { transform: scale(2.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .wf-dot-running::after { animation: none; }
+  .wf-group-toggle svg, .wf-toggle svg { transition: none; }
+}
+.wf-name { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.wf-link { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-link::after { content: ""; position: absolute; inset: 0; }
+.wf-link:hover { text-decoration: none; }
+.wf-row:hover .wf-link { text-decoration: underline; text-decoration-color: var(--wf-line); text-underline-offset: 3px; }
+.wf-on-phone { display: none; }
+.wf-stages { flex-shrink: 0; font-size: 13px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wf-context .wf-link, .wf-context .wf-dot, .wf-context .wf-history { opacity: 0.5; }
+.wf-trigger { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wf-last { font-size: 13px; color: var(--muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wf-word { font-weight: 500; }
+.wf-word-failed { color: var(--wf-failed); }
+.wf-word-running { color: var(--wf-running); }
+.wf-word-pending { color: var(--wf-pending); }
+.wf-faint { color: color-mix(in srgb, var(--muted) 70%, transparent); }
+/* The newest ten runs, oldest on the left. */
+.wf-history { display: flex; gap: 2px; align-items: center; height: 14px; }
+.wf-history span { width: 3px; height: 14px; border-radius: 1px; background: color-mix(in srgb, var(--muted) 55%, transparent); }
+.wf-history [data-status="none"] { height: 3px; background: var(--border); }
+.wf-history [data-status="failed"] { background: var(--wf-failed); }
+.wf-history [data-status="running"] { background: var(--wf-running); }
+.wf-history [data-status="pending"] { background: var(--wf-pending); }
+.wf-history [data-status="cancelled"] { background: color-mix(in srgb, var(--muted) 22%, transparent); }
+/* Tree lines: each stage hangs off the dot of the workflow that starts it; a line runs on while siblings follow. */
+.wf-row[data-depth]:not([data-depth="0"])::before {
+  content: ""; position: absolute; left: var(--x); top: 0; width: 16px; height: 50%;
+  border-left: 1px solid var(--wf-line); border-bottom: 1px solid var(--wf-line); border-bottom-left-radius: 6px;
+}
+.wf-row[data-depth]:not([data-depth="0"]):not([data-last])::after {
+  content: ""; position: absolute; left: var(--x); top: 50%; bottom: -1px; border-left: 1px solid var(--wf-line);
+}
+.wf-row[data-open] .wf-main::after {
+  content: ""; position: absolute; left: calc(var(--x) + 24px); top: calc(50% + 7px); bottom: -1px; border-left: 1px solid var(--wf-line);
+}
+.wf-guide { position: absolute; top: 0; bottom: -1px; left: calc(38px + (var(--level) - 1) * 24px); border-left: 1px solid var(--wf-line); }
 .group-page.workspace > .workflow-header { max-width: none; margin: 0; }
 .group-description { padding: 12px 24px 0; max-width: 820px; }
 .group-page .tabs { margin-top: 8px; }
-.group-workflows { margin-top: 0; }
-.stage-run td:first-child { padding-left: 40px; }
-.stage-mark { color: var(--muted); margin-left: -16px; }
-/* A phone stacks the last run under the title instead of pushing it off the edge. */
-@media (max-width: 640px) {
-  .workflow-row { flex-direction: column; align-items: stretch; }
-  .workflow-status { text-align: left; }
-  .last-run { justify-content: flex-start; }
-  .workflow-row .purpose { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-  .group-description { padding-inline: 12px; }
-}
 .group-page.workspace > .group-description { margin-inline: 0; }
 .group-count { margin-left: 6px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.group-workflows { margin-top: 0; }
+.group-workflows .wf-rows { border-top: 0; }
+.stage-run td:first-child { padding-left: 40px; }
+.stage-mark { color: var(--muted); margin-left: -16px; }
+/* A phone keeps one row per workflow on two lines: name and last run, then how it starts and its recent runs. */
+@media (max-width: 640px) {
+  .wf-controls input[type="search"] { width: auto; flex: 1; min-width: 0; font-size: 16px; }
+  .wf-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "main last" "trigger history";
+    row-gap: 2px;
+    column-gap: 12px;
+    min-height: 56px;
+    padding-block: 9px;
+  }
+  .wf-main { grid-area: main; align-items: flex-start; }
+  .wf-lead { height: 22px; }
+  .wf-name > .wf-stages { display: none; }
+  .wf-on-phone { display: inline; }
+  .wf-link { font-size: 15px; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .wf-last { grid-area: last; align-self: start; line-height: 22px; }
+  .wf-trigger { grid-area: trigger; padding-left: 44px; }
+  .wf-history { grid-area: history; justify-self: end; }
+  .wf-toggle::before { content: ""; position: absolute; inset: -12px; }
+  /* Without a second line of its own, a row's name may take two lines beside its last run and recent runs. */
+  .wf-row[data-bare] { grid-template-areas: "main last" "main history"; }
+  .wf-row[data-bare] .wf-trigger { display: none; }
+  /* Tree lines meet the dot on the first line, however many lines the name takes. */
+  .wf-row[data-depth]:not([data-depth="0"])::before { height: 20px; }
+  .wf-row[data-depth]:not([data-depth="0"]):not([data-last])::after { top: 20px; }
+  .wf-row[data-open] .wf-main::after { top: 27px; }
+  .wf-group-toggle { min-height: 40px; }
+  .wf-group-open { width: 36px; height: 36px; }
+  .group-description { padding-inline: 12px; }
+}

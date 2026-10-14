@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import pg from "pg";
 import { registrySource } from "./viewer-registry.mjs";
-import { groupsSource, validateGroups } from "./viewer-groups.mjs";
+import { groupsSource, stageParents, validateGroups } from "./viewer-groups.mjs";
 
 const cwd = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SEPARATOR = " · ";
@@ -35,10 +35,11 @@ import type { workflows } from "./index";
 
 /**
  * Groups on the Workflows page: maintained by Create, Delete and the agent when asked to regroup. One level, a workflow
- * in at most one group, no empty groups; a workflow in none shows under Other. Order here is the order on screen.
+ * in at most one group, no empty groups; a workflow in none shows under Ungrouped. Order here is the order on screen.
+ * List only workflows that stand on their own: a stage that one workflow starts follows it, nested under it.
  *
  * { id: "linkedin-social", name: "LinkedIn social", description: "Who engages with our posts, scored.",
- *   workflows: ["linkedin-social-monitor", "enrich-linkedin-interactors"] },
+ *   workflows: ["linkedin-social-monitor", "score-inbound"] },
  */
 export const groups = [${body.length ? `\n${body.join("\n")}\n` : ""}] as const satisfies readonly WorkflowGroup<keyof typeof workflows>[];
 `;
@@ -55,9 +56,11 @@ function uniqueId(base, taken) {
 /**
  * Folders and placements to groups: every folder that holds workflows becomes one group named by its path
  * ("Outbound · EMEA"), in tree order; empty folders are dropped; a placement of a workflow this workspace no longer
- * has is reported, not carried over. Workflows inside a group are ordered by title.
+ * has is reported, not carried over. Workflows inside a group are ordered by title. A stage that one workflow starts is
+ * left out: it follows that workflow, wherever it is.
  */
 export function foldersToGroups(state, entries) {
+  const stages = stageParents(entries);
   const folders = state.folders ?? [], assignments = state.assignments ?? {};
   const byId = new Map(folders.map((f) => [f.id, f]));
   const children = new Map();
@@ -82,8 +85,9 @@ export function foldersToGroups(state, entries) {
   }
   const taken = new Set(), groups = [], emptyFolders = [];
   for (const { folder, path } of order) {
-    const members = placed.get(folder.id);
-    if (!members?.length) { emptyFolders.push(path.join(SEPARATOR)); continue; }
+    const members = placed.get(folder.id)?.filter((e) => !stages.has(e.slug));
+    if (!placed.get(folder.id)?.length) { emptyFolders.push(path.join(SEPARATOR)); continue; }
+    if (!members.length) continue;
     const name = path.join(SEPARATOR);
     groups.push({
       id: uniqueId(slugify(name), taken),
@@ -99,9 +103,11 @@ const RUNTIME_TABLES = new Set(["people", "companies", "cache", "profileIdentifi
  * No folders: clusters of workflows that belong together by the code alone. Two workflows join when one starts the
  * other as a stage, when they share an authored data definition, or when they write the same workflow table (the shared
  * people and companies records do not count: unrelated workflows all fill them). Only clusters of two or more are
- * proposed; the agent names them, and may add single-workflow groups, before saving.
+ * proposed; the agent names them, and may add single-workflow groups, before saving. A group lists only workflows
+ * that stand on their own; their stages follow them.
  */
 export function suggestGroups(entries) {
+  const stages = stageParents(entries);
   const parent = new Map(entries.map((e) => [e.slug, e.slug]));
   const find = (slug) => { while (parent.get(slug) !== slug) slug = parent.get(slug); return slug; };
   const join = (a, b) => { if (parent.has(a) && parent.has(b)) parent.set(find(a), find(b)); };
@@ -118,9 +124,9 @@ export function suggestGroups(entries) {
   for (const entry of entries) clusters.set(find(entry.slug), [...(clusters.get(find(entry.slug)) ?? []), entry]);
   const taken = new Set();
   return [...clusters.values()].filter((members) => members.length > 1).map((members) => {
-    // Pipeline order: a workflow that starts others first, then its stages in the order they were registered.
+    // A workflow that starts others first, then the rest in the order they were registered; stages follow their own.
     const lead = members.find((m) => members.some((o) => o.startedBy?.includes(m.slug))) ?? members[0];
-    const ordered = [lead, ...members.filter((m) => m !== lead)];
+    const ordered = [lead, ...members.filter((m) => m !== lead)].filter((m) => !stages.has(m.slug));
     return { id: uniqueId(slugify(lead.title), taken), name: lead.title.slice(0, 80), workflows: ordered.map((m) => m.slug) };
   });
 }
