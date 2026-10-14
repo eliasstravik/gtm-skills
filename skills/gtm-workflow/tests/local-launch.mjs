@@ -32,12 +32,12 @@ PGHOST="db.invalid"
 `);
 await writeFile(join(dir, "server/api/env-probe.get.ts"), `import { defineHandler } from "nitro";
 export default defineHandler(() => ({ vercel: process.env.VERCEL ?? null, env: process.env.VERCEL_ENV ?? null, git: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
-  project: process.env.VERCEL_PROJECT_ID ?? null, oidc: Boolean(process.env.VERCEL_OIDC_TOKEN), apollo: process.env.APOLLO_API_KEY === "sk-local", pghost: process.env.PGHOST ?? null, recover: process.env.WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS ?? null }));
+  project: process.env.VERCEL_PROJECT_ID ?? null, oidc: Boolean(process.env.VERCEL_OIDC_TOKEN), apollo: process.env.APOLLO_API_KEY === "sk-local", pghost: process.env.PGHOST ?? null, recover: process.env.WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS ?? null, ...(process.env.BLITZ_API_KEY ? { blitz: process.env.BLITZ_API_KEY } : {}), ...(process.env.MONID_API_KEY ? { monid: process.env.MONID_API_KEY } : {}) }));
 `);
 const config = join(dir, "nitro.config.ts");
 await writeFile(config, (await readFile(config, "utf8")).replace('import "./lib/local-runtime";', 'import "./lib/local-runtime";\nimport { writeFileSync } from "node:fs";\nwriteFileSync("config-env.json", JSON.stringify({ vercel: process.env.VERCEL ?? null }));'));
 
-const child = spawn(process.execPath, ["scripts/local-launch.mjs"], { cwd: dir, env: { PATH: process.env.PATH, HOME: process.env.HOME, GTM_RUNTIME_PORT: String(PORT), ...(process.env.SYSTEMROOT ? { SYSTEMROOT: process.env.SYSTEMROOT } : {}) }, stdio: ["ignore", "pipe", "pipe"] });
+const child = spawn(process.execPath, ["scripts/local-launch.mjs"], { cwd: dir, env: { PATH: process.env.PATH, HOME: process.env.HOME, GTM_RUNTIME_PORT: String(PORT), MONID_API_KEY: "sk-shell", ...(process.env.SYSTEMROOT ? { SYSTEMROOT: process.env.SYSTEMROOT } : {}) }, stdio: ["ignore", "pipe", "pipe"] });
 let output = "";
 child.stdout.on("data", (chunk) => { output += chunk; });
 child.stderr.on("data", (chunk) => { output += chunk; });
@@ -51,7 +51,7 @@ try {
     probe = await get("/api/env-probe").then((reply) => reply.status === 200 ? reply.body : null, () => null);
   }
   assert.ok(probe, `the dev server did not answer:\n${output}`);
-  assert.deepEqual(probe, { vercel: null, env: null, git: null, project: null, oidc: true, apollo: true, pghost: null, recover: "true" });
+  assert.deepEqual(probe, { vercel: null, env: null, git: null, project: null, oidc: true, apollo: true, pghost: null, recover: "true", monid: "sk-shell" });
   assert.deepEqual(JSON.parse(await readFile(join(dir, "config-env.json"), "utf8")), { vercel: null });
   // Local mode throughout: the local Keys page and the local key list, no hosted commit.
   const link = await get("/api/link");
@@ -82,6 +82,48 @@ try {
   }
   assert.ok(created, `a migration added while npm run dev runs was not applied:\n${output.slice(-2000)}`);
   console.log("a table added while npm run dev runs is created without a restart");
+
+  // A key saved on the Keys page is used without a restart: the launcher reloads the server with it, and the release
+  // status the badges read says "updating" until then and "live" after, as production's does around a redeploy.
+  const release = async () => (await get("/api/viewer?op=release&v=3")).body?.release;
+  assert.deepEqual(await release(), { state: "live" });
+  const save = (body) => fetch(`${origin}/api/connection-management`, { method: "POST", body: JSON.stringify(body),
+    headers: { origin, "sec-fetch-site": "same-origin", "content-type": "application/json" } }).then((response) => response.json());
+  const until = async (check, what) => {
+    for (let attempt = 0; attempt < 60; attempt++) {
+      if (await check().catch(() => false)) return;
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+    assert.fail(`${what}:\n${output.slice(-2000)}`);
+  };
+  assert.deepEqual(await save({ action: "add", variable: "BLITZ_API_KEY", value: "sk-blitz" }), { saved: true, store: "file", reloading: true });
+  const states = new Set();
+  await until(async () => {
+    const state = await release();
+    states.add(state?.state);
+    return state?.state === "live" && (await get("/api/env-probe")).body.blitz === "sk-blitz";
+  }, "a saved key never reached the running server");
+  assert.ok([...states].every((state) => ["updating", "live"].includes(state)), [...states].join());
+  // The rest of the environment is as it was, and the workspace's own settings were not loaded again.
+  const after = (await get("/api/env-probe")).body;
+  assert.deepEqual({ ...after, blitz: undefined }, { vercel: null, env: null, git: null, project: null, oidc: true, apollo: true, pghost: null, recover: "true", monid: "sk-shell", blitz: undefined });
+  const tab = await get("/api/connection-management");
+  assert.equal(tab.body.reloads, true);
+  assert.equal(child.exitCode, null);
+  await save({ action: "disconnect", variable: "BLITZ_API_KEY" });
+  await until(async () => (await release())?.state === "live" && !("blitz" in (await get("/api/env-probe")).body), "a deleted key stayed in the running server");
+  console.log("a key saved or deleted while npm run dev runs is used without a restart");
+
+  // A key the launching shell supplies wins over the files, as at start: saving it is kept, never reported in use.
+  assert.deepEqual(await save({ action: "add", variable: "MONID_API_KEY", value: "sk-saved" }), { saved: true, store: "file", shellKeeps: "MONID_API_KEY" });
+  for (let check = 0; check < 8; check++) {
+    assert.deepEqual(await release(), { state: "live" });
+    assert.equal((await get("/api/env-probe")).body.monid, "sk-shell");
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  const kept = (await get("/api/connection-management")).body.connections.find((row) => row.id === "MONID_API_KEY");
+  assert.equal(kept.status, "Not in use: the workflows app was started with a different key");
+  console.log("a key the shell supplies stays the shell's, and the Keys page says the saved one is not in use");
 } finally {
   child.kill("SIGTERM");
   await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 30000))]);

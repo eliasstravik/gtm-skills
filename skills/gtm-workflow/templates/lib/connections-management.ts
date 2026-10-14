@@ -3,7 +3,7 @@ import { connectionConfiguration, connectionHeaders, privateConnectionBrowser, C
 
 import { applyConnections, applicationId, connectionDeployment } from "./connections-apply";
 import { gatewayPlatformIdentity, platformIdentity } from "./connections-platform";
-import { changeLocalKey, linkedToVercel, savedKeyNames } from "./connections-local";
+import { changeLocalKey, keptByShell, linkedToVercel, reloadsOnSave, savedKeyNames, shellKeptKeys } from "./connections-local";
 import { privateAccess, viewerOrigin } from "./viewer-access";
 
 type Configuration = ReturnType<typeof connectionConfiguration>;
@@ -102,12 +102,16 @@ async function localManagement(req: Request, workflows: ConnectionWorkflow[], op
     insist(input && typeof input === "object" && ["add", "replace", "disconnect"].includes(input.action), "invalid_change", 400);
     const result = await changeLocalKey({ action: input.action, variable: input.variable, value: input.value });
     input.value = undefined;
-    return Response.json({ ...result, restartRequired: true }, { headers: connectionHeaders });
+    // Under `npm run dev` the server reloads itself with the new key in a few seconds; otherwise it takes a restart. A
+    // key the shell supplies is not changed by either: the page says the shell's value stays in use.
+    const effect = keptByShell(input.variable) ? { shellKeeps: input.variable } : reloadsOnSave() ? { reloading: true } : { restartRequired: true };
+    return Response.json({ ...result, ...effect }, { headers: connectionHeaders });
   }
-  const names = savedKeyNames();
-  return Response.json({ mode: "local", canWrite: true, linked: linkedToVercel(), workflowsUrl: "/viewer",
+  const names = savedKeyNames(), kept = new Set(shellKeptKeys());
+  return Response.json({ mode: "local", canWrite: true, linked: linkedToVercel(), workflowsUrl: "/viewer", reloads: reloadsOnSave(),
     missing: missingConnections(workflows, process.env, new Set(names), platformIdentity()),
-    connections: connectionInventory(names, workflows).map((entry) => ({ ...entry, status: "Saved",
+    connections: connectionInventory(names, workflows).map((entry) => ({ ...entry,
+      status: entry.fields.some((field) => kept.has(field.variable)) ? "Not in use: the workflows app was started with a different key" : "Saved",
       fields: entry.fields.map((field) => ({ variable: field.variable, label: field.variable, version: "local", editable: true, state: "saved" })) })),
   }, { headers: connectionHeaders });
 }

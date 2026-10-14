@@ -1,7 +1,9 @@
 /** A synthetic database and engine adapters for reproducible browser acceptance checks. */
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
-import { resolve, extname } from "node:path";
+import { watch } from "node:fs";
+import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve, extname } from "node:path";
 import { sql } from "drizzle-orm";
 import { pgTable, text } from "drizzle-orm/pg-core";
 import { viewerApi } from "../templates/lib/viewer-handler";
@@ -13,6 +15,7 @@ import { testDatabase } from "./db";
 import { page } from "../templates/viewer/shell";
 import { connectionsManagement } from "../templates/lib/connections-management";
 import { keysPage } from "../templates/server/routes/connections.get";
+import { LOADED_KEYS, fileKeys, keysFingerprint } from "../templates/lib/local-keys.mjs";
 import { fixtureGroups } from "./groups-fixture";
 import { useShowcase } from "./showcase-fixture";
 import registry, {
@@ -139,7 +142,18 @@ process.env.VERCEL_ENV = "production";
 process.env.GTM_VIEWER_PROTECTED = "1";
 process.env.GTM_VIEWER_LABEL = "Acme";
 process.env.GTM_VIEWER_SHARE_ORIGIN = "http://127.0.0.1:3943";
-if (process.env.GTM_VIEWER_FIXTURE_LOCAL === "1") delete process.env.VERCEL;
+if (process.env.GTM_VIEWER_FIXTURE_LOCAL === "1") {
+  delete process.env.VERCEL;
+  // The local Keys page writes `.env.local` in its own folder, never the checkout's. Under `npm run dev` the launcher
+  // reloads the server when it changes (tests/local-launch.mjs checks the real one); here that takes a second and a half.
+  process.chdir(await mkdtemp(join(tmpdir(), "gtm-keys-fixture-")));
+  process.env[LOADED_KEYS] = keysFingerprint(fileKeys(process.cwd()));
+  let reload: ReturnType<typeof setTimeout> | undefined;
+  watch(process.cwd(), () => {
+    clearTimeout(reload);
+    reload = setTimeout(() => { process.env[LOADED_KEYS] = keysFingerprint(fileKeys(process.cwd())); }, 1500);
+  });
+}
 await testDatabase();
 const client = db();
 // Physical names carry a prefix: the runtime's own gtm.people and gtm.companies come first on the local search path.
@@ -225,6 +239,18 @@ for (const port of process.env.GTM_VIEWER_FIXTURE_LOCAL === "1"
           )[extname(file)] ?? "application/octet-stream",
         );
         outgoing.end(content);
+        return;
+      }
+      // The production Keys page, its Vercel calls answered in the page by tests/keys-production-stub.js.
+      if (port === 3942 && url.pathname === "/connections") {
+        const response = keysPage("production");
+        outgoing.writeHead(200, Object.fromEntries(response.headers));
+        outgoing.end((await response.text()).replace('<script type="module"', '<script src="/keys-production-stub.js"></script><script type="module"'));
+        return;
+      }
+      if (port === 3942 && url.pathname === "/keys-production-stub.js") {
+        outgoing.setHeader("content-type", "text/javascript");
+        outgoing.end(await readFile(join(process.env.GTM_TEST_RUNTIME!, "..", "tests", "keys-production-stub.js")));
         return;
       }
       // Locally the Keys page is on the same server (its keys go to `.env.local` in this process's folder).

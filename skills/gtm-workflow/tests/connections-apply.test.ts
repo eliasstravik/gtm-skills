@@ -112,3 +112,20 @@ test("the viewer's release status: building means updating, a newer failed build
   assert.equal((await status([build("dpl_bad", "ERROR", { inspectorUrl: "https://evil.example/x" })])).details, undefined);
   await assert.rejects(status([build(serving.id, "READY")], "other"), /application_unavailable/);
 });
+test("asked about a save, the release status is about that save's own build, never an older one's", async () => {
+  const now = 1_000_000_000, change = "11111111-2222-4333-8444-555555555555";
+  const status = (deployments: any[]) => releaseStatus(async (_method, path) =>
+    path.includes("/aliases/") ? { projectId, deployment: serving } : { deployments }, projectId, origin, now, change);
+  const build = (uid: string, state: string, extra: any = {}) => ({ uid, state, created: now - 30000, inspectorUrl: `https://vercel.com/team/p/${uid}`, ...extra });
+  const mine = (state: string, extra: any = {}) => build("dpl_mine", state, { meta: { gtmConnectionsChange: change }, ...extra });
+  // Accepted but not listed yet, however long that takes: updating, though the older build serves and is "live".
+  assert.deepEqual(await status([build(serving.id, "READY")]), { state: "updating", change });
+  // An older failed build is not this save's outcome.
+  assert.deepEqual(await status([build("dpl_old", "ERROR"), build(serving.id, "READY")]), { state: "updating", change });
+  assert.deepEqual(await status([mine("BUILDING"), build("dpl_old", "ERROR")]), { state: "updating", change, since: now - 30000 });
+  assert.deepEqual(await status([{ ...mine("READY"), uid: serving.id }]), { state: "live", change });
+  assert.deepEqual(await status([mine("ERROR"), build(serving.id, "READY")]), { state: "failed", change, since: now - 30000, details: "https://vercel.com/team/p/dpl_mine" });
+  // A newer build since decides, as for any change; a canceled one does not.
+  assert.deepEqual(await status([build(serving.id, "READY"), mine("CANCELED")]), { state: "live", change });
+  assert.deepEqual(await status([build("dpl_x", "CANCELED"), mine("BUILDING")]), { state: "updating", change, since: now - 30000 });
+});

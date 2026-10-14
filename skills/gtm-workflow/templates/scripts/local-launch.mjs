@@ -1,13 +1,14 @@
 // `npm run dev`, the one local command: this workspace's own Postgres, migrations, the viewer registry and the Nitro
 // dev server with workflows, viewer and Keys page, all local. Keys and settings come from `.env` and `.env.local` like any Vercel app.
 import { createRequire } from "node:module";
-import { readFileSync } from "node:fs";
+import { readFileSync, watch } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseEnv } from "node:util";
 import { removeStudioShare } from "./studio-share.mjs";
 import { LocalDatabaseError, databaseEnvironment, ensureLocalDatabase, isProductionDatabase } from "./local-database.mjs";
+import { LOADED_KEYS, SHELL_KEYS, keysFingerprint, providerVariable, reloadableKeys } from "../lib/local-keys.mjs";
 
 const cwd = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -40,6 +41,7 @@ export function localEnvironment(dir = cwd, shell = process.env, warn = console.
 const withoutKeys = (env) => Object.fromEntries(Object.entries(env).filter(([name]) => !/(?:KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)/i.test(name)));
 
 export async function launch(options = {}) {
+  const shell = { ...process.env };
   const env = localEnvironment();
   // node-postgres takes PG* from the environment as defaults; the built-in database gets every field passed explicitly.
   for (const name of Object.keys(process.env)) if (/^PG/.test(name)) delete process.env[name];
@@ -63,12 +65,32 @@ export async function launch(options = {}) {
     if (!Number.isInteger(port) || port <= 0 || port > 65535) throw new LocalDatabaseError("Set GTM_RUNTIME_PORT to a port number");
     // The local queue's 15-minute transport timeout, and runs left in flight by a stop resume at the next start.
     Object.assign(runtime, { WORKFLOW_LOCAL_HEADERS_TIMEOUT_MS: "900000", WORKFLOW_LOCAL_BODY_TIMEOUT_MS: "900000", WORKFLOW_LOCAL_RECOVER_ACTIVE_RUNS: "true" });
+    // A key the shell supplies wins over both files, as at start: a reload never changes it, and the Keys page says so.
+    const pinned = Object.keys(shell).filter((name) => providerVariable(name)).sort();
+    let keys = reloadableKeys(cwd, pinned);
+    runtime[LOADED_KEYS] = keysFingerprint(keys);
+    runtime[SHELL_KEYS] = pinned.join(",");
     for (const name of Object.keys(process.env)) delete process.env[name];
     Object.assign(process.env, runtime);
     const server = await (options.serve ?? nitroServer)({ cwd, port });
     console.log(JSON.stringify({ status: "runner_started", origin: `http://127.0.0.1:${port}` }));
+    const watcher = watchKeys(cwd, () => {
+      let next;
+      // A file mid-edit by hand is read again at its next change.
+      try { next = reloadableKeys(cwd, pinned); } catch { return; }
+      const fingerprint = keysFingerprint(next);
+      if (fingerprint === process.env[LOADED_KEYS]) return;
+      for (const name of new Set([...Object.keys(keys), ...Object.keys(next)])) {
+        if (name in next) process.env[name] = next[name];
+        else delete process.env[name];
+      }
+      keys = next;
+      process.env[LOADED_KEYS] = fingerprint;
+      server.reload?.();
+      console.log(JSON.stringify({ status: "keys_reloaded" }));
+    });
     let closing;
-    const close = () => (closing ??= (async () => { removeStudioShare(cwd); await Promise.resolve(server.close()).catch(() => {}); await database.stop(); })());
+    const close = () => (closing ??= (async () => { watcher.close(); removeStudioShare(cwd); await Promise.resolve(server.close()).catch(() => {}); await database.stop(); })());
     // `on`, not `once`: under `npm run dev` Ctrl+C arrives twice (from the terminal and forwarded by npm), and a second
     // signal with no listener left would kill the process half way through stopping the database. SIGHUP is a closed terminal.
     for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) process.on(signal, () => { close().then(() => process.exit(0), () => process.exit(1)); });
@@ -77,21 +99,41 @@ export async function launch(options = {}) {
   } catch (error) { await database.stop(); throw error; }
 }
 
+/**
+ * A saved key is used without a restart, as a production save redeploys: when `.env` or `.env.local` changes (the Keys
+ * page, an agent, `vercel env pull`), the launcher takes the new keys into its own environment and starts a fresh
+ * server worker from it, the way a saved code file does. A key the shell supplies still wins (`GTM_LOCAL_SHELL_KEYS` names
+ * them for the Keys page, which says a saved one is not in use); settings other than keys (the
+ * database, the port, tailnet mode) still take a restart. Runs in flight resume on the new worker.
+ */
+function watchKeys(dir, changed) {
+  let timer;
+  const watcher = watch(dir, { persistent: false }, (_event, name) => {
+    if (name && ![".env", ".env.local"].includes(String(name))) return;
+    clearTimeout(timer);
+    timer = setTimeout(changed, 150);
+  });
+  watcher.on("error", () => {});
+  return { close() { clearTimeout(timer); watcher.close(); } };
+}
+
 async function nitroServer({ cwd, port }) {
   const require = createRequire(join(cwd, "package.json"));
   const { createNitro, prepare, build } = await import(pathToFileURL(require.resolve("nitro/builder")));
   // Pinned Nitro's own CLI uses this dev server. dotenv stays off: it would read `.env.local` again, VERCEL=1 included.
   const { NitroDevServer } = await import(pathToFileURL(join(dirname(require.resolve("nitro/package.json")), "dist/_dev.mjs")));
-  let nitro;
+  let nitro, server;
   async function reload() {
     if (nitro) { await nitro.options._c12.unwatch?.(); await nitro.close(); }
     nitro = await createNitro({ rootDir: cwd, dev: true, _cli: { command: "dev" } }, { dotenv: false, watch: true, c12: { onUpdate: reload } });
     nitro.hooks.hookOnce("restart", reload);
-    await new NitroDevServer(nitro).listen({ port, hostname: "127.0.0.1" });
+    server = new NitroDevServer(nitro);
+    await server.listen({ port, hostname: "127.0.0.1" });
     await prepare(nitro); await build(nitro);
   }
   await reload();
-  return { close: () => nitro.close() };
+  // A fresh worker over the same build, with this process's environment as it is now: requests wait for it.
+  return { close: () => nitro.close(), reload: () => server.reload() };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
