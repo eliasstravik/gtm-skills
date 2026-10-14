@@ -7,8 +7,8 @@ import { effectivePolicy } from "./viewer-policy";
 import { ViewerError, grants } from "./viewer-grants";
 import { deploymentScope } from "./viewer-access";
 import { runDestination } from "./viewer-destinations";
-import { workspaceRuns, workspaceRunWorkflow } from "./viewer-workspace-runs";
-import type { Display, DataPolicy, View } from "./viewer-contract";
+import { lastRuns, workspaceRuns, workspaceRunWorkflow } from "./viewer-workspace-runs";
+import type { Display, DataPolicy, RegistryGroup, View } from "./viewer-contract";
 import registryJson from "#viewer-registry";
 export type Entry = Display & {
   data: WorkflowData | null;
@@ -153,9 +153,27 @@ export async function readRuns(entry: Entry, url: URL, shared = false) {
   }
   return { data, cursor: next, hasMore };
 }
-export async function readWorkspaceRuns(url: URL) {
+export async function readWorkspaceRuns(url: URL, group?: RegistryGroup) {
   const world = await getWorld();
-  return workspaceRuns((options) => world.runs.list(options), registry, deploymentScope(), url);
+  return workspaceRuns((options) => world.runs.list(options), registry, deploymentScope(), url, Date.now(), group);
+}
+/** Every open Workflows page asks; one answer serves this instance for a few seconds. */
+let summary: { at: number; value: ReturnType<typeof lastRuns> } | undefined;
+export async function readLastRuns() {
+  if (summary && Date.now() - summary.at < 5000) return summary.value;
+  const world = await getWorld();
+  const value = lastRuns((options) => world.runs.list(options), registry, deploymentScope());
+  summary = { at: Date.now(), value };
+  value.catch(() => { if (summary?.value === value) summary = undefined; });
+  return value;
+}
+/** The database tables a workflow reads or writes: its authored Data tables, else the tables its runRows calls write. */
+export function workflowTables(entry: Entry): string[] {
+  const names = [...(entry.data?.tables.map((t) => t.name) ?? []), ...(entry.resultTables ?? [])];
+  return [...new Set(names.flatMap((name) => {
+    const table = (tables as Record<string, any>)[name];
+    return table ? [getTableName(table)] : [];
+  }))];
 }
 /**
  * A workflow without authored Data still shows its own result tables to the owner, every column, as workspace Data

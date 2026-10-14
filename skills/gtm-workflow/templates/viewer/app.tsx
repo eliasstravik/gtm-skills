@@ -36,6 +36,12 @@ function Workflow() {
                 <>
                   <a href="/viewer">Workflows</a>
                   <span aria-hidden="true">/</span>
+                  {meta.group && (
+                    <>
+                      <a href={`/viewer?group=${encodeURIComponent(meta.group.id)}`}>{meta.group.name}</a>
+                      <span aria-hidden="true">/</span>
+                    </>
+                  )}
                 </>
               )}
               <h1>{meta.workflow.title}</h1>

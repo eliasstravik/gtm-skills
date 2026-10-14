@@ -30,6 +30,7 @@ await build({
           },
           () => ({ path: join(tests, "api-fixture.ts") }),
         );
+        build.onResolve({ filter: /^#viewer-groups$/ }, () => ({ path: join(tests, "groups-fixture.ts") }));
         // Template scripts locate the template by their own URL, so they stay outside the bundle.
         build.onResolve({ filter: /templates\/scripts\/[a-z-]+\.mjs$/ }, (args) => ({ path: pathToFileURL(join(runtime, "scripts", args.path.split("/").pop())).href, external: true }));
       },

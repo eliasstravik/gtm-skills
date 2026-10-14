@@ -117,7 +117,8 @@ export function registrySource(register = false) {
   if (!registry || !ts.isObjectLiteralExpression(registry))
     throw Error("Expected a literal workflows registry");
   const edits = [],
-    entries = [];
+    entries = [],
+    contents = new Map();
   for (const p of registry.properties) {
     if (
       !ts.isPropertyAssignment(p) ||
@@ -169,6 +170,7 @@ export function registrySource(register = false) {
     if (!source) throw Error(`Workflow import not found: ${slug}`);
     const workflowPath = resolve("workflows", source + ".ts");
     const content = readFileSync(workflowPath, "utf8");
+    contents.set(slug, { content, path: workflowPath });
     const doc = content
       .match(/\/\*\*([\s\S]*?)\*\//)?.[1]
       ?.split("\n")
@@ -188,6 +190,7 @@ export function registrySource(register = false) {
       // Without authored Data, the private viewer shows the tables the workflow's runRows calls write.
       ...(props.data ? {} : { resultTables: resultTables(content) }),
       sharePolicy: viewer.sharePolicy ?? null,
+      ...(props.intake ? { intake: true } : {}),
       ...(viewer.connections === undefined ? {} : { connections: validateConnections(viewer.connections) }),
       ...(viewer.businessGraph ? { businessGraph: viewer.businessGraph } : {}),
       ...(viewer.stages ? { stages: viewer.stages } : {}),
@@ -197,6 +200,23 @@ export function registrySource(register = false) {
   }
   if (new Set(entries.map((e) => e.id)).size !== entries.length)
     throw Error("Duplicate immutable workflow identity");
+  // A workflow whose file imports another registered workflow's function starts it as a stage.
+  for (const entry of entries) {
+    const { content, path } = contents.get(entry.slug);
+    const file = ts.createSourceFile(path, content, ts.ScriptTarget.Latest, true);
+    for (const statement of file.statements) {
+      if (!ts.isImportDeclaration(statement) || statement.importClause?.isTypeOnly) continue;
+      const bindings = statement.importClause?.namedBindings;
+      if (!bindings || !ts.isNamedImports(bindings)) continue;
+      const target = resolve(dirname(path), statement.moduleSpecifier.text);
+      for (const element of bindings.elements) {
+        if (element.isTypeOnly) continue;
+        const name = element.propertyName?.text ?? element.name.text;
+        const stage = entries.find((e) => e !== entry && e.exportName === name && resolve("workflows", e.source) === target.replace(/\.ts$/, ""));
+        if (stage && !(stage.startedBy ??= []).includes(entry.slug)) stage.startedBy.push(entry.slug);
+      }
+    }
+  }
   if (register && edits.length) {
     for (const path of new Set(edits.map((e) => e.path))) {
       let text = readFileSync(path, "utf8");

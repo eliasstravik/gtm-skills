@@ -13,6 +13,7 @@ import { testDatabase } from "./db";
 import { page } from "../templates/viewer/shell";
 import { connectionsManagement } from "../templates/lib/connections-management";
 import { keysPage } from "../templates/server/routes/connections.get";
+import { fixtureGroups } from "./groups-fixture";
 import registry, {
   entry,
   tables,
@@ -180,6 +181,11 @@ if (process.env.GTM_VIEWER_FIXTURE_LINKS === "1") {
   ]) await client.execute(statement);
 }
 if (process.env.GTM_VIEWER_FIXTURE_WORKSPACE === "1") {
+  // A pipeline group, a scheduled workflow, a stage and a webhook, for the grouped Workflows page.
+  fixtureGroups.push({ id: "markets", name: "Market research", description: "Research and score each target market.", workflows: ["workflow-1", "workflow-2", "workflow-3", "workflow-4", "workflow-5", "workflow-6"] });
+  Object.assign(registry.find((e: any) => e.id === "workflow-2")!, { trigger: { schedule: "0 7 * * *" } });
+  Object.assign(registry.find((e: any) => e.id === "workflow-3")!, { trigger: { startedBy: ["workflow-1"] } });
+  Object.assign(registry.find((e: any) => e.id === "workflow-7")!, { trigger: { webhook: true } });
   await client.execute("CREATE TABLE imported_contacts (email TEXT, name TEXT)");
   await client.execute("INSERT INTO imported_contacts VALUES ('ada@example.com', 'Ada Import'), ('lin@example.com', 'Lin Import')");
   Object.assign(process.env, {

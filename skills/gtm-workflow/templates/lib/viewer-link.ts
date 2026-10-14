@@ -1,4 +1,5 @@
-import { entryFor } from "./viewer-reader";
+import { entryFor, registry } from "./viewer-reader";
+import { groups } from "./viewer-groups";
 import { configuredNames } from "./connections-contract";
 import { localKeyNames } from "./connections-local";
 import { productionOrigin } from "./connections-access";
@@ -43,5 +44,26 @@ export function viewerLink(req: Request, workflow?: string) {
     runsUrl: view("runs"),
     dataUrl: view("data"),
     keys: process.env.VERCEL ? configuredNames(process.env) : localKeyNames(),
+  };
+}
+/** A group's private pages, for the agent to answer "how is <group> doing": its workflows, Runs and Data. */
+export function groupLink(req: Request, id: string) {
+  const group = groups.find((g) => g.id === id);
+  if (!group) return undefined;
+  const page = (view?: string) => {
+    const url = new URL("/viewer", req.url);
+    url.searchParams.set("group", group.id);
+    if (view) url.searchParams.set("view", view);
+    return url.href;
+  };
+  return {
+    groupId: group.id,
+    name: group.name,
+    description: group.description,
+    workflows: group.workflows.flatMap((wid) => registry.filter((e) => e.id === wid).map((e) => ({ id: e.id, slug: e.slug, title: e.title }))),
+    viewerUrl: page(),
+    runsUrl: page("runs"),
+    dataUrl: page("data"),
+    commit: process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GTM_VIEWER_COMMIT ?? null,
   };
 }

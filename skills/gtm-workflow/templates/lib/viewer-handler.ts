@@ -1,6 +1,5 @@
 import { CONTRACT_VERSION } from "./viewer-contract";
-import { readFolders } from "./workflow-folders";
-import { folderMetadata } from "./shared-folders";
+import { groups, groupOf, selectedGroup } from "./viewer-groups";
 import {
   privateAccess,
   requireMutation,
@@ -17,7 +16,9 @@ import {
   authorizeShare,
   readRuns,
   readWorkspaceRuns,
+  readLastRuns,
   readBusinessData,
+  workflowTables,
 } from "./viewer-reader";
 import {
   grants,
@@ -51,7 +52,7 @@ const reply = (
   );
 const failures = new Map<string, { count: number; until: number }>();
 // A deploy or a local registry rebuild loads this module again, so computing it once is enough.
-const registryVersion = fingerprint(registry);
+const registryVersion = fingerprint([registry, groups]);
 /**
  * Production only, and only where the Keys page may talk to Vercel: whether the newest change is live yet. Every open
  * tab asks, so one answer serves this instance for a few seconds.
@@ -129,28 +130,19 @@ export async function viewerApi(req: Request, shared = false, service = false) {
     }
     if (
       req.method !== "GET" &&
-      !["saveLink", "revokeGrant", "openDatabase", "folders"].includes(operation)
+      !["saveLink", "revokeGrant", "openDatabase"].includes(operation)
     )
       throw new ViewerError(405, "method_denied", "Read-only endpoint.");
     if (shared && req.method !== "GET")
       throw new ViewerError(405, "method_denied", "Read-only endpoint.");
     // The page asks this every few seconds and reads again only what moved. A new deployment reloads the page, for
     // its assets; the registry covers workflows and their diagrams; data covers every table, row and share link.
-    if (!shared && operation === "pulse") {
-      const revision = await folderMetadata.revision().catch(() => "unavailable");
+    if (!shared && operation === "pulse")
       return reply({
         deployment: process.env.VERCEL_DEPLOYMENT_ID ?? null,
-        registry: `${registryVersion}:${revision}`,
+        registry: registryVersion,
         data: await dataVersion(db()),
       });
-    }
-    if (operation === "folders") {
-      if (recipient || service || (process.env.VERCEL && deploymentScope().environment !== "production"))
-        throw new ViewerError(403, "view_denied", "Folder changes require the private owner viewer, not a preview or service.");
-      if (req.method !== "POST") throw new ViewerError(405, "method_denied", "POST required.");
-      await requireMutation(req);
-      return reply({ folders: await folderMetadata.mutate(await boundedJson(req), registry.map((w) => w.id)) });
-    }
     // Local only: the Open database button starts Drizzle Studio on this computer's database and returns its address,
     // shared with the owner over the tailnet when the button was pressed there.
     if (operation === "openDatabase") {
@@ -167,20 +159,19 @@ export async function viewerApi(req: Request, shared = false, service = false) {
       return reply({ release: await currentRelease() });
     if (!shared && operation === "list") {
       const csrf = csrfCookie(req);
-      const workflows = registry.map(({ id, slug, title, description }) => ({
-        id,
-        slug,
-        title,
-        description,
+      // Everything here comes from the build: no run history, no database read. Last runs are `summary`.
+      const workflows = registry.map((entry) => ({
+        id: entry.id,
+        slug: entry.slug,
+        title: entry.title,
+        description: entry.description,
+        trigger: entry.trigger ?? {},
+        tables: workflowTables(entry),
+        providers: [...new Set((entry.connections ?? []).flatMap((c) => (c.provider ? [c.provider] : [])))],
       }));
-      // A folder transport outage never changes the local Runs/Data backend or invents a writable local tree.
-      const folderResult = await (service ? readFolders(db(), deploymentScope()) : folderMetadata.read())
-        .then(async (folders) => ({ folders, foldersUnavailable: null, foldersMode: service ? "shared" : await folderMetadata.mode() }))
-        .catch(() => ({ folders: null, foldersMode: null, foldersUnavailable: "Shared folders are unavailable. Connect to production to view or change placements. Workflows below are shown without folder organization." }));
       return reply({
         workflows,
-        ...folderResult,
-        foldersEditable: Boolean(folderResult.folders) && !service && (!process.env.VERCEL || deploymentScope().environment === "production"),
+        groups,
         environment: deploymentScope().environment,
         workspace: process.env.GTM_VIEWER_LABEL ?? "GTM workspace",
         // Origin-relative: behind a trusted proxy the request URL names the loopback address, not the browser's.
@@ -192,7 +183,10 @@ export async function viewerApi(req: Request, shared = false, service = false) {
     if (!url.searchParams.has("workflow") && ["data", "export"].includes(operation)) {
       if (recipient)
         throw new ViewerError(403, "view_denied", "Workspace data requires private access.");
-      const read = (page: URL) => readWorkspaceData(db(), page);
+      // A group's Data lists only the tables its workflows read or write.
+      const group = selectedGroup(url);
+      const only = group && new Set(registry.filter((e) => group.workflows.includes(e.id)).flatMap(workflowTables));
+      const read = (page: URL) => readWorkspaceData(db(), page, only);
       if (operation === "data") return reply(await read(url));
       return await exportCsv(url, async (page) => {
         const result = await read(page);
@@ -204,7 +198,13 @@ export async function viewerApi(req: Request, shared = false, service = false) {
     if (operation === "workspaceRuns") {
       if (recipient)
         throw new ViewerError(403, "view_denied", "Workspace runs require private access.");
-      return reply(await readWorkspaceRuns(url));
+      return reply(await readWorkspaceRuns(url, selectedGroup(url)));
+    }
+    // The newest run of every workflow, for the Workflows page. Metadata only, like Runs.
+    if (operation === "summary") {
+      if (recipient || shared)
+        throw new ViewerError(403, "view_denied", "Workflow status requires private access.");
+      return reply({ lastRuns: await readLastRuns() });
     }
     const entry = entryFor(url.searchParams.get("workflow") ?? "");
     let grant;
@@ -262,6 +262,10 @@ export async function viewerApi(req: Request, shared = false, service = false) {
                 Boolean((preview ?? grant?.views)?.includes("logic")),
               !recipient,
             ),
+            // The workspace's organisation is the owner's: a share link never learns it.
+            ...(!recipient && groupOf(entry.id)
+              ? { group: { id: groupOf(entry.id)!.id, name: groupOf(entry.id)!.name } }
+              : {}),
             views: preview ?? grant?.views ?? ["logic", "runs", "data"],
             environment: deploymentScope().environment,
             workspace: process.env.GTM_VIEWER_LABEL ?? "GTM workspace",

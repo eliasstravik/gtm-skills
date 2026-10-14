@@ -23,6 +23,21 @@ export type DataRelation = {
   reference?: "current-experiences-v1";
 };
 export type View = "logic" | "runs" | "data";
+/**
+ * One group in `workflows/groups.ts`: workflows that belong together, usually because they share data or run as a
+ * pipeline. `S` is the registry's slugs, so a misspelled or deleted workflow fails the type check and the build.
+ * Order of `workflows` is the order on screen (pipeline order). A workflow is in at most one group.
+ */
+export type WorkflowGroup<S extends string = string> = {
+  id: string;
+  name: string;
+  description?: string;
+  workflows: readonly S[];
+};
+/** A group as the build resolves it: workflow slugs replaced by their permanent viewer IDs. */
+export type RegistryGroup = { id: string; name: string; description: string; workflows: string[] };
+/** How a workflow starts, derived at build from `vercel.json` crons, a registered `intake` and stage calls. */
+export type Trigger = { schedule?: string; webhook?: boolean; startedBy?: string[] };
 export type BusinessGraph = {
   nodes: {
     id: string;
@@ -64,6 +79,7 @@ export type Display = {
     nodes: string[];
   }[];
   workflowName: string;
+  trigger?: Trigger;
   graph?: Graph;
   revision: string;
   /** Exact argument selectors disambiguate repeated call sites without inferring execution order. */

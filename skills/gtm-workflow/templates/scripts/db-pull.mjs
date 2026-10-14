@@ -68,7 +68,7 @@ export async function pullDatabase({ source, target, dumpFile }) {
 }
 
 /** Production's connection string from the owner's `neonctl` login, with the org and project that setup saved. */
-function productionUrl() {
+export function productionUrl() {
   const file = join(cwd, "data", "neon.json");
   if (!existsSync(file)) throw new LocalDatabaseError("No Neon project saved for this workspace: run the gtm-workflow skill's setup with --deploy once, from a computer signed in to neonctl.");
   const neon = JSON.parse(readFileSync(file, "utf8"));

@@ -20,6 +20,38 @@ try {
   command("open", "http://127.0.0.1:3942/viewer");
   command("wait", "--text", "Connections");
   assert.deepEqual(evaluate('[...document.querySelectorAll(".root-navigation a")].map(a=>a.textContent)'), ["Workflows", "Runs", "Data", "Connections"]);
+  // Groups from groups.ts in file order, then Other; each row says how it starts and how its last run went.
+  command("wait", "--fn", 'document.querySelectorAll(".last-run").length > 3');
+  assert.deepEqual(evaluate('[...document.querySelectorAll(".group-header h2")].map(h=>h.textContent.replace("›","").trim())'), ["Network", "Market research", "Other"]);
+  const markets = '[...document.querySelectorAll(".workflow-group")].find(s=>s.getAttribute("aria-label")==="Market research")';
+  assert.equal(evaluate(`${markets}.querySelectorAll(".workflow-row").length`), 3, "a group shows its first three workflows");
+  assert.equal(evaluate(`${markets}.querySelector(".more").textContent`), "+ 3 more");
+  assert.equal(evaluate(`${markets}.querySelector(".workflow-row .status").textContent`), "failed", "failing first in the preview");
+  assert.ok(evaluate('document.body.textContent.includes("Daily 07:00 UTC") && document.body.textContent.includes("Stage of Research market 01") && document.body.textContent.includes("Webhook")'));
+  command("click", '.chips button:nth-child(3)');
+  command("wait", "--fn", 'new URL(location.href).searchParams.get("filter") === "failing"');
+  assert.ok(evaluate('[...document.querySelectorAll(".workflow-row .status")].every(s=>s.textContent==="failed")'));
+  command("fill", '[aria-label="Search workflows, tables, providers…"]', "Research market 06");
+  command("wait", "--fn", 'document.querySelectorAll(".workflow-row").length === 1');
+  // A group's page: the workspace's tabs, narrowed to the group, under a breadcrumb.
+  command("open", "http://127.0.0.1:3942/viewer?group=markets");
+  command("wait", "--text", "Research market 06");
+  assert.deepEqual(evaluate('[...document.querySelectorAll("nav.tabs a")].map(a=>a.textContent.replace(/\\d+/,"").trim())'), ["Workflows", "Runs", "Data"]);
+  assert.equal(evaluate('document.querySelectorAll(".group-workflows .workflow-row").length'), 6);
+  command("click", 'nav.tabs a[href$="view=runs"]');
+  command("wait", "--text", "wrun_");
+  assert.deepEqual(evaluate('[...document.querySelector("[name=filter-runs-by-workflow]").options].map(o=>o.textContent).length'), 7, "the workflow filter lists the group's six");
+  command("open", "http://127.0.0.1:3942/viewer?workflow=workflow-2");
+  command("wait", "--text", "Market research");
+  assert.equal(evaluate('document.querySelector(".breadcrumbs a:nth-of-type(2)").getAttribute("href")'), "/viewer?group=markets");
+  // At phone width rows wrap instead of running off the edge.
+  command("set", "viewport", "390", "844");
+  command("open", "http://127.0.0.1:3942/viewer");
+  command("wait", "--text", "Market research");
+  assert.equal(evaluate("document.documentElement.scrollWidth <= innerWidth"), true);
+  command("set", "viewport", "1280", "800");
+  command("open", "http://127.0.0.1:3942/viewer");
+  command("wait", "--text", "Connections");
   command("click", '.root-navigation a[href="/viewer?view=data"]');
   command("wait", "--text", "matching records");
   // The Data tab opens on workspace results; runtime bookkeeping such as the cache shows only when asked for.
@@ -62,5 +94,5 @@ try {
   command("eval", "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
   assert.ok(evaluate('document.querySelector(".table-scroll").scrollLeft') > 0, "the grid scrolls sideways");
   assert.equal(pinnedLeft(), before, "the name column stays in view");
-  console.log("Workspace navigation, hidden runtime tables, pinned name column, unregistered data, search, columns, export and private Runs destination passed.");
+  console.log("Workspace navigation, groups with last runs, chips and search, group pages, hidden runtime tables, pinned name column, unregistered data, search, columns, export and private Runs destination passed.");
 } finally { command("close"); }

@@ -317,7 +317,7 @@ export default function Data({ destinations, csrf }: any) {
       <State state={d && !state.error ? { ...state, loading: false } : state} />
       {d &&
         (d.unavailable ? (
-          <p className="notice">No configured data for this workflow.</p>
+          <p className="notice">{query().has("group") ? d.unavailable : "No configured data for this workflow."}</p>
         ) : (
           <>
             <div className="toolbar">
@@ -333,7 +333,7 @@ export default function Data({ destinations, csrf }: any) {
                   </option>
                 ))}
               </select>
-              {d.hiddenTables !== undefined && (d.hiddenTables > 0 || p.get("internal") === "1") && (
+              {d.hiddenTables !== undefined && !p.has("group") && (d.hiddenTables > 0 || p.get("internal") === "1") && (
                 <button
                   aria-pressed={p.get("internal") === "1"}
                   onClick={() =>
