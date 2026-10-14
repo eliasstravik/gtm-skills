@@ -159,7 +159,8 @@ function Home({ list }: { list: ReturnType<typeof useRead> }) {
     {list.data && <section className="wf-index" aria-label="Workflows">
       {summary.error && <p role="alert" className="notice error">Last runs are unavailable: {summary.error} <button type="button" onClick={summary.retry}>Retry</button></p>}
       {shown.map(({ group, nodes, members }) => {
-        const key = group?.id ?? "ungrouped", open = narrowed || !closedGroups.has(key), rows = `wf-rows-${key}`;
+        // Group IDs are free text: prefixed, none can share the Ungrouped section's key and collapse it along.
+        const key = group ? `group-${group.id}` : "ungrouped", open = narrowed || !closedGroups.has(key), rows = `wf-rows-${key}`;
         const name = group?.name ?? "Ungrouped";
         return <section className="wf-group" key={key} aria-label={name}>
           {(group || groups.length > 0) && <header className="wf-group-header">

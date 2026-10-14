@@ -188,6 +188,8 @@ if (process.env.GTM_VIEWER_FIXTURE_WORKSPACE === "1") {
   Object.assign(registry.find((e: any) => e.id === "workflow-2")!, { trigger: { schedule: "0 7 * * *" } });
   Object.assign(registry.find((e: any) => e.id === "workflow-3")!, { trigger: { startedBy: ["workflow-1"] }, parent: "workflow-1" });
   Object.assign(registry.find((e: any) => e.id === "workflow-7")!, { trigger: { webhook: true } });
+  // A group may be called anything, "ungrouped" too: it must not open and close with the Ungrouped section.
+  fixtureGroups.push({ id: "ungrouped", name: "Webhooks", description: "", workflows: ["workflow-7"] });
   await client.execute("CREATE TABLE imported_contacts (email TEXT, name TEXT)");
   await client.execute("INSERT INTO imported_contacts VALUES ('ada@example.com', 'Ada Import'), ('lin@example.com', 'Lin Import')");
   Object.assign(process.env, {

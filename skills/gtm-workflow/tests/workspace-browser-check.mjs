@@ -25,7 +25,7 @@ try {
   // Groups from groups.ts in file order, then Ungrouped: one line per workflow, a dot for its last run and its name.
   const loaded = 'document.querySelectorAll(".wf-dot:not(.wf-dot-loading)").length > 3';
   command("wait", "--fn", loaded);
-  assert.deepEqual(evaluate('[...document.querySelectorAll(".wf-group-name")].map(h=>h.textContent)'), ["Network", "Market research", "Ungrouped"]);
+  assert.deepEqual(evaluate('[...document.querySelectorAll(".wf-group-name")].map(h=>h.textContent)'), ["Network", "Market research", "Webhooks", "Ungrouped"]);
   const markets = '.wf-group[aria-label="Market research"]';
   const titles = (scope = "") => evaluate(`[...document.querySelectorAll('${scope} .wf-link')].map(a=>a.textContent)`);
   // A pipeline starts closed: its stage is hidden under it, and the header still counts all six.
@@ -36,6 +36,8 @@ try {
   assert.ok(evaluate('[...document.querySelectorAll(".wf-row")].every(r=>r.textContent===r.querySelector(".wf-link").textContent+(r.querySelector(".wf-stages")?.textContent ?? ""))'),
     "a row says nothing but its name, and a pipeline its stages");
   assert.equal(evaluate(`document.querySelector('${markets} .wf-dot-failed').title.startsWith("Last run failed")`), true, "the dot's tooltip says how and when");
+  // The pointer reaches the dot, not the row's link over it, so hovering shows that tooltip.
+  assert.ok(evaluate(`(() => { const d = document.querySelector('${markets} .wf-dot-failed'), r = d.getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === d; })()`), "the dot is on top");
   // Opening the pipeline shows its stage on the tree line under it, and the page remembers it.
   command("click", 'button[aria-label="Show the stage of Research market 01"]');
   command("wait", "--text", "Research market 03");
@@ -48,6 +50,11 @@ try {
   assert.equal(evaluate(`document.querySelector('${markets} .wf-group-toggle').getAttribute("aria-expanded")`), "false", "a closed group stays closed");
   command("click", `${markets} .wf-group-toggle`);
   command("wait", "--text", "Research market 03");
+  // A group whose ID is "ungrouped" closes alone.
+  command("click", '.wf-group[aria-label="Webhooks"] .wf-group-toggle');
+  command("wait", "--fn", `!document.querySelector('.wf-group[aria-label="Webhooks"] .wf-rows')`);
+  assert.equal(evaluate(`document.querySelector('.wf-group[aria-label="Ungrouped"] .wf-group-toggle').getAttribute("aria-expanded")`), "true");
+  command("click", '.wf-group[aria-label="Webhooks"] .wf-group-toggle');
   // The Failing filter: only failed runs, each under its pipeline.
   command("click", ".wf-failing");
   command("wait", "--fn", 'new URL(location.href).searchParams.get("filter") === "failing"');

@@ -951,6 +951,9 @@ fieldset legend {
 .wf-toggle:disabled { opacity: 1; background: transparent; }
 .wf-toggle:not(:disabled):hover svg { color: var(--text); }
 .wf-dot { position: relative; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--border); }
+/* Above the row's stretched link, with a larger hover area, so hovering the dot shows its last run, not the link's tooltip. */
+.wf-dot { z-index: 1; cursor: default; }
+.wf-dot::before { content: ""; position: absolute; inset: -6px; border-radius: 50%; }
 .wf-dot-completed { background: var(--wf-ok); }
 .wf-dot-failed { background: var(--wf-failed); }
 .wf-dot-running { background: var(--wf-running); }
