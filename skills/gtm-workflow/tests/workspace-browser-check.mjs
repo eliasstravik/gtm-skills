@@ -22,9 +22,9 @@ try {
   assert.deepEqual(evaluate('[...document.querySelectorAll(".root-navigation a")].map(a=>a.textContent)'), ["Workflows", "Runs", "Data", "Connections"]);
   command("eval", "localStorage.clear()");
   command("open", "http://127.0.0.1:3942/viewer");
-  // Groups from groups.ts in file order, then Ungrouped: one line per workflow with how it starts, its recent runs and
-  // its last run, and no table names.
-  command("wait", "--fn", 'document.querySelectorAll(".wf-history").length > 3');
+  // Groups from groups.ts in file order, then Ungrouped: one line per workflow, a dot for its last run and its name.
+  const loaded = 'document.querySelectorAll(".wf-dot:not(.wf-dot-loading)").length > 3';
+  command("wait", "--fn", loaded);
   assert.deepEqual(evaluate('[...document.querySelectorAll(".wf-group-name")].map(h=>h.textContent)'), ["Network", "Market research", "Ungrouped"]);
   const markets = '.wf-group[aria-label="Market research"]';
   const titles = (scope = "") => evaluate(`[...document.querySelectorAll('${scope} .wf-link')].map(a=>a.textContent)`);
@@ -33,9 +33,9 @@ try {
   assert.equal(evaluate(`document.querySelector('${markets} .wf-count').textContent`), "6");
   assert.equal(evaluate(`document.querySelector('${markets} .wf-group-state').textContent`), "2 failing");
   assert.equal(evaluate(`document.querySelector('${markets} .wf-row .wf-stages').textContent`), "1 stage · 1 running", "a closed pipeline shows its stages' state");
-  assert.ok(evaluate('document.body.textContent.includes("Daily 07:00 UTC") && document.body.textContent.includes("Webhook")'));
-  assert.equal(evaluate('document.querySelectorAll(".table-name").length'), 0, "rows name no tables");
-  assert.equal(evaluate(`document.querySelectorAll('${markets} .wf-history span').length`), 50, "ten recent runs a row");
+  assert.ok(evaluate('[...document.querySelectorAll(".wf-row")].every(r=>r.textContent===r.querySelector(".wf-link").textContent+(r.querySelector(".wf-stages")?.textContent ?? ""))'),
+    "a row says nothing but its name, and a pipeline its stages");
+  assert.equal(evaluate(`document.querySelector('${markets} .wf-dot-failed').title.startsWith("Last run failed")`), true, "the dot's tooltip says how and when");
   // Opening the pipeline shows its stage on the tree line under it, and the page remembers it.
   command("click", 'button[aria-label="Show the stage of Research market 01"]');
   command("wait", "--text", "Research market 03");
@@ -44,15 +44,15 @@ try {
   command("click", `${markets} .wf-group-toggle`);
   command("wait", "--fn", `!document.querySelector('${markets} .wf-rows')`);
   command("reload");
-  command("wait", "--fn", 'document.querySelectorAll(".wf-history").length > 3');
+  command("wait", "--fn", loaded);
   assert.equal(evaluate(`document.querySelector('${markets} .wf-group-toggle').getAttribute("aria-expanded")`), "false", "a closed group stays closed");
   command("click", `${markets} .wf-group-toggle`);
   command("wait", "--text", "Research market 03");
   // The Failing filter: only failed runs, each under its pipeline.
-  command("select", "[name=filter-workflows]", "failing");
+  command("click", ".wf-failing");
   command("wait", "--fn", 'new URL(location.href).searchParams.get("filter") === "failing"');
   assert.ok(evaluate('[...document.querySelectorAll(".wf-row:not(.wf-context) .wf-dot")].every(d=>d.classList.contains("wf-dot-failed"))'));
-  command("select", "[name=filter-workflows]", "all");
+  command("click", ".wf-failing");
   command("wait", "--fn", '!new URL(location.href).searchParams.has("filter")');
   // Search reaches a stage in a closed pipeline and shows the pipeline above it, dimmed.
   command("click", 'button[aria-label="Hide the stage of Research market 01"]');
@@ -71,6 +71,8 @@ try {
   command("open", "http://127.0.0.1:3942/viewer?workflow=workflow-2");
   command("wait", "--text", "Market research");
   assert.equal(evaluate('document.querySelector(".breadcrumbs a:nth-of-type(2)").getAttribute("href")'), "/viewer?group=markets");
+  // How it starts is on its own page, not on the list.
+  command("wait", "--text", "Starts: Daily 07:00 UTC");
   // A stage's breadcrumb runs through its pipeline.
   command("open", "http://127.0.0.1:3942/viewer?workflow=workflow-3");
   command("wait", "--text", "Market research");
@@ -125,5 +127,5 @@ try {
   command("eval", "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
   assert.ok(evaluate('document.querySelector(".table-scroll").scrollLeft') > 0, "the grid scrolls sideways");
   assert.equal(pinnedLeft(), before, "the name column stays in view");
-  console.log("Workspace navigation, groups and pipelines that open and close, recent runs, filters and search, group pages, stage breadcrumbs, hidden runtime tables, pinned name column, unregistered data, search, columns, export and private Runs destination passed.");
+  console.log("Workspace navigation, groups and pipelines that open and close, a dot and a name a row, the Failing filter and search, group pages, stage breadcrumbs, hidden runtime tables, pinned name column, unregistered data, search, columns, export and private Runs destination passed.");
 } finally { command("close"); }

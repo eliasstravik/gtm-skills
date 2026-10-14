@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { ArrowRightIcon, ChevronRightIcon } from "@heroicons/react/16/solid";
 import { href, navigate, query } from "./navigation";
-import { Search, State, time, useRead } from "./common";
+import { Search, State, useRead } from "./common";
 import Data from "./data";
 import Runs from "./runs";
 import { EnvironmentBadge } from "./environment";
 import {
-  FILTERS, active, ago, flatten, lastRun, matches, passes, rollUp, sections, triggerText,
-  type Filter, type Group, type LastRuns, type ListedWorkflow, type Node,
+  active, ago, flatten, lastRun, matches, passes, rollUp, sections,
+  type Group, type LastRuns, type ListedWorkflow, type Node,
 } from "./groups";
 
 /**
@@ -29,35 +29,16 @@ function useToggles(key: string | undefined) {
 
 const STATUS: Record<string, string> = { failed: "Failed", running: "Running", pending: "Queued", cancelled: "Cancelled", completed: "Completed" };
 
-/** The last run's status as a dot before the name: the one signal every row has, in the same place. */
+/**
+ * The last run's status as a dot before the name: the only thing a row says besides its name. Its time is in the
+ * tooltip; the history is on Runs.
+ */
 function Dot({ runs, id }: { runs?: LastRuns; id: string }) {
   const run = lastRun(runs, id);
   const status = !runs ? "loading" : run ? run.status : "never";
-  const label = run ? `Last run ${STATUS[run.status]?.toLowerCase() ?? run.status}` : runs ? "Never run" : "";
+  const label = run ? `Last run ${STATUS[run.status]?.toLowerCase() ?? run.status} ${ago(run.createdAt)}`
+    : runs ? (runs[id] === "unknown" ? "No recent run" : "Never run") : "";
   return <span className={`wf-dot wf-dot-${status}`} role={label ? "img" : undefined} aria-label={label || undefined} title={label || undefined} />;
-}
-
-/** Quiet when all is well: a completed run is just its time; anything else says what happened. */
-function LastRunText({ runs, id }: { runs?: LastRuns; id: string }) {
-  if (!runs) return null;
-  const run = lastRun(runs, id);
-  if (!run) return <span className="wf-faint">{runs[id] === "unknown" ? "No recent run" : "Never run"}</span>;
-  const when = <time dateTime={new Date(run.createdAt).toISOString()} title={time(run.createdAt)}>{ago(run.createdAt)}</time>;
-  if (run.status === "completed") return when;
-  return <><span className={`wf-word wf-word-${run.status}`}>{STATUS[run.status] ?? run.status}</span> {when}</>;
-}
-
-const HISTORY = 10;
-/** The newest runs as ticks, oldest on the left: grey when they completed, colour only for what needs a look. */
-function History({ runs, id }: { runs?: LastRuns; id: string }) {
-  if (!runs) return null;
-  const recent = [...(lastRun(runs, id)?.recent ?? [])].slice(0, HISTORY).reverse();
-  const counts = Object.entries(recent.reduce<Record<string, number>>((all, s) => ({ ...all, [s]: (all[s] ?? 0) + 1 }), {}))
-    .map(([status, n]) => `${n} ${STATUS[status]?.toLowerCase() ?? status}`).join(", ");
-  return <span className="wf-history" role="img" aria-label={recent.length ? `Last ${recent.length} runs: ${counts}` : "No runs yet"}
-    title={recent.length ? `Last ${recent.length} runs: ${counts}` : undefined}>
-    {[...Array(HISTORY - recent.length).fill("none"), ...recent].map((status, i) => <span key={i} data-status={status} />)}
-  </span>;
 }
 
 type Row = { node: Node; depth: number; guides: boolean[]; last: boolean };
@@ -73,12 +54,12 @@ function visibleRows(nodes: Node[], isOpen: (id: string) => boolean, depth = 0, 
 }
 
 /**
- * Workflows as a tree: one line each, a pipeline's stages under it on a tree line. The name opens the workflow; the
- * chevron before a pipeline shows or hides its stages, and a hidden stage's failure shows on the pipeline's line. Without
- * `toggle` (while a search or filter is on) every pipeline stays open.
+ * Workflows as a tree: a dot and a name each, a pipeline's stages under it on a tree line. The name opens the workflow;
+ * the chevron before a pipeline shows or hides its stages, and a hidden stage's failure shows on the pipeline's line.
+ * Without `toggle` (while a search or filter is on) every pipeline stays open.
  */
-function WorkflowTree({ nodes, runs, titles, isOpen, toggle, id }: {
-  nodes: Node[]; runs?: LastRuns; titles: Map<string, string>; isOpen: (id: string) => boolean; toggle?: (id: string) => void; id?: string;
+function WorkflowTree({ nodes, runs, isOpen, toggle, id }: {
+  nodes: Node[]; runs?: LastRuns; isOpen: (id: string) => boolean; toggle?: (id: string) => void; id?: string;
 }) {
   return <ul role="list" className="wf-rows" id={id}>
     {visibleRows(nodes, isOpen).map(({ node, depth, guides, last }) => {
@@ -86,14 +67,12 @@ function WorkflowTree({ nodes, runs, titles, isOpen, toggle, id }: {
       const stages = flatten(node.stages);
       const failing = !open ? stages.filter((s) => lastRun(runs, s.id)?.status === "failed").length : 0;
       const running = !open ? stages.filter((s) => active(lastRun(runs, s.id))).length : 0;
-      const trigger = triggerText(w, titles);
       const count = node.stages.length > 0 && <span className="wf-stages">
         {stages.length} {stages.length === 1 ? "stage" : "stages"}
         {failing > 0 && <span className="wf-word wf-word-failed"> · {failing} failed</span>}
         {!failing && running > 0 && <span className="wf-word wf-word-running"> · {running} running</span>}
       </span>;
       return <li key={w.id} className={node.context ? "wf-row wf-context" : "wf-row"} data-depth={depth} data-last={last || undefined} data-open={open || undefined}
-        data-bare={(!trigger && !count) || undefined}
         style={{ "--depth": depth } as React.CSSProperties}>
         {guides.map((on, level) => on && <span key={level} className="wf-guide" aria-hidden="true" style={{ "--level": level + 1 } as React.CSSProperties} />)}
         <span className="wf-main">
@@ -111,10 +90,6 @@ function WorkflowTree({ nodes, runs, titles, isOpen, toggle, id }: {
             {count}
           </span>
         </span>
-        <History runs={runs} id={w.id} />
-        {/* A phone has no room after the name: the stage count moves to the line below, after the trigger. */}
-        <span className="wf-trigger">{trigger}{count && <span className="wf-on-phone">{trigger && " · "}{count}</span>}</span>
-        <span className="wf-last"><LastRunText runs={runs} id={w.id} /></span>
       </li>;
     })}
   </ul>;
@@ -125,8 +100,7 @@ function useWorkflows(list: ReturnType<typeof useRead>) {
   const workflows: ListedWorkflow[] = list.data?.workflows ?? [];
   const groups: Group[] = list.data?.groups ?? [];
   const runs: LastRuns | undefined = summary.data?.lastRuns;
-  const titles = new Map(workflows.map((w) => [w.slug, w.title]));
-  return { list, summary, workflows, groups, runs, titles };
+  return { list, summary, workflows, groups, runs };
 }
 
 /** Workspace navigation: the same four tabs on every root page. */
@@ -139,24 +113,22 @@ function RootTabs({ current, connectionsUrl }: { current: "workflows" | "runs" |
   </nav>;
 }
 
-/** A section's state on its header: failures first, then work in progress, else when it last ran. */
+/** A section's state on its header, only when something needs a look: failures first, then work in progress. */
 function SectionState({ members, runs }: { members: ListedWorkflow[]; runs?: LastRuns }) {
   if (!runs) return null;
-  const { failing, running, last } = rollUp(members, runs);
+  const { failing, running } = rollUp(members, runs);
   if (failing) return <span className="wf-word wf-word-failed">{failing} failing</span>;
   if (running) return <span className="wf-word wf-word-running">{running} running</span>;
-  return last ? <time dateTime={new Date(last.createdAt).toISOString()} title={`Last run ${time(last.createdAt)}`}>{ago(last.createdAt)}</time>
-    : <span className="wf-faint">No runs yet</span>;
+  return null;
 }
 
 function Home({ list }: { list: ReturnType<typeof useRead> }) {
-  const { summary, workflows, groups, runs, titles } = useWorkflows(list);
-  const p = query(), search = p.get("q") ?? "";
-  const filter = (FILTERS.some(([f]) => f === p.get("filter")) ? p.get("filter") : "all") as Filter;
-  const narrowed = Boolean(search) || filter !== "all";
+  const { summary, workflows, groups, runs } = useWorkflows(list);
+  const p = query(), search = p.get("q") ?? "", failingOnly = p.get("filter") === "failing";
+  const narrowed = Boolean(search) || failingOnly;
   const [closedGroups, toggleGroup] = useToggles("gtm.viewer.closedGroups");
   const [openPipelines, togglePipeline] = useToggles("gtm.viewer.openPipelines");
-  const keep = (w: ListedWorkflow, g?: Group) => passes(filter, w, runs) && (!search || matches(search, w, g));
+  const keep = (w: ListedWorkflow, g?: Group) => (!failingOnly || passes("failing", w, runs)) && (!search || matches(search, w, g));
   const shown = sections(workflows, groups, narrowed ? keep : undefined);
   // A search or filter opens everything it found, so a match is never hidden in a closed section or pipeline.
   const pipelineOpen = (id: string) => narrowed || openPipelines.has(id);
@@ -171,19 +143,16 @@ function Home({ list }: { list: ReturnType<typeof useRead> }) {
     window.addEventListener("keydown", focus);
     return () => window.removeEventListener("keydown", focus);
   }, []);
-  const count = (f: Filter) => f === "all" || f === "scheduled" || runs ? workflows.filter((w) => passes(f, w, runs)).length : undefined;
+  const failing = runs ? workflows.filter((w) => passes("failing", w, runs)).length : undefined;
   return <>
     <div className="title-row">
       <div className="environment-title"><h1>Workflows</h1><EnvironmentBadge environment={list.data?.environment} /></div>
       {workflows.length > 0 && <div className="wf-controls">
         <Search label="Search workflows, tables, providers…" value={search} onChange={(q) => navigate(href({ q: q || undefined }), true)} />
-        <select name="filter-workflows" aria-label="Show" value={filter}
-          onChange={(e) => navigate(href({ filter: e.target.value === "all" ? undefined : e.target.value }), true)}>
-          {FILTERS.map(([value, label]) => {
-            const n = count(value);
-            return <option key={value} value={value}>{label}{n !== undefined ? ` (${n})` : ""}</option>;
-          })}
-        </select>
+        <button type="button" className="wf-failing" aria-pressed={failingOnly}
+          onClick={() => navigate(href({ filter: failingOnly ? undefined : "failing" }), true)}>
+          Failing{failing !== undefined && <span className="wf-failing-count">{failing}</span>}
+        </button>
       </div>}
     </div>
     <State state={list} />
@@ -206,7 +175,7 @@ function Home({ list }: { list: ReturnType<typeof useRead> }) {
               aria-label={`Open ${name}`}><ArrowRightIcon aria-hidden="true" /></a>}
             <span className="wf-group-state"><SectionState members={members} runs={runs} /></span>
           </header>}
-          {open && <WorkflowTree id={rows} nodes={nodes} runs={runs} titles={titles} isOpen={pipelineOpen} toggle={narrowed ? undefined : togglePipeline} />}
+          {open && <WorkflowTree id={rows} nodes={nodes} runs={runs} isOpen={pipelineOpen} toggle={narrowed ? undefined : togglePipeline} />}
         </section>;
       })}
       {!shown.length && <p className="notice">
@@ -220,7 +189,7 @@ function Home({ list }: { list: ReturnType<typeof useRead> }) {
 /** A group: the workspace's Workflows, Runs and Data tabs, narrowed to the group's workflows and their tables. */
 function GroupPage({ id }: { id: string }) {
   const list = useRead("list");
-  const { workflows, groups, runs, titles } = useWorkflows(list);
+  const { workflows, groups, runs } = useWorkflows(list);
   // Here pipelines start open: the page is about this group's detail.
   const [closedPipelines, togglePipeline] = useToggles(undefined);
   const view = query().get("view") ?? "workflows";
@@ -248,7 +217,7 @@ function GroupPage({ id }: { id: string }) {
       {view === "runs" ? <Runs workspace destinations={list.data?.destinations} />
         : view === "data" ? <Data destinations={list.data?.destinations} csrf={list.data?.csrf} />
           : <div className="wf-index group-workflows">
-            <WorkflowTree nodes={section?.nodes ?? []} runs={runs} titles={titles} isOpen={(wid) => !closedPipelines.has(wid)} toggle={togglePipeline} />
+            <WorkflowTree nodes={section?.nodes ?? []} runs={runs} isOpen={(wid) => !closedPipelines.has(wid)} toggle={togglePipeline} />
           </div>}
     </>}
   </main>;

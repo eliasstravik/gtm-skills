@@ -114,13 +114,9 @@ export type LastRun = {
   id: string; status: string; createdAt: string | Date; startedAt?: string | Date; completedAt?: string | Date;
   /** Started by another workflow as one of its stages. */
   stage?: boolean;
-  /** The statuses of its newest runs on the page read, newest first, this one included: the row's run history strip. */
-  recent: string[];
 };
-/** How many runs the Workflows page's history strip shows. */
-export const RECENT_RUNS = 10;
 /**
- * The newest runs of each workflow: one read per workflow, by its own workflow name, so a busy workflow never hides
+ * The newest run of each workflow: one read per workflow, by its own workflow name, so a busy workflow never hides
  * another's last run. A run it made as another workflow's stage counts; the parts a fan-out splits into do not (their
  * parent is the run). `null` means no run; `"unknown"` that the newest runs of that name are all elsewhere (another
  * environment, or fan-out parts) and older history was not read.
@@ -131,15 +127,14 @@ export async function lastRuns(list: List, entries: Display[], scope: Scope, con
   const worker = async () => {
     for (let entry = queue.shift(); entry; entry = queue.shift()) {
       const page = await list({ workflowName: entry.workflowName, resolveData: "none", pagination: { limit: 50, sortOrder: "desc" } });
-      const own = page.data.filter((r) => {
+      const run = page.data.find((r) => {
         if (workspaceRunWorkflow(entries, scope, r)?.id === entry.id) return true;
         // A stage run carries no viewer ID of its own, or its parent's; a fan-out part carries its own workflow's.
         return stageRunWorkflow(entries, scope, r)?.id === entry.id && r.attributes?.["gtm.viewer.id"] !== entry.id;
       });
-      const run = own[0];
       result[entry.id] = run
         ? { id: run.runId, status: run.status, createdAt: run.createdAt, startedAt: run.startedAt, completedAt: run.completedAt,
-            ...(run.attributes?.["gtm.viewer.parent"] ? { stage: true } : {}), recent: own.slice(0, RECENT_RUNS).map((r) => r.status) }
+            ...(run.attributes?.["gtm.viewer.parent"] ? { stage: true } : {}) }
         : page.hasMore ? "unknown" : null;
     }
   };

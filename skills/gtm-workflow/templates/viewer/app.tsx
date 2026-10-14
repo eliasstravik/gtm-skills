@@ -108,6 +108,7 @@ function Workflow() {
               <Logic
                 workflow={meta.workflow}
                 destinations={meta.destinations}
+                trigger={meta.trigger}
               />
             </Suspense>
           )}

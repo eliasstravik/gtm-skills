@@ -7,20 +7,12 @@ export type ListedWorkflow = {
   tables: string[]; providers: string[];
 };
 export type Group = { id: string; name: string; description: string; workflows: string[] };
-export type LastRun = {
-  id: string; status: string; createdAt: string; startedAt?: string; completedAt?: string; stage?: boolean;
-  /** The statuses of its newest runs, newest first, this one included. */
-  recent?: string[];
-};
+export type LastRun = { id: string; status: string; createdAt: string; startedAt?: string; completedAt?: string; stage?: boolean };
 export type LastRuns = Record<string, LastRun | null | "unknown">;
 /** A workflow and the stages it starts, each a tree of its own. `context`: shown only because a stage below it matched. */
 export type Node = { workflow: ListedWorkflow; stages: Node[]; context?: boolean };
 export type Section = { group?: Group; nodes: Node[]; members: ListedWorkflow[] };
-export type Filter = "all" | "failing" | "running" | "scheduled" | "week";
-export const FILTERS: [Filter, string][] = [
-  ["all", "All workflows"], ["failing", "Failing"], ["running", "Running"], ["scheduled", "Scheduled"], ["week", "Ran this week"],
-];
-const WEEK = 7 * 86400000;
+export type Filter = "failing" | "running";
 
 export const lastRun = (runs: LastRuns | undefined, id: string) => {
   const run = runs?.[id];
@@ -28,14 +20,10 @@ export const lastRun = (runs: LastRuns | undefined, id: string) => {
 };
 export const active = (run?: LastRun) => Boolean(run && ["pending", "running"].includes(run.status));
 
-/** The fixed filters: computed from the build and the last runs, never hand-tagged. */
-export function passes(filter: Filter, workflow: ListedWorkflow, runs: LastRuns | undefined, now = Date.now()) {
+/** Computed from the last runs, never hand-tagged: whose last run failed, and whose is still going. */
+export function passes(filter: Filter, workflow: ListedWorkflow, runs: LastRuns | undefined) {
   const run = lastRun(runs, workflow.id);
-  if (filter === "scheduled") return Boolean(workflow.trigger.schedule);
-  if (filter === "failing") return run?.status === "failed";
-  if (filter === "running") return active(run);
-  if (filter === "week") return Boolean(run && now - new Date(run.createdAt).getTime() < WEEK);
-  return true;
+  return filter === "failing" ? run?.status === "failed" : active(run);
 }
 
 /** Search over what a person remembers a workflow by: its name, purpose, group, tables and providers. */
@@ -76,14 +64,11 @@ export function sections(workflows: ListedWorkflow[], groups: Group[], keep?: (w
   return result.filter((section) => section.nodes.length);
 }
 
-/** A section header's state, all derived: how many are failing or running, and the newest run. */
+/** A section header's state, all derived: how many are failing and how many running. */
 export function rollUp(members: ListedWorkflow[], runs: LastRuns | undefined) {
-  const last = members.map((w) => lastRun(runs, w.id)).filter((r): r is LastRun => Boolean(r))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
   return {
-    failing: members.filter((w) => lastRun(runs, w.id)?.status === "failed").length,
-    running: members.filter((w) => active(lastRun(runs, w.id))).length,
-    last,
+    failing: members.filter((w) => passes("failing", w, runs)).length,
+    running: members.filter((w) => passes("running", w, runs)).length,
   };
 }
 
@@ -110,16 +95,12 @@ export function cronText(cron: string) {
   return `Cron ${cron}`;
 }
 
-/**
- * How a workflow starts, in a few words. A nested stage says nothing more: where it sits says who starts it. One that
- * several workflows start names them.
- */
-export function triggerText(workflow: ListedWorkflow, titles: Map<string, string>) {
-  const t = workflow.trigger;
+/** How a workflow starts, for its own page: its schedule, a webhook, the workflows that start it, else by hand. */
+export function startsText(trigger: { schedule?: string; webhook?: boolean; startedBy?: string[] } = {}) {
   const parts = [
-    ...(t.schedule ? [cronText(t.schedule)] : []),
-    ...(t.webhook ? ["Webhook"] : []),
-    ...(!workflow.parent && t.startedBy?.length ? [`Started by ${t.startedBy.map((slug) => titles.get(slug) ?? slug).join(", ")}`] : []),
+    ...(trigger.schedule ? [cronText(trigger.schedule)] : []),
+    ...(trigger.webhook ? ["Webhook"] : []),
+    ...(trigger.startedBy?.length ? [`Started by ${trigger.startedBy.join(", ")}`] : []),
   ];
-  return parts.length ? parts.join(" · ") : workflow.parent ? "" : "Manual";
+  return parts.length ? parts.join(" · ") : "Manual";
 }

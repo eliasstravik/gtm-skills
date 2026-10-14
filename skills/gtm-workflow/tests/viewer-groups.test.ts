@@ -12,7 +12,7 @@ import { groupsSource, stageParents, validateGroups, withStages } from "../templ
 import { registrySource } from "../templates/scripts/viewer-registry.mjs";
 import { foldersToGroups, readFolderState, renderGroups, suggestGroups } from "../templates/scripts/folders-to-groups.mjs";
 import { readFileSync } from "node:fs";
-import { ago, cronText, flatten, matches, passes, rollUp, sections, triggerText, type ListedWorkflow, type Node } from "../templates/viewer/groups";
+import { ago, cronText, flatten, matches, passes, rollUp, sections, startsText, type ListedWorkflow, type Node } from "../templates/viewer/groups";
 import { fixtureRuns, resultOnly, run, runId } from "./api-fixture";
 import { fixtureGroups } from "./groups-fixture";
 import type { Display } from "../templates/lib/viewer-contract";
@@ -144,12 +144,15 @@ test("a workflow page names its group to the owner only", async () => {
   const preview = await (await api("op=meta&workflow=stable&preview=logic")).json();
   assert.equal(preview.group, undefined);
   // A stage's page names the pipeline that starts it, to the owner only.
-  Object.assign(resultOnly, { parent: "stable" });
+  Object.assign(resultOnly, { parent: "stable", trigger: { startedBy: ["network"] } });
   try {
     assert.deepEqual((await (await api("op=meta&workflow=result-only")).json()).parent, { id: "stable", title: "Network" });
+    // Its Diagram says how it starts, its starters by title; a share link learns neither.
+    assert.deepEqual((await (await api("op=meta&workflow=result-only")).json()).trigger, { startedBy: ["Network"] });
+    assert.equal((await (await api("op=meta&workflow=result-only&preview=logic")).json()).trigger, undefined);
     assert.equal((await (await api("op=meta&workflow=result-only&preview=logic")).json()).parent, undefined);
     assert.equal((await (await api("op=list")).json()).workflows.find((w: any) => w.id === "result-only").parent, "stable");
-  } finally { delete (resultOnly as any).parent; }
+  } finally { delete (resultOnly as any).parent; delete (resultOnly as any).trigger; }
 });
 
 test("a group's Data lists only its workflows' tables, empty or not; an unknown group is refused", async () => {
@@ -202,8 +205,6 @@ test("last runs read each workflow by its own name, so a busy workflow never hid
   assert.deepEqual(calls.map((c) => c.workflowName).sort(), ["wf-a", "wf-b", "wf-c"]);
   assert.ok(calls.every((c) => c.resolveData === "none"));
   assert.equal((result.a as any).id, "a-0");
-  assert.equal((result.a as any).recent.length, 10, "the history strip holds the newest ten");
-  assert.deepEqual((result.b as any).recent, ["failed"]);
   assert.equal((result.b as any).status, "failed");
   assert.deepEqual([(result.c as any).id, (result.c as any).stage], ["c-stage", true]);
   // A fan-out part carries its own workflow's ID: the parent run counts, the part does not.
@@ -243,7 +244,7 @@ test("a group filter on workspace runs refuses a workflow outside the group", as
 
 const listed = (id: string, extra: Partial<ListedWorkflow> = {}): ListedWorkflow =>
   ({ id, slug: id, title: id.toUpperCase(), description: "", trigger: {}, tables: [], providers: [], ...extra });
-test("the home page shows groups in file order, then Ungrouped, each a tree of pipelines, with filters and search", () => {
+test("the home page shows groups in file order, then Ungrouped, each a tree of pipelines, with the Failing filter and search", () => {
   const now = Date.parse("2026-10-14T12:00:00Z");
   const workflows = [
     listed("a", { tables: ["people"] }), listed("b", { trigger: { schedule: "0 7 * * *" }, tables: ["people", "companies"] }),
@@ -262,25 +263,22 @@ test("the home page shows groups in file order, then Ungrouped, each a tree of p
   assert.deepEqual(all.map((s) => [s.group?.id, shape(s.nodes)]), [["g", [["b", ["s1", ["s2", ["s3"]]]], "a"]], [undefined, ["c", ["d", ["u"]]]]]);
   assert.deepEqual(all[0].members.map((w) => w.id), ["b", "s1", "s2", "s3", "a"]);
   // A match deep in a pipeline keeps its pipeline, marked as context; a section with no match is left out.
-  const running = sections(workflows, groups, (w) => passes("running", w, runs, now));
+  const running = sections(workflows, groups, (w) => passes("running", w, runs));
   assert.deepEqual(running.map((s) => shape(s.nodes)), [[["b", [["s2", ["s3"]]]]]]);
   assert.deepEqual(flatten(running[0].nodes).map((w) => w.id), ["b", "s2", "s3"]);
   assert.deepEqual([running[0].nodes[0].context, running[0].nodes[0].stages[0].stages[0].context], [true, undefined]);
   assert.equal(running[0].members.length, 5, "the header still counts the whole group");
   assert.deepEqual(sections(workflows, groups, (w) => w.id === "c").map((s) => s.group?.id), [undefined]);
-  assert.deepEqual(workflows.filter((w) => passes("scheduled", w, runs, now)).map((w) => w.id), ["b"]);
-  assert.deepEqual(workflows.filter((w) => passes("failing", w, runs, now)).map((w) => w.id), ["a"]);
-  assert.deepEqual(workflows.filter((w) => passes("week", w, runs, now)).map((w) => w.id), ["a", "s3"]);
+  assert.deepEqual(workflows.filter((w) => passes("failing", w, runs)).map((w) => w.id), ["a"]);
   assert.ok(matches("social", workflows[1], groups[0]) && matches("blitz", workflows[2]) && matches("companies", workflows[1]));
   assert.ok(!matches("social", workflows[2]));
-  assert.deepEqual(rollUp(all[0].members, runs), { failing: 1, running: 1, last: runs.s3 });
-  assert.deepEqual(rollUp([workflows[3]], undefined), { failing: 0, running: 0, last: undefined });
+  assert.deepEqual(rollUp(all[0].members, runs), { failing: 1, running: 1 });
+  assert.deepEqual(rollUp([workflows[3]], undefined), { failing: 0, running: 0 });
   assert.deepEqual([40 * 60000, 5 * 3600000, 3 * 86400000, 10000].map((ms) => ago(now - ms, now)), ["40m ago", "5h ago", "3d ago", "just now"]);
+  // How a workflow starts moves to its own page: schedule, webhook, starters, else Manual.
   assert.deepEqual(["0 7 * * *", "30 6 * * 1", "0 9 * * 1-5", "*/15 * * * *"].map(cronText), ["Daily 07:00 UTC", "Mon 06:30 UTC", "Weekdays 09:00 UTC", "Cron */15 * * * *"]);
-  // How it starts: a nested stage needs no words, a workflow several start names them.
-  const titles = new Map([["b", "Bee"], ["d", "Dee"]]);
-  assert.deepEqual([workflows[0], workflows[1], workflows[4]].map((w) => triggerText(w, titles)), ["Manual", "Daily 07:00 UTC", ""]);
-  assert.equal(triggerText(listed("x", { trigger: { webhook: true, startedBy: ["b", "d"] } }), titles), "Webhook · Started by Bee, Dee");
+  assert.deepEqual([{}, { schedule: "0 7 * * *", webhook: true }, { startedBy: ["Monitor", "Digest"] }].map((t) => startsText(t)),
+    ["Manual", "Daily 07:00 UTC · Webhook", "Started by Monitor, Digest"]);
 });
 
 const folderEntries = [
