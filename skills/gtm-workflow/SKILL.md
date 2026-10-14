@@ -1,19 +1,19 @@
 ---
 name: gtm-workflow
-description: Triggers when a user asks to build, create, update, run, test, schedule, deploy, host, upgrade, inspect, open the inspection UI, or delete a saved GTM workflow, its result table, runs, or diagram in a GTM workspace, with phrasings like "build a workflow that scores our inbound companies", "run Score inbound accounts", "put it on a weekly schedule, hosted", "enrich my network, connections, or followers and their companies", "upgrade the workflow runtime", "take our workflows live on Vercel", "connect the workflow project", "set up keys", or "share this workflow's data". Owns the workflows folder, which holds workflow code, tables, runs, schedules, diagrams, keys and share links, and the Vercel project it deploys to, including connecting a GTM agent to it. Not for the workspace, ICPs, or personas themselves (gtm-workspace, gtm-icp, gtm-persona), or one-off fit checks that are not saved (gtm-qualify-prospects).
+description: Triggers when a user asks to build, create, update, run, test, schedule, deploy, host, upgrade, inspect, open the inspection UI, group, regroup, or delete a saved GTM workflow, its result table, runs, diagram, or workflow group in a GTM workspace, with phrasings like "build a workflow that scores our inbound companies", "run Score inbound accounts", "put it on a weekly schedule, hosted", "enrich my network, connections, or followers and their companies", "upgrade the workflow runtime", "take our workflows live on Vercel", "connect the workflow project", "set up keys", "move Cal.com booking enrichment into Inbound", "how is the LinkedIn social group doing", or "share this workflow's data". Owns the workflows folder, which holds workflow code, groups, tables, runs, schedules, diagrams, keys and share links, and the Vercel project it deploys to, including connecting a GTM agent to it. Not for the workspace, ICPs, or personas themselves (gtm-workspace, gtm-icp, gtm-persona), or one-off fit checks that are not saved (gtm-qualify-prospects).
 metadata:
-  version: "0.2.6"
+  version: "0.2.7"
 ---
 
 # GTM Workflow
 
 ## Trigger
 
-Apply this skill when a request concerns a saved workflow: creating, changing, running, scheduling, deploying, upgrading, inspecting, opening its UI, or deleting one, or its table, runs, or diagram.
+Apply this skill when a request concerns a saved workflow: creating, changing, running, scheduling, deploying, upgrading, inspecting, opening its UI, grouping, or deleting one, or its table, runs, diagram, or group.
 
 When creating or changing a workflow, check [recipes](recipes/README.md) (e.g. network enrichment) for one that matches the request and follow it; this skill still owns the lifecycle. Ordinary runs of an unchanged workflow need no recipe.
 
-Show the intent menu only when the user's entire request is `/gtm-workflow` or `/gtm-workflows`, with no action or other words. Ask **Choose a workflow action.** with three choices: **Open GTM Workflows**, **Create a workflow**, **Manage a workflow**, and wait. Manage asks which workflow and action: change, run/test, schedule/deploy, upgrade/repair, or delete. Bare entry performs no creation, execution or deployment.
+Show the intent menu only when the user's entire request is `/gtm-workflow` or `/gtm-workflows`, with no action or other words. Ask **Choose a workflow action.** with three choices: **Open GTM Workflows**, **Create a workflow**, **Manage a workflow**, and wait. Manage asks which workflow and action: change, run/test, schedule/deploy, group, upgrade/repair, or delete. Bare entry performs no creation, execution or deployment.
 
 **Open GTM Workflows** is already an explicit Open request. Resolve the verified viewer URL and return it immediately using [entry links](references/entry-links.md); do not show the intent menu or ask the user to choose Open again. Loading this skill does not turn an explicit request into a bare invocation. Other explicit actions also go directly to their procedure. If Open finds no workspace, explain workspace setup; if the workspace has no workflows, show its empty list.
 
