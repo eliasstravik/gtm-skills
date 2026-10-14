@@ -45,6 +45,12 @@ function Workflow() {
                       <span aria-hidden="true">/</span>
                     </>
                   )}
+                  {meta.parent && (
+                    <>
+                      <a href={`/viewer?workflow=${encodeURIComponent(meta.parent.id)}`}>{meta.parent.title}</a>
+                      <span aria-hidden="true">/</span>
+                    </>
+                  )}
                 </>
               )}
               <h1>{meta.workflow.title}</h1>
@@ -105,6 +111,7 @@ function Workflow() {
               <Logic
                 workflow={meta.workflow}
                 destinations={meta.destinations}
+                trigger={meta.trigger}
               />
             </Suspense>
           )}

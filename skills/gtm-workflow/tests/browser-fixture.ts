@@ -17,6 +17,7 @@ import { connectionsManagement } from "../templates/lib/connections-management";
 import { keysPage } from "../templates/server/routes/connections.get";
 import { LOADED_KEYS, fileKeys, keysFingerprint } from "../templates/lib/local-keys.mjs";
 import { fixtureGroups } from "./groups-fixture";
+import { useShowcase } from "./showcase-fixture";
 import registry, {
   entry,
   tables,
@@ -196,10 +197,13 @@ if (process.env.GTM_VIEWER_FIXTURE_LINKS === "1") {
 }
 if (process.env.GTM_VIEWER_FIXTURE_WORKSPACE === "1") {
   // A pipeline group, a scheduled workflow, a stage and a webhook, for the grouped Workflows page.
-  fixtureGroups.push({ id: "markets", name: "Market research", description: "Research and score each target market.", workflows: ["workflow-1", "workflow-2", "workflow-3", "workflow-4", "workflow-5", "workflow-6"] });
+  // As the build resolves it: workflow-1 starts workflow-3 as a stage, so the stage follows it into the group.
+  fixtureGroups.push({ id: "markets", name: "Market research", description: "Research and score each target market.", workflows: ["workflow-1", "workflow-3", "workflow-2", "workflow-4", "workflow-5", "workflow-6"] });
   Object.assign(registry.find((e: any) => e.id === "workflow-2")!, { trigger: { schedule: "0 7 * * *" } });
-  Object.assign(registry.find((e: any) => e.id === "workflow-3")!, { trigger: { startedBy: ["workflow-1"] } });
+  Object.assign(registry.find((e: any) => e.id === "workflow-3")!, { trigger: { startedBy: ["workflow-1"] }, parent: "workflow-1" });
   Object.assign(registry.find((e: any) => e.id === "workflow-7")!, { trigger: { webhook: true } });
+  // A group may be called anything, "ungrouped" too: it must not open and close with the Ungrouped section.
+  fixtureGroups.push({ id: "ungrouped", name: "Webhooks", description: "", workflows: ["workflow-7"] });
   await client.execute("CREATE TABLE imported_contacts (email TEXT, name TEXT)");
   await client.execute("INSERT INTO imported_contacts VALUES ('ada@example.com', 'Ada Import'), ('lin@example.com', 'Lin Import')");
   Object.assign(process.env, {
@@ -211,6 +215,8 @@ if (process.env.GTM_VIEWER_FIXTURE_WORKSPACE === "1") {
     GTM_VIEWER_COMMIT: "0123456789abcdef0123456789abcdef01234567",
   });
 }
+if (process.env.GTM_VIEWER_FIXTURE_SHOWCASE === "1")
+  for (const name of useShowcase()) await client.execute(sql`CREATE TABLE IF NOT EXISTS ${sql.identifier(name)} (key TEXT PRIMARY KEY)`);
 for (const port of process.env.GTM_VIEWER_FIXTURE_LOCAL === "1"
   ? [3944]
   : [3942, 3943])

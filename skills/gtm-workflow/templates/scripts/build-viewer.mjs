@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { registrySource } from "./viewer-registry.mjs";
-import { groupsSource } from "./viewer-groups.mjs";
+import { groupsSource, stageParents } from "./viewer-groups.mjs";
 import { validateBusinessGraph, validateDescription } from "./business-graph.mjs";
 import { validateDataSharing } from "../lib/viewer-policy-validation.mjs";
 import { writeCriteriaSnapshot } from "./criteria-snapshot.mjs";
@@ -103,6 +103,10 @@ const registry = registrySource().map(({ intake, startedBy, ...entry }) => {
   const trigger = { ...(schedule ? { schedule } : {}), ...(intake ? { webhook: true } : {}), ...(startedBy ? { startedBy } : {}) };
   return { ...entry, workflowName: compiled.workflowId, graph, revision, trigger };
 });
+// A stage that one workflow starts shows nested under it: the Workflows page and its breadcrumbs read `parent`.
+const parents = stageParents(registry);
+for (const entry of registry)
+  if (parents.has(entry.slug)) entry.parent = registry.find((e) => e.slug === parents.get(entry.slug)).id;
 let groups;
 try { groups = groupsSource(registry); }
 catch (error) {
