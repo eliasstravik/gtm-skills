@@ -58,6 +58,18 @@ jobs:
           node skills/gtm-workflow/tests/columns-browser-check.mjs /tmp/gtm-columns
           node skills/gtm-workflow/tests/workspace-browser-check.mjs
           node skills/gtm-workflow/tests/diagram-browser-check.mjs
+      - name: Verify a saved connection shows on every status badge at once, in production and locally
+        run: |
+          GTM_VIEWER_FIXTURE_WORKSPACE=1 node skills/gtm-workflow/tests/serve.mjs skills/gtm-workflow/templates &
+          production_pid=$!
+          GTM_VIEWER_FIXTURE_LOCAL=1 node skills/gtm-workflow/tests/serve.mjs skills/gtm-workflow/templates &
+          local_pid=$!
+          trap 'kill "$production_pid" "$local_pid"' EXIT
+          for attempt in $(seq 1 100); do
+            if curl --fail --silent http://127.0.0.1:3942/viewer > /dev/null && curl --fail --silent http://127.0.0.1:3944/connections > /dev/null; then break; fi
+            sleep 0.2
+          done
+          node skills/gtm-workflow/tests/connections-browser-check.mjs
       - run: node node_modules/typescript/bin/tsc --noEmit
         working-directory: skills/gtm-workflow/templates
       - run: npm run build:share

@@ -1,7 +1,7 @@
 import { connectionState, declaredConnections, type ConnectionWorkflow } from "./connections-contract";
 import { connectionConfiguration } from "./connections-access";
 import { connectionMetadata, connectionsVercel, environmentSettingsUrl } from "./connections-management";
-import { savedKeyNames } from "./connections-local";
+import { reloadsOnSave, savedKeyNames } from "./connections-local";
 import { platformIdentity } from "./connections-platform";
 import { connectionsOrigin } from "./viewer-link";
 
@@ -13,7 +13,7 @@ export function unsetConnections(entry: ConnectionWorkflow) {
 
 /**
  * A workflow's Connections tab: each key it declares and whether it is usable here, by name only. Locally a key saved
- * in `.env.local` since `npm run dev` started is "saved"; hosted, one the project has that this deployment does not.
+ * in `.env.local` that the server has not reloaded with yet is "saved"; hosted, one the project has that this deployment does not.
  */
 export async function workflowConnections(entry: ConnectionWorkflow) {
   const declared = declaredConnections([entry]), identity = platformIdentity();
@@ -31,6 +31,8 @@ export async function workflowConnections(entry: ConnectionWorkflow) {
     connections: declared.map((use) => ({ variable: use.variable, ...(use.provider ? { provider: use.provider } : {}),
       state: connectionState(use.variable, process.env, saved, identity) })),
     canSet,
+    // Locally: whether a saved key is picked up on its own (`npm run dev`) or takes a restart (a bare `nitro dev`).
+    ...(!process.env.VERCEL ? { reloads: reloadsOnSave() } : {}),
     // Hosted without the Keys page, keys are added in the project's settings on Vercel.
     ...(canSet ? { connectionsUrl: connectionsOrigin() } : { vercelUrl: environmentSettingsUrl() }),
   };

@@ -40,6 +40,7 @@ import { dataVersion, fingerprint } from "./viewer-pulse";
 import { connectionConfiguration } from "./connections-access";
 import { connectionsVercel } from "./connections-management";
 import { releaseStatus, type Release } from "./connections-apply";
+import { localRelease } from "./connections-local";
 import { unsetConnections, workflowConnections } from "./connections-usage";
 const reply = (
   data: unknown,
@@ -156,7 +157,7 @@ export async function viewerApi(req: Request, shared = false, service = false) {
       }
     }
     if (!shared && !preview && operation === "release")
-      return reply({ release: await currentRelease() });
+      return reply({ release: process.env.VERCEL ? await currentRelease() : localRelease() });
     if (!shared && operation === "list") {
       const csrf = csrfCookie(req);
       // Everything here comes from the build: no run history, no database read. Last runs are `summary`.

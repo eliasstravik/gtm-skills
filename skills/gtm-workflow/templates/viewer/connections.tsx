@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useRef, useState } from "react";
 import { CheckCircleIcon, ClockIcon, XCircleIcon } from "@heroicons/react/16/solid";
 import { State, useRead } from "./common";
+import { useReleaseLive } from "./release";
 import "../connections-ui/style.css";
 const ConnectionForm = lazy(() => import("./connection-form"));
 
@@ -15,12 +16,14 @@ export default function Connections({ environment }: { environment?: string }) {
   const state = useRead("connections"),
     data = state.data;
   const local = environment === "local";
+  // Locally a saved key is in use once the server has reloaded with it: read again then, so Saved turns Set.
+  useReleaseLive(() => state.retry());
   const [adding, setAdding] = useState<Connection | null>(null);
   const trigger = useRef<HTMLElement | null>(null);
   const label = (c: Connection) =>
     c.state === "set" ? "Set"
       : c.state === "provided" ? "Provided by Vercel"
-      : c.state === "saved" ? (local ? "Saved, restart npm run dev" : "Saved, going live")
+      : c.state === "saved" ? (!local ? "Saved, going live" : data?.reloads === false ? "Saved, needs a restart" : "Saved, getting ready")
       : "Missing";
   const where = local ? "on this computer" : "in Production";
   const close = () => {
@@ -46,7 +49,9 @@ export default function Connections({ environment }: { environment?: string }) {
                     : missing
                       ? `${missing} of ${connections.length} ${connections.length === 1 ? "key isn't" : "keys aren't"} set ${where}.`
                       : pending
-                        ? local ? "Restart npm run dev to use the keys you saved." : "The keys you saved go live in about a minute."
+                        ? !local ? "The keys you saved go live in about a minute."
+                          : data.reloads === false ? "Ask your agent to restart the workflows app so your workflows can use the keys you saved."
+                          : "Your workflows can use the keys you saved in a few seconds."
                         : `Every key this workflow uses is set ${where}.`}
               </p>
             </div>

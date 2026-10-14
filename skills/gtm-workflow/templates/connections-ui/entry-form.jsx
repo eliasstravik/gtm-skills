@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowPathIcon } from "@heroicons/react/16/solid";
 import { request } from "./transport.mjs";
+import { releaseStarted } from "../viewer/release";
 /**
  * The Add, Edit and Delete form for one key, shared by the Keys page and a workflow's Connections tab. It sends the
  * value once, to this same server, and never shows it again. `inventory` is the Keys page's own read
@@ -61,7 +62,12 @@ export function EntryForm({ selection, inventory, close, updated, beginApply = (
     };
     const applies = inventory.mode === "production" && (deleting || !editing || Boolean(value));
     if (applies) beginApply(body.id);
-    try { const result = await request("/api/connections", body); form.current?.reset(); updated(result, applies ? body.id : null); close(); }
+    try {
+      const result = await request("/api/connections", body);
+      // Production rebuilds, or the local server reloads: every status badge turns amber now, not at its next check.
+      if (result.application?.state === "applying" || result.reloading) releaseStarted();
+      form.current?.reset(); updated(result, applies ? body.id : null); close();
+    }
     catch (failure) { if (applies) failedApply(body.id, failure); setError(message(failure.message)); }
     finally { body.value = undefined; setBusy(false); }
   }

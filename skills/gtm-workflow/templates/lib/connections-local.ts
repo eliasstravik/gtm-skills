@@ -5,12 +5,15 @@ import { parseEnv } from "node:util";
 import { randomUUID } from "node:crypto";
 import { providerVariable } from "./connections-contract";
 import { insist } from "./connections-access";
+import type { Release } from "./connections-apply";
+import { LOADED_KEYS, fileKeys, keysFingerprint } from "./local-keys.mjs";
 
 /**
  * The local Keys page's store, like any Vercel app's: `workflows/.env.local`, plain text, gitignored. The page edits
  * that file and nothing else: it never writes to Vercel, so a teammate's keys stay theirs. Linked to Vercel, the
  * shared Development variables come down with `vercel env pull`, which replaces the file, as it does in any Vercel app.
- * The running server keeps the keys it started with; a change applies at the next `npm run dev`.
+ * Under `npm run dev` a change applies on its own within seconds: the launcher reloads the server with the new keys
+ * (scripts/local-launch.mjs). Under a bare `nitro dev` nothing reloads it, and the page says to restart.
  */
 const root = () => process.cwd();
 export const envLocalPath = () => join(root(), ".env.local");
@@ -65,4 +68,23 @@ export async function changeLocalKey(input: LocalChange) {
   insist(input.action === "disconnect" || (typeof input.value === "string" && input.value.trim().length > 0 && input.value.length <= 8192 && !/[\r\n\0]/.test(input.value)), "invalid_key", 400);
   await writeEnvLocal(editEnv(readEnvFile(".env.local"), input.variable, input.action === "disconnect" ? null : input.value!));
   return { saved: true, store: "file" as const };
+}
+
+/** Whether this server reloads itself when keys are saved: started by `npm run dev`, which records the keys it loaded. */
+export const reloadsOnSave = (env: Record<string, string | undefined> = process.env) => Boolean(env[LOADED_KEYS]);
+
+/** A reload that has not happened by then never will: the badge says so rather than spin. */
+const RELOAD_MS = 60000;
+let behindSince: number | undefined;
+/**
+ * The local counterpart of production's release status: "updating" from a save until the server runs with what is
+ * saved, which takes a few seconds, then "live". Only a state and a time leave this function, never a key or its hash.
+ */
+export function localRelease(env: Record<string, string | undefined> = process.env, now = Date.now()): Release | null {
+  if (!reloadsOnSave(env)) return null;
+  let saved: string;
+  try { saved = keysFingerprint(fileKeys(root())); } catch { return null; }
+  if (saved === env[LOADED_KEYS]) { behindSince = undefined; return { state: "live" }; }
+  behindSince ??= now;
+  return { state: now - behindSince < RELOAD_MS ? "updating" : "failed", since: behindSince };
 }

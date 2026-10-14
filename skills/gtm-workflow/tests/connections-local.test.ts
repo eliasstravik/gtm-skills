@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { editEnv, localKeyNames, savedKeyNames } from "../templates/lib/connections-local";
+import { editEnv, localKeyNames, localRelease, savedKeyNames } from "../templates/lib/connections-local";
+import { fileKeys, keysFingerprint } from "../templates/lib/local-keys.mjs";
 import { connectionsManagement } from "../templates/lib/connections-management";
 import { apiAccess } from "../templates/lib/route-access";
 import { privateAccess, requireMutation } from "../templates/lib/viewer-access";
@@ -61,6 +62,30 @@ test("linked: the Keys page still writes .env.local only and never runs the Verc
   assert.equal(await readFile(join(dir, ".env.local"), "utf8"), "APOLLO_API_KEY='sk-1'\n");
   assert.equal((await (await connectionsManagement(page(), [])).json()).linked, true);
   await assert.rejects(stat(join(dir, "ran")));
+}));
+
+test("under npm run dev a save reloads the server, and the release status says updating until it has", () => inFolder(async (dir) => {
+  await writeFile(join(dir, ".env"), "APOLLO_API_KEY=from-env\nGTM_RUNTIME_PORT=4000\n");
+  await writeFile(join(dir, ".env.local"), 'VERCEL="1"\nVERCEL_OIDC_TOKEN="t"\nAPOLLO_API_KEY="local"\nEMPTY_API_KEY=""\n');
+  // Keys only, .env.local winning: never settings, Vercel's own variables or empty values.
+  assert.deepEqual(fileKeys(dir), { APOLLO_API_KEY: "local" });
+  // A bare `nitro dev`: nothing reloads the server, so there is no status and a save says a restart is needed.
+  assert.equal(localRelease(), null);
+  // `npm run dev` records the keys it started with.
+  process.env.GTM_LOCAL_KEYS = keysFingerprint(fileKeys(dir));
+  assert.deepEqual(localRelease(), { state: "live" });
+  const saved = await connectionsManagement(page("POST", {}, { action: "add", variable: "BLITZ_API_KEY", value: "sk-2" }), []);
+  assert.deepEqual(await saved.json(), { saved: true, store: "file", reloading: true });
+  assert.equal((await (await connectionsManagement(page(), [])).json()).reloads, true);
+  const at = Date.now();
+  assert.deepEqual(localRelease(process.env, at), { state: "updating", since: at });
+  assert.deepEqual(localRelease(process.env, at + 5000), { state: "updating", since: at });
+  // A reload that never came: red, rather than amber forever.
+  assert.deepEqual(localRelease(process.env, at + 61000), { state: "failed", since: at });
+  // The launcher reloaded with the new keys.
+  process.env.GTM_LOCAL_KEYS = keysFingerprint({ APOLLO_API_KEY: "local", BLITZ_API_KEY: "sk-2" });
+  assert.deepEqual(localRelease(), { state: "live" });
+  assert.notEqual(process.env.GTM_LOCAL_KEYS, keysFingerprint({ APOLLO_API_KEY: "local", BLITZ_API_KEY: "sk-3" }));
 }));
 
 test("another site, another host or a script without the page's origin cannot change keys", () => inFolder(async (dir) => {

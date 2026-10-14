@@ -8,6 +8,7 @@ import Runs from "./runs";
 import Sharing from "./sharing";
 import Connections from "./connections";
 import { EnvironmentBadge } from "./environment";
+import { useReleaseLive } from "./release";
 import "@fontsource-variable/geist/index.css";
 import "@fontsource-variable/geist-mono/index.css";
 import "./style.css";
@@ -20,6 +21,8 @@ const labels: Record<string, string> = {
 function Workflow() {
   const state = useRead("meta"),
     meta = state.data;
+  // Locally the count of keys not in use yet drops once the server reloads with a saved one.
+  useReleaseLive(() => state.retry());
   const view =
     query().get("view") ??
     ["logic", "runs", "data"].find((v) => meta?.views.includes(v)) ??

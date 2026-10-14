@@ -3,7 +3,7 @@ import { connectionConfiguration, connectionHeaders, privateConnectionBrowser, C
 
 import { applyConnections, applicationId, connectionDeployment } from "./connections-apply";
 import { gatewayPlatformIdentity, platformIdentity } from "./connections-platform";
-import { changeLocalKey, linkedToVercel, savedKeyNames } from "./connections-local";
+import { changeLocalKey, linkedToVercel, reloadsOnSave, savedKeyNames } from "./connections-local";
 import { privateAccess, viewerOrigin } from "./viewer-access";
 
 type Configuration = ReturnType<typeof connectionConfiguration>;
@@ -102,10 +102,11 @@ async function localManagement(req: Request, workflows: ConnectionWorkflow[], op
     insist(input && typeof input === "object" && ["add", "replace", "disconnect"].includes(input.action), "invalid_change", 400);
     const result = await changeLocalKey({ action: input.action, variable: input.variable, value: input.value });
     input.value = undefined;
-    return Response.json({ ...result, restartRequired: true }, { headers: connectionHeaders });
+    // Under `npm run dev` the server reloads itself with the new key in a few seconds; otherwise it takes a restart.
+    return Response.json({ ...result, ...(reloadsOnSave() ? { reloading: true } : { restartRequired: true }) }, { headers: connectionHeaders });
   }
   const names = savedKeyNames();
-  return Response.json({ mode: "local", canWrite: true, linked: linkedToVercel(), workflowsUrl: "/viewer",
+  return Response.json({ mode: "local", canWrite: true, linked: linkedToVercel(), workflowsUrl: "/viewer", reloads: reloadsOnSave(),
     missing: missingConnections(workflows, process.env, new Set(names), platformIdentity()),
     connections: connectionInventory(names, workflows).map((entry) => ({ ...entry, status: "Saved",
       fields: entry.fields.map((field) => ({ variable: field.variable, label: field.variable, version: "local", editable: true, state: "saved" })) })),
