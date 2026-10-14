@@ -147,7 +147,7 @@ export function useRead(op: string, enabled = true, extra?: () => Record<string,
   extraRef.current = extra;
   const p = query();
   for (const name of ["node", "step", "expanded"]) p.delete(name);
-  if (op === "list") for (const key of [...p.keys()]) p.delete(key);
+  if (op === "list" || op === "summary") for (const key of [...p.keys()]) p.delete(key);
   // Data columns are projected by the API, so Apply must trigger a new read.
   if (op !== "data") p.delete("columns");
   if (op !== "events") p.delete("eventCursor");
@@ -178,7 +178,8 @@ export function useRead(op: string, enabled = true, extra?: () => Record<string,
         ? { ...old, loading: false }
         : { key, loading: true },
     );
-    const runsView = op === "runs" || op === "workspaceRuns";
+    // Runs live in the workflow runtime, not in Postgres: their views keep their own timer.
+    const runsView = op === "runs" || op === "workspaceRuns" || op === "summary";
     const read = async (explicit = false) => {
       if (controller.signal.aborted || document.hidden ||
         (runsView && !explicit && Date.now() - lastInput >= IDLE_MS)) return;
@@ -197,6 +198,8 @@ export function useRead(op: string, enabled = true, extra?: () => Record<string,
         setState({ key, data, loading: false, at });
         if (op === "runs" || op === "workspaceRuns")
           next = data.data?.some((r: any) => ["pending", "running"].includes(r.status)) ? 3000 : 15000;
+        if (op === "summary")
+          next = Object.values(data.lastRuns ?? {}).some((r: any) => ["pending", "running"].includes(r?.status)) ? 5000 : 30000;
         clearTimeout(expiry);
         if (data.expiresAt)
           expiry = setTimeout(

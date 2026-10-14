@@ -38,6 +38,8 @@ export async function setupLocal(workspace) {
   }
   // A scaffold that died half-way is finished on the next run.
   if (existsSync(join(runtime, "gitignore"))) await rename(join(runtime, "gitignore"), join(runtime, ".gitignore"));
+  // Groups on the Workflows page live in workflows/groups.ts; a workspace from before groups gets the empty file.
+  if (!existsSync(join(runtime, "workflows/groups.ts"))) await cp(join(templates, "workflows/groups.ts"), join(runtime, "workflows/groups.ts"));
   await mergeVercelJson(runtime);
   // CI and the root ignore file sit outside workflows/; missing ones are added on every setup, existing ones are kept.
   await writeRootFiles(workspace);

@@ -51,6 +51,9 @@ async function local(workspace, target) {
   const installed = join(runtime, "node_modules", ".package-lock.json");
   add(existsSync(installed), "Dependencies are installed", setup);
   add(existsSync(join(runtime, ".gitignore")), "workflows/.gitignore exists", setup);
+  add(existsSync(join(runtime, "workflows", "groups.ts")), "workflows/workflows/groups.ts exists", `${setup}, then propose groups with node scripts/folders-to-groups.mjs (Upgrade)`);
+  add(!existsSync(join(runtime, "data", "workflow-folder-mode.json")), "No folder mode marker is left from workflow folders",
+    "after folders-to-groups.mjs has proposed the groups, delete workflows/data/workflow-folder-mode.json");
   const version = (path) => { try { return JSON.parse(readFileSync(path, "utf8")).version; } catch { return null; } };
   const [mine, theirs] = [version(join(runtime, "package.json")), version(join(templates, "package.json"))];
   const migration = migrationFor(runtime, mine, theirs);

@@ -10,6 +10,9 @@
     "paths": {
       "#viewer-registry": [
         "./node_modules/.gtm-viewer/registry.json"
+      ],
+      "#viewer-groups": [
+        "./node_modules/.gtm-viewer/groups.json"
       ]
     }
   },

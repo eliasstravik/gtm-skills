@@ -1,134 +1,165 @@
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import { href, navigate, query } from "./navigation";
-import { api, Search, State, useRead } from "./common";
+import { Search, State, Status, time, useRead } from "./common";
 import Data from "./data";
 import Runs from "./runs";
 import { EnvironmentBadge } from "./environment";
-import type { Folder, FolderState } from "../lib/workflow-folders";
+import { FILTERS, ago, cronText, lastRun, matches, passes, rollUp, sections, type Filter, type Group, type LastRuns, type ListedWorkflow } from "./groups";
 
-/** Iterative traversal supports any nesting depth without recursive rendering or stack limits. */
-export function folderOptions(folders: Folder[]) {
-  const children = new Map<string | null, Folder[]>();
-  for (const folder of folders) children.set(folder.parentId, [...(children.get(folder.parentId) ?? []), folder]);
-  for (const list of children.values()) list.sort((a, b) => a.name.localeCompare(b.name));
-  const stack = (children.get(null) ?? []).slice().reverse().map((folder) => ({ folder, path: folder.name }));
-  const result: { folder: Folder; path: string }[] = [], seen = new Set<string>();
-  while (stack.length) {
-    const item = stack.pop()!;
-    if (seen.has(item.folder.id)) continue;
-    seen.add(item.folder.id); result.push(item);
-    for (const folder of (children.get(item.folder.id) ?? []).slice().reverse()) stack.push({ folder, path: `${item.path} / ${folder.name}` });
-  }
-  return result;
+/** How many of a group's workflows the home page shows before "+ n more". */
+const PREVIEW = 3;
+
+function Trigger({ workflow, titles }: { workflow: ListedWorkflow; titles: Map<string, string> }) {
+  const t = workflow.trigger;
+  const parts = [
+    ...(t.schedule ? [<span key="schedule" className="trigger" title={`vercel.json cron: ${t.schedule}`}>{cronText(t.schedule)}</span>] : []),
+    ...(t.webhook ? [<span key="webhook" className="trigger">Webhook</span>] : []),
+    ...(t.startedBy?.length ? [<span key="stage" className="trigger">Stage of {t.startedBy.map((slug) => titles.get(slug) ?? slug).join(", ")}</span>] : []),
+  ];
+  return <>{parts.length ? parts : <span className="trigger">Manual</span>}</>;
 }
-/** Missing workflow placements remain visible metadata, never links to nonexistent workflows. */
-export function folderEntries(workflows: any[], folders: FolderState) {
-  const known = new Set(workflows.map((w) => w.id));
-  return [...workflows, ...Object.keys(folders.assignments).filter((id) => !known.has(id)).map((id) => ({ id, title: "Workflow unavailable in this copy", description: `Placement for ${id}. Clear it explicitly when it is no longer needed.`, unavailable: true }))];
+
+function LastRunCell({ runs, id }: { runs?: LastRuns; id: string }) {
+  if (!runs) return <span className="muted">…</span>;
+  const run = lastRun(runs, id);
+  if (!run) return <span className="muted">{runs[id] === "unknown" ? "No recent run" : "Never run"}</span>;
+  return <span className="last-run">
+    <Status value={run.status} />
+    <time dateTime={new Date(run.createdAt).toISOString()} title={time(run.createdAt)}>{ago(run.createdAt)}</time>
+    {run.stage && <span className="muted"> · as a stage</span>}
+  </span>;
 }
-export function FolderWorkflow({ workflow: w, editable, onMove }: { workflow: any; editable: boolean; onMove: () => void }) {
-  return <div className="workflow-folder-row">
-    {w.unavailable ? <div className="workflow-row"><h2>{w.title}</h2><p className="muted purpose">{w.description}</p></div> : <a className="workflow-row" href={`/viewer?workflow=${encodeURIComponent(w.id)}`}><h2>{w.title}</h2>{w.description && <p className="muted purpose">{w.description}</p>}</a>}
-    {editable && <button aria-label={w.unavailable ? `Clear placement ${w.id}` : `Move ${w.title}`} onClick={onMove}>{w.unavailable ? "Clear placement" : "Move"}</button>}
-  </div>;
+
+function WorkflowRow({ workflow: w, runs, titles }: { workflow: ListedWorkflow; runs?: LastRuns; titles: Map<string, string> }) {
+  return <a className="workflow-row" href={`/viewer?workflow=${encodeURIComponent(w.id)}`}>
+    <span className="workflow-row-main">
+      <h3>{w.title}</h3>
+      {w.description && <span className="muted purpose">{w.description}</span>}
+      <span className="workflow-meta">
+        <Trigger workflow={w} titles={titles} />
+        {w.tables.length > 0 && <span className="workflow-tables" title="Tables it reads or writes">
+          <span className="sr-only">Tables: </span>{w.tables.map((t) => <span key={t} className="table-name">{t}</span>)}
+        </span>}
+      </span>
+    </span>
+    <span className="workflow-status"><LastRunCell runs={runs} id={w.id} /></span>
+  </a>;
 }
-type Edit = { action: "create" | "rename" | "move" | "delete" | "assign"; id?: string; workflowId?: string; name: string; parentId: string; unavailable?: boolean };
-export default function Workspace() {
-  const state = useRead("list"), search = query().get("q") ?? "";
-  const dataView = query().get("view") === "data", runsView = query().get("view") === "runs";
-  const selected = query().get("folder") ?? "root";
-  const folders: FolderState = state.data?.folders ?? { revision: 0, folders: [], assignments: {} };
-  const current = folders.folders.find((f) => f.id === selected);
-  const options = folderOptions(folders.folders);
-  const [edit, setEdit] = useState<Edit | null>(null), [error, setError] = useState(""), [busy, setBusy] = useState(false);
-  const dialog = useRef<HTMLDialogElement>(null), editRevision = useRef(0);
-  useEffect(() => { if (edit && !dialog.current?.open) dialog.current?.showModal(); }, [edit]);
-  const begin = (value: Edit) => { editRevision.current = folders.revision; setError(""); setEdit(value); };
-  const close = () => { dialog.current?.close(); setEdit(null); };
-  const foldersUnavailable = state.data?.foldersUnavailable;
-  const entries = folderEntries(state.data?.workflows ?? [], folders).filter((w: any) => {
-    const folder = folders.assignments[w.id];
-    return (foldersUnavailable || selected === "all" || (selected === "root" || selected === "unfiled" ? !folder : folder === selected)) &&
-      `${w.title} ${w.description ?? ""}`.toLowerCase().includes(search.toLowerCase());
-  }).sort((a: any, b: any) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
-  const children = folders.folders.filter((f) => f.parentId === (current?.id ?? null));
-  const editable = state.data?.foldersEditable;
-  const save = async (event: React.FormEvent) => {
-    event.preventDefault(); if (!edit || busy) return;
-    setBusy(true); setError("");
-    try {
-      const { unavailable: _placeholder, ...command } = edit;
-      await api("folders", {}, { ...command, parentId: edit.parentId || null, revision: editRevision.current }, state.data?.csrf);
-      if (edit.action === "delete" && selected === edit.id) navigate(href({ folder: current?.parentId ?? undefined }));
-      close(); state.retry();
-    } catch (e) { setError(`${(e as Error).message} Close this dialog and reopen it after reloading.`); state.retry(); }
-    finally { setBusy(false); }
-  };
-  return <main className={dataView || runsView ? "workflow" : "workspace"}>
-    <nav className="tabs root-navigation" aria-label="Workspace">
-      <a href="/viewer" aria-current={!dataView && !runsView ? "page" : undefined}>Workflows</a>
-      <a href="/viewer?view=runs" aria-current={runsView ? "page" : undefined}>Runs</a>
-      <a href="/viewer?view=data" aria-current={dataView ? "page" : undefined}>Data</a>
-      {state.data?.connectionsUrl && <a href={state.data.connectionsUrl}>Connections</a>}
-    </nav>
-    {dataView ? <>
-      <div className="title-row"><div className="environment-title"><h1>Data</h1><EnvironmentBadge environment={state.data?.environment} /></div></div>
-      <Data destinations={state.data?.destinations} csrf={state.data?.csrf} />
-    </> : runsView ? <>
-      <div className="title-row"><div className="environment-title"><h1>Runs</h1><EnvironmentBadge environment={state.data?.environment} /></div></div>
-      <Runs workspace destinations={state.data?.destinations} />
-    </> : <>
-      <div className="title-row"><div className="environment-title"><h1>Workflows</h1><EnvironmentBadge environment={state.data?.environment} /></div>
-        <Search label="Search workflows" value={search} onChange={(q) => navigate(href({ q: q || undefined }), true)} />
-      </div>
-      <State state={state} />
-      {state.data?.foldersMode === "local-only" && <p className="notice">Local-only folders. This standalone workspace is not linked to production; organization is saved on this computer only.</p>}
-      {state.data && <div className="folder-layout">
-        {!foldersUnavailable && <nav className="folder-navigation" aria-label="Workflow folders">
-          <a href={href({ folder: undefined })} aria-current={selected === "root" ? "page" : undefined}>Root</a>
-          <a href={href({ folder: "all" })} aria-current={selected === "all" ? "page" : undefined}>All workflows</a>
-          <a href={href({ folder: "unfiled" })} aria-current={selected === "unfiled" ? "page" : undefined}>Unfiled</a>
-          <label>Open folder<select value={current?.id ?? ""} onChange={(e) => navigate(href({ folder: e.target.value || undefined }))}>
-            <option value="">Root</option>{options.map(({ folder, path }) => <option key={folder.id} value={folder.id}>{path}</option>)}
-          </select></label>
-        </nav>}
-        <section className="folder-content" aria-label="Folder contents">
-          {foldersUnavailable && <p role="alert" className="notice">{foldersUnavailable}</p>}
-          <div className="folder-toolbar"><h2>{foldersUnavailable ? "Workflows" : current?.name ?? (selected === "all" ? "All workflows" : selected === "unfiled" ? "Unfiled" : "Root")}</h2>
-            {editable && <button onClick={() => begin({ action: "create", name: "", parentId: current?.id ?? "" })}>New folder</button>}
-            {editable && current && <>
-              <button onClick={() => begin({ action: "rename", id: current.id, name: current.name, parentId: current.parentId ?? "" })}>Rename</button>
-              <button onClick={() => begin({ action: "move", id: current.id, name: current.name, parentId: current.parentId ?? "" })}>Move folder</button>
-              <button onClick={() => begin({ action: "delete", id: current.id, name: current.name, parentId: "" })}>Delete folder</button>
-            </>}
-          </div>
-          {current && <a href={href({ folder: current.parentId ?? undefined })}>↑ Parent folder</a>}
-          {!foldersUnavailable && !current && !["root", "all", "unfiled"].includes(selected) ? <p role="alert">This folder no longer exists. Choose Root.</p> : <>
-            {(selected === "root" || current) && children.map((f) => <a className="folder-row" key={f.id} href={href({ folder: f.id })}>▸ {f.name}</a>)}
-            <div className="workflow-list">{entries.map((w: any) => <FolderWorkflow key={w.id} workflow={w} editable={editable} onMove={() => begin({ action: "assign", workflowId: w.id, name: w.title, parentId: w.unavailable ? "" : folders.assignments[w.id] ?? "", unavailable: w.unavailable })} />)}
-            {!entries.length && <p className="notice">{search ? "No matching workflows" : "No workflows in this view."} {search && <button onClick={() => navigate(href({ q: undefined }))}>Clear search</button>}</p>}
-            </div>
-          </>}
-        </section>
+
+function useWorkflows(list: ReturnType<typeof useRead>) {
+  const summary = useRead("summary", Boolean(list.data));
+  const workflows: ListedWorkflow[] = list.data?.workflows ?? [];
+  const groups: Group[] = list.data?.groups ?? [];
+  const runs: LastRuns | undefined = summary.data?.lastRuns;
+  const titles = new Map(workflows.map((w) => [w.slug, w.title]));
+  return { list, summary, workflows, groups, runs, titles };
+}
+
+/** Workspace navigation: the same four tabs on every root page. */
+function RootTabs({ current, connectionsUrl }: { current: "workflows" | "runs" | "data"; connectionsUrl?: string }) {
+  return <nav className="tabs root-navigation" aria-label="Workspace">
+    <a href="/viewer" aria-current={current === "workflows" ? "page" : undefined}>Workflows</a>
+    <a href="/viewer?view=runs" aria-current={current === "runs" ? "page" : undefined}>Runs</a>
+    <a href="/viewer?view=data" aria-current={current === "data" ? "page" : undefined}>Data</a>
+    {connectionsUrl && <a href={connectionsUrl}>Connections</a>}
+  </nav>;
+}
+
+function Home({ list }: { list: ReturnType<typeof useRead> }) {
+  const { summary, workflows, groups, runs, titles } = useWorkflows(list);
+  const p = query(), search = p.get("q") ?? "";
+  const filter = (FILTERS.some(([f]) => f === p.get("filter")) ? p.get("filter") : "all") as Filter;
+  const narrowed = Boolean(search) || filter !== "all";
+  const keep = (w: ListedWorkflow, g?: Group) => passes(filter, w, runs) && (!search || matches(search, w, g));
+  const shown = sections(workflows, groups, keep, runs, !narrowed);
+  return <>
+    <div className="title-row"><div className="environment-title"><h1>Workflows</h1><EnvironmentBadge environment={list.data?.environment} /></div>
+      <Search label="Search workflows, tables, providers…" value={search} onChange={(q) => navigate(href({ q: q || undefined }), true)} />
+    </div>
+    <State state={list} />
+    {list.data && <section className="workflow-home" aria-label="Workflows">
+      {workflows.length > 0 && <div className="chips" role="group" aria-label="Show">
+        {FILTERS.map(([value, label]) => {
+          const count = value === "all" || value === "scheduled" || runs ? workflows.filter((w) => passes(value, w, runs)).length : undefined;
+          return <button key={value} type="button" aria-pressed={filter === value}
+            onClick={() => navigate(href({ filter: value === "all" ? undefined : value }), true)}>
+            {label}{count !== undefined && <span className="chip-count">{count}</span>}
+          </button>;
+        })}
       </div>}
+      {summary.error && <p role="alert" className="notice error">Last runs are unavailable: {summary.error} <button onClick={summary.retry}>Retry</button></p>}
+      {shown.map(({ group, all, workflows: members }) => {
+        const visible = group && !narrowed ? members.slice(0, PREVIEW) : members;
+        return <section className="workflow-group" key={group?.id ?? "other"} aria-label={group?.name ?? "Other"}>
+          {(group || groups.length > 0) && <header className="group-header">
+            {group ? <h2><a href={`/viewer?group=${encodeURIComponent(group.id)}`}>{group.name} <span aria-hidden="true">›</span></a></h2> : <h2>Other</h2>}
+            <p className="muted">{rollUp(all, runs)}</p>
+          </header>}
+          <div className="workflow-list">
+            {visible.map((w) => <WorkflowRow key={w.id} workflow={w} runs={runs} titles={titles} />)}
+          </div>
+          {group && visible.length < members.length && <a className="more" href={`/viewer?group=${encodeURIComponent(group.id)}`}>+ {members.length - visible.length} more</a>}
+        </section>;
+      })}
+      {!shown.length && <p className="notice">
+        {!workflows.length ? "No workflows yet." : "No matching workflows."}{" "}
+        {narrowed && <button onClick={() => navigate(href({ q: undefined, filter: undefined }))}>Show all</button>}
+      </p>}
+    </section>}
+  </>;
+}
+
+/** A group: the workspace's Workflows, Runs and Data tabs, narrowed to the group's workflows and their tables. */
+function GroupPage({ id }: { id: string }) {
+  const list = useRead("list");
+  const { workflows, groups, runs, titles } = useWorkflows(list);
+  const view = query().get("view") ?? "workflows";
+  const group = groups.find((g) => g.id === id);
+  const members = group ? group.workflows.flatMap((wid) => workflows.filter((w) => w.id === wid)) : [];
+  const tab = (name: string, label: React.ReactNode) =>
+    <a href={`/viewer?${new URLSearchParams({ group: id, ...(name === "workflows" ? {} : { view: name }) })}`} aria-current={view === name ? "page" : undefined}>{label}</a>;
+  return <main className={view === "workflows" ? "workspace group-page" : "workflow group-page"}>
+    <header className="workflow-header">
+      <div className="breadcrumbs">
+        <a href="/viewer">Workflows</a><span aria-hidden="true">/</span>
+        <h1>{group?.name ?? "Group"}</h1>
+        <EnvironmentBadge environment={list.data?.environment} />
+      </div>
+    </header>
+    <State state={list} />
+    {list.data && !group && <p role="alert" className="notice">This group no longer exists. <a href="/viewer">Show all workflows</a></p>}
+    {group && <>
+      {group.description && <p className="group-description muted">{group.description}</p>}
+      <nav className="tabs" aria-label="Group views">
+        {tab("workflows", <>Workflows <span className="group-count">{members.length}</span></>)}
+        {tab("runs", "Runs")}
+        {tab("data", "Data")}
+      </nav>
+      {view === "runs" ? <Runs workspace destinations={list.data?.destinations} />
+        : view === "data" ? <Data destinations={list.data?.destinations} csrf={list.data?.csrf} />
+          : <div className="workflow-list group-workflows">
+            {members.map((w) => <WorkflowRow key={w.id} workflow={w} runs={runs} titles={titles} />)}
+          </div>}
     </>}
-    <dialog ref={dialog} className="folder-dialog" aria-labelledby="folder-dialog-title" onCancel={(e) => { e.preventDefault(); if (!busy) close(); }}>
-      {edit && <form onSubmit={save}>
-        <h2 id="folder-dialog-title">{edit.unavailable ? "Clear unavailable workflow placement" : edit.action === "assign" ? `Move ${edit.name}` : `${edit.action[0].toUpperCase()}${edit.action.slice(1)} folder`}</h2>
-        {edit.unavailable ? <p>Clear this placement only? No workflow, run or data will be deleted. This workflow may still exist in another copy.</p> : edit.action === "delete" ? <p>Delete “{edit.name}”? Only empty folders can be deleted. Workflows and runs are never deleted.</p> : <>
-          {["create", "rename"].includes(edit.action) && <label>Name<input autoFocus required maxLength={120} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></label>}
-          {edit.action !== "rename" && <label>Destination<select value={edit.parentId} onChange={(e) => setEdit({ ...edit, parentId: e.target.value })}>
-            <option value="">Root (unfiled)</option>{options.filter(({ folder }) => {
-              if (edit.action !== "move") return true;
-              const byId = new Map(folders.folders.map((f) => [f.id, f]));
-              for (let f: Folder | undefined = folder; f; f = f.parentId ? byId.get(f.parentId) : undefined) if (f.id === edit.id) return false;
-              return true;
-            }).map(({ folder, path }) => <option key={folder.id} value={folder.id}>{path}</option>)}
-          </select></label>}
-        </>}
-        {error && <p role="alert" className="error">{error}</p>}
-        <div className="folder-toolbar"><button type="button" disabled={busy} onClick={close}>Cancel</button><button disabled={busy} type="submit">{busy ? "Saving…" : edit.action === "delete" ? "Delete empty folder" : "Save"}</button></div>
-      </form>}
-    </dialog>
+  </main>;
+}
+
+export default function Workspace() {
+  const group = query().get("group");
+  return group ? <GroupPage key={group} id={group} /> : <Root />;
+}
+
+function Root() {
+  const view = query().get("view");
+  const state = useRead("list");
+  if (view === "data" || view === "runs")
+    return <main className="workflow">
+      <RootTabs current={view} connectionsUrl={state.data?.connectionsUrl} />
+      <div className="title-row"><div className="environment-title"><h1>{view === "data" ? "Data" : "Runs"}</h1><EnvironmentBadge environment={state.data?.environment} /></div></div>
+      {view === "data" ? <Data destinations={state.data?.destinations} csrf={state.data?.csrf} /> : <Runs workspace destinations={state.data?.destinations} />}
+    </main>;
+  return <main className="workspace">
+    <RootTabs current="workflows" connectionsUrl={state.data?.connectionsUrl} />
+    <Home list={state} />
   </main>;
 }

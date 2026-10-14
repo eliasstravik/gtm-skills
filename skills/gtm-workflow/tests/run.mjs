@@ -63,7 +63,7 @@ try {
     "business",
     "linked-data",
     "workspace-data",
-    "workflow-folders",
+    "viewer-groups",
     "workspace-runs",
     "viewer-grants",
     "inspection",
@@ -119,17 +119,16 @@ try {
             ],
           }
         : {}),
-      ...(name === "viewer-api" || name === "connections-local" || name === "workflow-folders"
+      ...(name === "viewer-api" || name === "connections-local" || name === "viewer-groups"
         ? {
             plugins: [
               templateScripts,
               {
                 name: "isolated-viewer-adapters",
                 setup(build) {
-                  if (name === "workflow-folders")
-                    build.onResolve({ filter: /^\.\/navigation$/ }, () => ({
-                      path: join(dirname(fileURLToPath(import.meta.url)), "workflow-folders-navigation.ts"),
-                    }));
+                  build.onResolve({ filter: /^#viewer-groups$/ }, () => ({
+                    path: join(dirname(fileURLToPath(import.meta.url)), "groups-fixture.ts"),
+                  }));
                   build.onResolve(
                     {
                       filter:

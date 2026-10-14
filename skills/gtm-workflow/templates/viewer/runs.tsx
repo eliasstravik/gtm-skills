@@ -104,13 +104,17 @@ export default function Runs({ workspace = false, destinations }: any) {
               </thead>
               <tbody>
                 {d.data.map((r: any) => (
-                  <tr key={r.id}>
+                  <tr key={r.id} className={r.parent ? "stage-run" : undefined}>
                     {workspace && (
                       <td>
-                        <a href={href({ workflow: r.workflow.id, tab: undefined, view: "runs", runsWorkflow: undefined, q: undefined, status: undefined, period: undefined, cursor: undefined })}>
+                        {r.parent && <span className="stage-mark" aria-hidden="true">↳ </span>}
+                        <a href={href({ workflow: r.workflow.id, group: undefined, tab: undefined, view: "runs", runsWorkflow: undefined, q: undefined, status: undefined, period: undefined, cursor: undefined })}>
                           {r.workflow.title}
                         </a>
-                        <div className="muted">{r.id}</div>
+                        <div className="muted">
+                          {r.id}
+                          {r.parent && !d.data.some((x: any) => x.id === r.parent) && <> · started by {r.parent}</>}
+                        </div>
                       </td>
                     )}
                     <td>

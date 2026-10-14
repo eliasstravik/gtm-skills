@@ -34,9 +34,10 @@ const EXAMPLES = ["example_scores", "example_research"];
  * Inspect the connected database at read time, independently of workflow registration: workspace tables (schema
  * public) and runtime tables (schema gtm). The migration journals live in schema drizzle and are not listed.
  * The list shows what workflows wrote: runtime bookkeeping tables only with `internal=1`, and runtime records and
- * example tables only once they hold rows. A table named in the URL is always listed.
+ * example tables only once they hold rows. A table named in the URL is always listed. `only` narrows the list to a
+ * group's tables, each listed whether or not it holds rows yet.
  */
-export async function readWorkspaceData(client: Reader, url: URL): Promise<(DataPage & { hiddenTables: number }) | { unavailable: string }> {
+export async function readWorkspaceData(client: Reader, url: URL, only?: Set<string>): Promise<(DataPage & { hiddenTables: number }) | { unavailable: string }> {
   const catalog = await client.execute(
     sql`SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema IN ('public', 'gtm') AND table_type = 'BASE TABLE' ORDER BY lower(table_name), table_name, table_schema DESC`,
   );
@@ -46,8 +47,9 @@ export async function readWorkspaceData(client: Reader, url: URL): Promise<(Data
     schema: String(row.table_schema),
     table: String(row.table_name),
     name: row.table_schema === "gtm" && taken.has(String(row.table_name)) ? `gtm.${row.table_name}` : String(row.table_name),
-  }));
-  if (!all.length) return { unavailable: "No data tables yet." };
+  // A group names its tables as the workflows' table registry does: a runtime table that a public one shadows is not it.
+  })).filter((entry) => !only || (only.has(entry.table) && entry.name === entry.table));
+  if (!all.length) return { unavailable: only ? "This group's workflows have no data tables yet." : "No data tables yet." };
   const internal = url.searchParams.get("internal") === "1";
   const kind = (entry: (typeof all)[number]) =>
     entry.schema === "gtm" && BOOKKEEPING.includes(entry.table) ? "internal"
@@ -61,7 +63,7 @@ export async function readWorkspaceData(client: Reader, url: URL): Promise<(Data
     for (const row of (await client.execute(sql.join(probes, sql` UNION ALL `))).rows) filled.add(String(row.name));
   }
   const requested = url.searchParams.get("table");
-  const tables = all.filter((entry) => entry.name === requested || internal ||
+  const tables = all.filter((entry) => only || entry.name === requested || internal ||
     kind(entry) === "workspace" || (kind(entry) !== "internal" && filled.has(entry.name)));
   if (!tables.length) return { unavailable: "No data tables yet." };
   // Opens on the workspace's own results: a workflow table with rows, then any listed table with rows.
@@ -92,6 +94,6 @@ export async function readWorkspaceData(client: Reader, url: URL): Promise<(Data
   return { ...result, hiddenTables: all.length - tables.length, tabs: tables.map((entry) => ({
     label: entry.name,
     current: entry.name === name,
-    href: `${url.pathname}?${new URLSearchParams({ table: entry.name, ...(internal ? { internal: "1" } : {}) })}`,
+    href: `${url.pathname}?${new URLSearchParams({ table: entry.name, ...(internal ? { internal: "1" } : {}), ...(only ? { group: url.searchParams.get("group")! } : {}) })}`,
   })) };
 }

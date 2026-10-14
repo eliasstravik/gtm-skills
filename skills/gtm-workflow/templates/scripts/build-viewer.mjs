@@ -2,8 +2,10 @@ import { BaseBuilder, createBaseBuilderConfig } from "@workflow/builders";
 import { bundleViewer } from "./bundle-viewer.mjs";
 import { mkdir, readFile, writeFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import { existsSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { registrySource } from "./viewer-registry.mjs";
+import { groupsSource } from "./viewer-groups.mjs";
 import { validateBusinessGraph, validateDescription } from "./business-graph.mjs";
 import { validateDataSharing } from "../lib/viewer-policy-validation.mjs";
 import { writeCriteriaSnapshot } from "./criteria-snapshot.mjs";
@@ -58,7 +60,9 @@ const stepIds = new Set(
     Object.values(x).map((s) => s.stepId),
   ),
 );
-const registry = registrySource().map((entry) => {
+// Schedules come from vercel.json's crons: Vercel Cron calls GET /api/run/<slug>.
+const crons = existsSync("vercel.json") ? JSON.parse(await readFile("vercel.json", "utf8")).crons ?? [] : [];
+const registry = registrySource().map(({ intake, startedBy, ...entry }) => {
   validateBusinessGraph(entry.businessGraph);
   validateDescription(entry);
   validateDataSharing(entry);
@@ -95,7 +99,17 @@ const registry = registrySource().map((entry) => {
       assigned.add(id);
     }
   }
-  return { ...entry, workflowName: compiled.workflowId, graph, revision };
+  const schedule = crons.find((c) => c.path === `/api/run/${entry.slug}`)?.schedule;
+  const trigger = { ...(schedule ? { schedule } : {}), ...(intake ? { webhook: true } : {}), ...(startedBy ? { startedBy } : {}) };
+  return { ...entry, workflowName: compiled.workflowId, graph, revision, trigger };
 });
+let groups;
+try { groups = groupsSource(registry); }
+catch (error) {
+  // The reason alone, on the last line: the dev server's log shows the build's last lines.
+  console.error(error.message);
+  process.exit(1);
+}
 await writeFile(`${out}/registry.json`, JSON.stringify(registry));
+await writeFile(`${out}/groups.json`, JSON.stringify(groups));
 await bundleViewer();

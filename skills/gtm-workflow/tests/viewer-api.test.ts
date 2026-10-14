@@ -257,7 +257,7 @@ test("list needs no run hydration; sparse run pages reach later top-level matche
   const list = await (await viewerApi(req("list"))).json();
   assert.deepEqual(
     Object.keys(list.workflows[0]).sort(),
-    ["description", "id", "slug", "title"].sort(),
+    ["description", "id", "providers", "slug", "tables", "title", "trigger"].sort(),
   );
   const originals = [...fixtureRuns];
   fixtureRuns.splice(

@@ -18,7 +18,10 @@ export default defineConfig({
     : {}),
   alias: share
     ? {}
-    : { "#viewer-registry": "./node_modules/.gtm-viewer/registry.json" },
+    : {
+        "#viewer-registry": "./node_modules/.gtm-viewer/registry.json",
+        "#viewer-groups": "./node_modules/.gtm-viewer/groups.json",
+      },
   vercel: {
     config: { version: 3, crons: share ? [] : vercelJson.crons },
   },
