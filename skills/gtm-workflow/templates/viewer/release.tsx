@@ -86,16 +86,25 @@ export function useRelease(environment?: string): (Release & { justLive: boolean
   const [justLive, setJustLive] = useState(false);
   useEffect(() => {
     if (!enabled) return;
-    let stopped = false, timer: ReturnType<typeof setTimeout> | undefined;
+    // Each check and each save takes a new number: an answer to a check that a later check or a save overtook is old
+    // news, whatever it says (a status asked just before a save is about the build before it).
+    let stopped = false, timer: ReturnType<typeof setTimeout> | undefined, asked = 0;
     // Opened just after a save, on this page or another: amber before the first answer.
     if (following()) setRelease({ state: "updating" });
     const check = async () => {
       clearTimeout(timer);
       if (stopped || document.hidden) return;
-      const save = following(), change = local ? undefined : save?.change;
+      const save = following(), change = local ? undefined : save?.change, mine = ++asked;
       let next: Release | null = null;
       try { next = await readRelease(change); } catch { /* Unknown: show nothing rather than guess. */ }
-      if (stopped) return;
+      if (stopped || mine !== asked) return;
+      // A save in another tab lands in storage without a word here until its event: the same rule.
+      const now = following();
+      if ((now?.at ?? 0) !== (save?.at ?? 0)) {
+        clearTimeout(timer);
+        timer = setTimeout(check, 300);
+        return;
+      }
       if (change) {
         // Only an answer about this save's own build counts: none yet, or an older build's live or failed, means it
         // is still on its way.
@@ -112,6 +121,7 @@ export function useRelease(environment?: string): (Release & { justLive: boolean
       timer = setTimeout(check, next?.state === "updating" ? (local ? 1000 : 5000) : 15000);
     };
     const begun = () => {
+      asked++;
       setRelease({ state: "updating" });
       setJustLive(false);
       clearTimeout(timer);

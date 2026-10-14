@@ -95,6 +95,42 @@ try {
   waitBadge("live");
   assert.equal(evaluate('localStorage.getItem("gtm-viewer-release-started")'), null, "settled once its build is live");
 
+  // A status asked just before a save, in another tab, answers after it: about the build before, so never this save's.
+  command("open", "http://127.0.0.1:3942/viewer");
+  command("wait", "--text", "Enrich network");
+  evaluate(`(() => {
+    localStorage.removeItem("gtm-viewer-release-started");
+    window.__held = [];
+    const f = window.__fetch ??= window.fetch;
+    window.fetch = (u, o) => String(u).includes("op=release") ? new Promise((resolve) => { const answer = () => resolve(new Response(JSON.stringify({ version: 3, release: { state: "failed", details: "https://vercel.com/acme/workflows/old-build" } }), { headers: { "content-type": "application/json" } })); window.__auto ? answer() : window.__held.push(answer); }) : f(u, o);
+    document.dispatchEvent(new Event("visibilitychange"));
+    return 1;
+  })()`);
+  command("wait", "--fn", "window.__held.length > 0");
+  evaluate("window.__held.shift()(); 1");
+  waitBadge("failed", 5000);
+  evaluate('document.dispatchEvent(new Event("visibilitychange")); 1');
+  command("wait", "--fn", "window.__held.length > 0");
+  evaluate(`(() => {
+    const value = JSON.stringify({ at: Date.now(), change: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee" });
+    localStorage.setItem("gtm-viewer-release-started", value);
+    window.dispatchEvent(new StorageEvent("storage", { key: "gtm-viewer-release-started", newValue: value }));
+    return 1;
+  })()`);
+  waitBadge("updating", 2000);
+  evaluate("window.__held.shift()(); 1");
+  command("wait", "1500");
+  assert.deepEqual(badge(), ["updating", "Production · Updating…live in about a minute", amber], "a reply asked before the save is not about it");
+  assert.equal(evaluate('document.querySelectorAll(".environment-badge a").length'), 0);
+  // Saved elsewhere with the event not here yet: the late reply is dropped, and the next check follows the save.
+  evaluate('window.__auto = true; localStorage.removeItem("gtm-viewer-release-started"); window.__held.splice(0).forEach((answer) => answer()); document.dispatchEvent(new Event("visibilitychange")); 1');
+  waitBadge("failed", 5000);
+  evaluate('window.__auto = false; document.dispatchEvent(new Event("visibilitychange")); 1');
+  command("wait", "--fn", "window.__held.length > 0");
+  evaluate('localStorage.setItem("gtm-viewer-release-started", JSON.stringify({ at: Date.now(), change: "ffffffff-bbbb-4ccc-8ddd-eeeeeeeeeeee" })); window.__auto = true; window.__held.shift()(); 1');
+  command("wait", "--fn", 'document.querySelector(".environment-badge")?.dataset.state === "updating"', "--timeout", "3000");
+  shot("5b-production-late-reply");
+
   // Local: the server reloads with the saved key in a few seconds, no restart, and the badge follows it.
   command("open", "http://127.0.0.1:3944/connections");
   command("wait", "--text", "No connections yet");
