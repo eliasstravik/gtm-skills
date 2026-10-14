@@ -265,6 +265,37 @@ Upgraded the runtime.
 - changed `workflows/package.json`
 - changed `workflows/package-lock.json`
 
+## Upgrade from folders to groups
+
+**Setup:** Workspace Acme's runtime is 0.2.6, linked to production, with folders Outbound (Score inbound accounts) and Outbound / EMEA (Enrich EMEA leads); 0.2.7 is installed.
+
+**Human:** Upgrade the workflow runtime.
+
+**Agent:** Updating the runtime. Folders become groups written in the workspace: Outbound (Score inbound accounts) and Outbound · EMEA (Enrich EMEA leads). Workflows, runs, data and links stay unchanged.
+
+Upgraded the runtime; the Workflows page now shows the two groups with each workflow's last run.
+
+**Files:**
+
+- added `workflows/workflows/groups.ts`
+- changed `workflows/lib/viewer-handler.ts`
+- changed `workflows/package.json`
+- changed `workflows/package-lock.json`
+
+## Regroup
+
+**Setup:** Workspace Acme has groups Outbound (Score inbound accounts, Enrich EMEA leads) and Inbound (Cal.com booking enrichment).
+
+**Human:** Move Enrich EMEA leads into a new group called EMEA, after Inbound.
+
+**Agent:** Moving Enrich EMEA leads from Outbound into a new EMEA group, shown after Inbound.
+
+Moved Enrich EMEA leads into EMEA. [Open GTM Workflows](verified-group-url)
+
+**Files:**
+
+- changed `workflows/workflows/groups.ts`
+
 ## Delete
 
 **Setup:** Workspace Acme exists with Score inbound accounts, deployed with a Monday schedule; its table inbound_scores holds 37 rows.

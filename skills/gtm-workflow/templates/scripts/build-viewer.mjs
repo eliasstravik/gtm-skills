@@ -103,7 +103,13 @@ const registry = registrySource().map(({ intake, startedBy, ...entry }) => {
   const trigger = { ...(schedule ? { schedule } : {}), ...(intake ? { webhook: true } : {}), ...(startedBy ? { startedBy } : {}) };
   return { ...entry, workflowName: compiled.workflowId, graph, revision, trigger };
 });
-const groups = groupsSource(registry);
+let groups;
+try { groups = groupsSource(registry); }
+catch (error) {
+  // The reason alone, on the last line: the dev server's log shows the build's last lines.
+  console.error(error.message);
+  process.exit(1);
+}
 await writeFile(`${out}/registry.json`, JSON.stringify(registry));
 await writeFile(`${out}/groups.json`, JSON.stringify(groups));
 await bundleViewer();

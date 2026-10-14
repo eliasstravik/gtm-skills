@@ -1,6 +1,6 @@
 # Local and production
 
-A workspace is an ordinary Vercel app: `workflows/` on a laptop is local, the Vercel project `gtm-<ws>` is production. Code and schema go up only through `git push`. Local workflow runs and result data never write production. A linked workspace shares folder organization metadata as described below.
+A workspace is an ordinary Vercel app: `workflows/` on a laptop is local, the Vercel project `gtm-<ws>` is production. Code and schema go up only through `git push`. Local workflow runs and result data never write production. Workflow groups are code (`workflows/groups.ts`) and travel with it.
 
 | | Local | Production |
 | --- | --- | --- |
@@ -16,11 +16,19 @@ A workspace is an ordinary Vercel app: `workflows/` on a laptop is local, the Ve
 
 Both environments use the same private viewer implementation: root Workflows, Runs, Data and Connections navigation, plus the existing per-workflow Diagram, Runs, Data and Connections tabs. Root Runs lists cross-workflow run metadata with the associated workflow; workflow, status, time and search filters narrow it. Per-workflow Runs remains scoped to the selected workflow. Opening or filtering the viewer starts nothing.
 
-For a linked workspace, workflow folders and placement have one authoritative store in production. The local viewer reads and changes that same organization through its protected server-side connection; workflow results and run histories still belong to their own environments. Folder nesting is recursive, not limited to one level. Root shows top-level organization, Unfiled shows workflows without a folder, and All shows the workspace-wide list. Create, rename and move folders, and move workflows between folders or back to root. Workflow placement uses stable `viewer.id` values; names and slugs may change without creating a new identity. Moves cannot create cycles. Delete only empty folders; a folder with child folders or assigned workflows is refused without deleting any workflows or runs.
+Groups come from `workflows/groups.ts` ([viewer](viewer.md#workflow-groups)), so local shows the working copy's groups and production shows `main`'s, exactly like the workflows: a regrouping not yet pushed shows locally only. There is no group store, no production sync and no unavailable state. A group page's Runs and Data read the environment they run in, like every other view.
 
-Linked local and production viewers share the folder tree and permanent-ID placements, not their workflow result databases or run stores. Folder changes require the production connection; when unavailable, show a clear unavailable state, never a separate writable local tree or a false empty organization. Purely local, unlinked workspaces retain a clearly local-only folder store. Local-only workflow IDs can be organized before deployment; a copy without that workflow preserves its placement and identifies it as unavailable in that copy rather than deleting it. Clear a missing workflow’s placement explicitly before deleting its folder. `db:pull` is not folder synchronization and retains its existing data-replacement approval. See [viewer](viewer.md#workflow-folders).
+### From folders to groups
 
-Upgrade the runtime and apply its additive runtime migrations in each target environment before verifying folder persistence. Preserve workflow IDs, authored workflows, application tables, saved runs, credentials and existing grants. Verify root Runs and per-workflow Runs without starting a run, then verify folder nesting, moves, reload persistence and nonempty-delete refusal in each accessible environment. Record source revisions and distinguish implemented, installed, deployed and behaviorally verified; a deployment alone does not prove either feature works.
+Releases up to 0.2.6 kept nested folders in the runtime tables `gtm.workflow_folder_scopes`, `gtm.workflow_folders` and `gtm.workflow_folder_assignments`; a linked workspace kept its only copy in production's database and the local viewer reached it with the owner's Vercel login, recording `data/workflow-folder-mode.json`. 0.2.7 reads them once, during Upgrade, from `workflows/`:
+
+1. `node scripts/folders-to-groups.mjs` reads production's folders when `.vercel/project.json` links the workspace (a read-only session through the owner's `neonctl` login, as `db:pull` uses), else this computer's (`--source production|local|<saved state.json>` overrides). It prints the proposed `groups.ts`: each folder that holds workflows becomes one group named by its path ("Outbound · EMEA") in tree order, its workflows by title; empty folders are dropped and listed; a placement of a workflow this workspace no longer has is listed, never carried over. Workflow IDs, runs, data and share links are untouched.
+2. No folder holds a workflow (the common case): run it again with `--suggest`, which clusters workflows that start one another as stages, share a data definition or write the same workflow table, and propose names, plus any single-workflow groups worth having, from what each workflow does.
+3. Show the proposal, save it with `--write` (refused when `groups.ts` already has groups) or by editing the file, build, and commit with the upgrade. Then delete `data/workflow-folder-mode.json`; Doctor reports it until then.
+
+The three tables are left as they are, unused, for one release, so going back to 0.2.6 loses nothing. The release after drops them with a runtime migration; nothing reads them meanwhile.
+
+Upgrade the runtime and apply its runtime migrations in each target environment, preserving workflow IDs, authored workflows, application tables, saved runs, credentials and existing grants. Verify root Runs, a group's Runs and Data, and per-workflow Runs without starting a run. Record source revisions and distinguish implemented, installed, deployed and behaviorally verified; a deployment alone does not prove a feature works.
 
 ## From a laptop, with Vercel's own tools
 
