@@ -905,6 +905,8 @@ fieldset legend {
 .workflow-row h3 { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
 .workflow-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .trigger { font-size: 12px; color: var(--muted); border: 1px solid var(--border); border-radius: 9999px; padding: 1px 8px; }
+.workflow-tables { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.table-name { font: 12px "Geist Mono Variable", ui-monospace, monospace; color: var(--muted); background: var(--surface); border-radius: 4px; padding: 1px 6px; overflow-wrap: anywhere; }
 .workflow-status { flex-shrink: 0; text-align: right; font-size: 13px; }
 .last-run { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 8px; align-items: center; }
 .more { display: inline-block; padding: 10px 12px; color: var(--muted); }

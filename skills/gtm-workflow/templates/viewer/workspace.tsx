@@ -35,7 +35,12 @@ function WorkflowRow({ workflow: w, runs, titles }: { workflow: ListedWorkflow; 
     <span className="workflow-row-main">
       <h3>{w.title}</h3>
       {w.description && <span className="muted purpose">{w.description}</span>}
-      <span className="workflow-meta"><Trigger workflow={w} titles={titles} /></span>
+      <span className="workflow-meta">
+        <Trigger workflow={w} titles={titles} />
+        {w.tables.length > 0 && <span className="workflow-tables" title="Tables it reads or writes">
+          <span className="sr-only">Tables: </span>{w.tables.map((t) => <span key={t} className="table-name">{t}</span>)}
+        </span>}
+      </span>
     </span>
     <span className="workflow-status"><LastRunCell runs={runs} id={w.id} /></span>
   </a>;

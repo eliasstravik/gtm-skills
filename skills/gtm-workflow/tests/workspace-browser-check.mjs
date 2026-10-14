@@ -28,6 +28,9 @@ try {
   assert.equal(evaluate(`${markets}.querySelector(".more").textContent`), "+ 3 more");
   assert.equal(evaluate(`${markets}.querySelector(".workflow-row .status").textContent`), "failed", "failing first in the preview");
   assert.ok(evaluate('document.body.textContent.includes("Daily 07:00 UTC") && document.body.textContent.includes("Stage of Research market 01") && document.body.textContent.includes("Webhook")'));
+  // Each row names the tables its workflow reads or writes.
+  const network = '[...document.querySelectorAll(".workflow-row")].find(r=>r.querySelector("h3").textContent==="Enrich network")';
+  assert.deepEqual(evaluate(`[...${network}.querySelectorAll(".table-name")].map(t=>t.textContent)`), ["fixture_people", "fixture_companies"]);
   command("click", '.chips button:nth-child(3)');
   command("wait", "--fn", 'new URL(location.href).searchParams.get("filter") === "failing"');
   assert.ok(evaluate('[...document.querySelectorAll(".workflow-row .status")].every(s=>s.textContent==="failed")'));
@@ -38,6 +41,7 @@ try {
   command("wait", "--text", "Research market 06");
   assert.deepEqual(evaluate('[...document.querySelectorAll("nav.tabs a")].map(a=>a.textContent.replace(/\\d+/,"").trim())'), ["Workflows", "Runs", "Data"]);
   assert.equal(evaluate('document.querySelectorAll(".group-workflows .workflow-row").length'), 6);
+  assert.ok(evaluate('[...document.querySelectorAll(".group-workflows .workflow-row")].every(r=>r.querySelectorAll(".table-name").length > 0)'), "group rows name their tables");
   command("click", 'nav.tabs a[href$="view=runs"]');
   command("wait", "--text", "wrun_");
   assert.deepEqual(evaluate('[...document.querySelector("[name=filter-runs-by-workflow]").options].map(o=>o.textContent).length'), 7, "the workflow filter lists the group's six");
