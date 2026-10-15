@@ -1,8 +1,8 @@
 ---
 name: gtm-workflow
-description: Triggers when a user asks to build, create, update, run, test, schedule, deploy, host, upgrade, inspect, open the inspection UI, group, regroup, or delete a saved GTM workflow, its result table, runs, diagram, or workflow group in a GTM workspace, with phrasings like "build a workflow that scores our inbound companies", "run Score inbound accounts", "put it on a weekly schedule, hosted", "enrich my network, connections, or followers and their companies", "upgrade the workflow runtime", "take our workflows live on Vercel", "connect the workflow project", "set up keys", "move Cal.com booking enrichment into Inbound", "how is the LinkedIn social group doing", or "share this workflow's data". Owns the workflows folder, which holds workflow code, groups, tables, runs, schedules, diagrams, keys and share links, and the Vercel project it deploys to, including connecting a GTM agent to it. Not for the workspace, ICPs, or personas themselves (gtm-workspace, gtm-icp, gtm-persona), or one-off fit checks that are not saved (gtm-qualify-prospects).
+description: Triggers when a user asks to create, change, run, test, schedule, deploy, upgrade, open, inspect, group, or delete a saved GTM workflow, or its table, runs, diagram, or group, with phrasings like "build a workflow that scores our inbound companies", "run Score inbound accounts", "put it on a weekly schedule, hosted", "enrich my network, connections, or followers", "upgrade the workflow runtime", "take our workflows live on Vercel", "connect the workflow project", "set up keys", "move Cal.com enrichment into Inbound", or "share this workflow's data". Owns the workflows folder (workflow code, groups, tables, runs, schedules, diagrams, keys, share links) and the Vercel project it deploys to, including connecting a GTM agent to it. Not for the workspace, ICPs, or personas themselves (gtm-workspace, gtm-icp, gtm-persona), or one-off fit checks that are not saved (gtm-qualify-prospects).
 metadata:
-  version: "0.2.10"
+  version: "0.2.11"
 ---
 
 # GTM Workflow
