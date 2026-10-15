@@ -10,6 +10,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
+      - name: Verify every skill's name and description follow the skill format
+        run: node --test tests/*.test.mjs
       - run: npm ci
         working-directory: workflow-template/templates
       # Copy-down (db:pull) needs pg_dump/pg_restore at least as new as Neon's Postgres 18.
