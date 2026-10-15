@@ -5,9 +5,9 @@ import { readdir, readFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const WORDS = /libsql|turso|sqlite/i;
-const SEARCHED = ["skills/gtm-workflow", "skills/gtm-agent", "README.md", "docs"];
+const SEARCHED = ["skills/gtm-workflow", "workflow-template", "skills/gtm-agent", "README.md", "docs"];
 const SKIPPED_FOLDERS = ["node_modules", ".output", ".nitro", ".vercel", ".swc", "data"];
 const SKIPPED = [
   /^skills\/gtm-workflow\/connections\//, // the component's own local journal and lock are SQLite files
@@ -15,7 +15,7 @@ const SKIPPED = [
 ];
 // file → the lines that may carry a word.
 const ALLOWED = {
-  "skills/gtm-workflow/tests/no-old-database-words.mjs": { line: /./ },
+  "workflow-template/tests/no-old-database-words.mjs": { line: /./ },
 };
 
 async function files(path) {

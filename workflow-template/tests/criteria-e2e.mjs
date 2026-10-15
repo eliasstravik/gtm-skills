@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { startTestPostgres } from "./postgres.mjs";
 
-const source = resolve(process.argv[2] ?? "skills/gtm-workflow/templates");
+const source = resolve(process.argv[2] ?? "workflow-template/templates");
 const workspace = await mkdtemp(join(tmpdir(), "gtm-criteria-"));
 const target = join(workspace, "workflows");
 const postgres = await startTestPostgres(source);

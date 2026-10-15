@@ -42,6 +42,7 @@ const templateScripts = {
       ? { path: pathToFileURL(join(runtime, "scripts", args.path.split("/").pop())).href, external: true }
       : { path: pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), args.path)).href, external: true });
     build.onResolve({ filter: /templates\/scripts\/[a-z-]+\.mjs$/ }, (args) => ({ path: pathToFileURL(join(runtime, "scripts", args.path.split("/").pop())).href, external: true }));
+    build.onResolve({ filter: /skills\/gtm-workflow\/scripts\/[a-z-]+\.mjs$/ }, (args) => ({ path: pathToFileURL(join(args.resolveDir, args.path)).href, external: true }));
   },
 };
 // Suites bundle lib/, and lib/criteria.ts imports the file every build writes first; write it the same way.
@@ -105,7 +106,7 @@ try {
                 setup(build) {
                   // Keep the CLI entrypoint guard tied to its original module URL.
                   build.onResolve({ filter: /scripts\/upgrade-package\.mjs$/ }, () => ({
-                    path: join(dirname(fileURLToPath(import.meta.url)), "../scripts/upgrade-package.mjs"),
+                    path: join(dirname(fileURLToPath(import.meta.url)), "../../skills/gtm-workflow/scripts/upgrade-package.mjs"),
                     external: true,
                   }));
                   build.onResolve({ filter: /^workflow$/ }, () => ({

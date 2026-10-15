@@ -4,7 +4,7 @@
 // --deploy: the same, then go live (scripts/hosted.mjs): repository, Vercel project, Neon, share project, secrets,
 // the first push and a production deployment. Every step is skipped when already done, so it is also the repair.
 import { parseArgs } from "node:util";
-import { resolve, join, dirname, relative } from "node:path";
+import { resolve, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { existsSync, statSync } from "node:fs";
 import { cp, mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
@@ -12,20 +12,19 @@ import { spawnSync } from "node:child_process";
 import { writeRootFiles } from "./root-files.mjs";
 import { teamSpendCap } from "./share-firewall.mjs";
 import { requireThat, safeError, setupHosted, workflowProject } from "./hosted.mjs";
-const skill = dirname(dirname(fileURLToPath(import.meta.url)));
-const templates = join(skill, "templates");
+import { template } from "./template.mjs";
 /** vercel.json is template-owned except `crons`, which the workspace's schedules fill. */
 export async function mergeVercelJson(runtime) {
-  const file = join(runtime, "vercel.json"), template = JSON.parse(await readFile(join(templates, "vercel.json"), "utf8"));
+  const file = join(runtime, "vercel.json"), wanted = JSON.parse(await readFile(join(template().templates, "vercel.json"), "utf8"));
   const current = existsSync(file) ? JSON.parse(await readFile(file, "utf8")) : {};
-  const merged = { ...current, ...template, crons: current.crons ?? template.crons };
+  const merged = { ...current, ...wanted, crons: current.crons ?? wanted.crons };
   if (JSON.stringify(merged) === JSON.stringify(current)) return false;
   await writeFile(file, JSON.stringify(merged, null, 2) + "\n");
   return true;
 }
 export async function setupLocal(workspace) {
   await mkdir(workspace, { recursive: true });
-  const runtime = join(workspace, "workflows");
+  const runtime = join(workspace, "workflows"), { templates } = template();
   if (!existsSync(join(runtime, "package.json"))) {
     requireThat(!existsSync(runtime) || !(await readdir(runtime)).length, "workflow_directory_not_empty", 409,
       `${runtime} holds files but no package.json: move them aside, then run setup again.`);

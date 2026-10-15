@@ -7,7 +7,7 @@ import { parseArgs } from "node:util";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseEnv } from "node:util";
@@ -15,8 +15,8 @@ import { rootFileDrift } from "./root-files.mjs";
 import { compareVersions } from "./upgrade-package.mjs";
 import { teamSpendCap } from "./share-firewall.mjs";
 import { DATABASE_VARIABLE, doctorHosted, requireThat, safeError, workflowProject } from "./hosted.mjs";
+import { template } from "./template.mjs";
 
-const templates = join(dirname(dirname(fileURLToPath(import.meta.url))), "templates");
 // Settings of earlier designs: the run password, the old agent wiring and the old database. None is read any more.
 const RETIRED = /^(?:GTM_RUN_SECRET|GTM_WORKFLOW_URL|GTM_AGENT_URL|GTM_NOTIFY_SECRET|GTM_DATA_URL|GTM_RUNS_URL)$/;
 
@@ -44,7 +44,7 @@ export function migrationFor(runtime, mine, theirs) {
 }
 
 async function local(workspace, target) {
-  const runtime = join(workspace, "workflows"), problems = [];
+  const runtime = join(workspace, "workflows"), problems = [], { templates } = template();
   const add = (ok, check, fix) => { if (!ok) problems.push({ check, fix }); };
   const setup = "run setup --local";
   add(existsSync(join(runtime, "package.json")), "workflows/ holds the runtime", setup);
@@ -61,7 +61,7 @@ async function local(workspace, target) {
     ? "update the skills first (gtm-workspace references/updates.md)" : "migrate the workspace (gtm-workspace references/updates.md#migrate)");
   const vercelJson = (path) => { try { const { crons, ...rest } = JSON.parse(readFileSync(path, "utf8")); return JSON.stringify(rest); } catch { return null; } };
   add(vercelJson(join(runtime, "vercel.json")) === vercelJson(join(templates, "vercel.json")), "vercel.json matches the template (crons aside)", setup);
-  for (const file of await rootFileDrift(workspace)) add(false, `${file.path} ${file.status === "missing" ? "exists" : "matches the template"}`, file.status === "missing" ? setup : `copy it from the skill's root/ folder, keeping steps you added`);
+  for (const file of await rootFileDrift(workspace)) add(false, `${file.path} ${file.status === "missing" ? "exists" : "matches the template"}`, file.status === "missing" ? setup : `copy it from the template's root/ folder (node scripts/template.mjs prints it), keeping steps you added`);
   const dotEnv = join(runtime, ".env"), retired = existsSync(dotEnv) ? Object.keys(parseEnv(readFileSync(dotEnv, "utf8"))).filter((name) => RETIRED.test(name)) : [];
   add(!retired.length, "workflows/.env holds no retired settings", `delete ${retired.join(", ")} from workflows/.env (npm run dev loads it)`);
   const developmentDatabase = target.linked ? await productionInDevelopment(runtime) : { status: "not_linked" };

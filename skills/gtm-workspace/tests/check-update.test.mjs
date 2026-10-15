@@ -24,7 +24,7 @@ async function folder(files) {
 }
 
 test("every gtm skill and the workflow template carry the same release version", async () => {
-  const template = JSON.parse(await readFile(join(skills, "gtm-workflow/templates/package.json"), "utf8")).version;
+  const template = JSON.parse(await readFile(join(skills, "../workflow-template/templates/package.json"), "utf8")).version;
   const names = (await readdir(skills)).filter((name) => name.startsWith("gtm-"));
   assert.ok(names.length >= 6, names.join());
   for (const name of names) {

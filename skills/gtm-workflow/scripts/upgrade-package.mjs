@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { template as templateFolders } from "./template.mjs";
 
 // Only recognized template commands are replaced. All other commands need a human-readable review.
 // Add a pattern here when a template command changes, so workspaces still on the old stock command are updated.
@@ -64,13 +65,7 @@ if (
       "Previous runtime: this upgrade does not convert scripts/gtm.ts workspaces",
     );
   const template = JSON.parse(
-    readFileSync(
-      resolve(
-        dirname(fileURLToPath(import.meta.url)),
-        "../templates/package.json",
-      ),
-      "utf8",
-    ),
+    readFileSync(resolve(templateFolders().templates, "package.json"), "utf8"),
   );
   const result = mergePackage(
     JSON.parse(readFileSync(resolve(target, "package.json"), "utf8")),

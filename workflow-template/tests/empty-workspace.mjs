@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
-const source = resolve(process.argv[2] ?? "skills/gtm-workflow/templates");
+const source = resolve(process.argv[2] ?? "workflow-template/templates");
 const target = await mkdtemp(join(tmpdir(), "gtm-empty-workspace-"));
 const env = { ...process.env, GTM_RUN_SECRET: "empty-workspace-test" };
 for (const key of ["VERCEL", "VERCEL_ENV", "GTM_VIEWER_MODE", "GTM_DATABASE", "DATABASE_URL", "DATABASE_URL_UNPOOLED", "NITRO_PRESET"])

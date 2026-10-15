@@ -1,7 +1,7 @@
 // Rate limits on the public share project: the template's rules, how setup applies them and how Doctor reports drift.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { RULE_PREFIX, applyShareFirewall, firewallPlan, shareFirewallDrift, shareFirewallRules, teamSpendCap } from "../scripts/share-firewall.mjs";
+import { RULE_PREFIX, applyShareFirewall, firewallPlan, shareFirewallDrift, shareFirewallRules, teamSpendCap } from "../../skills/gtm-workflow/scripts/share-firewall.mjs";
 
 // A stand-in for the Vercel CLI holding one project's live rules and draft, recording every command.
 function fakeVercel({ rules = [], draft = null, project = true, budgets = [] } = {}) {
