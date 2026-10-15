@@ -1,0 +1,43 @@
+name: Set up the workflow template
+description: Node, the template's packages, and what a verify job asks for on top (Postgres 18 tools, the viewer build, a browser).
+inputs:
+  postgres:
+    description: Install the Postgres 18 client tools.
+    default: "false"
+  build:
+    description: Build the viewer (npm run build).
+    default: "false"
+  browser:
+    description: Install agent-browser and its browser.
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: workflow-template/templates/package-lock.json
+    - run: npm ci
+      shell: bash
+      working-directory: workflow-template/templates
+    # Copy-down (db:pull) needs pg_dump/pg_restore at least as new as Neon's Postgres 18.
+    - name: Install Postgres 18 client tools
+      if: inputs.postgres == 'true'
+      shell: bash
+      run: |
+        sudo install -d /usr/share/postgresql-common/pgdg
+        sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+        echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+        sudo apt-get update -q && sudo apt-get install -yq postgresql-client-18
+        echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
+    - run: npm run build
+      if: inputs.build == 'true'
+      shell: bash
+      working-directory: workflow-template/templates
+    - name: Install agent-browser
+      if: inputs.browser == 'true'
+      shell: bash
+      run: |
+        npm install --global agent-browser@0.34.0
+        agent-browser install --with-deps
