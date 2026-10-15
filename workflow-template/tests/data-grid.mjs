@@ -45,15 +45,19 @@ const sql = async (text) => {
   try { await client.query(text); } finally { await client.end(); }
 };
 // Records each data read the page sends: its window of rows, and whether it asked for one record. `readsInFlight` counts
-// reads not yet answered, so a step can start counting only once the grid has settled.
-const watchReads = () => evaluate(`(() => { window.gridMarker = true; window.reads = []; window.readsInFlight = 0; const f = window.fetch;
+// reads not yet answered and `lastRead` is when one was last sent or answered, so a step can start counting only once
+// the grid has settled.
+const watchReads = () => evaluate(`(() => { window.gridMarker = true; window.reads = []; window.readsInFlight = 0; window.lastRead = 0; const f = window.fetch;
   window.fetch = (u, o) => { const p = new URL(u, location.href).searchParams;
     if (p.get("op") !== "data") return f(u, o);
     window.reads.push({ offset: Number(p.get("offset")), limit: Number(p.get("limit")), key: p.get("key") });
     window.readsInFlight++;
-    return f(u, o).finally(() => window.readsInFlight--); }; return true; })()`);
-// Starts a fresh count once no read is in flight: a re-read the grid started for an earlier step belongs to that step.
-const settleReads = async () => { await waitFor("window.readsInFlight === 0"); await evaluate("(window.reads = [], true)"); };
+    window.lastRead = performance.now();
+    return f(u, o).finally(() => { window.readsInFlight--; window.lastRead = performance.now(); }); }; return true; })()`);
+// Starts a fresh count once the grid is quiet: a re-read the grid started for an earlier step belongs to that step. Rows
+// that arrive start the grid's read-ahead only once the scroll has rested (SETTLE_MS in viewer/rows.ts, 120ms), so no
+// read in flight is not quiet yet; a full second without one is.
+const settleReads = async () => { await waitFor("window.readsInFlight === 0 && performance.now() - window.lastRead > 1000"); await evaluate("(window.reads = [], true)"); };
 const rowsRead = () => evaluate("window.reads.filter((r) => !r.key).reduce((n, r) => n + r.limit, 0)");
 const scrollTo = (index) => evaluate(`(() => { const box = document.querySelector(".table-scroll");
   box.scrollTop = ${index} * 37; return true; })()`);
@@ -114,23 +118,27 @@ try {
   await waitFor(hasCell("Person 2500"));
   assert.equal(await evaluate(`[...document.querySelectorAll(".data-grid tr[data-index]")].find((tr) => [...tr.cells].some((c) => c.textContent === "Person 2500")).querySelector("th").textContent`), "2500");
 
-  // A change under the open page: the pulse re-reads only the rows on screen, not the table and not the first page.
+  // A change under the open page: the pulse re-reads only the rows on screen, not the table and not the first page. The
+  // rows below the screen it dropped are then read ahead, one window (LIST_WINDOW_ROWS, 100) at most.
   await settleReads();
   await sql("UPDATE contacts SET name = 'Changed 2500' WHERE id = 2500");
   await waitFor(hasCell("Changed 2500"), 40000);
   const refresh = await evaluate("window.reads.filter((r) => !r.key)");
-  assert.ok(refresh.length >= 1 && refresh.every((r) => r.limit <= 60 && r.offset > 2400), `refresh read ${JSON.stringify(refresh)}`);
+  assert.ok(refresh.length >= 1 && refresh[0].limit <= 60 && refresh.every((r) => r.limit <= 100 && r.offset > 2400), `refresh read ${JSON.stringify(refresh)}`);
   assert.equal(await evaluate("window.gridMarker === true"), true, "a change must not reload the page");
 
-  // Opening a folded value reads that one record and shows it whole.
+  // Opening a folded value reads that one record and shows it whole. Its row is one on screen: the first folded value
+  // in the markup is in a row drawn above the screen, and opening it would scroll the grid to it and read rows there.
   await settleReads();
-  await evaluate('(document.querySelector(".data-grid button.folded").click(), true)');
+  await evaluate(`([...document.querySelectorAll(".data-grid tr[data-index]")].find((tr) => [...tr.cells].some((c) => c.textContent === "Person 2505")).querySelector("button.folded").click(), true)`);
   await waitFor('document.querySelector(".value-dialog[open]")?.textContent.includes("Long evidence text")');
   // The dialog's own read is exactly one keyed read. The pulse may still re-read the rows on screen meanwhile (a database
-  // snapshot moves when autovacuum runs), which is the grid's correct behaviour, but never more than the screen.
+  // snapshot moves when autovacuum runs) and then read ahead below them, which is the grid's correct behaviour, but
+  // never more than the screen and one window.
   const opened = await evaluate("window.reads");
+  const unkeyed = opened.filter((r) => !r.key);
   assert.equal(opened.filter((r) => r.key).length, 1, `a folded value is read once from its record: ${JSON.stringify(opened)}`);
-  assert.ok(opened.every((r) => r.key ? r.limit === 1 : r.limit <= 60), `opening a value read ${JSON.stringify(opened)}`);
+  assert.ok(opened.every((r) => !r.key || r.limit === 1) && (unkeyed.length === 0 || unkeyed[0].limit <= 60) && unkeyed.every((r) => r.limit <= 100), `opening a value read ${JSON.stringify(opened)}`);
   await evaluate('(document.querySelector(".value-dialog").close(), true)');
 
   // Arrow keys move past the drawn window: the grid scrolls and draws the row.
