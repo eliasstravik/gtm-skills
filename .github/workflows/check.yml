@@ -2,26 +2,17 @@ name: Verify workflow viewer
 on: [push, pull_request]
 permissions:
   contents: read
+# The verify steps mostly wait on app servers and browsers, so they run as parallel jobs, each on its own runner (the
+# fixed test ports never clash). The job "check" passes only when every one of them passed: it is the one to require.
 jobs:
-  check:
+  skills-and-share-build:
+    name: Skills, docs, types and share build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: 22
+      - uses: ./.github/actions/setup
       - name: Verify every skill's name and description follow the skill format
         run: node --test tests/*.test.mjs
-      - run: npm ci
-        working-directory: workflow-template/templates
-      # Copy-down (db:pull) needs pg_dump/pg_restore at least as new as Neon's Postgres 18.
-      - name: Install Postgres 18 client tools
-        run: |
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
-          sudo apt-get update -q && sudo apt-get install -yq postgresql-client-18
-          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
       - run: node workflow-template/tests/no-old-database-words.mjs
       - run: node --test workflow-template/tests/docs-contract.test.mjs
       - run: node --test skills/gtm-agent/tests/*.test.mjs
@@ -29,23 +20,69 @@ jobs:
       - run: node --test workflow-template/tests/root-files.test.mjs
       - run: node --test workflow-template/tests/share-firewall.test.mjs
       - run: node --test workflow-template/tests/hosted.test.mjs
+      - run: npm run build
+        working-directory: workflow-template/templates
+      - run: node node_modules/typescript/bin/tsc --noEmit
+        working-directory: workflow-template/templates
+      - run: npm run build:share
+        working-directory: workflow-template/templates
+      - run: node workflow-template/templates/scripts/assert-share-build.mjs workflow-template/templates/.output
+
+  suites:
+    name: Template test suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: ./.github/actions/setup
+        with:
+          postgres: true
       - run: node workflow-template/tests/run.mjs workflow-template/templates
+
+  runs-e2e:
+    name: Runs end to end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: ./.github/actions/setup
       - run: node workflow-template/tests/reliability-e2e.mjs workflow-template/templates
       - name: Verify a run whose start a dev-server reload lost resumes on its own
         run: node workflow-template/tests/run-recovery.mjs workflow-template/templates
       - run: node workflow-template/tests/criteria-e2e.mjs workflow-template/templates
       - run: node workflow-template/tests/authoring.mjs workflow-template/templates
       - run: node workflow-template/tests/empty-workspace.mjs workflow-template/templates
+
+  local-launch:
+    name: Local launch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: ./.github/actions/setup
       - name: Verify npm run dev stays local with a .env.local pulled from Vercel
         run: node workflow-template/tests/local-launch.mjs workflow-template/templates
-      - run: npm run build
-        working-directory: workflow-template/templates
-      - run: npm install --global agent-browser@0.34.0
-      - run: agent-browser install --with-deps
+
+  live-refresh:
+    name: Viewer polling and live refresh
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: ./.github/actions/setup
+        with:
+          build: true
+          browser: true
       - name: Verify Runs idle pause, activity resume, and held Refresh deduplication
         run: node workflow-template/tests/viewer-polling-browser.mjs workflow-template/templates
       - name: Verify an open viewer follows workflow, data and deployment changes
         run: node workflow-template/tests/live-refresh.mjs workflow-template/templates
+
+  data-grid:
+    name: Data grid, columns, workspace and diagram
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: ./.github/actions/setup
+        with:
+          build: true
+          browser: true
       - name: Verify the Data grid scrolls 5,000 rows without pages and reads only rows near the screen
         run: node workflow-template/tests/data-grid.mjs workflow-template/templates
       - name: Verify column Apply updates without reload or polling
@@ -60,6 +97,16 @@ jobs:
           node workflow-template/tests/columns-browser-check.mjs /tmp/gtm-columns
           node workflow-template/tests/workspace-browser-check.mjs
           node workflow-template/tests/diagram-browser-check.mjs
+
+  connections:
+    name: Connections status badges
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: ./.github/actions/setup
+        with:
+          build: true
+          browser: true
       - name: Verify a saved connection shows on every status badge at once, in production and locally
         run: |
           GTM_VIEWER_FIXTURE_WORKSPACE=1 node workflow-template/tests/serve.mjs workflow-template/templates &
@@ -72,8 +119,16 @@ jobs:
             sleep 0.2
           done
           node workflow-template/tests/connections-browser-check.mjs
-      - run: node node_modules/typescript/bin/tsc --noEmit
-        working-directory: workflow-template/templates
-      - run: npm run build:share
-        working-directory: workflow-template/templates
-      - run: node workflow-template/templates/scripts/assert-share-build.mjs workflow-template/templates/.output
+
+  check:
+    name: check
+    if: always()
+    needs: [skills-and-share-build, suites, runs-e2e, local-launch, live-refresh, data-grid, connections]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every verify job passed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success")' > /dev/null

@@ -45,20 +45,44 @@ const sql = async (text) => {
   try { await client.query(text); } finally { await client.end(); }
 };
 // Records each data read the page sends: its window of rows, and whether it asked for one record. `readsInFlight` counts
-// reads not yet answered, so a step can start counting only once the grid has settled.
-const watchReads = () => evaluate(`(() => { window.gridMarker = true; window.reads = []; window.readsInFlight = 0; const f = window.fetch;
+// reads not yet answered and `lastRead` is when one was last sent or answered, so a step takes its reads only once the
+// grid has settled.
+const watchReads = () => evaluate(`(() => { window.gridMarker = true; window.reads = []; window.readsInFlight = 0; window.lastRead = 0; const f = window.fetch;
   window.fetch = (u, o) => { const p = new URL(u, location.href).searchParams;
     if (p.get("op") !== "data") return f(u, o);
     window.reads.push({ offset: Number(p.get("offset")), limit: Number(p.get("limit")), key: p.get("key") });
     window.readsInFlight++;
-    return f(u, o).finally(() => window.readsInFlight--); }; return true; })()`);
-// Starts a fresh count once no read is in flight: a re-read the grid started for an earlier step belongs to that step.
-const settleReads = async () => { await waitFor("window.readsInFlight === 0"); await evaluate("(window.reads = [], true)"); };
-const rowsRead = () => evaluate("window.reads.filter((r) => !r.key).reduce((n, r) => n + r.limit, 0)");
+    window.lastRead = performance.now();
+    return f(u, o).finally(() => { window.readsInFlight--; window.lastRead = performance.now(); }); }; return true; })()`);
+// A step's reads, every read since the step before took its own, once the grid is quiet; the count starts afresh in the
+// same call, so every read lands in exactly one step and each step checks all of its own. Rows that arrive start the
+// grid's read-ahead only once the scroll has rested (SETTLE_MS in viewer/rows.ts, 120ms), so no read in flight is not
+// quiet yet; a full second without one is. A read later than that lands in the next step and fails its check there.
+const takeReads = async () => {
+  await waitFor("window.readsInFlight === 0 && performance.now() - window.lastRead > 1000");
+  return evaluate("(() => { const reads = window.reads; window.reads = []; return reads; })()");
+};
+const rowsIn = (reads) => reads.filter((r) => !r.key).reduce((n, r) => n + r.limit, 0);
+const unkeyed = (reads) => reads.every((r) => !r.key);
 const scrollTo = (index) => evaluate(`(() => { const box = document.querySelector(".table-scroll");
   box.scrollTop = ${index} * 37; return true; })()`);
 const hasCell = (text) => `[...document.querySelectorAll(".data-grid td")].some((td) => td.textContent === ${JSON.stringify(text)})`;
 const footer = () => browser("get", "text", ".grid-footer");
+// All the pulse may read with row 2,500 on screen: the rows on screen (60 at most), then at most one read-ahead window
+// (LIST_WINDOW_ROWS, 100) that starts where they end, near that row and inside the table. The database may move once
+// more meanwhile (autovacuum), so two such pulses at most.
+const pulseOnly = (reads) => {
+  let pulses = 0;
+  for (let i = 0; i < reads.length; pulses++) {
+    const screen = reads[i++], ahead = reads[i];
+    if (screen.limit > 60) return false;
+    if (ahead && ahead.limit > 60) {
+      if (ahead.limit > 100 || ahead.offset !== screen.offset + screen.limit) return false;
+      i++;
+    }
+  }
+  return pulses <= 2 && reads.every((r) => r.offset > 2400 && r.offset < 2600 && r.offset + r.limit <= ROWS);
+};
 
 try {
   for (const script of ["scripts/build-viewer.mjs", "scripts/migrate.mjs"]) {
@@ -104,8 +128,8 @@ try {
   await scrollTo(ROWS);
   await waitFor(hasCell("Person 5000"));
   assert.equal(await evaluate("window.gridMarker === true"), true, "scrolling must not reload the page");
-  const afterEnd = await rowsRead();
-  assert.ok(afterEnd <= 300, `scrolling to the end read ${afterEnd} rows`);
+  const end = await takeReads(), afterEnd = rowsIn(end);
+  assert.ok(unkeyed(end) && afterEnd <= 300, `scrolling to the end read ${JSON.stringify(end)}`);
   assert.ok(await evaluate('document.querySelectorAll(".data-grid tr[data-index]").length') < 80);
   if (shots) await browser("screenshot", join(shots, "data-grid-end.png"));
 
@@ -113,24 +137,28 @@ try {
   await scrollTo(2500);
   await waitFor(hasCell("Person 2500"));
   assert.equal(await evaluate(`[...document.querySelectorAll(".data-grid tr[data-index]")].find((tr) => [...tr.cells].some((c) => c.textContent === "Person 2500")).querySelector("th").textContent`), "2500");
+  const middle = await takeReads();
+  assert.ok(unkeyed(middle) && rowsIn(middle) <= 300 && middle.every((r) => r.offset > 2400 && r.offset < 2600), `scrolling to the middle read ${JSON.stringify(middle)}`);
 
-  // A change under the open page: the pulse re-reads only the rows on screen, not the table and not the first page.
-  await settleReads();
+  // A change under the open page: the pulse re-reads only the rows on screen, not the table and not the first page. The
+  // rows below the screen it dropped are then read ahead, one window at most.
   await sql("UPDATE contacts SET name = 'Changed 2500' WHERE id = 2500");
   await waitFor(hasCell("Changed 2500"), 40000);
-  const refresh = await evaluate("window.reads.filter((r) => !r.key)");
-  assert.ok(refresh.length >= 1 && refresh.every((r) => r.limit <= 60 && r.offset > 2400), `refresh read ${JSON.stringify(refresh)}`);
+  const refresh = await takeReads();
+  assert.ok(refresh.length >= 1 && unkeyed(refresh) && pulseOnly(refresh), `refresh read ${JSON.stringify(refresh)}`);
   assert.equal(await evaluate("window.gridMarker === true"), true, "a change must not reload the page");
 
-  // Opening a folded value reads that one record and shows it whole.
-  await settleReads();
-  await evaluate('(document.querySelector(".data-grid button.folded").click(), true)');
+  // Opening a folded value reads that one record and shows it whole. Its row is one on screen: the first folded value
+  // in the markup is in a row drawn above the screen, and opening it would scroll the grid to it and read rows there.
+  await evaluate(`([...document.querySelectorAll(".data-grid tr[data-index]")].find((tr) => [...tr.cells].some((c) => c.textContent === "Person 2505")).querySelector("button.folded").click(), true)`);
   await waitFor('document.querySelector(".value-dialog[open]")?.textContent.includes("Long evidence text")');
   // The dialog's own read is exactly one keyed read. The pulse may still re-read the rows on screen meanwhile (a database
-  // snapshot moves when autovacuum runs), which is the grid's correct behaviour, but never more than the screen.
-  const opened = await evaluate("window.reads");
-  assert.equal(opened.filter((r) => r.key).length, 1, `a folded value is read once from its record: ${JSON.stringify(opened)}`);
-  assert.ok(opened.every((r) => r.key ? r.limit === 1 : r.limit <= 60), `opening a value read ${JSON.stringify(opened)}`);
+  // snapshot moves when autovacuum runs) and then read ahead below them, which is the grid's correct behaviour, but
+  // never more than the screen and one window.
+  const opened = await takeReads();
+  const keyed = opened.filter((r) => r.key);
+  assert.ok(keyed.length === 1 && keyed[0].limit === 1, `a folded value is read once from its record: ${JSON.stringify(opened)}`);
+  assert.ok(pulseOnly(opened.filter((r) => !r.key)), `opening a value read ${JSON.stringify(opened)}`);
   await evaluate('(document.querySelector(".value-dialog").close(), true)');
 
   // Arrow keys move past the drawn window: the grid scrolls and draws the row.
@@ -139,6 +167,9 @@ try {
   for (let i = 0; i < 40; i++) await browser("press", "ArrowDown");
   // A row below the rows read so far takes focus once it arrives.
   await waitFor(`Number(document.activeElement.dataset.row) === ${start + 40}`, 10000);
+  // Only windows near the screen: the first drawn row is above it, so focusing it scrolls up a little.
+  const keys = await takeReads();
+  assert.ok(unkeyed(keys) && rowsIn(keys) <= 300 && keys.every((r) => r.offset > 2400 && r.offset < 2600), `arrow keys read ${JSON.stringify(keys)}`);
 
   // Search: the toolbar stays while the rows load, so typing is not interrupted, and the list starts at the top.
   await browser("fill", 'input[aria-label="Search data"]', "Person 4999");
@@ -149,10 +180,18 @@ try {
   // Clearing with real keys: an empty fill sets the value without an input event.
   for (let i = 0; i < "Person 4999".length; i++) await browser("press", "Backspace");
   await waitFor(`document.querySelector(".grid-footer").textContent.includes("5,000 matching records")`);
+  // Each search the grid sent (one per text it saw, 12 at most) reads its first rows from the top, never the table.
+  const search = await takeReads();
+  assert.ok(unkeyed(search) && search.length <= 13 && search.every((r) => r.offset + r.limit <= 200), `searching read ${JSON.stringify(search)}`);
 
   // Export still carries every matching row, JSON whole.
   const exported = await evaluate(`fetch("/api/viewer?op=export&format=json&v=3&view=data&table=contacts&sort=id").then((r) => r.json()).then((rows) => ({ n: rows.length, roles: rows[4999].roles.length }))`);
   assert.deepEqual(exported, { n: ROWS, roles: 2 });
+  // Then the grid stays quiet for a whole pulse (PULSE_MS in viewer/common.tsx, 5s locally), so a read sent late by any
+  // step above lands here: at most the pulse's own re-read of the top of the list, should the database have moved.
+  await new Promise((done) => setTimeout(done, 6000));
+  const last = await takeReads();
+  assert.ok(unkeyed(last) && last.length <= 2 && last.every((r) => r.offset + r.limit <= 200), `after the last step the grid read ${JSON.stringify(last)}`);
   console.log(`Data grid: ${ROWS} rows without pages, ${drawn} drawn; the end read ${afterEnd} rows; a change re-read ${refresh.map((r) => r.limit).join("+")} rows on screen; search, keys, folded values and export work; one left edge.`);
 } finally {
   await browser("close").catch(() => {});
