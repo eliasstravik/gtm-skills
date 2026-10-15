@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { startTestPostgres } from "./postgres.mjs";
 
-const source = resolve(process.argv[2] ?? "skills/gtm-workflow/templates");
+const source = resolve(process.argv[2] ?? "workflow-template/templates");
 const target = await mkdtemp(join(tmpdir(), "gtm-run-recovery-"));
 const postgres = await startTestPostgres(source);
 const pg = (await import(pathToFileURL(createRequire(join(source, "package.json")).resolve("pg")))).default;

@@ -1,0 +1,24 @@
+name: Tag release
+# gtm-workflow fetches its project template (workflow-template/) from the tag v<metadata.version>, never from a branch.
+# The first commit on main that carries a new version gets that tag; later commits with the same version leave it alone.
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Tag v<version> when it does not exist yet
+        run: |
+          version=$(sed -n 's/^  version: "\([0-9]*\.[0-9]*\.[0-9]*\)"$/\1/p' skills/gtm-workflow/SKILL.md)
+          template=$(node -p 'require("./workflow-template/templates/package.json").version')
+          test -n "$version" && test "$version" = "$template"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
+            echo "v$version already exists"
+          else
+            git tag "v$version" "$GITHUB_SHA"
+            git push origin "refs/tags/v$version"
+          fi

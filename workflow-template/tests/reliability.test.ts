@@ -15,7 +15,7 @@ import { callMcpTool } from "../templates/lib/mcp";
 import { runRows } from "../templates/lib/rows";
 import { startLookup, pollLookup } from "../templates/lib/profiles/provider";
 import { beginRun } from "../templates/lib/profiles/ledger";
-import { compareVersions, mergePackage } from "../scripts/upgrade-package.mjs";
+import { compareVersions, mergePackage } from "../../skills/gtm-workflow/scripts/upgrade-package.mjs";
 import { localEnvironment } from "../templates/scripts/local-launch.mjs";
 
 async function listen(server: Server) {

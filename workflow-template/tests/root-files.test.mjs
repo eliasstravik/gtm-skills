@@ -6,14 +6,14 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { rootFiles, rootFileDrift, writeRootFiles } from "../scripts/root-files.mjs";
+import { rootFiles, rootFileDrift, writeRootFiles } from "../../skills/gtm-workflow/scripts/root-files.mjs";
 
-const skill = fileURLToPath(new URL("..", import.meta.url));
+const skill = fileURLToPath(new URL("..", import.meta.url)); // workflow-template/: templates/ and root/
 const read = (path) => readFile(join(skill, path), "utf8");
 
 test("the root ignore file only keeps Vercel links and env files out, and both skills ship the same one", async () => {
   assert.equal(await read("root/gitignore"), ".vercel\n.env*\n");
-  assert.equal(await read("../gtm-workspace/templates/gitignore"), await read("root/gitignore"));
+  assert.equal(await read("../skills/gtm-workspace/templates/gitignore"), await read("root/gitignore"));
 });
 
 test("the workspace CI runs only commands the template provides, with pinned actions", async () => {

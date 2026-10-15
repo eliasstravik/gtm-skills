@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { RUNTIME_SETTINGS, SHARE_SETTINGS, bypassSummary, computePatch, computeProblems, localAgentBackend, settingsPatch, shareTrust, workflowProject } from "../scripts/hosted.mjs";
-import { mergeVercelJson } from "../scripts/setup.mjs";
+import { RUNTIME_SETTINGS, SHARE_SETTINGS, bypassSummary, computePatch, computeProblems, localAgentBackend, settingsPatch, shareTrust, workflowProject } from "../../skills/gtm-workflow/scripts/hosted.mjs";
+import { mergeVercelJson } from "../../skills/gtm-workflow/scripts/setup.mjs";
 
 test("the runtime builds every push to main, never previews, and is protected everywhere", () => {
   assert.equal(RUNTIME_SETTINGS.commandForIgnoringBuildStep, null);

@@ -1,13 +1,12 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { template } from "./template.mjs";
 // Rate limits on the public gtm-<ws>-share project, from one definition in the template. Setup applies them, Doctor
 // compares them, and a hosted upgrade applies them again. Only rules named with the prefix belong to the template; any
 // other rule on the project is the owner's and is left alone. Traffic the firewall answers with 429 is not billed.
-const skill = dirname(dirname(fileURLToPath(import.meta.url)));
 export const RULE_PREFIX = "GTM share: ";
-export const shareFirewallRules = () => JSON.parse(readFileSync(join(skill, "templates/share-firewall.json"), "utf8")).rules;
+export const shareFirewallRules = () => JSON.parse(readFileSync(join(template().templates, "share-firewall.json"), "utf8")).rules;
 
 /** Runs the Vercel CLI and returns its JSON output, or `null` for a 404. The CLI may print a hint line for agents first. */
 export function vercelCli(args) {

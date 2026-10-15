@@ -17,7 +17,7 @@ import { createServer } from "node:net";
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
 import { startTestPostgres } from "./postgres.mjs";
-const source = resolve(process.argv[2] ?? "skills/gtm-workflow/templates");
+const source = resolve(process.argv[2] ?? "workflow-template/templates");
 const target = await mkdtemp(join(tmpdir(), "gtm-reliability-"));
 // Its own database on its own Postgres, reached as the app's plain role; the template folder's data/ is never touched.
 const postgres = await startTestPostgres(source);
@@ -67,7 +67,7 @@ try {
   prepare([
     resolve(
       dirname(fileURLToPath(import.meta.url)),
-      "../scripts/upgrade-package.mjs",
+      "../../skills/gtm-workflow/scripts/upgrade-package.mjs",
     ),
     target,
     "--write",

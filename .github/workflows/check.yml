@@ -11,7 +11,7 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
-        working-directory: skills/gtm-workflow/templates
+        working-directory: workflow-template/templates
       # Copy-down (db:pull) needs pg_dump/pg_restore at least as new as Neon's Postgres 18.
       - name: Install Postgres 18 client tools
         run: |
@@ -20,58 +20,58 @@ jobs:
           echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
           sudo apt-get update -q && sudo apt-get install -yq postgresql-client-18
           echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
-      - run: node skills/gtm-workflow/tests/no-old-database-words.mjs
-      - run: node --test skills/gtm-workflow/tests/docs-contract.test.mjs
+      - run: node workflow-template/tests/no-old-database-words.mjs
+      - run: node --test workflow-template/tests/docs-contract.test.mjs
       - run: node --test skills/gtm-agent/tests/*.test.mjs
       - run: node --test skills/gtm-workspace/tests/*.test.mjs
-      - run: node --test skills/gtm-workflow/tests/root-files.test.mjs
-      - run: node --test skills/gtm-workflow/tests/share-firewall.test.mjs
-      - run: node --test skills/gtm-workflow/tests/hosted.test.mjs
-      - run: node skills/gtm-workflow/tests/run.mjs skills/gtm-workflow/templates
-      - run: node skills/gtm-workflow/tests/reliability-e2e.mjs skills/gtm-workflow/templates
+      - run: node --test workflow-template/tests/root-files.test.mjs
+      - run: node --test workflow-template/tests/share-firewall.test.mjs
+      - run: node --test workflow-template/tests/hosted.test.mjs
+      - run: node workflow-template/tests/run.mjs workflow-template/templates
+      - run: node workflow-template/tests/reliability-e2e.mjs workflow-template/templates
       - name: Verify a run whose start a dev-server reload lost resumes on its own
-        run: node skills/gtm-workflow/tests/run-recovery.mjs skills/gtm-workflow/templates
-      - run: node skills/gtm-workflow/tests/criteria-e2e.mjs skills/gtm-workflow/templates
-      - run: node skills/gtm-workflow/tests/authoring.mjs skills/gtm-workflow/templates
-      - run: node skills/gtm-workflow/tests/empty-workspace.mjs skills/gtm-workflow/templates
+        run: node workflow-template/tests/run-recovery.mjs workflow-template/templates
+      - run: node workflow-template/tests/criteria-e2e.mjs workflow-template/templates
+      - run: node workflow-template/tests/authoring.mjs workflow-template/templates
+      - run: node workflow-template/tests/empty-workspace.mjs workflow-template/templates
       - name: Verify npm run dev stays local with a .env.local pulled from Vercel
-        run: node skills/gtm-workflow/tests/local-launch.mjs skills/gtm-workflow/templates
+        run: node workflow-template/tests/local-launch.mjs workflow-template/templates
       - run: npm run build
-        working-directory: skills/gtm-workflow/templates
+        working-directory: workflow-template/templates
       - run: npm install --global agent-browser@0.34.0
       - run: agent-browser install --with-deps
       - name: Verify Runs idle pause, activity resume, and held Refresh deduplication
-        run: node skills/gtm-workflow/tests/viewer-polling-browser.mjs skills/gtm-workflow/templates
+        run: node workflow-template/tests/viewer-polling-browser.mjs workflow-template/templates
       - name: Verify an open viewer follows workflow, data and deployment changes
-        run: node skills/gtm-workflow/tests/live-refresh.mjs skills/gtm-workflow/templates
+        run: node workflow-template/tests/live-refresh.mjs workflow-template/templates
       - name: Verify the Data grid scrolls 5,000 rows without pages and reads only rows near the screen
-        run: node skills/gtm-workflow/tests/data-grid.mjs skills/gtm-workflow/templates
+        run: node workflow-template/tests/data-grid.mjs workflow-template/templates
       - name: Verify column Apply updates without reload or polling
         run: |
-          GTM_VIEWER_FIXTURE_COLUMNS=1 GTM_VIEWER_FIXTURE_WORKSPACE=1 node skills/gtm-workflow/tests/serve.mjs skills/gtm-workflow/templates &
+          GTM_VIEWER_FIXTURE_COLUMNS=1 GTM_VIEWER_FIXTURE_WORKSPACE=1 node workflow-template/tests/serve.mjs workflow-template/templates &
           fixture_pid=$!
           trap 'kill "$fixture_pid"' EXIT
           for attempt in $(seq 1 50); do
             if curl --fail --silent http://127.0.0.1:3942/viewer > /dev/null; then break; fi
             sleep 0.1
           done
-          node skills/gtm-workflow/tests/columns-browser-check.mjs /tmp/gtm-columns
-          node skills/gtm-workflow/tests/workspace-browser-check.mjs
-          node skills/gtm-workflow/tests/diagram-browser-check.mjs
+          node workflow-template/tests/columns-browser-check.mjs /tmp/gtm-columns
+          node workflow-template/tests/workspace-browser-check.mjs
+          node workflow-template/tests/diagram-browser-check.mjs
       - name: Verify a saved connection shows on every status badge at once, in production and locally
         run: |
-          GTM_VIEWER_FIXTURE_WORKSPACE=1 node skills/gtm-workflow/tests/serve.mjs skills/gtm-workflow/templates &
+          GTM_VIEWER_FIXTURE_WORKSPACE=1 node workflow-template/tests/serve.mjs workflow-template/templates &
           production_pid=$!
-          GTM_VIEWER_FIXTURE_LOCAL=1 node skills/gtm-workflow/tests/serve.mjs skills/gtm-workflow/templates &
+          GTM_VIEWER_FIXTURE_LOCAL=1 node workflow-template/tests/serve.mjs workflow-template/templates &
           local_pid=$!
           trap 'kill "$production_pid" "$local_pid"' EXIT
           for attempt in $(seq 1 100); do
             if curl --fail --silent http://127.0.0.1:3942/viewer > /dev/null && curl --fail --silent http://127.0.0.1:3944/connections > /dev/null; then break; fi
             sleep 0.2
           done
-          node skills/gtm-workflow/tests/connections-browser-check.mjs
+          node workflow-template/tests/connections-browser-check.mjs
       - run: node node_modules/typescript/bin/tsc --noEmit
-        working-directory: skills/gtm-workflow/templates
+        working-directory: workflow-template/templates
       - run: npm run build:share
-        working-directory: skills/gtm-workflow/templates
-      - run: node skills/gtm-workflow/templates/scripts/assert-share-build.mjs skills/gtm-workflow/templates/.output
+        working-directory: workflow-template/templates
+      - run: node workflow-template/templates/scripts/assert-share-build.mjs workflow-template/templates/.output

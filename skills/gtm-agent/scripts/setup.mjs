@@ -56,7 +56,8 @@ const gtmHome = join(homedir(), ".gtm");
 const agentDir = join(gtmHome, ".agents", slug);
 const workspaceDir = join(gtmHome, slug);
 const skillDir = dirname(dirname(fileURLToPath(import.meta.url)));
-const templates = join(dirname(skillDir), "gtm-workflow", "templates");
+// gtm-workflow fetches its project template for its own release on first use; preflight fetches it now.
+const workflowTemplate = join(dirname(skillDir), "gtm-workflow", "scripts", "template.mjs");
 
 // 0. Preflight
 const major = Number(process.versions.node.split(".")[0]);
@@ -70,9 +71,14 @@ if (!api(team, "GET", `/v2/teams/${team}`, undefined, { allowFail: true }))
   fail(`Vercel team ${team} not found; run \`vercel teams ls\``);
 const githubOwner = a["github-owner"] || ghJson(["api", "user"]).login;
 const ghUser = ghJson(["api", "user"]).login;
-if (!existsSync(templates))
+if (!existsSync(workflowTemplate))
   fail(
-    `gtm-workflow templates not found at ${templates}; install gtm-workflow next to this skill`,
+    `gtm-workflow not found at ${dirname(dirname(workflowTemplate))}; install gtm-workflow next to this skill`,
+  );
+const fetchedTemplate = run(process.execPath, [workflowTemplate]);
+if (fetchedTemplate.status !== 0)
+  fail(
+    `gtm-workflow's template could not be fetched: ${(() => { try { return JSON.parse(fetchedTemplate.stderr.trim().split("\n").pop()).message; } catch { return fetchedTemplate.stderr.trim(); } })()}`,
   );
 ok(`Preflight: team ${team}, GitHub owner ${githubOwner}, slug ${slug}`);
 
