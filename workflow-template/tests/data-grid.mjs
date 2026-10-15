@@ -63,6 +63,21 @@ const scrollTo = (index) => evaluate(`(() => { const box = document.querySelecto
   box.scrollTop = ${index} * 37; return true; })()`);
 const hasCell = (text) => `[...document.querySelectorAll(".data-grid td")].some((td) => td.textContent === ${JSON.stringify(text)})`;
 const footer = () => browser("get", "text", ".grid-footer");
+// All the pulse may read with row 2,500 on screen: the rows on screen (60 at most), then at most one read-ahead window
+// (LIST_WINDOW_ROWS, 100) that starts where they end, near that row and inside the table. The database may move once
+// more meanwhile (autovacuum), so two such pulses at most.
+const pulseOnly = (reads) => {
+  let pulses = 0;
+  for (let i = 0; i < reads.length; pulses++) {
+    const screen = reads[i++], ahead = reads[i];
+    if (screen.limit > 60) return false;
+    if (ahead && ahead.limit > 60) {
+      if (ahead.limit > 100 || ahead.offset !== screen.offset + screen.limit) return false;
+      i++;
+    }
+  }
+  return pulses <= 2 && reads.every((r) => r.offset > 2400 && r.offset < 2600 && r.offset + r.limit <= ROWS);
+};
 
 try {
   for (const script of ["scripts/build-viewer.mjs", "scripts/migrate.mjs"]) {
@@ -119,12 +134,12 @@ try {
   assert.equal(await evaluate(`[...document.querySelectorAll(".data-grid tr[data-index]")].find((tr) => [...tr.cells].some((c) => c.textContent === "Person 2500")).querySelector("th").textContent`), "2500");
 
   // A change under the open page: the pulse re-reads only the rows on screen, not the table and not the first page. The
-  // rows below the screen it dropped are then read ahead, one window (LIST_WINDOW_ROWS, 100) at most.
+  // rows below the screen it dropped are then read ahead, one window at most.
   await settleReads();
   await sql("UPDATE contacts SET name = 'Changed 2500' WHERE id = 2500");
   await waitFor(hasCell("Changed 2500"), 40000);
   const refresh = await evaluate("window.reads.filter((r) => !r.key)");
-  assert.ok(refresh.length >= 1 && refresh[0].limit <= 60 && refresh.every((r) => r.limit <= 100 && r.offset > 2400), `refresh read ${JSON.stringify(refresh)}`);
+  assert.ok(refresh.length >= 1 && pulseOnly(refresh), `refresh read ${JSON.stringify(refresh)}`);
   assert.equal(await evaluate("window.gridMarker === true"), true, "a change must not reload the page");
 
   // Opening a folded value reads that one record and shows it whole. Its row is one on screen: the first folded value
@@ -136,9 +151,9 @@ try {
   // snapshot moves when autovacuum runs) and then read ahead below them, which is the grid's correct behaviour, but
   // never more than the screen and one window.
   const opened = await evaluate("window.reads");
-  const unkeyed = opened.filter((r) => !r.key);
-  assert.equal(opened.filter((r) => r.key).length, 1, `a folded value is read once from its record: ${JSON.stringify(opened)}`);
-  assert.ok(opened.every((r) => !r.key || r.limit === 1) && (unkeyed.length === 0 || unkeyed[0].limit <= 60) && unkeyed.every((r) => r.limit <= 100), `opening a value read ${JSON.stringify(opened)}`);
+  const keyed = opened.filter((r) => r.key);
+  assert.ok(keyed.length === 1 && keyed[0].limit === 1, `a folded value is read once from its record: ${JSON.stringify(opened)}`);
+  assert.ok(pulseOnly(opened.filter((r) => !r.key)), `opening a value read ${JSON.stringify(opened)}`);
   await evaluate('(document.querySelector(".value-dialog").close(), true)');
 
   // Arrow keys move past the drawn window: the grid scrolls and draws the row.
